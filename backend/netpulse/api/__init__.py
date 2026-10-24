@@ -11,9 +11,11 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 
 from .. import __version__
+from ..config import settings
 from ..db import engine, has_timescale
 from . import auth_routes, devices, metrics
 from .security import check_origin
+from .web import mount_web
 
 app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)])
 app.include_router(auth_routes.router)
@@ -27,6 +29,11 @@ async def health() -> dict:
         await conn.execute(text("SELECT 1"))
         timescale = await has_timescale(conn)
     return {"status": "ok", "version": __version__, "timescaledb": timescale}
+
+
+# Panel (frontend/dist) – na końcu, żeby nie przesłaniał tras API. W obrazie Dockera NETPULSE_WEB_DIR=/app/web
+if settings.web_dir:
+    mount_web(app, settings.web_dir)
 
 
 __all__ = ["app"]

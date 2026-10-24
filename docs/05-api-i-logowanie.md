@@ -5,11 +5,10 @@ domyślnie 8000). Interaktywna dokumentacja z możliwością wywoływania: `http
 
 ## Pierwsze konto (kreator)
 
-Po instalacji nie ma żadnego konta. Pierwsze konto administratora zakłada kreator:
-panel (krok 5) sam o nie poprosi. Do tego czasu można to zrobić w `/docs`:
+Po instalacji nie ma żadnego konta. Otwórz panel (`http://IP-serwera:PORT`) – zobaczysz kreator:
+podaj login i hasło (min. 8 znaków), a panel założy konto administratora i od razu Cię zaloguje.
 
-1. `POST /api/auth/setup` → **Try it out** → wpisz `username` i `password` (min. 8 znaków) → **Execute**.
-2. Gotowe – przeglądarka dostała ciasteczko sesji, pozostałe endpointy w `/docs` działają.
+Bez panelu (skrypty, `/docs`) to samo robi `POST /api/auth/setup` z `username` i `password`.
 
 Kreator działa tylko raz – gdy konto już istnieje, odpowiada `409`.
 

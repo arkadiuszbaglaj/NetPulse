@@ -88,10 +88,10 @@ main() {
       local ip
       ip=$(hostname -I 2>/dev/null | awk '{print $1}')
       echo
-      ok "NetPulse działa!  API: http://${ip:-localhost}:${PORT}/docs"
+      ok "NetPulse działa!  Panel: http://${ip:-localhost}:${PORT}"
       echo
-      echo "  1. Załóż konto administratora (kreator, tylko raz):"
-      echo "     http://${ip:-localhost}:${PORT}/docs  →  POST /api/auth/setup"
+      echo "  1. Otwórz panel i załóż konto administratora (kreator, tylko raz):"
+      echo "     http://${ip:-localhost}:${PORT}"
       echo
       echo "  2. Dodaj urządzenia, np.:"
       echo "    netpulse device add \"UCG Ultra\" 192.168.1.1 --community public"

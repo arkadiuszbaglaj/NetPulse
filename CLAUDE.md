@@ -84,7 +84,7 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
 2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`, `netpulse update`
 3. ✅ Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk (+ wstępne API tylko do odczytu)
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
-5. Panel (MVP), etapy: 5a szkielet (pasek górny, menu, motyw, logowanie), 5b dashboard + interwały odświeżania,
+5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b dashboard + interwały odświeżania,
    5c ustawienia (konto, urządzenia), 5d aktualizacja jednym kliknięciem (updater + obrazy GHCR),
    5e personalizacja wykresów i układu
 6. Driver UniFi przez API – PoE, klienci WiFi

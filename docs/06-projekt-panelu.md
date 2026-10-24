@@ -130,7 +130,7 @@ Nie budujemy tego teraz, ale unikamy decyzji, które by to blokowały:
 
 | Etap | Zakres                                                                                     |
 |------|--------------------------------------------------------------------------------------------|
-| 5a   | Szkielet aplikacji: pasek górny, menu, motyw, ekran logowania z kreatorem, wbudowanie w obraz API |
+| 5a ✅ | Szkielet aplikacji: pasek górny, menu, motyw, ekran logowania z kreatorem, wbudowanie w obraz API |
 | 5b   | Dashboard: pasek podsumowania, karty urządzeń, wykres ruchu, interwały odświeżania          |
 | 5c   | Ustawienia: Konto (zmiana hasła), Urządzenia (dodaj/edytuj/usuń z testem SNMP), Odświeżanie |
 | 5d   | Aktualizacja: sprawdzanie wersji, kontener updater, przycisk Aktualizuj (wymaga obrazów GHCR) |

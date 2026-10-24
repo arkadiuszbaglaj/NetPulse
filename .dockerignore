@@ -1,0 +1,15 @@
+.git
+.github
+**/node_modules
+**/__pycache__
+**/*.pyc
+frontend/dist
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+backend/tests
+backend/tools
+deploy/.env
+docs
+*.md
+snmpwalk*

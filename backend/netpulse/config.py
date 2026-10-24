@@ -28,6 +28,8 @@ class Settings:
     log_level: str = _env("LOG_LEVEL", "INFO")
     # Strefa czasowa do wyświetlania dat (zmienna TZ z .env, np. Europe/Warsaw)
     timezone: str = os.environ.get("TZ", "UTC")
+    # Katalog ze zbudowanym panelem (puste = API bez panelu, np. development)
+    web_dir: str = _env("WEB_DIR", "")
     # Ważność sesji logowania (dni)
     session_days: int = int(_env("SESSION_DAYS", "30"))
     # Dodatkowe dozwolone adresy panelu (np. za reverse proxy), oddzielone przecinkami:

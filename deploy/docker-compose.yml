@@ -2,7 +2,8 @@ name: netpulse
 
 x-backend: &backend
   build:
-    context: ../backend
+    context: ..
+    dockerfile: backend/Dockerfile
   image: netpulse-backend:local
   restart: unless-stopped
   environment:

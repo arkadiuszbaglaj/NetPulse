@@ -57,9 +57,30 @@ jobs:
           bash .github/scripts/annotate.sh pytest-summary.log "pytest – podsumowanie" 80
           bash .github/scripts/annotate.sh pytest.log "pytest" 60
 
+  frontend:
+    name: Panel – typy, testy, build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Typy (TypeScript)
+        run: npm run typecheck
+      - name: Testy
+        run: npm test
+      - name: Build
+        run: npm run build
+
   install:
     name: Instalacja jednym linkiem + update (end-to-end)
-    needs: backend
+    needs: [backend, frontend]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +116,27 @@ jobs:
           grep -q "WAN" probe.log
           sudo netpulse device add "UCG Ultra" "$GW" --port 1161 --community ucg-ultra 2>&1 | tee -a probe.log
           sudo netpulse device list 2>&1 | tee -a probe.log
+      - name: Panel serwowany z obrazu API
+        run: |
+          API=http://127.0.0.1:8000
+          # (zmienne zamiast `curl | grep -q`: przy pipefail grep zamykający rurę psułby wynik)
+          PAGE=$(curl -fsS $API/)
+          echo "$PAGE" > panel.log
+          grep -q '<div id="root">' <<<"$PAGE"
+          # adresy aplikacji dostają ten sam index.html (routing po stronie przeglądarki)
+          SUB=$(curl -fsS $API/settings/account)
+          grep -q '<div id="root">' <<<"$SUB"
+          # zbudowany plik JS z /assets jest dostępny
+          JS=$(grep -o '/assets/[^"]*\.js' <<<"$PAGE" | head -1)
+          echo "JS=$JS" | tee -a panel.log
+          curl -fsS -o /dev/null -w '%{http_code} %{content_type}\n' "$API$JS" | tee -a panel.log
+          # nieistniejący endpoint API to JSON 404, a nie strona panelu
+          test "$(curl -s -o /dev/null -w '%{http_code}' $API/api/nie-ma)" = 404
+          NOAPI=$(curl -s $API/api/nie-ma)
+          grep -q '"detail"' <<<"$NOAPI"
+          # dokumentacja API nadal działa
+          OPENAPI=$(curl -fsS $API/openapi.json)
+          grep -q '/api/auth/setup' <<<"$OPENAPI"
       - name: Kreator konta i logowanie
         run: |
           API=http://127.0.0.1:8000
@@ -140,6 +182,7 @@ jobs:
           sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env logs --tail=80 > compose.log 2>&1 || true
           bash .github/scripts/annotate.sh install.log "install.sh" 60
           bash .github/scripts/annotate.sh probe.log "probe" 60
+          bash .github/scripts/annotate.sh panel.log "panel" 40
           bash .github/scripts/annotate.sh auth.log "logowanie" 40
           bash .github/scripts/annotate.sh api.log "api" 40
           bash .github/scripts/annotate.sh update.log "update" 40

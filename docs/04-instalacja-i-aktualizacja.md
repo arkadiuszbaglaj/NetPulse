@@ -37,7 +37,8 @@ netpulse probe 192.168.1.2 --community public
 
 - `netpulse status` – stan usług (db, collector, api)
 - `netpulse device list` – status urządzeń i czas ostatniego odczytu
-- `http://IP-serwera:8000/docs` – interaktywne API; np. `GET /api/devices/1/interfaces`
+- `http://IP-serwera:PORT` – panel (Dashboard z kartami urządzeń)
+- `http://IP-serwera:PORT/docs` – interaktywne API; np. `GET /api/devices/1/interfaces`
   pokazuje porty z bieżącym ruchem (`in_bps`, `out_bps` w bitach/s)
 
 Metryki ruchu pojawiają się po drugim odczycie (ok. 1 minuty po dodaniu urządzenia),
@@ -95,8 +96,9 @@ Usuwa urządzenia i historię metryk, zostawia `.env`. Potem dodaj urządzenia p
 
 ## Logowanie
 
-Od wersji 0.2 API wymaga logowania. Zaraz po instalacji załóż konto administratora
-(kreator) – opis w [`05-api-i-logowanie.md`](05-api-i-logowanie.md). Zapomniane hasło:
+Od wersji 0.2 panel i API wymagają logowania. Zaraz po instalacji otwórz
+`http://IP-serwera:PORT` – panel poprosi o założenie konta administratora (kreator, tylko raz).
+Szczegóły: [`05-api-i-logowanie.md`](05-api-i-logowanie.md). Zapomniane hasło:
 `netpulse user passwd admin`.
 
 > Nie wystawiaj portu panelu bezpośrednio do internetu – do dostępu z zewnątrz użyj VPN
