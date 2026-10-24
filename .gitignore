@@ -1,0 +1,25 @@
+# Surowe zrzuty SNMP z sieci domowej (MAC-i, SSID, trasy) – nie publikować
+snmpwalk*.txt*
+*.walk
+
+# Sekrety
+.env
+deploy/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+dist/
+
+# Edytory / system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
