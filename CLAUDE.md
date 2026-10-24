@@ -61,6 +61,10 @@ Kolektor co 30 s: odpytuje urządzenia równolegle, liczy przepływ z różnic l
 (`ifHCInOctets`/`ifHCOutOctets`; obsługa przepełnienia Counter32 i resetu urządzenia),
 zapisuje do TimescaleDB.
 
+Schemat bazy tworzy `init_db` (`create_all`) – nowe **tabele** dochodzą same przy `netpulse update`,
+ale nowe **kolumny** w istniejących tabelach nie (init_db zgłosi wtedy niezgodny schemat).
+Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacja nie wymagała `netpulse reset`.
+
 ## Wyniki analizy SNMP (szczegóły: `docs/02-wyniki-snmp.md`)
 
 - Wszystkie urządzenia: IF-MIB z licznikami 64-bit, UCD-SNMP-MIB (RAM, load).
@@ -75,7 +79,7 @@ zapisuje do TimescaleDB.
 1. ✅ Inwentaryzacja i test SNMP
 2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`, `netpulse update`
 3. ✅ Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk (+ wstępne API tylko do odczytu)
-4. Backend API – urządzenia, porty, metryki, uwierzytelnianie
+4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
 5. Panel (MVP) – lista urządzeń, widok portów, wykresy ruchu
 6. Driver UniFi przez API – PoE, klienci WiFi
 7. Topologia LLDP – mapa sieci

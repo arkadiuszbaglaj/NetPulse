@@ -4,6 +4,8 @@
     netpulse device add "UCG Ultra" 192.168.1.1     # dodanie urządzenia
     netpulse device list
     netpulse device remove 3
+    netpulse user list                               # konta panelu
+    netpulse user passwd admin                       # nowe hasło (np. zapomniane)
     netpulse db init
     netpulse collector                               # usługa kolektora
     netpulse api                                     # usługa API
@@ -78,15 +80,10 @@ def _add_snmp_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--v3-context")
 
 
-async def _probe(host: str, port: int, creds: SnmpCredentials, driver: str):
-    from .drivers import poll_device
-    from .snmp.client import PySnmpClient
+def _probe(host: str, port: int, creds: SnmpCredentials, driver: str):
+    from .probe import probe
 
-    client = PySnmpClient(host, creds, port=port, timeout=settings.snmp_timeout, retries=settings.snmp_retries)
-    try:
-        return await poll_device(client, driver)
-    finally:
-        await client.close()
+    return probe(host, port, creds, driver)
 
 
 def print_result(result, show_hidden: bool = False) -> None:
@@ -220,6 +217,101 @@ def cmd_device_remove(args) -> int:
     return asyncio.run(run())
 
 
+def _read_password(args) -> str | None:
+    """Hasło z stdin (--password-stdin, do skryptów) albo dwukrotnie z klawiatury."""
+    import getpass
+
+    from .auth import password_error
+
+    if args.password_stdin:
+        password = sys.stdin.readline().rstrip("\n")
+    else:
+        password = getpass.getpass("Nowe hasło: ")
+        if getpass.getpass("Powtórz hasło: ") != password:
+            print("Hasła się różnią.", file=sys.stderr)
+            return None
+    if err := password_error(password):
+        print(err, file=sys.stderr)
+        return None
+    return password
+
+
+def cmd_user_list(args) -> int:
+    from sqlalchemy import select
+
+    from .db import Session
+    from .db.models import User
+
+    async def run() -> int:
+        async with Session() as session:
+            users = (await session.scalars(select(User).order_by(User.id))).all()
+        if not users:
+            print("Brak kont – załóż konto administratora w panelu (kreator) albo: netpulse user add NAZWA")
+            return 0
+        print(f"  {'id':>3}  {'Login':<20} {'Admin':<6} Ostatnie logowanie")
+        for u in users:
+            print(f"  {u.id:>3}  {u.username:<20} {'tak' if u.is_admin else 'nie':<6} {_fmt_time(u.last_login_at)}")
+        return 0
+
+    return asyncio.run(run())
+
+
+def cmd_user_add(args) -> int:
+    from sqlalchemy import select
+
+    from .auth import hash_password, username_error
+    from .db import Session, init_db
+    from .db.models import User
+
+    if err := username_error(args.username):
+        print(err, file=sys.stderr)
+        return 1
+    password = _read_password(args)
+    if password is None:
+        return 1
+
+    async def run() -> int:
+        await init_db()
+        async with Session() as session, session.begin():
+            if await session.scalar(select(User).where(User.username == args.username)):
+                print(f"Konto {args.username} już istnieje (zmiana hasła: netpulse user passwd).", file=sys.stderr)
+                return 1
+            session.add(User(username=args.username, password_hash=hash_password(password), is_admin=True))
+        print(f"Dodano konto administratora: {args.username}")
+        return 0
+
+    return asyncio.run(run())
+
+
+def cmd_user_passwd(args) -> int:
+    from sqlalchemy import delete, select
+
+    from .auth import hash_password
+    from .db import Session
+    from .db.models import AuthSession, User
+
+    async def find() -> User | None:
+        async with Session() as session:
+            return await session.scalar(select(User).where(User.username == args.username))
+
+    if asyncio.run(find()) is None:
+        print(f"Nie ma konta {args.username} (lista: netpulse user list).", file=sys.stderr)
+        return 1
+    password = _read_password(args)
+    if password is None:
+        return 1
+
+    async def run() -> int:
+        async with Session() as session, session.begin():
+            user = await session.scalar(select(User).where(User.username == args.username))
+            user.password_hash = hash_password(password)
+            await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
+        print(f"Zmieniono hasło konta {args.username}. Wszystkie jego sesje zostały wylogowane.")
+        return 0
+
+    return asyncio.run(run())
+
+
 def cmd_db_init(args) -> int:
     from .db import init_db
 
@@ -266,6 +358,17 @@ def build_parser() -> argparse.ArgumentParser:
     p = dev.add_parser("remove", help="usuń urządzenie")
     p.add_argument("id", type=int)
     p.set_defaults(func=cmd_device_remove)
+
+    usr = sub.add_parser("user", help="konta panelu").add_subparsers(dest="action", required=True)
+    usr.add_parser("list", help="lista kont").set_defaults(func=cmd_user_list)
+    for name, func, help_ in (
+        ("add", cmd_user_add, "dodaj konto administratora"),
+        ("passwd", cmd_user_passwd, "ustaw nowe hasło (np. gdy zapomniane)"),
+    ):
+        p = usr.add_parser(name, help=help_)
+        p.add_argument("username")
+        p.add_argument("--password-stdin", action="store_true", help="czytaj hasło z wejścia (do skryptów)")
+        p.set_defaults(func=func)
 
     db = sub.add_parser("db", help="baza danych").add_subparsers(dest="action", required=True)
     db.add_parser("init", help="utwórz/uzupełnij schemat").set_defaults(func=cmd_db_init)

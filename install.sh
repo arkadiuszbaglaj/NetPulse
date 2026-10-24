@@ -90,7 +90,10 @@ main() {
       echo
       ok "NetPulse działa!  API: http://${ip:-localhost}:${PORT}/docs"
       echo
-      echo "  Dodaj urządzenia, np.:"
+      echo "  1. Załóż konto administratora (kreator, tylko raz):"
+      echo "     http://${ip:-localhost}:${PORT}/docs  →  POST /api/auth/setup"
+      echo
+      echo "  2. Dodaj urządzenia, np.:"
       echo "    netpulse device add \"UCG Ultra\" 192.168.1.1 --community public"
       echo "    netpulse device list"
       echo

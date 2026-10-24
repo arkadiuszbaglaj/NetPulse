@@ -134,8 +134,17 @@ def test_api_endpoints():
     from fastapi.testclient import TestClient
 
     from netpulse.api import app
+    from netpulse.db.models import User
 
+    async def reset_users():
+        async with Session() as s, s.begin():
+            await s.execute(delete(User))
+        await engine.dispose()
+
+    asyncio.run(reset_users())
     with TestClient(app) as client:
+        assert client.get("/api/devices").status_code == 401
+        assert client.post("/api/auth/setup", json={"username": "admin", "password": "haslo-testowe-1"}).status_code == 201
         _check_api(client)
 
 

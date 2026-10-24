@@ -95,19 +95,34 @@ jobs:
           grep -q "WAN" probe.log
           sudo netpulse device add "UCG Ultra" "$GW" --port 1161 --community ucg-ultra 2>&1 | tee -a probe.log
           sudo netpulse device list 2>&1 | tee -a probe.log
+      - name: Kreator konta i logowanie
+        run: |
+          API=http://127.0.0.1:8000
+          # bez logowania dane są zamknięte
+          test "$(curl -s -o /dev/null -w '%{http_code}' $API/api/devices)" = 401
+          curl -fsS $API/api/auth/status | tee auth.log; echo
+          curl -fsS -c cookies.txt -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"haslo-ci-12345"}' $API/api/auth/setup | tee -a auth.log; echo
+          # awaryjna zmiana hasła z CLI, potem logowanie nowym hasłem
+          echo "nowe-haslo-ci-1" | sudo netpulse user passwd admin --password-stdin 2>&1 | tee -a auth.log
+          sudo netpulse user list 2>&1 | tee -a auth.log
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b cookies.txt $API/api/devices)" = 401
+          curl -fsS -c cookies.txt -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"nowe-haslo-ci-1"}' $API/api/auth/login | tee -a auth.log; echo
       - name: Kolektor zapisuje dane, API je zwraca
         run: |
+          api() { curl -fsS -b cookies.txt "http://127.0.0.1:8000$1"; }
           for i in $(seq 1 30); do
-            STATUS=$(curl -fsS http://127.0.0.1:8000/api/devices | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['status'] if d else 'none')")
+            STATUS=$(api /api/devices | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['status'] if d else 'none')")
             [ "$STATUS" = "up" ] && break
             sleep 2
           done
-          curl -fsS http://127.0.0.1:8000/api/devices | tee api.log
+          api /api/devices | tee api.log
           echo
-          curl -fsS http://127.0.0.1:8000/api/devices/1/interfaces | tee -a api.log
+          api /api/devices/1/interfaces | tee -a api.log
           echo
           [ "$STATUS" = "up" ]
-          curl -fsS http://127.0.0.1:8000/api/devices/1/interfaces | python3 -c "
+          api /api/devices/1/interfaces | python3 -c "
           import sys, json
           labels = [p['label'] for p in json.load(sys.stdin)]
           print(labels)
@@ -117,12 +132,15 @@ jobs:
         run: |
           sudo netpulse update --force 2>&1 | tee update.log; test ${PIPESTATUS[0]} -eq 0
           curl -fsS http://127.0.0.1:8000/api/health
+          # sesja logowania przetrwała aktualizację
+          curl -fsS -b cookies.txt http://127.0.0.1:8000/api/auth/me
       - name: Raport błędów
         if: failure()
         run: |
           sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env logs --tail=80 > compose.log 2>&1 || true
           bash .github/scripts/annotate.sh install.log "install.sh" 60
           bash .github/scripts/annotate.sh probe.log "probe" 60
+          bash .github/scripts/annotate.sh auth.log "logowanie" 40
           bash .github/scripts/annotate.sh api.log "api" 40
           bash .github/scripts/annotate.sh update.log "update" 40
           bash .github/scripts/annotate.sh snmpsim.log "snmpsim" 30

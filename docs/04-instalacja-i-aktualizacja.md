@@ -63,6 +63,8 @@ usługi. Dane i konfiguracja zostają. Jeśli nie ma nic nowego – nic nie robi
 | `netpulse restart`        | restart usług                           |
 | `netpulse device remove ID` | usunięcie urządzenia z historią       |
 | `netpulse reset`          | wyczyszczenie bazy (urządzenia i historia), konfiguracja zostaje |
+| `netpulse user list`      | konta panelu                            |
+| `netpulse user passwd NAZWA` | nowe hasło (np. zapomniane)          |
 | `netpulse version`        | zainstalowana wersja                    |
 | `netpulse uninstall`      | usunięcie NetPulse                      |
 
@@ -91,4 +93,11 @@ netpulse reset
 
 Usuwa urządzenia i historię metryk, zostawia `.env`. Potem dodaj urządzenia ponownie.
 
-> Uwaga: API nie ma jeszcze logowania (dojdzie w kroku 4) – nie wystawiaj portu 8000 do internetu.
+## Logowanie
+
+Od wersji 0.2 API wymaga logowania. Zaraz po instalacji załóż konto administratora
+(kreator) – opis w [`05-api-i-logowanie.md`](05-api-i-logowanie.md). Zapomniane hasło:
+`netpulse user passwd admin`.
+
+> Nie wystawiaj portu panelu bezpośrednio do internetu – do dostępu z zewnątrz użyj VPN
+> albo reverse proxy z HTTPS.
