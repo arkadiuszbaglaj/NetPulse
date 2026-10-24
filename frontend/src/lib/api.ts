@@ -47,6 +47,8 @@ export async function request<T>(method: string, path: string, body?: unknown): 
 
 export const get = <T>(path: string) => request<T>("GET", path);
 export const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
+export const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
+export const del = (path: string) => request<void>("DELETE", path);
 
 // --- typy odpowiedzi (zgodne z backend/netpulse/api/schemas.py) -------------------
 
@@ -74,6 +76,10 @@ export interface Device {
   driver: string;
   detected_driver: string | null;
   snmp_version: string;
+  v3_username: string | null;
+  v3_auth_protocol: string | null;
+  v3_priv_protocol: string | null;
+  v3_context: string | null;
   kind: string;
   vendor: string | null;
   model: string | null;
@@ -103,4 +109,67 @@ export interface SeriesPoint {
 export interface Series {
   interval_s: number;
   points: SeriesPoint[];
+}
+
+export type SnmpVersion = "1" | "2c" | "3";
+export type DriverName = "auto" | "generic" | "unifi";
+export type AuthProtocol = "MD5" | "SHA" | "SHA224" | "SHA256" | "SHA384" | "SHA512";
+export type PrivProtocol = "DES" | "AES" | "AES192" | "AES256";
+
+/** Dane połączenia SNMP wysyłane do POST /api/probe i POST /api/devices (bez pól pustych). */
+export interface SnmpTargetPayload {
+  host: string;
+  port: number;
+  driver: DriverName;
+  snmp_version: SnmpVersion;
+  community?: string;
+  v3_username?: string;
+  v3_auth_protocol?: AuthProtocol;
+  v3_auth_key?: string;
+  v3_priv_protocol?: PrivProtocol;
+  v3_priv_key?: string;
+  v3_context?: string;
+}
+
+export interface DeviceCreatePayload extends SnmpTargetPayload {
+  name: string;
+  enabled?: boolean;
+}
+
+/** PATCH /api/devices/{id}: tylko zmienione pola; `null` czyści pole. */
+export type DeviceUpdatePayload = Partial<{
+  name: string;
+  enabled: boolean;
+  host: string;
+  port: number;
+  driver: DriverName;
+  snmp_version: SnmpVersion;
+  community: string | null;
+  v3_username: string | null;
+  v3_auth_protocol: AuthProtocol | null;
+  v3_auth_key: string | null;
+  v3_priv_protocol: PrivProtocol | null;
+  v3_priv_key: string | null;
+  v3_context: string | null;
+}>;
+
+export interface ProbeResult {
+  driver: string;
+  name: string | null;
+  vendor: string | null;
+  model: string | null;
+  firmware: string | null;
+  kind: string;
+  uptime_s: number | null;
+  interfaces: {
+    if_index: number;
+    name: string;
+    label: string;
+    alias: string | null;
+    role: string;
+    hidden: boolean;
+    oper_status: string;
+    speed_mbps: number | null;
+  }[];
+  wifi: { ssid: string; radio: string | null; channel: number | null; clients: number | null; hidden: boolean }[];
 }

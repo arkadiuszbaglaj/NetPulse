@@ -69,7 +69,30 @@ w bazie (nie w przeglądarce), więc działa na każdym urządzeniu.
 - Odświeżanie wstrzymuje się, gdy karta przeglądarki jest w tle.
 - Kolektor odpytuje urządzenia co `NETPULSE_POLL_INTERVAL` (domyślnie 30 s), więc odświeżanie
   częstsze niż interwał kolektora nie da nowych danych – panel to zaznaczy.
-- Później: WebSocket (dane „na żywo” bez odpytywania).
+- Prawdziwe „na żywo” (jak w UniFi) to osobny tryb – patrz niżej, „Tryb Na żywo”.
+
+## Tryb „Na żywo” (po etapie 5c)
+
+Cel: pobieranie i wysyłanie WAN odświeżane co 1–2 s, jak w panelu UniFi. Zwykłe odświeżanie
+pokazuje średnie z odczytów kolektora (domyślnie co 30 s), więc nie może tego zastąpić.
+
+- **Działanie:** dopóki ktoś ma otwarty Dashboard w trybie „Na żywo”, API co 1–2 s odpytuje
+  tylko liczniki WAN (`ifHCInOctets`/`ifHCOutOctets` wybranych interfejsów) i wysyła wyliczoną
+  prędkość do przeglądarki przez WebSocket. Gdy nikt nie patrzy, nic się nie odpytuje.
+- **Bez zapisu do bazy:** próbki żyją w pamięci (panel trzyma ostatnie 1–5 minut do wykresu).
+  Historię nadal zapisuje kolektor.
+- **Wspólne odpytywanie:** wielu widzów (karty, urządzenia) = jedno odpytywanie routera.
+  Prędkość liczona tym samym `CounterTracker` co w kolektorze (obsługa przepełnienia i resetu liczników).
+- **W panelu:** przełącznik „Na żywo” przy wykresie ruchu WAN (obok zakresu czasu), duże liczby
+  pobierania i wysyłania oraz wykres przesuwający się w czasie rzeczywistym; po utracie połączenia
+  automatyczny powrót do zwykłego odświeżania.
+- **Dalej:** ten sam mechanizm dla wybranego portu switcha (strona urządzenia, etap późniejszy).
+- **Uwagi:** SNMP odświeża liczniki mniej więcej co sekundę, więc dokładność jest bliska UniFi,
+  ale nie identyczna (UniFi czyta wewnętrzne liczniki routera). Autoryzacja WebSocketu tą samą
+  sesją co reszta API; limit liczby jednoczesnych połączeń i minimalny interwał (1 s), żeby nie
+  przeciążyć routera.
+- **Szybka alternatywa już dziś:** krótszy `NETPULSE_POLL_INTERVAL` (np. 10 s) w `.env` –
+  gęstsze wykresy, ale baza rośnie proporcjonalnie (10 s ≈ 3 razy więcej wierszy niż 30 s).
 
 ## Aktualizacja jednym kliknięciem
 
@@ -136,9 +159,33 @@ Nie budujemy tego teraz, ale unikamy decyzji, które by to blokowały:
 |------|--------------------------------------------------------------------------------------------|
 | 5a ✅ | Szkielet aplikacji: pasek górny, menu, motyw, ekran logowania z kreatorem, wbudowanie w obraz API |
 | 5b ✅ | Dashboard: pasek podsumowania, karty urządzeń, wykres ruchu, interwały odświeżania          |
-| 5c   | Ustawienia: Konto (zmiana hasła), Urządzenia (dodaj/edytuj/usuń z testem SNMP), Odświeżanie |
+| 5c ✅ | Ustawienia: Konto (zmiana hasła), Urządzenia (dodaj/edytuj/usuń z testem SNMP), Odświeżanie |
 | 5d   | Aktualizacja: sprawdzanie wersji, kontener updater, przycisk Aktualizuj (wymaga obrazów GHCR) |
 | 5e   | Personalizacja: edytor widgetów, układ pulpitu, opcje wykresów zapisywane na koncie         |
+| 5f   | Tryb „Na żywo”: WebSocket, ruch WAN co 1–2 s, wykres w czasie rzeczywistym (kolejność względem 5d/5e do ustalenia) |
 
 Przed pierwszym wydaniem publicznym dodatkowo: migracje bazy (Alembic), prefiks `/api/v1`,
 obrazy w GHCR, licencja i README dla obcych użytkowników.
+
+## Pomysły na później (backlog)
+
+Rubryka na pomysły, które jeszcze nie mają etapu. Dopisujemy tu nowe pomysły, a gdy któryś
+dojrzeje, dostaje numer etapu w tabeli wyżej. Kolumna „Zgłoszone” pozwala wrócić do tematu,
+gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
+
+| Pomysł | Opis | Gdzie w panelu | Zgłoszone |
+|--------|------|----------------|-----------|
+| Wskaźnik siły hasła | Przy ustawianiu i zmianie hasła pokazuje na żywo, czy hasło spełnia wymagania: liczba znaków, cyfry, wielkie litery, znaki specjalne (każdy warunek jako ✓/✗ pod polem, plus pasek siły). Ten sam komponent w kreatorze pierwszego konta i w Ustawienia → Konto. | Kreator konta, Ustawienia → Konto | 2026-10-24 |
+
+### Szczegóły: wskaźnik siły hasła
+
+- **Dziś:** backend wymaga tylko minimum 8 znaków (`backend/netpulse/auth.py`, `MIN_PASSWORD`),
+  a panel pokazuje błąd dopiero po wysłaniu formularza.
+- **Warunki do pokazania:** długość (np. min. 8, zalecane 12), cyfra, wielka litera, mała litera,
+  znak specjalny. Lista warunków i progi mają być w jednym miejscu, żeby dało się je zmienić.
+- **Decyzja do podjęcia:** czy to tylko podpowiedź dla użytkownika (zalecane na start,
+  bo nie blokuje długich haseł z samych słów), czy twarda reguła egzekwowana także w backendzie
+  (wtedy te same reguły w `auth.py` i w panelu, a `netpulse user passwd` stosuje je również).
+- **Wskazówka techniczna:** komponent `PasswordRequirements` w `frontend/src/components/`,
+  czysta funkcja oceny hasła w `src/lib/` z testami; teksty w `src/i18n/pl.ts`.
+  Dostępność: wyniki warunków ogłaszane czytnikom ekranu (`aria-live="polite"`), nie tylko kolorem.

@@ -15,6 +15,8 @@ import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { ComingSoonPage } from "./pages/settings/ComingSoonPage";
+import { DevicesPage } from "./pages/settings/devices/DevicesPage";
+import { RefreshPage } from "./pages/settings/RefreshPage";
 import { DashboardPage } from "./pages/DashboardPage";
 
 export interface NavChild {
@@ -56,13 +58,13 @@ export const modules: NavModule[] = [
         path: "devices",
         label: "nav.settings.devices",
         icon: IconServer2,
-        element: <ComingSoonPage title="settings.devices.title" />,
+        element: <DevicesPage />,
       },
       {
         path: "refresh",
         label: "nav.settings.refresh",
         icon: IconRefresh,
-        element: <ComingSoonPage title="settings.refresh.title" />,
+        element: <RefreshPage />,
       },
       {
         path: "update",

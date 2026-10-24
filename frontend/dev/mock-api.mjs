@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.PORT ?? 8000);
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
@@ -47,7 +47,7 @@ const startSession = (res) => {
 createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const route = `${req.method} ${url.pathname}`;
-  const body = req.method === "POST" ? await readBody(req) : {};
+  const body = req.method === "POST" || req.method === "PATCH" ? await readBody(req) : {};
 
   if (route === "GET /api/health") return send(res, 200, { status: "ok", version: VERSION, timescaledb: true });
   if (route === "GET /api/auth/status") {
@@ -98,6 +98,42 @@ createServer(async (req, res) => {
       points.push({ time, values });
     }
     return send(res, 200, { interval_s: stride, points });
+  }
+  const idMatch = /^\/api\/devices\/(\d+)(\/probe)?$/.exec(url.pathname);
+  if (route === "POST /api/probe" || (idMatch?.[2] && req.method === "POST")) {
+    await new Promise((r) => setTimeout(r, 700)); // test SNMP chwilę trwa
+    if (body.host === "192.168.1.9" || (idMatch && devices.find((d) => d.id === Number(idMatch[1]))?.status === "down")) {
+      return send(res, 422, { detail: `Brak odpowiedzi SNMP z ${body.host ?? "urządzenia"}: No SNMP response received before timeout` });
+    }
+    return send(res, 200, {
+      driver: "unifi", name: "USW-Switch", vendor: "Ubiquiti", model: "UniFi Switch", firmware: null, kind: "switch", uptime_s: 3_950_000,
+      interfaces: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ if_index: n, name: `0/${n}`, label: `Port ${n}`, alias: null, role: "port", hidden: false, oper_status: "up", speed_mbps: 1000 })),
+      wifi: [],
+    });
+  }
+  if (route === "POST /api/devices") {
+    if (devices.some((d) => d.host === body.host)) return send(res, 409, { detail: `Urządzenie ${body.host} już jest dodane` });
+    if (url.searchParams.get("probe") !== "false" && body.host === "192.168.1.9") {
+      return send(res, 422, { detail: `Brak odpowiedzi SNMP z ${body.host}: No SNMP response received before timeout` });
+    }
+    const device = {
+      id: Math.max(0, ...devices.map((d) => d.id)) + 1, name: body.name, host: body.host, port: body.port ?? 161, enabled: true,
+      driver: body.driver ?? "auto", detected_driver: null, snmp_version: body.snmp_version ?? "2c", v3_username: body.v3_username ?? null,
+      v3_auth_protocol: body.v3_auth_protocol ?? null, v3_priv_protocol: body.v3_priv_protocol ?? null, v3_context: body.v3_context ?? null,
+      kind: "other", vendor: null, model: null, firmware: null, sys_name: null, uptime_s: null, status: "unknown", last_polled_at: null,
+      last_ok_at: null, last_error: null, created_at: now(),
+    };
+    devices.push(device);
+    return send(res, 201, device);
+  }
+  if (idMatch && !idMatch[2] && (req.method === "PATCH" || req.method === "DELETE")) {
+    const body2 = body;
+    const i = devices.findIndex((d) => d.id === Number(idMatch[1]));
+    if (i < 0) return send(res, 404, { detail: "Nie ma takiego urządzenia" });
+    if (req.method === "DELETE") { devices.splice(i, 1); return send(res, 204); }
+    const { community, v3_auth_key, v3_priv_key, ...fields } = body2;
+    Object.assign(devices[i], fields);
+    return send(res, 200, devices[i]);
   }
   if (route === "GET /api/devices") {
     // Czas odczytu „odświeża się” z każdym zapytaniem

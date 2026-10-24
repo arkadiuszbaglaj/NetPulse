@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { AuthStatus, DashboardSummary, Device, Series, User } from "../lib/api";
+import type { AuthStatus, DashboardSummary, Device, ProbeResult, Series, User } from "../lib/api";
 
 export const USER: User = {
   id: 1,
@@ -18,6 +18,10 @@ export const DEVICE: Device = {
   driver: "auto",
   detected_driver: "unifi",
   snmp_version: "2c",
+  v3_username: null,
+  v3_auth_protocol: null,
+  v3_priv_protocol: null,
+  v3_context: null,
   kind: "gateway",
   vendor: "Ubiquiti",
   model: "UCG-Ultra",
@@ -47,6 +51,22 @@ export const TRAFFIC: Series = {
   ],
 };
 
+export const PROBE: ProbeResult = {
+  driver: "unifi",
+  name: "USW-Switch",
+  vendor: "Ubiquiti",
+  model: "UniFi Switch",
+  firmware: null,
+  kind: "switch",
+  uptime_s: 3_950_000,
+  interfaces: [
+    { if_index: 1, name: "0/1", label: "Port 1", alias: "AP U6+", role: "port", hidden: false, oper_status: "up", speed_mbps: 1000 },
+    { if_index: 2, name: "0/2", label: "Port 2", alias: null, role: "port", hidden: false, oper_status: "down", speed_mbps: null },
+    { if_index: 99, name: "lo", label: "lo", alias: null, role: "virtual", hidden: true, oper_status: "up", speed_mbps: null },
+  ],
+  wifi: [],
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -60,6 +80,7 @@ interface MockState {
   summary: DashboardSummary;
   traffic: Series;
   wifi: Series;
+  probe: ProbeResult;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -76,9 +97,12 @@ export function mockApi(initial: Partial<MockState> = {}) {
     summary: SUMMARY,
     traffic: TRAFFIC,
     wifi: { interval_s: 30, points: [{ time: "2026-10-24T20:00:00Z", values: { clients: 5 } }] },
+    probe: PROBE,
     overrides: {},
     ...initial,
   };
+  // Kopie urządzeń: PATCH zmienia obiekty, a testy nie mogą sobie nawzajem psuć wspólnego DEVICE
+  state.devices = state.devices.map((d) => ({ ...d }));
   const calls: Call[] = [];
 
   const status = (): AuthStatus => ({
@@ -98,6 +122,49 @@ export function mockApi(initial: Partial<MockState> = {}) {
 
     const override = state.overrides[key];
     if (override) return json(override.status, override.body);
+
+    // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
+    if (state.authenticated) {
+      if (key === "POST /api/probe") return json(200, state.probe);
+      if (key === "POST /api/devices") {
+        const b = body as Partial<Device> & { host: string; name: string };
+        if (state.devices.some((d) => d.host === b.host)) return json(409, { detail: `Urządzenie ${b.host} już jest dodane` });
+        const created: Device = {
+          ...DEVICE,
+          id: Math.max(0, ...state.devices.map((d) => d.id)) + 1,
+          name: b.name,
+          host: b.host,
+          port: b.port ?? 161,
+          driver: b.driver ?? "auto",
+          snmp_version: b.snmp_version ?? "2c",
+          v3_username: b.v3_username ?? null,
+          v3_auth_protocol: b.v3_auth_protocol ?? null,
+          v3_priv_protocol: b.v3_priv_protocol ?? null,
+          v3_context: b.v3_context ?? null,
+          enabled: b.enabled ?? true,
+          status: "unknown",
+          last_polled_at: null,
+        };
+        state.devices.push(created);
+        return json(201, created);
+      }
+      const match = /^(GET|PATCH|DELETE|POST) \/api\/devices\/(\d+)(\/probe)?$/.exec(key);
+      if (match) {
+        const device = state.devices.find((d) => d.id === Number(match[2]));
+        if (!device) return json(404, { detail: "Nie ma takiego urządzenia" });
+        if (match[3]) return match[1] === "POST" ? json(200, state.probe) : json(404, { detail: "Not Found" });
+        if (match[1] === "GET") return json(200, device);
+        if (match[1] === "DELETE") {
+          state.devices = state.devices.filter((d) => d !== device);
+          return json(204);
+        }
+        if (match[1] === "PATCH") {
+          const { community: _c, v3_auth_key: _a, v3_priv_key: _p, ...fields } = body as Record<string, unknown>;
+          Object.assign(device, fields);
+          return json(200, device);
+        }
+      }
+    }
 
     switch (key) {
       case "GET /api/auth/status":

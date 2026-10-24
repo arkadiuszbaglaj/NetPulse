@@ -19,6 +19,13 @@ Pierwsza instalacja trwa kilka minut (pobieranie obrazów i budowanie).
 
 ## Dodanie urządzeń
 
+Najwygodniej w panelu: **Ustawienia → Urządzenia → Dodaj urządzenie**. Formularz obsługuje SNMP v1,
+v2c i v3, sprawdza połączenie i pokazuje, co wykryto (typ, model, liczba portów), a urządzenia można
+też edytować, tymczasowo wyłączyć albo usunąć. Zapisane community i hasła SNMPv3 nigdy nie wracają do
+przeglądarki: przy edycji puste pole oznacza „zostaw zapisane”.
+
+To samo z terminala:
+
 ```bash
 netpulse device add "UCG Ultra" 192.168.1.1 --community public
 netpulse device add "USW Lite 8 PoE" 192.168.1.2 --community public

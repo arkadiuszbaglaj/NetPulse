@@ -1,5 +1,5 @@
 /** Małe, wspólne elementy interfejsu. Jedno miejsce na style przycisków, pól i kart. */
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
 export function Logo({ size = 28 }: { size?: number }) {
   return (
@@ -24,11 +24,12 @@ export function Button({
   variant = "secondary",
   className = "",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger" }) {
   const styles = {
     primary: "bg-accent text-on-accent hover:bg-accent-hover",
     secondary: "border border-border-strong bg-surface text-text hover:bg-surface-2",
     ghost: "text-text-2 hover:bg-surface-2 hover:text-text",
+    danger: "bg-danger text-surface hover:opacity-90",
   }[variant];
   return <button type="button" className={`${buttonBase} ${styles} ${className}`} {...props} />;
 }
@@ -36,9 +37,10 @@ export function Button({
 export function Field({
   label,
   hint,
+  error,
   id,
   ...props
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; id: string }) {
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; id: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium text-text">
@@ -46,16 +48,91 @@ export function Field({
       </label>
       <input
         id={id}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        className="h-10 rounded-lg border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+        className={controlClass}
         {...props}
       />
-      {hint && (
-        <p id={`${id}-hint`} className="text-xs text-muted">
-          {hint}
+      {error ? (
+        <p id={`${id}-error`} className="text-xs text-danger">
+          {error}
+        </p>
+      ) : (
+        hint && (
+          <p id={`${id}-hint`} className="text-xs text-muted">
+            {hint}
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
+const controlClass =
+  "h-10 rounded-lg border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent aria-[invalid=true]:border-danger";
+
+export function Select({
+  label,
+  id,
+  error,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { label: string; id: string; error?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-text">
+        {label}
+      </label>
+      <select
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={controlClass}
+        {...props}
+      >
+        {children}
+      </select>
+      {error && (
+        <p id={`${id}-error`} className="text-xs text-danger">
+          {error}
         </p>
       )}
     </div>
+  );
+}
+
+/** Przełącznik włącz/wyłącz (role=switch). */
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
+        checked ? "bg-accent" : "bg-border-strong"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`inline-block size-5 rounded-full bg-surface shadow transition-transform ${
+          checked ? "translate-x-5.5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }
 
