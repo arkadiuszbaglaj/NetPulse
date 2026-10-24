@@ -21,7 +21,7 @@ Aktualizację może zlecić wyłącznie **administrator**; pozostali użytkownic
 | Faza | Co robi | Gdy się nie uda |
 |------|---------|-----------------|
 | Przygotowanie | sprawdza wolne miejsce (minimum 2 GB, w razie potrzeby sprząta nieużywane dane Dockera) | zatrzymuje się, nic nie zmieniając |
-| Kopia bazy | zapisuje `pg_dump` do `backups/netpulse-RRRRMMDD-GGMMSS.sql.gz` (zostają 3 ostatnie) | zatrzymuje się, nic nie zmieniając |
+| Kopia bazy | zapisuje `pg_dump` do `backups/netpulse-RRRRMMDD-GGMMSS.sql.gz` (prawa 0600, tylko root; zostają 3 ostatnie) | zatrzymuje się, nic nie zmieniając |
 | Pobieranie | `git fetch` i przesunięcie kodu do najnowszej wersji, dopisanie nowych zmiennych do `.env` | zatrzymuje się, kod bez zmian |
 | Budowanie | buduje nowe obrazy | kod wraca do poprzedniej wersji, usługi działają dalej na starej |
 | Uruchamianie | uruchamia nowe usługi | **wycofanie** do poprzedniej wersji |
@@ -44,7 +44,7 @@ DC="sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env"
 $DC stop api collector
 $DC exec -T db psql -U netpulse -d postgres -c "DROP DATABASE netpulse" -c "CREATE DATABASE netpulse"
 $DC exec -T db psql -U netpulse -d netpulse -c "CREATE EXTENSION IF NOT EXISTS timescaledb" -c "SELECT timescaledb_pre_restore()"
-zcat backups/netpulse-RRRRMMDD-GGMMSS.sql.gz | $DC exec -T db psql -U netpulse -d netpulse -q
+sudo zcat backups/netpulse-RRRRMMDD-GGMMSS.sql.gz | $DC exec -T db psql -U netpulse -d netpulse -q
 $DC exec -T db psql -U netpulse -d netpulse -c "SELECT timescaledb_post_restore()"
 $DC start api collector
 ```

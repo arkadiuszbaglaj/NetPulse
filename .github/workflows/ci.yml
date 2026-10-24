@@ -263,13 +263,16 @@ jobs:
           # efekt: kod w docelowej wersji, kopia bazy z prawdziwą zawartością, usługi i dane na miejscu
           test "$(sudo git -C /opt/netpulse rev-parse HEAD)" = "$WANT"
           BACKUP=$(ls /opt/netpulse/backups/netpulse-*.sql.gz | head -1)
-          zcat "$BACKUP" | head -c 400 | grep -q "PostgreSQL database dump"
+          # kopia ma prawa 0600 (tylko root) – to celowe, bo zawiera całą bazę
+          test "$(sudo stat -c %a "$BACKUP")" = 600
+          DUMP_HEAD=$(sudo zcat "$BACKUP" | head -c 400 || true)
+          grep -q "PostgreSQL database dump" <<<"$DUMP_HEAD"
 
           # kopię da się odtworzyć: ta sama procedura, która jest opisana w dokumentacji
           dc() { sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env "$@"; }
           dc exec -T db psql -U netpulse -d postgres -c "CREATE DATABASE restore_test"
           dc exec -T db psql -U netpulse -d restore_test -c "CREATE EXTENSION IF NOT EXISTS timescaledb" -c "SELECT timescaledb_pre_restore()"
-          zcat "$BACKUP" | dc exec -T db psql -U netpulse -d restore_test -q > restore.log 2>&1 || true
+          sudo zcat "$BACKUP" | dc exec -T db psql -U netpulse -d restore_test -q > restore.log 2>&1 || true
           dc exec -T db psql -U netpulse -d restore_test -c "SELECT timescaledb_post_restore()"
           test "$(dc exec -T db psql -U netpulse -d restore_test -tAc 'SELECT count(*) FROM devices')" = 1
           test "$(dc exec -T db psql -U netpulse -d restore_test -tAc 'SELECT count(*) FROM users')" = 1
