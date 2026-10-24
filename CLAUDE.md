@@ -91,3 +91,4 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
 7. Topologia LLDP – mapa sieci
 8. Alerty – port down, przeciążenie, urządzenie offline
 9. SNMP v3, MikroTik, Omada
+10. Serwery Linux – etap A: SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B: własny agent (push, tokeny, systemd, Docker, SMART; wymaga ogólnej tabeli metryk i Alembic). Opis w `docs/06-projekt-panelu.md` (backlog)

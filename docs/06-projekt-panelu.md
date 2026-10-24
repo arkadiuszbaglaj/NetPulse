@@ -176,6 +176,7 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 | Pomysł | Opis | Gdzie w panelu | Zgłoszone |
 |--------|------|----------------|-----------|
 | Wskaźnik siły hasła | Przy ustawianiu i zmianie hasła pokazuje na żywo, czy hasło spełnia wymagania: liczba znaków, cyfry, wielkie litery, znaki specjalne (każdy warunek jako ✓/✗ pod polem, plus pasek siły). Ten sam komponent w kreatorze pierwszego konta i w Ustawienia → Konto. | Kreator konta, Ustawienia → Konto | 2026-10-24 |
+| Monitorowanie serwerów Linux | Serwer jako urządzenie w panelu: CPU, RAM, dyski, obciążenie, sieć. Etap 1 przez SNMP (`snmpd`), etap 2 własny agent z usługami systemd, kontenerami Docker i SMART. | Dashboard (karty), Ustawienia → Urządzenia, alerty | 2026-10-24 |
 
 ### Szczegóły: wskaźnik siły hasła
 
@@ -189,3 +190,35 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 - **Wskazówka techniczna:** komponent `PasswordRequirements` w `frontend/src/components/`,
   czysta funkcja oceny hasła w `src/lib/` z testami; teksty w `src/i18n/pl.ts`.
   Dostępność: wyniki warunków ogłaszane czytnikom ekranu (`aria-live="polite"`), nie tylko kolorem.
+
+### Szczegóły: monitorowanie serwerów Linux
+
+Rozszerzenie NetPulse z urządzeń sieciowych na serwery. Cel: sieć i serwery w jednym lekkim panelu,
+z tą samą instalacją jednym linkiem. Dwa etapy, od najtańszego.
+
+**Etap A – SNMP (`snmpd` na serwerze).**
+- Kolektor już czyta UCD-SNMP-MIB (CPU, RAM, load) i IF-MIB (interfejsy). Dochodzi `kind = server`
+  oraz driver `linux`: dyski i partycje (HOST-RESOURCES-MIB `hrStorage` albo UCD `dskTable`),
+  swap, liczba procesów, czas pracy.
+- W panelu: karta serwera na Dashboardzie (CPU, RAM, dysk z paskiem zapełnienia) i dodawanie
+  w Ustawienia → Urządzenia (typ „Serwer Linux”, podpowiedź, jak włączyć `snmpd`).
+- Wygoda: opis konfiguracji `snmpd` (tylko odczyt, tylko z adresu serwera NetPulse) w dokumentacji.
+- Ograniczenia SNMP: brak kontenerów, usług systemd, SMART i temperatur (poza tym, co wystawi `snmpd`).
+
+**Etap B – własny agent (`netpulse-agent`).**
+- Mały program lub kontener na monitorowanym serwerze, czyta `/proc` i `/sys`, wysyła metryki do NetPulse
+  przez HTTPS z tokenem instalacji (**push**: działa za NAT-em, bez otwierania portów na serwerze, pasuje do chmury).
+- Zakres: CPU (także na rdzeń), RAM i swap, dyski (zajętość, IO), sieć, temperatury, SMART,
+  stan usług systemd, kontenery Docker (stan, zasoby). Bez logów i śledzenia procesów – to ma pozostać lekkie.
+- Instalacja agenta jednym poleceniem pokazywanym w panelu (token wygenerowany w Ustawieniach, do odwołania).
+- Odczyt kontenerów wymaga dostępu do gniazda Dockera: tylko do odczytu i opcjonalnie (podobne ryzyko jak updater).
+
+**Wymagania wstępne w architekturze (zrobić przed etapem B, najlepiej razem z migracjami Alembic):**
+- Ogólna tabela metryk (urządzenie, nazwa, etykiety, wartość) jako hypertable, obok dzisiejszych tabel
+  z ustalonymi kolumnami (`interface_metrics`, `device_metrics`). Dyski, kontenery i usługi nie mieszczą się w stałych kolumnach.
+- Alerty (etap 8) projektować od razu na ogólnych metrykach, żeby obejmowały sieć i serwery
+  („dysk zapełniony w 90%”, „serwer nie odpowiada”, „kontener zatrzymany”).
+- Model tokenów dostępu (już zaplanowany pod aplikację mobilną) obejmuje też tokeny agentów.
+
+**Kolejność:** etap A po 5e (prawie bez nowej infrastruktury, od razu pokazuje, jak serwer wygląda w panelu),
+etap B po alertach, przed albo razem z chmurą.
