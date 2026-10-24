@@ -1,9 +1,10 @@
 import { IconChevronDown, IconLogout, IconSettings } from "@tabler/icons-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAuth, useUser } from "../auth/AuthProvider";
 import { t } from "../i18n";
 import { initials } from "../lib/format";
+import { useDismiss } from "../lib/useDismiss";
 
 /** Nazwa zalogowanego użytkownika z rozwijanym menu: ustawienia konta i wylogowanie. */
 export function UserMenu() {
@@ -13,24 +14,7 @@ export function UserMenu() {
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        trigger.current?.focus();
-      }
-    };
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useDismiss(open, () => setOpen(false), root, trigger);
 
   const itemClass =
     "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text hover:bg-surface-2 focus-visible:bg-surface-2";

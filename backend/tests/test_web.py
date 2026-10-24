@@ -13,6 +13,7 @@ def client(tmp_path):
     (web / "assets").mkdir(parents=True)
     (web / "index.html").write_text("<html>PANEL</html>")
     (web / "favicon.svg").write_text("<svg/>")
+    (web / "manifest.webmanifest").write_text("{}")
     (web / "assets" / "app-abc123.js").write_text("console.log(1)")
     (tmp_path / "sekret.txt").write_text("nie wolno")
 
@@ -42,6 +43,7 @@ def test_api_routes_win_and_unknown_api_is_json_404(client):
 
 def test_static_files_and_hashed_assets_cache(client):
     assert client.get("/favicon.svg").text == "<svg/>"
+    assert client.get("/manifest.webmanifest").headers["content-type"].startswith("application/manifest+json")
     r = client.get("/assets/app-abc123.js")
     assert r.status_code == 200
     assert "immutable" in r.headers["cache-control"]

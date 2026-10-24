@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { App } from "../App";
 import { AuthProvider } from "../auth/AuthProvider";
 import { createQueryClient } from "../lib/queryClient";
+import { RefreshProvider } from "../lib/refresh";
 import { ThemeProvider } from "../lib/theme";
 
 export function renderApp(path = "/") {
@@ -12,7 +13,9 @@ export function renderApp(path = "/") {
     <ThemeProvider>
       <QueryClientProvider client={client}>
         <AuthProvider>
-          <App />
+          <RefreshProvider>
+            <App />
+          </RefreshProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>,

@@ -5,6 +5,7 @@ import { App } from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./index.css";
 import { createQueryClient } from "./lib/queryClient";
+import { RefreshProvider } from "./lib/refresh";
 import { ThemeProvider } from "./lib/theme";
 
 const queryClient = createQueryClient();
@@ -14,7 +15,9 @@ createRoot(document.getElementById("root")!).render(
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <App />
+          <RefreshProvider>
+            <App />
+          </RefreshProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

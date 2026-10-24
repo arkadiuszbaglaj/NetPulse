@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.PORT ?? 8000);
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
@@ -21,6 +21,9 @@ const devices = [
   port: 161, enabled: true, driver: "auto", detected_driver: "unifi", snmp_version: "2c", firmware: null, sys_name: d.name,
   uptime_s: 3_000_000, last_polled_at: ago(d.polled), last_ok_at: ago(d.polled), last_error: d.error ?? null, created_at: ago(86400 * 30), ...d,
 }));
+
+// Przebieg ruchu w Mb/s: i – numer próbki wstecz, k – 0 pobieranie, 1 wysyłanie
+const wave = (i, k) => Math.max(0.2, (k === 0 ? 38 : 6) * (1 + 0.5 * Math.sin(i / 7 + k) + 0.25 * Math.sin(i / 2.3)));
 
 const publicUser = () => user && { id: 1, username: user.username, is_admin: true, created_at: user.created, last_login_at: user.lastLogin };
 const send = (res, code, body, headers = {}) => {
@@ -70,6 +73,31 @@ createServer(async (req, res) => {
     if (body.current_password !== user.password) return send(res, 403, { detail: "Obecne hasło jest nieprawidłowe" });
     user.password = body.new_password;
     return send(res, 204);
+  }
+  if (route === "GET /api/dashboard/summary") {
+    const up = devices.filter((d) => d.status === "up").length;
+    return send(res, 200, {
+      devices: { total: devices.length, up, down: devices.length - up, unknown: 0 },
+      wan: { in_bps: wave(0, 0) * 1e6, out_bps: wave(0, 1) * 1e6, interfaces: 1 },
+      wifi_clients: 17,
+      last_poll_at: ago(12),
+      poll_interval_s: 30,
+    });
+  }
+  if (route === "GET /api/dashboard/traffic" || route === "GET /api/dashboard/wifi") {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const n = Math.floor((minutes * 60) / stride);
+    const points = [];
+    for (let i = n; i >= 0; i--) {
+      if (i > n * 0.55 && i < n * 0.62) continue; // przerwa w danych – urządzenie nie odpowiadało
+      const time = new Date(Date.now() - i * stride * 1000).toISOString();
+      const values = route.endsWith("traffic")
+        ? { in_bps: wave(i, 0) * 1e6, out_bps: wave(i, 1) * 1e6 }
+        : { clients: Math.round(12 + 5 * Math.sin(i / 9) + (i % 3)) };
+      points.push({ time, values });
+    }
+    return send(res, 200, { interval_s: stride, points });
   }
   if (route === "GET /api/devices") {
     // Czas odczytu „odświeża się” z każdym zapytaniem

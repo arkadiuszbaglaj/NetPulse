@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
+
+mimetypes.add_type("application/manifest+json", ".webmanifest")  # nie każdy system zna to rozszerzenie
 
 NO_CACHE = {"Cache-Control": "no-cache"}
 IMMUTABLE = "public, max-age=31536000, immutable"

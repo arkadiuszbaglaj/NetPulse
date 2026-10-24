@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { AuthStatus, Device, User } from "../lib/api";
+import type { AuthStatus, DashboardSummary, Device, Series, User } from "../lib/api";
 
 export const USER: User = {
   id: 1,
@@ -31,6 +31,22 @@ export const DEVICE: Device = {
   created_at: "2026-10-01T00:00:00Z",
 };
 
+export const SUMMARY: DashboardSummary = {
+  devices: { total: 4, up: 3, down: 1, unknown: 0 },
+  wan: { in_bps: 42_300_000, out_bps: 6_500_000, interfaces: 1 },
+  wifi_clients: 17,
+  last_poll_at: new Date().toISOString(),
+  poll_interval_s: 30,
+};
+
+export const TRAFFIC: Series = {
+  interval_s: 30,
+  points: [
+    { time: "2026-10-24T20:00:00Z", values: { in_bps: 1e6, out_bps: 2e5 } },
+    { time: "2026-10-24T20:00:30Z", values: { in_bps: 2e6, out_bps: 3e5 } },
+  ],
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -41,6 +57,9 @@ interface MockState {
   setupRequired: boolean;
   authenticated: boolean;
   devices: Device[];
+  summary: DashboardSummary;
+  traffic: Series;
+  wifi: Series;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -53,7 +72,13 @@ const json = (status: number, body?: unknown) =>
 
 /** Podmienia fetch na atrapę API. Zwraca stan (do zmiany w teście) i listę wykonanych wywołań. */
 export function mockApi(initial: Partial<MockState> = {}) {
-  const state: MockState = { setupRequired: false, authenticated: true, devices: [DEVICE], overrides: {}, ...initial };
+  const state: MockState = { setupRequired: false, authenticated: true, devices: [DEVICE],
+    summary: SUMMARY,
+    traffic: TRAFFIC,
+    wifi: { interval_s: 30, points: [{ time: "2026-10-24T20:00:00Z", values: { clients: 5 } }] },
+    overrides: {},
+    ...initial,
+  };
   const calls: Call[] = [];
 
   const status = (): AuthStatus => ({
@@ -68,7 +93,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     const method = init?.method ?? "GET";
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ method, path, body });
-    const key = `${method} ${path}`;
+    // Klucz bez parametrów zapytania; pełna ścieżka zostaje w `calls`
+    const key = `${method} ${path.split("?")[0]}`;
 
     const override = state.overrides[key];
     if (override) return json(override.status, override.body);
@@ -88,6 +114,12 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(204);
       case "POST /api/auth/password":
         return json(204);
+      case "GET /api/dashboard/summary":
+        return json(200, state.summary);
+      case "GET /api/dashboard/traffic":
+        return json(200, state.traffic);
+      case "GET /api/dashboard/wifi":
+        return json(200, state.wifi);
       case "GET /api/devices":
         return state.authenticated ? json(200, state.devices) : json(401, { detail: "Wymagane logowanie" });
       default:

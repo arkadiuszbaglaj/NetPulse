@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { ApiError, messageFromDetail, request } from "./api";
-import { formatUptime, initials, relativeTime } from "./format";
+import { toChartRows } from "../components/charts/chartData";
+import { formatBps, formatRange, formatUptime, initials, relativeTime } from "./format";
 import { ThemeProvider, readPref, resolveTheme, useTheme } from "./theme";
 
 describe("api", () => {
@@ -91,5 +92,54 @@ describe("theme", () => {
   it("ignoruje nieprawidłową zapamiętaną wartość", () => {
     localStorage.setItem("netpulse.theme", "fioletowy");
     expect(readPref()).toBe("system");
+  });
+});
+
+describe("formatBps i formatRange", () => {
+  it("skaluje jednostki i używa polskiego przecinka", () => {
+    expect(formatBps(null)).toBe("–");
+    expect(formatBps(0)).toBe("0 b/s");
+    expect(formatBps(950)).toBe("950 b/s");
+    expect(formatBps(42_300_000)).toBe("42,3 Mb/s");
+    expect(formatBps(138_000_000)).toBe("138 Mb/s");
+    expect(formatBps(6_500_000)).toBe("6,5 Mb/s");
+    expect(formatBps(1_250_000_000)).toBe("1,25 Gb/s");
+    expect(formatBps(120_000)).toBe("120 kb/s");
+  });
+
+  it("opisuje zakresy czasu", () => {
+    expect(formatRange(15)).toBe("15 min");
+    expect(formatRange(60)).toBe("1 godz.");
+    expect(formatRange(360)).toBe("6 godz.");
+    expect(formatRange(1440)).toBe("24 godz.");
+    expect(formatRange(10080)).toBe("7 dni");
+  });
+});
+
+describe("toChartRows", () => {
+  const pt = (time: string, v: number | null) => ({ time, values: { x: v } });
+
+  it("zamienia punkty na pary [czas, wartość]", () => {
+    const rows = toChartRows([pt("2026-10-24T20:00:00Z", 1), pt("2026-10-24T20:00:30Z", 2)], "x", 30);
+    expect(rows).toEqual([
+      [Date.parse("2026-10-24T20:00:00Z"), 1],
+      [Date.parse("2026-10-24T20:00:30Z"), 2],
+    ]);
+  });
+
+  it("wstawia pusty punkt, gdy brakuje danych dłużej niż 2,5 odstępu", () => {
+    const rows = toChartRows([pt("2026-10-24T20:00:00Z", 1), pt("2026-10-24T20:05:00Z", 2)], "x", 30);
+    expect(rows).toHaveLength(3);
+    expect(rows[1]).toEqual([Date.parse("2026-10-24T20:00:30Z"), null]);
+  });
+
+  it("nie wstawia luki przy drobnym opóźnieniu i zachowuje puste wartości", () => {
+    const rows = toChartRows([pt("2026-10-24T20:00:00Z", 1), pt("2026-10-24T20:01:00Z", null)], "x", 30);
+    expect(rows).toHaveLength(2);
+    expect(rows[1][1]).toBeNull();
+  });
+
+  it("brakujący klucz to wartość pusta", () => {
+    expect(toChartRows([pt("2026-10-24T20:00:00Z", 1)], "inny", 30)[0][1]).toBeNull();
   });
 });

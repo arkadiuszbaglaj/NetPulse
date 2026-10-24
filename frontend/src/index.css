@@ -22,6 +22,10 @@
   --danger: #a32d2d;
   --danger-soft: #fcebeb;
   --ring: rgb(24 95 165 / 0.35);
+  --chart-1: #185fa5;
+  --chart-2: #1d9e75;
+  --chart-3: #7f77dd;
+  --chart-4: #ba7517;
 }
 
 :root[data-theme="dark"] {
@@ -45,6 +49,10 @@
   --danger: #f09595;
   --danger-soft: #501313;
   --ring: rgb(133 183 235 / 0.45);
+  --chart-1: #85b7eb;
+  --chart-2: #5dcaa5;
+  --chart-3: #afa9ec;
+  --chart-4: #ef9f27;
 }
 
 @theme inline {

@@ -27,6 +27,28 @@ export function formatUptime(seconds: number | null): string {
   return `${m} min`;
 }
 
+/** Prędkość w bitach na sekundę → „42,3 Mb/s”. `null` → „–”. */
+export function formatBps(bps: number | null | undefined): string {
+  if (bps == null || !Number.isFinite(bps)) return "–";
+  const units = ["b/s", "kb/s", "Mb/s", "Gb/s"];
+  let v = Math.abs(bps);
+  let i = 0;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
+  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+}
+
+/** Etykieta zakresu czasu: 15 → „15 min”, 60 → „1 godz.”, 1440 → „24 godz.”, 10080 → „7 dni”. */
+export function formatRange(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 1440) return `${minutes / 60} godz.`;
+  if (minutes === 1440) return "24 godz.";
+  return `${minutes / 1440} dni`;
+}
+
 export function initials(name: string): string {
   const parts = name.split(/[\s._-]+/).filter(Boolean);
   const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2);

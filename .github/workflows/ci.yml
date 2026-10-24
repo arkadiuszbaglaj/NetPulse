@@ -134,6 +134,12 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' $API/api/nie-ma)" = 404
           NOAPI=$(curl -s $API/api/nie-ma)
           grep -q '"detail"' <<<"$NOAPI"
+          # ikony i manifest (favicon z logo)
+          for f in favicon.ico favicon.svg apple-touch-icon.png manifest.webmanifest; do
+            curl -fsS -o /dev/null -w "$f %{http_code} %{content_type}\n" "$API/$f" | tee -a panel.log
+          done
+          MANIFEST=$(curl -fsS $API/manifest.webmanifest)
+          grep -q '"NetPulse"' <<<"$MANIFEST"
           # dokumentacja API nadal działa
           OPENAPI=$(curl -fsS $API/openapi.json)
           grep -q '/api/auth/setup' <<<"$OPENAPI"
@@ -170,6 +176,27 @@ jobs:
           print(labels)
           assert labels == ['WAN', 'LAN 1', 'LAN 2', 'LAN 3', 'LAN 4'], labels
           "
+      - name: Dane pulpitu
+        run: |
+          api() { curl -fsS -b cookies.txt "http://127.0.0.1:8000$1"; }
+          SUMMARY=$(api /api/dashboard/summary)
+          echo "$SUMMARY" | tee dashboard.log
+          python3 - "$SUMMARY" <<'PY'
+          import json, sys
+          s = json.loads(sys.argv[1])
+          assert s["devices"]["total"] == 1 and s["devices"]["up"] == 1, s
+          assert s["poll_interval_s"] == 5, s  # NETPULSE_POLL_INTERVAL z .env dociera do API
+          assert s["wan"]["interfaces"] == 1, s  # eth4 oznaczony jako WAN
+          PY
+          for kind in traffic wifi; do
+            OUT=$(api "/api/dashboard/$kind?minutes=15")
+            echo "$kind: $OUT" | tee -a dashboard.log
+            python3 - "$OUT" <<'PY'
+          import json, sys
+          d = json.loads(sys.argv[1])
+          assert d["interval_s"] == 30 and isinstance(d["points"], list), d
+          PY
+          done
       - name: netpulse update
         run: |
           sudo netpulse update --force 2>&1 | tee update.log; test ${PIPESTATUS[0]} -eq 0
@@ -184,6 +211,7 @@ jobs:
           bash .github/scripts/annotate.sh probe.log "probe" 60
           bash .github/scripts/annotate.sh panel.log "panel" 40
           bash .github/scripts/annotate.sh auth.log "logowanie" 40
+          bash .github/scripts/annotate.sh dashboard.log "dashboard" 40
           bash .github/scripts/annotate.sh api.log "api" 40
           bash .github/scripts/annotate.sh update.log "update" 40
           bash .github/scripts/annotate.sh snmpsim.log "snmpsim" 30

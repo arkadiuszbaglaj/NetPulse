@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { t } from "../i18n";
 import { modules } from "../modules";
+import { RefreshControl } from "./RefreshControl";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
@@ -57,6 +58,7 @@ export function Shell() {
           <span className="text-base font-medium">{t("app.name")}</span>
         </div>
         <div className="flex items-center gap-1">
+          <RefreshControl />
           <ThemeToggle />
           <UserMenu />
         </div>

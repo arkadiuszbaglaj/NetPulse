@@ -61,8 +61,12 @@ w bazie (nie w przeglądarce), więc działa na każdym urządzeniu.
 
 ## Odświeżanie
 
-- Globalny interwał w pasku górnym: wyłączone, 10 s, 30 s, 1 min, 5 min; każdy widget może
-  mieć własny. Wybór zapamiętany na koncie.
+- Globalny interwał w pasku górnym: wyłączone, 5 s, 10 s, 30 s, 1 min, 5 min (domyślnie 30 s),
+  plus przycisk „Odśwież teraz”. Zakres czasu wykresów (15 min – 7 dni) wybiera się na Dashboardzie.
+  Każdy widget będzie mógł mieć własny interwał (etap 5e).
+- Na razie wybór jest zapamiętywany w przeglądarce; zapis na koncie użytkownika dochodzi
+  razem z personalizacją (5e).
+- Odświeżanie wstrzymuje się, gdy karta przeglądarki jest w tle.
 - Kolektor odpytuje urządzenia co `NETPULSE_POLL_INTERVAL` (domyślnie 30 s), więc odświeżanie
   częstsze niż interwał kolektora nie da nowych danych – panel to zaznaczy.
 - Później: WebSocket (dane „na żywo” bez odpytywania).
@@ -131,7 +135,7 @@ Nie budujemy tego teraz, ale unikamy decyzji, które by to blokowały:
 | Etap | Zakres                                                                                     |
 |------|--------------------------------------------------------------------------------------------|
 | 5a ✅ | Szkielet aplikacji: pasek górny, menu, motyw, ekran logowania z kreatorem, wbudowanie w obraz API |
-| 5b   | Dashboard: pasek podsumowania, karty urządzeń, wykres ruchu, interwały odświeżania          |
+| 5b ✅ | Dashboard: pasek podsumowania, karty urządzeń, wykres ruchu, interwały odświeżania          |
 | 5c   | Ustawienia: Konto (zmiana hasła), Urządzenia (dodaj/edytuj/usuń z testem SNMP), Odświeżanie |
 | 5d   | Aktualizacja: sprawdzanie wersji, kontener updater, przycisk Aktualizuj (wymaga obrazów GHCR) |
 | 5e   | Personalizacja: edytor widgetów, układ pulpitu, opcje wykresów zapisywane na koncie         |

@@ -35,6 +35,7 @@ npm run build       # produkcyjny build do dist/
 | `src/lib/`               | klient API, motyw, formatowanie, klient zapytań                     |
 | `src/i18n/`              | teksty interfejsu (polski; kolejne języki = kolejne pliki)          |
 | `dev/mock-api.mjs`       | atrapa API do developmentu                                          |
+| `tools/make-icons.py`    | generuje favicon i ikony z logo (`pip install pillow`)              |
 
 Kolory są zmiennymi CSS w `src/index.css` (motyw jasny i ciemny przełącza `data-theme` na `<html>`),
 więc komponenty używają nazw semantycznych (`bg-surface`, `text-text-2`, `bg-accent`).

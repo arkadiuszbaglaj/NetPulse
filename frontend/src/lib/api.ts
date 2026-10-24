@@ -86,3 +86,21 @@ export interface Device {
   last_error: string | null;
   created_at: string;
 }
+
+export interface DashboardSummary {
+  devices: { total: number; up: number; down: number; unknown: number };
+  wan: { in_bps: number | null; out_bps: number | null; interfaces: number };
+  wifi_clients: number | null;
+  last_poll_at: string | null;
+  poll_interval_s: number;
+}
+
+export interface SeriesPoint {
+  time: string;
+  values: Record<string, number | null>;
+}
+
+export interface Series {
+  interval_s: number;
+  points: SeriesPoint[];
+}

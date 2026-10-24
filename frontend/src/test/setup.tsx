@@ -24,3 +24,12 @@ if (!window.matchMedia) {
     }),
   });
 }
+
+// jsdom nie ma też canvasu, a wykresy ECharts go wymagają – w testach zastępuje je prosty stub
+vi.mock("../components/charts/TimeSeriesChart", () => ({
+  default: ({ series, points, ariaLabel }: { series: { name: string }[]; points: unknown[]; ariaLabel: string }) => (
+    <div role="img" aria-label={ariaLabel} data-testid="chart" data-points={points.length}>
+      {series.map((s) => s.name).join(", ")}
+    </div>
+  ),
+}));

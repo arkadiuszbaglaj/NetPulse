@@ -1,9 +1,12 @@
 import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconRouter } from "@tabler/icons-react";
-import { useQuery } from "@tanstack/react-query";
+import { ChartCard } from "../components/charts/ChartCard";
+import type { ChartSeries } from "../components/charts/TimeSeriesChart";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { t, type TextKey } from "../i18n";
-import { get, type Device } from "../lib/api";
-import { relativeTime } from "../lib/format";
+import type { Device } from "../lib/api";
+import { formatBps, formatRange, relativeTime } from "../lib/format";
+import { useDashboardSummary, useDevices, useSeries } from "../lib/queries";
+import { RANGE_OPTIONS, useRefresh } from "../lib/refresh";
 
 const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint } as const;
 const KIND_LABEL: Record<string, TextKey> = {
@@ -23,13 +26,53 @@ const STATUS_LABEL: Record<string, TextKey> = {
   unknown: "dash.status.unknown",
 };
 
-function Metric({ label, value, tone }: { label: string; value: string | number; tone?: "success" | "danger" }) {
+// Stałe poza komponentem: wykres odrysowuje się tylko przy zmianie danych, nie przy każdym renderze
+const TRAFFIC_SERIES: ChartSeries[] = [
+  { key: "in_bps", name: t("chart.traffic.in"), color: 1 },
+  { key: "out_bps", name: t("chart.traffic.out"), color: 2 },
+];
+const WIFI_SERIES: ChartSeries[] = [{ key: "clients", name: t("chart.wifi.clients"), color: 3 }];
+const formatClients = (v: number) => String(Math.round(v * 10) / 10);
+
+function Metric({
+  label,
+  value,
+  note,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  note?: string;
+  tone?: "success" | "danger";
+}) {
   const color = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-text";
   return (
     <Card className="px-4 py-3">
       <p className="text-xs text-text-2">{label}</p>
       <p className={`mt-0.5 text-2xl font-medium ${color}`}>{value}</p>
+      {note && <p className="mt-0.5 text-xs text-text-2">{note}</p>}
     </Card>
+  );
+}
+
+function RangePicker() {
+  const { rangeMinutes, setRangeMinutes } = useRefresh();
+  return (
+    <div role="group" aria-label={t("dash.range")} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
+      {RANGE_OPTIONS.map((m) => (
+        <button
+          key={m}
+          type="button"
+          aria-pressed={m === rangeMinutes}
+          onClick={() => setRangeMinutes(m)}
+          className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
+            m === rangeMinutes ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:text-text"
+          }`}
+        >
+          {formatRange(m)}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -43,7 +86,7 @@ function DeviceCard({ device }: { device: Device }) {
         <div className="flex min-w-0 items-center gap-2.5">
           <Icon size={22} aria-hidden="true" className="shrink-0 text-text-2" />
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-medium">{device.name}</h2>
+            <h3 className="truncate text-sm font-medium">{device.name}</h3>
             <p className="truncate text-xs text-text-2">
               {device.host} · {t(KIND_LABEL[device.kind] ?? "dash.kind.other")}
             </p>
@@ -70,24 +113,27 @@ function DeviceCard({ device }: { device: Device }) {
   );
 }
 
-/** Pulpit: podsumowanie i karty urządzeń. Wykresy i widgety dochodzą w kolejnych etapach. */
+/** Pulpit: podsumowanie sieci, wykresy ruchu WAN i klientów WiFi, karty urządzeń. */
 export function DashboardPage() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["devices"],
-    queryFn: () => get<Device[]>("/api/devices"),
-    refetchInterval: 30_000,
-  });
+  const summary = useDashboardSummary();
+  const devices = useDevices();
+  const traffic = useSeries("traffic");
+  const wifi = useSeries("wifi");
 
-  const devices = data ?? [];
-  const up = devices.filter((d) => d.status === "up").length;
-  const down = devices.filter((d) => d.status === "down").length;
+  const s = summary.data;
+  const list = devices.data ?? [];
+  const noDevices = !devices.isLoading && !devices.isError && list.length === 0;
 
   return (
     <>
-      <PageHeader title={t("dash.title")} />
-      {isError && <ErrorNote>{t("dash.error")}</ErrorNote>}
-      {!isError && !isLoading && devices.length === 0 && (
-        <Card className="p-6">
+      <PageHeader title={t("dash.title")}>
+        <RangePicker />
+      </PageHeader>
+
+      {(summary.isError || devices.isError) && !s && <ErrorNote>{t("dash.error")}</ErrorNote>}
+
+      {noDevices && (
+        <Card className="mb-4 p-6">
           <h2 className="text-base font-medium">{t("dash.empty.title")}</h2>
           <p className="mt-1 text-sm text-text-2">{t("dash.empty.body")}</p>
           <code className="mt-3 block overflow-x-auto rounded-lg bg-surface-2 px-3 py-2 font-mono text-xs">
@@ -95,19 +141,54 @@ export function DashboardPage() {
           </code>
         </Card>
       )}
-      {devices.length > 0 && (
-        <>
-          <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-            <Metric label={t("dash.devices")} value={devices.length} />
-            <Metric label={t("dash.up")} value={up} tone={up > 0 ? "success" : undefined} />
-            <Metric label={t("dash.down")} value={down} tone={down > 0 ? "danger" : undefined} />
-          </div>
+
+      {s && !noDevices && (
+        <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
+          <Metric
+            label={t("dash.devices")}
+            value={`${s.devices.up} ${t("dash.of", { total: s.devices.total })}`}
+            tone={s.devices.down > 0 ? "danger" : s.devices.up > 0 ? "success" : undefined}
+            note={s.devices.down > 0 ? `${s.devices.down} ${t("dash.down").toLowerCase()}` : t("dash.up")}
+          />
+          <Metric label={t("dash.wanDown")} value={formatBps(s.wan.in_bps)} />
+          <Metric label={t("dash.wanUp")} value={formatBps(s.wan.out_bps)} />
+          <Metric label={t("dash.wifiClients")} value={s.wifi_clients ?? "–"} />
+        </div>
+      )}
+
+      {!noDevices && (
+        <div className="mb-6 grid gap-3 lg:grid-cols-3">
+          <ChartCard
+            className="lg:col-span-2"
+            title={t("chart.traffic.title")}
+            series={TRAFFIC_SERIES}
+            data={traffic.data}
+            isLoading={traffic.isLoading}
+            isError={traffic.isError}
+            format={formatBps}
+          />
+          <ChartCard
+            title={t("chart.wifi.title")}
+            series={WIFI_SERIES}
+            data={wifi.data}
+            isLoading={wifi.isLoading}
+            isError={wifi.isError}
+            format={formatClients}
+          />
+        </div>
+      )}
+
+      {list.length > 0 && (
+        <section aria-labelledby="devices-heading">
+          <h2 id="devices-heading" className="mb-3 text-sm font-medium text-text-2">
+            {t("dash.devicesTitle")}
+          </h2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
-            {devices.map((d) => (
+            {list.map((d) => (
               <DeviceCard key={d.id} device={d} />
             ))}
           </div>
-        </>
+        </section>
       )}
     </>
   );

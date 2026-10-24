@@ -75,6 +75,16 @@ SNMPv3:
 Community i klucze SNMPv3 **nigdy nie są zwracane** przez API. W `PATCH` pominięte pole
 zostaje bez zmian – żeby zmienić np. nazwę, nie trzeba podawać community ponownie.
 
+## Pulpit (Dashboard)
+
+| Endpoint                                   | Co zwraca                                                              |
+|--------------------------------------------|------------------------------------------------------------------------|
+| `GET /api/dashboard/summary`               | liczba urządzeń (działa/nie odpowiada), bieżący ruch WAN, klienci WiFi, interwał odpytywania |
+| `GET /api/dashboard/traffic?minutes=60`    | ruch WAN (suma po routerach): `in_bps`, `out_bps`                      |
+| `GET /api/dashboard/wifi?minutes=60`       | liczba klientów WiFi (suma po widocznych sieciach)                     |
+
+Wyłączone urządzenia nie liczą się do podsumowania. „Bieżąca” wartość to ostatnia próbka z 5 minut.
+
 ## Metryki (wykresy)
 
 | Endpoint                                     | Wartości                                   |

@@ -1,0 +1,152 @@
+"""Dane do pulpitu: podsumowanie sieci i zagregowane serie (ruch WAN, klienci WiFi)."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy import func, select, text
+
+from ..config import settings
+from ..db import Session
+from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
+from .metrics import MinutesQuery, _bucket_seconds
+from .schemas import Point
+from .security import require_user
+
+router = APIRouter(prefix="/api/dashboard", tags=["dashboard"], dependencies=[Depends(require_user)])
+
+# „Bieżąca” wartość to ostatnia próbka z tego okna – starsze oznaczają, że urządzenie przestało odpowiadać
+CURRENT_WINDOW = timedelta(minutes=5)
+
+
+class DevicesSummary(BaseModel):
+    total: int
+    up: int
+    down: int
+    unknown: int
+
+
+class WanSummary(BaseModel):
+    in_bps: float | None
+    out_bps: float | None
+    interfaces: int
+
+
+class DashboardSummary(BaseModel):
+    devices: DevicesSummary
+    wan: WanSummary
+    wifi_clients: int | None
+    last_poll_at: datetime | None
+    poll_interval_s: int
+
+
+class SeriesOut(BaseModel):
+    interval_s: int
+    points: list[Point]
+
+
+@router.get("/summary", response_model=DashboardSummary)
+async def summary():
+    since = datetime.now(UTC) - CURRENT_WINDOW
+    async with Session() as session:
+        by_status = dict(
+            (await session.execute(select(Device.status, func.count()).where(Device.enabled).group_by(Device.status))).all()
+        )
+        last_poll = await session.scalar(select(func.max(Device.last_polled_at)).where(Device.enabled))
+
+        wan_ids = (
+            await session.scalars(
+                select(Interface.id)
+                .join(Device, Device.id == Interface.device_id)
+                .where(Interface.role == "wan", Device.enabled)
+            )
+        ).all()
+        in_bps = out_bps = None
+        if wan_ids:
+            latest = (
+                select(InterfaceMetric.interface_id, InterfaceMetric.in_bps, InterfaceMetric.out_bps)
+                .distinct(InterfaceMetric.interface_id)
+                .where(InterfaceMetric.interface_id.in_(wan_ids), InterfaceMetric.time >= since)
+                .order_by(InterfaceMetric.interface_id, InterfaceMetric.time.desc())
+            )
+            rows = (await session.execute(latest)).all()
+            ins = [r.in_bps for r in rows if r.in_bps is not None]
+            outs = [r.out_bps for r in rows if r.out_bps is not None]
+            in_bps = sum(ins) if ins else None
+            out_bps = sum(outs) if outs else None
+
+        n_wifi, clients = (
+            await session.execute(
+                select(func.count(WifiNetwork.id), func.sum(WifiNetwork.clients))
+                .join(Device, Device.id == WifiNetwork.device_id)
+                .where(WifiNetwork.hidden.is_(False), Device.enabled)
+            )
+        ).one()
+
+    total = sum(by_status.values())
+    up, down = by_status.get("up", 0), by_status.get("down", 0)
+    return DashboardSummary(
+        devices=DevicesSummary(total=total, up=up, down=down, unknown=total - up - down),
+        wan=WanSummary(in_bps=in_bps, out_bps=out_bps, interfaces=len(wan_ids)),
+        wifi_clients=int(clients) if n_wifi and clients is not None else None,
+        last_poll_at=last_poll,
+        poll_interval_s=settings.poll_interval,
+    )
+
+
+# date_bin (PostgreSQL 14+) działa z TimescaleDB i bez niego; kubełki wyrównane do stałego początku
+_TRAFFIC_SQL = text(
+    """
+    SELECT bucket, SUM(in_bps) AS in_bps, SUM(out_bps) AS out_bps FROM (
+        SELECT date_bin(CAST(:stride AS interval), m.time, TIMESTAMPTZ '2000-01-01 00:00:00+00') AS bucket,
+               m.interface_id, AVG(m.in_bps) AS in_bps, AVG(m.out_bps) AS out_bps
+        FROM interface_metrics m
+        JOIN interfaces i ON i.id = m.interface_id
+        JOIN devices d ON d.id = i.device_id
+        WHERE i.role = 'wan' AND d.enabled AND m.time >= :since
+        GROUP BY bucket, m.interface_id
+    ) per_interface
+    GROUP BY bucket ORDER BY bucket
+    """
+)
+
+_WIFI_SQL = text(
+    """
+    SELECT bucket, SUM(clients) AS clients FROM (
+        SELECT date_bin(CAST(:stride AS interval), m.time, TIMESTAMPTZ '2000-01-01 00:00:00+00') AS bucket,
+               m.wifi_id, AVG(m.clients) AS clients
+        FROM wifi_metrics m
+        JOIN wifi_networks w ON w.id = m.wifi_id
+        JOIN devices d ON d.id = w.device_id
+        WHERE NOT w.hidden AND d.enabled AND m.time >= :since
+        GROUP BY bucket, m.wifi_id
+    ) per_network
+    GROUP BY bucket ORDER BY bucket
+    """
+)
+
+
+async def _aggregate(sql, minutes: int, columns: list[str]) -> SeriesOut:
+    stride = _bucket_seconds(minutes)
+    since = datetime.now(UTC) - timedelta(minutes=minutes)
+    async with Session() as session:
+        rows = (await session.execute(sql, {"stride": timedelta(seconds=stride), "since": since})).all()
+    points = [
+        Point(time=r[0], values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
+        for r in rows
+    ]
+    return SeriesOut(interval_s=stride, points=points)
+
+
+@router.get("/traffic", response_model=SeriesOut)
+async def traffic(minutes: int = MinutesQuery):
+    """Ruch WAN (suma po wszystkich routerach): pobieranie `in_bps` i wysyłanie `out_bps`."""
+    return await _aggregate(_TRAFFIC_SQL, minutes, ["in_bps", "out_bps"])
+
+
+@router.get("/wifi", response_model=SeriesOut)
+async def wifi(minutes: int = MinutesQuery):
+    """Liczba klientów WiFi (suma po wszystkich widocznych sieciach)."""
+    return await _aggregate(_WIFI_SQL, minutes, ["clients"])
