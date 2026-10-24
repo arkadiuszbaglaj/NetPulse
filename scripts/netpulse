@@ -149,7 +149,10 @@ cmd_update() {
   # Uzupełnij .env o nowe zmienne z .env.example (bez nadpisywania istniejących)
   while IFS='=' read -r key value; do
     case "$key" in ''|\#*) continue ;; esac
-    grep -q "^${key}=" "$ENV_FILE" || echo "${key}=${value}" >>"$ENV_FILE"
+    grep -q "^${key}=" "$ENV_FILE" && continue
+    # Katalog instalacji ma być faktycznym katalogiem tej instalacji, nie wartością z przykładu
+    [ "$key" = "NETPULSE_DIR" ] && value="$INSTALL_DIR"
+    echo "${key}=${value}" >>"$ENV_FILE"
   done <"$INSTALL_DIR/deploy/.env.example"
   c_info "Buduję i uruchamiam nową wersję..."
   if ! compose up -d --build --remove-orphans; then

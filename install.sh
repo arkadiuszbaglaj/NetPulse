@@ -108,6 +108,8 @@ main() {
   if [ ! -f "$ENV_FILE" ]; then
     info "Tworzę konfigurację z losowym hasłem do bazy..."
     sed -e "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" \
+\
+        -e "s|^NETPULSE_DIR=.*|NETPULSE_DIR=${DIR}|" \
         -e "s/^NETPULSE_PORT=.*/NETPULSE_PORT=${PORT}/" \
         "$DIR/deploy/.env.example" >"$ENV_FILE"
     chmod 600 "$ENV_FILE"

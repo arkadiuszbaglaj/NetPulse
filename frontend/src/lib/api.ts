@@ -173,3 +173,46 @@ export interface ProbeResult {
   }[];
   wifi: { ssid: string; radio: string | null; channel: number | null; clients: number | null; hidden: boolean }[];
 }
+
+export interface UpdateVersionInfo {
+  version: string | null;
+  commit: string | null;
+  branch?: string | null;
+}
+
+export interface UpdateCheck {
+  current: UpdateVersionInfo;
+  latest: UpdateVersionInfo;
+  behind: number;
+  ahead: number;
+  diverged: boolean;
+  update_available: boolean;
+  changes: { sha: string; subject: string }[];
+  checked_at: string | null;
+}
+
+export type UpdatePhaseStatus = "pending" | "running" | "done" | "failed" | "skipped";
+export type UpdateJobState = "idle" | "running" | "ok" | "failed" | "rolled_back";
+
+export interface UpdateJob {
+  state: UpdateJobState;
+  phase: string | null;
+  phases: { id: string; status: UpdatePhaseStatus }[];
+  started_at: string | null;
+  finished_at: string | null;
+  from_version: string | null;
+  to_version: string | null;
+  from_commit: string | null;
+  to_commit: string | null;
+  error: string | null;
+  note: string | null;
+  log: string[];
+}
+
+export interface UpdatesResponse {
+  installed_version: string;
+  updater: { configured: boolean; reachable: boolean; message: string | null };
+  current: UpdateVersionInfo | null;
+  info: UpdateCheck | null;
+  job: UpdateJob | null;
+}

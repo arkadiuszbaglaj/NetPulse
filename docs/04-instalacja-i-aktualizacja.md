@@ -53,6 +53,8 @@ bo przepływ liczony jest z różnicy liczników.
 
 ## Aktualizacja
 
+Z panelu: **Ustawienia → Aktualizacja** (szczegóły, bezpieczeństwo i kopie bazy: [`07-aktualizacja-z-panelu.md`](07-aktualizacja-z-panelu.md)). Z terminala:
+
 ```bash
 netpulse update
 ```

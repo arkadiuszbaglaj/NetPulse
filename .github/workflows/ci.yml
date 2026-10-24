@@ -221,10 +221,75 @@ jobs:
           curl -fsS http://127.0.0.1:8000/api/health
           # sesja logowania przetrwała aktualizację
           curl -fsS -b cookies.txt http://127.0.0.1:8000/api/auth/me
+      - name: Aktualizacja z panelu (usługa updater)
+        timeout-minutes: 30
+        run: |
+          API=http://127.0.0.1:8000
+          api() { curl -fsS -b cookies.txt -H 'Content-Type: application/json' "$@"; }
+          json() { python3 -c "import json,sys; d=json.loads(sys.stdin.read()); print($1)"; }
+
+          # usługa aktualizacji działa i jest dostępna z API
+          STATUS=$(api $API/api/updates)
+          echo "$STATUS" | tee updater.log
+          test "$(json 'd["updater"]["configured"] and d["updater"]["reachable"]' <<<"$STATUS")" = True
+          test "$(json 'd["job"]["state"]' <<<"$STATUS")" = idle
+
+          # cofamy instalację o jeden commit, żeby było co aktualizować
+          WANT=$(sudo git -C /opt/netpulse rev-parse HEAD)
+          sudo git -C /opt/netpulse reset --hard HEAD~1 >/dev/null
+          WANT_SHORT=$(sudo git -C /opt/netpulse rev-parse --short "$WANT")
+
+          CHECK=$(api -X POST $API/api/updates/check)
+          echo "$CHECK" | tee -a updater.log
+          test "$(json 'd["info"]["update_available"]' <<<"$CHECK")" = True
+          test "$(json 'd["info"]["behind"]' <<<"$CHECK")" = 1
+          test "$(json 'd["info"]["latest"]["commit"]' <<<"$CHECK")" = "$WANT_SHORT"
+
+          # aktualizacja: kod, kopia bazy, budowanie, restart usług, test zdrowia
+          api -X POST $API/api/updates/apply | tee -a updater.log
+          echo
+          STATE=running
+          for i in $(seq 1 240); do
+            OUT=$(api $API/api/updates 2>/dev/null || true)
+            STATE=$(json '(d.get("job") or {}).get("state", "?")' <<<"${OUT:-{\}}" 2>/dev/null || echo "?")
+            echo "[$i] stan: $STATE"
+            case "$STATE" in ok | failed | rolled_back) break ;; esac
+            sleep 5
+          done
+          echo "$OUT" > updater-final.json
+          json '"\n".join(d["job"]["log"][-60:])' <<<"$OUT" | tee -a updater.log || true
+          test "$STATE" = ok
+
+          # efekt: kod w docelowej wersji, kopia bazy z prawdziwą zawartością, usługi i dane na miejscu
+          test "$(sudo git -C /opt/netpulse rev-parse HEAD)" = "$WANT"
+          BACKUP=$(ls /opt/netpulse/backups/netpulse-*.sql.gz | head -1)
+          zcat "$BACKUP" | head -c 400 | grep -q "PostgreSQL database dump"
+
+          # kopię da się odtworzyć: ta sama procedura, która jest opisana w dokumentacji
+          dc() { sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env "$@"; }
+          dc exec -T db psql -U netpulse -d postgres -c "CREATE DATABASE restore_test"
+          dc exec -T db psql -U netpulse -d restore_test -c "CREATE EXTENSION IF NOT EXISTS timescaledb" -c "SELECT timescaledb_pre_restore()"
+          zcat "$BACKUP" | dc exec -T db psql -U netpulse -d restore_test -q > restore.log 2>&1 || true
+          dc exec -T db psql -U netpulse -d restore_test -c "SELECT timescaledb_post_restore()"
+          test "$(dc exec -T db psql -U netpulse -d restore_test -tAc 'SELECT count(*) FROM devices')" = 1
+          test "$(dc exec -T db psql -U netpulse -d restore_test -tAc 'SELECT count(*) FROM users')" = 1
+          dc exec -T db psql -U netpulse -d postgres -c "DROP DATABASE restore_test"
+          curl -fsS $API/api/health
+          api $API/api/auth/me
+          FINAL=$(api $API/api/updates)
+          test "$(json 'd["job"]["state"]' <<<"$FINAL")" = ok
+          test "$(json 'd["job"]["to_commit"]' <<<"$FINAL")" = "$WANT_SHORT"
+          test "$(api $API/api/devices | json 'len(d)')" = 1
       - name: Raport błędów
         if: failure()
         run: |
           sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env logs --tail=80 > compose.log 2>&1 || true
+          sudo docker logs --tail 60 netpulse-updater-1 > updater-container.log 2>&1 || true
+          sudo docker logs --tail 80 netpulse-update-job > updater-job.log 2>&1 || true
+          bash .github/scripts/annotate.sh restore.log "odtwarzanie kopii" 40
+          bash .github/scripts/annotate.sh updater.log "aktualizacja z panelu" 80
+          bash .github/scripts/annotate.sh updater-container.log "kontener updater" 40
+          bash .github/scripts/annotate.sh updater-job.log "zadanie aktualizacji" 60
           bash .github/scripts/annotate.sh install.log "install.sh" 60
           bash .github/scripts/annotate.sh probe.log "probe" 60
           bash .github/scripts/annotate.sh panel.log "panel" 40

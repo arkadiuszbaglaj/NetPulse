@@ -99,6 +99,16 @@ async def require_user(request: Request, response: Response) -> User:
 CurrentUser = Annotated[User, Depends(require_user)]
 
 
+async def require_admin(user: CurrentUser) -> User:
+    """Zależność FastAPI: tylko administrator (np. zlecenie aktualizacji serwera)."""
+    if not user.is_admin:
+        raise HTTPException(403, "Ta operacja wymaga uprawnień administratora")
+    return user
+
+
+AdminUser = Annotated[User, Depends(require_admin)]
+
+
 def _allowed_hosts(request: Request) -> set[str]:
     hosts = {request.headers.get("host", "").lower()}
     if fwd := request.headers.get("x-forwarded-host"):

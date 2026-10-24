@@ -16,12 +16,12 @@ dependencies = [
     "cryptography>=43",  # szyfrowanie SNMPv3 (AES/DES)
     "tzdata>=2024.1",  # strefy czasowe niezależnie od obrazu systemu
     "argon2-cffi>=23.1",  # hashowanie haseł
+    "httpx>=0.27",  # rozmowa z usługą aktualizacji
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
-    "httpx>=0.27",
     "snmpsim>=1.1",
     "pysmi>=1.5",
     "ruff>=0.8",

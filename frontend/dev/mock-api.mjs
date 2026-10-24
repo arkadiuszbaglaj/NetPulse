@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.PORT ?? 8000);
-const VERSION = "0.5.1";
+const VERSION = "0.6.0";
 const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
@@ -24,6 +24,42 @@ const devices = [
 
 // Przebieg ruchu w Mb/s: i – numer próbki wstecz, k – 0 pobieranie, 1 wysyłanie
 const wave = (i, k) => Math.max(0.2, (k === 0 ? 38 : 6) * (1 + 0.5 * Math.sin(i / 7 + k) + 0.25 * Math.sin(i / 2.3)));
+
+
+// --- aktualizacja z panelu (symulacja): sprawdzanie → zmiany → postęp co 2 s → sukces ---------------------------
+let installed = VERSION;
+let updateInfo = null;
+const idleJob = { state: "idle", phase: null, phases: [], started_at: null, finished_at: null, from_version: null, to_version: null, from_commit: null, to_commit: null, error: null, note: null, log: [] };
+let job = { ...idleJob };
+const PHASES = ["prepare", "backup", "fetch", "build", "start", "verify"];
+const updatesView = () => ({
+  installed_version: installed,
+  updater: { configured: true, reachable: true, message: null },
+  current: { version: installed, commit: installed === VERSION ? "abc1234" : "def5678", branch: "main" },
+  info: updateInfo,
+  job,
+});
+function startSimulation() {
+  let i = 0;
+  job = {
+    ...idleJob, state: "running", phase: PHASES[0], started_at: now(), from_version: installed, to_version: "9.9.9", from_commit: "abc1234", to_commit: "def5678",
+    phases: PHASES.map((id, n) => ({ id, status: n === 0 ? "running" : "pending" })), log: ["== prepare", "Wolne miejsce: 41000 MB (wymagane co najmniej 2000 MB)"],
+  };
+  const timer = setInterval(() => {
+    job.phases[i].status = "done";
+    i += 1;
+    if (i >= PHASES.length) {
+      clearInterval(timer);
+      installed = "9.9.9";
+      updateInfo = null;
+      job = { ...job, state: "ok", phase: null, finished_at: now(), log: [...job.log, "Aktualizacja zakończona"] };
+      return;
+    }
+    job.phases[i].status = "running";
+    job.phase = PHASES[i];
+    job.log = [...job.log, `== ${PHASES[i]}`];
+  }, 2000);
+}
 
 const publicUser = () => user && { id: 1, username: user.username, is_admin: true, created_at: user.created, last_login_at: user.lastLogin };
 const send = (res, code, body, headers = {}) => {
@@ -134,6 +170,26 @@ createServer(async (req, res) => {
     const { community, v3_auth_key, v3_priv_key, ...fields } = body2;
     Object.assign(devices[i], fields);
     return send(res, 200, devices[i]);
+  }
+  if (route === "GET /api/updates") return send(res, 200, updatesView());
+  if (route === "POST /api/updates/check") {
+    await new Promise((r) => setTimeout(r, 900));
+    updateInfo = installed === "9.9.9"
+      ? { current: { version: installed, commit: "def5678" }, latest: { version: installed, commit: "def5678" }, behind: 0, ahead: 0, diverged: false, update_available: false, changes: [], checked_at: now() }
+      : {
+          current: { version: installed, commit: "abc1234" }, latest: { version: "9.9.9", commit: "def5678" }, behind: 3, ahead: 0, diverged: false, update_available: true, checked_at: now(),
+          changes: [
+            { sha: "def5678", subject: "Etap 5d: aktualizacja jednym kliknięciem" },
+            { sha: "b0c1d2e", subject: "Kontrola miejsca na dysku w install.sh i netpulse update" },
+            { sha: "9a8b7c6", subject: "Etap 5c: ustawienia – zarządzanie urządzeniami z panelu" },
+          ],
+        };
+    return send(res, 200, updatesView());
+  }
+  if (route === "POST /api/updates/apply") {
+    if (job.state === "running") return send(res, 409, { detail: "Aktualizacja już trwa." });
+    startSimulation();
+    return send(res, 202, updatesView());
   }
   if (route === "GET /api/devices") {
     // Czas odczytu „odświeża się” z każdym zapytaniem

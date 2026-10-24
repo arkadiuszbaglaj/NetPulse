@@ -3,6 +3,10 @@ snmpwalk*.txt*
 *.walk
 !backend/tests/fixtures/*.snmprec
 
+# Stan i kopie z aktualizacji z panelu (na serwerze)
+.update/
+backups/
+
 # Sekrety
 .env
 deploy/.env

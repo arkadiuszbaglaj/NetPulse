@@ -14,9 +14,9 @@ import {
 import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { AccountPage } from "./pages/settings/AccountPage";
-import { ComingSoonPage } from "./pages/settings/ComingSoonPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
+import { UpdatePage } from "./pages/settings/UpdatePage";
 import { DashboardPage } from "./pages/DashboardPage";
 
 export interface NavChild {
@@ -70,7 +70,7 @@ export const modules: NavModule[] = [
         path: "update",
         label: "nav.settings.update",
         icon: IconDownload,
-        element: <ComingSoonPage title="settings.update.title" showVersion />,
+        element: <UpdatePage />,
       },
     ],
   },

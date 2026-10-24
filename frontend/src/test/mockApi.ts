@@ -1,5 +1,15 @@
 import { vi } from "vitest";
-import type { AuthStatus, DashboardSummary, Device, ProbeResult, Series, User } from "../lib/api";
+import type {
+  AuthStatus,
+  DashboardSummary,
+  Device,
+  ProbeResult,
+  Series,
+  UpdateCheck,
+  UpdateJob,
+  UpdatesResponse,
+  User,
+} from "../lib/api";
 
 export const USER: User = {
   id: 1,
@@ -67,6 +77,74 @@ export const PROBE: ProbeResult = {
   wifi: [],
 };
 
+export const IDLE_JOB: UpdateJob = {
+  state: "idle",
+  phase: null,
+  phases: [],
+  started_at: null,
+  finished_at: null,
+  from_version: null,
+  to_version: null,
+  from_commit: null,
+  to_commit: null,
+  error: null,
+  note: null,
+  log: [],
+};
+
+export const UPDATES: UpdatesResponse = {
+  installed_version: "0.2.0",
+  updater: { configured: true, reachable: true, message: null },
+  current: { version: "0.2.0", commit: "abc1234", branch: "main" },
+  info: null,
+  job: IDLE_JOB,
+};
+
+export const UP_TO_DATE: UpdateCheck = {
+  current: { version: "0.2.0", commit: "abc1234" },
+  latest: { version: "0.2.0", commit: "abc1234" },
+  behind: 0,
+  ahead: 0,
+  diverged: false,
+  update_available: false,
+  changes: [],
+  checked_at: new Date().toISOString(),
+};
+
+export const UPDATE_AVAILABLE: UpdateCheck = {
+  current: { version: "0.2.0", commit: "abc1234" },
+  latest: { version: "0.3.0", commit: "def5678" },
+  behind: 2,
+  ahead: 0,
+  diverged: false,
+  update_available: true,
+  changes: [
+    { sha: "def5678", subject: "Etap B: druga zmiana" },
+    { sha: "aaa1111", subject: "Etap A: pierwsza zmiana" },
+  ],
+  checked_at: new Date().toISOString(),
+};
+
+export const RUNNING_JOB: UpdateJob = {
+  ...IDLE_JOB,
+  state: "running",
+  phase: "build",
+  phases: [
+    { id: "prepare", status: "done" },
+    { id: "backup", status: "done" },
+    { id: "fetch", status: "done" },
+    { id: "build", status: "running" },
+    { id: "start", status: "pending" },
+    { id: "verify", status: "pending" },
+  ],
+  started_at: "2026-10-24T20:00:00Z",
+  from_version: "0.2.0",
+  to_version: "0.3.0",
+  from_commit: "abc1234",
+  to_commit: "def5678",
+  log: ["== prepare", "Wolne miejsce: 20000 MB", "== build", "Step 1/8 : FROM node"],
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -81,6 +159,13 @@ interface MockState {
   traffic: Series;
   wifi: Series;
   probe: ProbeResult;
+  /** Czy zalogowany użytkownik jest administratorem */
+  admin: boolean;
+  updates: UpdatesResponse;
+  /** Odpowiedź na POST /api/updates/check (domyślnie bez zmian) */
+  afterCheck?: UpdatesResponse;
+  /** Odpowiedź na POST /api/updates/apply (domyślnie zadanie w toku) */
+  afterApply?: UpdatesResponse;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -98,6 +183,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     traffic: TRAFFIC,
     wifi: { interval_s: 30, points: [{ time: "2026-10-24T20:00:00Z", values: { clients: 5 } }] },
     probe: PROBE,
+    admin: true,
+    updates: UPDATES,
     overrides: {},
     ...initial,
   };
@@ -108,7 +195,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
   const status = (): AuthStatus => ({
     setup_required: state.setupRequired,
     authenticated: state.authenticated && !state.setupRequired,
-    user: state.authenticated && !state.setupRequired ? USER : null,
+    user: state.authenticated && !state.setupRequired ? { ...USER, is_admin: state.admin } : null,
     version: "0.2.0",
   });
 
@@ -125,6 +212,15 @@ export function mockApi(initial: Partial<MockState> = {}) {
 
     // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
     if (state.authenticated) {
+      if (key === "GET /api/updates") return json(200, state.updates);
+      if (key === "POST /api/updates/check") {
+        state.updates = state.afterCheck ?? state.updates;
+        return json(200, state.updates);
+      }
+      if (key === "POST /api/updates/apply") {
+        state.updates = state.afterApply ?? { ...state.updates, job: RUNNING_JOB };
+        return json(202, state.updates);
+      }
       if (key === "POST /api/probe") return json(200, state.probe);
       if (key === "POST /api/devices") {
         const b = body as Partial<Device> & { host: string; name: string };

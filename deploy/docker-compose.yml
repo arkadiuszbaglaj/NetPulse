@@ -12,6 +12,10 @@ x-backend: &backend
     NETPULSE_RETENTION_DAYS: ${NETPULSE_RETENTION_DAYS:-30}
     NETPULSE_LOG_LEVEL: ${NETPULSE_LOG_LEVEL:-INFO}
     TZ: ${TZ:-Europe/Warsaw}
+    # Aktualizacja z panelu: API rozmawia z usługą updater (sieć wewnętrzna); token jest w wolumenie
+    # updater-secret (tworzy go usługa aktualizacji przy pierwszym starcie)
+    NETPULSE_UPDATER_URL: http://updater:8080
+    NETPULSE_UPDATER_TOKEN_FILE: /run/netpulse/updater-token
   depends_on:
     db:
       condition: service_healthy
@@ -40,6 +44,8 @@ services:
   api:
     <<: *backend
     command: ["netpulse", "api"]
+    volumes:
+      - updater-secret:/run/netpulse:ro
     ports:
       - "${NETPULSE_PORT:-8000}:8000"
     healthcheck:
@@ -49,5 +55,31 @@ services:
       retries: 6
       start_period: 15s
 
+  # Usługa aktualizacji: jedyny kontener z dostępem do Dockera. Nie ma opublikowanego portu –
+  # rozmawia z nią tylko API (token), a aktualizację może zlecić wyłącznie administrator.
+  # Katalog instalacji jest montowany pod TĄ SAMĄ ścieżką co na serwerze: docker compose
+  # przekazuje demonowi ścieżki hosta (kontekst budowania, plik .env).
+  updater:
+    build:
+      context: ..
+      dockerfile: updater/Dockerfile
+    image: netpulse-updater:local
+    restart: unless-stopped
+    environment:
+      NETPULSE_UPDATER: ${NETPULSE_UPDATER:-on}
+      NETPULSE_UPDATER_TOKEN_FILE: /run/netpulse/updater-token
+      NETPULSE_DIR: ${NETPULSE_DIR:?ustaw NETPULSE_DIR w .env (katalog instalacji)}
+      NETPULSE_UPDATE_REPO: ${NETPULSE_UPDATE_REPO:-}
+      NETPULSE_UPDATE_BRANCH: ${NETPULSE_UPDATE_BRANCH:-}
+      NETPULSE_MIN_FREE_MB: ${NETPULSE_MIN_FREE_MB:-2000}
+      NETPULSE_KEEP_BUILD_CACHE_HOURS: ${NETPULSE_KEEP_BUILD_CACHE_HOURS:-72}
+      TZ: ${TZ:-Europe/Warsaw}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${NETPULSE_DIR:?ustaw NETPULSE_DIR w .env}:${NETPULSE_DIR}
+      - updater-secret:/run/netpulse
+
 volumes:
   db-data:
+  # Token API ↔ updater: zapisuje go updater, API tylko czyta
+  updater-secret:

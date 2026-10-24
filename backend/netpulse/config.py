@@ -35,6 +35,11 @@ class Settings:
     # Dodatkowe dozwolone adresy panelu (np. za reverse proxy), oddzielone przecinkami:
     # https://netpulse.example.lan
     trusted_origins: str = _env("TRUSTED_ORIGINS", "")
+    # Usługa aktualizacji (osobny kontener z dostępem do Dockera); bez tokenu aktualizacja z panelu jest wyłączona
+    updater_url: str = _env("UPDATER_URL", "")
+    # Token: z pliku we wspólnym wolumenie (tworzy go usługa aktualizacji) albo wprost ze zmiennej
+    updater_token: str = _env("UPDATER_TOKEN", "")
+    updater_token_file: str = _env("UPDATER_TOKEN_FILE", "")
     # Bez puli połączeń (testy, jednorazowe polecenia CLI)
     db_nullpool: bool = _env("DB_NULLPOOL", "0") == "1"
 

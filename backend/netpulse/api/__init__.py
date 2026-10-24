@@ -13,7 +13,7 @@ from sqlalchemy import text
 from .. import __version__
 from ..config import settings
 from ..db import engine, has_timescale
-from . import auth_routes, dashboard, devices, metrics
+from . import auth_routes, dashboard, devices, metrics, updates
 from .security import check_origin
 from .web import mount_web
 
@@ -22,6 +22,7 @@ app.include_router(auth_routes.router)
 app.include_router(dashboard.router)
 app.include_router(devices.router)
 app.include_router(metrics.router)
+app.include_router(updates.router)
 
 
 @app.get("/api/health", tags=["system"])
