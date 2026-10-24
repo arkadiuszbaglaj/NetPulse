@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select, text
 
 from . import __version__
-from .db import Session, has_timescale, engine
+from .db import Session, engine, has_timescale
 from .db.models import Device, DeviceMetric, Interface, InterfaceMetric, WifiMetric, WifiNetwork
 
 app = FastAPI(title="NetPulse API", version=__version__)

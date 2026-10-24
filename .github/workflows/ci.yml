@@ -68,7 +68,7 @@ jobs:
           python-version: "3.13"
       - name: Symulator urządzeń (snmpsim z danymi UniFi)
         run: |
-          pip install snmpsim
+          pip install snmpsim pysmi
           mkdir -p /tmp/snmpsim-cache
           nohup snmpsim-command-responder --data-dir=backend/tests/fixtures \
             --cache-dir=/tmp/snmpsim-cache --agent-udpv4-endpoint=0.0.0.0:1161 > snmpsim.log 2>&1 &

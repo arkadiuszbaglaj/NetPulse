@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import DBAPIError
 
 from .config import settings
 from .db import Session
@@ -144,13 +146,40 @@ class Collector:
         return result
 
     async def save_failure(self, target: DeviceTarget, now: datetime, error: str) -> None:
-        async with Session() as session, session.begin():
+        async def write(session) -> None:
             await session.execute(
                 update(Device)
                 .where(Device.id == target.id)
                 .values(status="down", last_polled_at=now, last_error=error[:2000])
             )
             session.add(DeviceMetric(time=now, device_id=target.id, reachable=False))
+
+        await _write_with_retry(write)
+
+    def compute_rates(self, dev_id: int, result: PollResult, ts: float) -> tuple[dict, dict]:
+        """Liczy przepływy przed zapisem (żeby ponowienie zapisu nie psuło liczników)."""
+        if_rates: dict[int, dict] = {}
+        for i in result.interfaces:
+            key = (dev_id, "if", i.if_index)
+            values = {
+                "in_bps": self.tracker.bps(key + ("in",), ts, i.in_octets, i.counter_bits, i.speed_mbps),
+                "out_bps": self.tracker.bps(key + ("out",), ts, i.out_octets, i.counter_bits, i.speed_mbps),
+            }
+            for field in ("in_errors", "out_errors", "in_discards", "out_discards"):
+                res = self.tracker.update(key + (field,), ts, getattr(i, field), 32)
+                values[field] = res[0] if res else None
+            if any(v is not None for v in values.values()):
+                values["oper_up"] = i.oper_status == "up"
+                if_rates[i.if_index] = values
+        wifi_rates: dict[str, dict] = {}
+        for w in result.wifi:
+            key = (dev_id, "wifi", w.key)
+            wifi_rates[w.key] = {
+                "clients": w.clients,
+                "rx_bps": self.tracker.bps(key + ("rx",), ts, w.rx_octets, w.counter_bits),
+                "tx_bps": self.tracker.bps(key + ("tx",), ts, w.tx_octets, w.counter_bits),
+            }
+        return if_rates, wifi_rates
 
     async def save_result(
         self, target: DeviceTarget, result: PollResult, now: datetime, poll_ms: float
@@ -167,7 +196,9 @@ class Collector:
                 self.tracker.forget(lambda k: k[0] == dev_id)
             self._last_uptime[dev_id] = sysinfo.uptime_s
 
-        async with Session() as session, session.begin():
+        if_rates, wifi_rates = self.compute_rates(dev_id, result, ts)
+
+        async def write(session) -> None:
             await session.execute(
                 update(Device)
                 .where(Device.id == dev_id)
@@ -188,7 +219,6 @@ class Collector:
                 )
             )
 
-            # Interfejsy: upsert + metryki
             if result.interfaces:
                 rows = [
                     {
@@ -207,7 +237,7 @@ class Collector:
                         "speed_mbps": i.speed_mbps,
                         "last_seen_at": now,
                     }
-                    for i in result.interfaces
+                    for i in sorted(result.interfaces, key=lambda x: x.if_index)
                 ]
                 stmt = insert(Interface).values(rows)
                 stmt = stmt.on_conflict_do_update(
@@ -215,31 +245,11 @@ class Collector:
                     set_={c: stmt.excluded[c] for c in rows[0] if c not in ("device_id", "if_index")},
                 ).returning(Interface.id, Interface.if_index)
                 ids = {row.if_index: row.id for row in await session.execute(stmt)}
+                session.add_all(
+                    InterfaceMetric(time=now, interface_id=ids[idx], **values)
+                    for idx, values in if_rates.items()
+                )
 
-                metrics = []
-                for i in result.interfaces:
-                    key = (dev_id, "if", i.if_index)
-                    in_bps = self.tracker.bps(key + ("in",), ts, i.in_octets, i.counter_bits, i.speed_mbps)
-                    out_bps = self.tracker.bps(key + ("out",), ts, i.out_octets, i.counter_bits, i.speed_mbps)
-                    deltas = {}
-                    for field in ("in_errors", "out_errors", "in_discards", "out_discards"):
-                        res = self.tracker.update(key + (field,), ts, getattr(i, field), 32)
-                        deltas[field] = res[0] if res else None
-                    if in_bps is None and out_bps is None and all(v is None for v in deltas.values()):
-                        continue  # pierwszy odczyt – nie ma jeszcze z czym porównać
-                    metrics.append(
-                        InterfaceMetric(
-                            time=now,
-                            interface_id=ids[i.if_index],
-                            in_bps=in_bps,
-                            out_bps=out_bps,
-                            oper_up=i.oper_status == "up",
-                            **deltas,
-                        )
-                    )
-                session.add_all(metrics)
-
-            # WiFi: upsert + metryki
             if result.wifi:
                 rows = [
                     {
@@ -253,7 +263,7 @@ class Collector:
                         "clients": w.clients,
                         "last_seen_at": now,
                     }
-                    for w in result.wifi
+                    for w in sorted(result.wifi, key=lambda x: x.key)
                 ]
                 stmt = insert(WifiNetwork).values(rows)
                 stmt = stmt.on_conflict_do_update(
@@ -261,15 +271,10 @@ class Collector:
                     set_={c: stmt.excluded[c] for c in rows[0] if c not in ("device_id", "key")},
                 ).returning(WifiNetwork.id, WifiNetwork.key)
                 wifi_ids = {row.key: row.id for row in await session.execute(stmt)}
-                for w in result.wifi:
-                    key = (dev_id, "wifi", w.key)
-                    rx = self.tracker.bps(key + ("rx",), ts, w.rx_octets, w.counter_bits)
-                    tx = self.tracker.bps(key + ("tx",), ts, w.tx_octets, w.counter_bits)
-                    session.add(
-                        WifiMetric(
-                            time=now, wifi_id=wifi_ids[w.key[:64]], clients=w.clients, rx_bps=rx, tx_bps=tx
-                        )
-                    )
+                session.add_all(
+                    WifiMetric(time=now, wifi_id=wifi_ids[key[:64]], **values)
+                    for key, values in wifi_rates.items()
+                )
 
             h = result.health
             session.add(
@@ -284,6 +289,29 @@ class Collector:
                     load1=h.load1,
                 )
             )
+
+        await _write_with_retry(write)
+
+
+def _is_retryable(exc: DBAPIError) -> bool:
+    code = getattr(getattr(exc, "orig", None), "sqlstate", None) or getattr(
+        getattr(getattr(exc, "orig", None), "__cause__", None), "sqlstate", None
+    )
+    return code in ("40P01", "40001") or "deadlock detected" in str(exc)
+
+
+async def _write_with_retry(write, attempts: int = 5) -> None:
+    """Zapis w transakcji z ponowieniem przy deadlocku (np. tworzenie nowego chunka Timescale)."""
+    for attempt in range(1, attempts + 1):
+        try:
+            async with Session() as session, session.begin():
+                await write(session)
+            return
+        except DBAPIError as exc:
+            if attempt == attempts or not _is_retryable(exc):
+                raise
+            log.debug("Konflikt zapisu (próba %d) – ponawiam", attempt)
+            await asyncio.sleep(0.05 * attempt + random.random() * 0.1)
 
 
 async def run() -> None:
