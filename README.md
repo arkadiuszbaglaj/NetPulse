@@ -31,7 +31,7 @@ Jedna komenda na czystym Ubuntu Server:
 curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
 ```
 
-> W przygotowaniu – skrypt powstanie w kroku 2.
+Szczegóły, weryfikacja i aktualizacja: [`docs/04-szkielet-i-instalacja.md`](docs/04-szkielet-i-instalacja.md).
 
 ## Stack technologiczny
 
@@ -76,7 +76,7 @@ dokładają dane dodatkowe.
 ## Plan prac
 
 1. ✅ **Inwentaryzacja i test SNMP** – włączenie SNMP, `snmpwalk` z serwera Ubuntu (→ `docs/01-snmp-test.md`, `docs/02-wyniki-snmp.md`)
-2. **Szkielet projektu** – repo, struktura katalogów, Docker Compose, baza
+2. ✅ **Szkielet projektu** – struktura katalogów, Docker Compose, TimescaleDB, `install.sh` (→ `docs/04-szkielet-i-instalacja.md`)
 3. **Kolektor SNMP** – driver generyczny IF-MIB, zapis metryk do TimescaleDB
 4. **Backend API** – urządzenia, porty, metryki, uwierzytelnianie
 5. **Panel (MVP)** – lista urządzeń, widok portów, wykresy ruchu
@@ -85,12 +85,13 @@ dokładają dane dodatkowe.
 8. **Alerty** – port down, przeciążenie łącza, urządzenie offline
 9. **SNMP v3, MikroTik, Omada**
 
-## Struktura katalogów (docelowa)
+## Struktura katalogów
 
 ```
 NetPulse/
-├── backend/        # FastAPI + kolektor (wspólny kod modeli i driverów)
-├── frontend/       # React + Vite
+├── install.sh      # instalacja jedną komendą
+├── backend/        # FastAPI + kolektor (wspólny kod modeli i driverów), migracje Alembic
+├── frontend/       # React + Vite (krok 5)
 ├── deploy/         # docker-compose.yml, .env.example
 └── docs/           # dokumentacja i instrukcje krok po kroku
 ```
