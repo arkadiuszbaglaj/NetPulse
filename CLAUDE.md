@@ -49,7 +49,11 @@ Repozytorium: https://github.com/arkadiuszbaglaj/NetPulse
 - Baza: PostgreSQL 17 + TimescaleDB (metryki jako hypertables, retention policy)
 - Frontend: React 19 + TypeScript, Vite, Tailwind CSS, TanStack Query, Apache ECharts
 - Live update: WebSocket; Redis dojdzie, gdy będzie potrzebny
-- Kolorystyka panelu: do ustalenia z użytkownikiem przy etapie frontendu
+- Panel: motyw ciemny i jasny, pulpit z kartami, menu po lewej, pasek górny z kontem i interwałem
+  odświeżania; aktualizacja jednym kliknięciem przez osobny kontener `updater`; wykresy i układ
+  pulpitu personalizowane na koncie. Szczegóły i etapy 5a–5e: `docs/06-projekt-panelu.md`.
+- Kierunek: aplikacja do samodzielnej instalacji przez innych, potem chmura i aplikacja mobilna
+  z powiadomieniami i widgetami – panel jest wyłącznie klientem API, sekcje dochodzą przez rejestr modułów.
 
 ## Architektura
 
@@ -80,7 +84,9 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
 2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`, `netpulse update`
 3. ✅ Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk (+ wstępne API tylko do odczytu)
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
-5. Panel (MVP) – lista urządzeń, widok portów, wykresy ruchu
+5. Panel (MVP), etapy: 5a szkielet (pasek górny, menu, motyw, logowanie), 5b dashboard + interwały odświeżania,
+   5c ustawienia (konto, urządzenia), 5d aktualizacja jednym kliknięciem (updater + obrazy GHCR),
+   5e personalizacja wykresów i układu
 6. Driver UniFi przez API – PoE, klienci WiFi
 7. Topologia LLDP – mapa sieci
 8. Alerty – port down, przeciążenie, urządzenie offline
