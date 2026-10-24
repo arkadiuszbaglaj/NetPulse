@@ -1,0 +1,42 @@
+# NetPulse – Docker Compose.
+# Variables come from deploy/.env (created by install.sh from .env.example).
+#   docker compose -f deploy/docker-compose.yml up -d --build
+
+name: netpulse
+
+services:
+  db:
+    image: timescale/timescaledb:2.31.0-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-netpulse}
+      POSTGRES_USER: ${POSTGRES_USER:-netpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      TIMESCALEDB_TELEMETRY: "off"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # The database is not published on the host – only the backend reaches it.
+
+  backend:
+    build: ../backend
+    image: netpulse-backend:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-netpulse}
+      POSTGRES_USER: ${POSTGRES_USER:-netpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${NETPULSE_PORT:-8080}:8000"
+
+volumes:
+  db-data:

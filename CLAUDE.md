@@ -50,6 +50,15 @@ Kolektor co 30 s: odpytuje urządzenia równolegle, liczy przepływ z różnic l
 (`ifHCInOctets`/`ifHCOutOctets`; obsługa przepełnienia Counter32 i resetu urządzenia),
 zapisuje do TimescaleDB.
 
+## Stan kodu (po kroku 2)
+
+- `backend/` – projekt `uv` (`pyproject.toml` + `uv.lock`), FastAPI w `app/main.py`, modele w `app/models.py`,
+  migracje Alembic w `migrations/versions/` (hypertables, kompresja 7 dni, retencja 90 dni tworzone w migracji SQL-em).
+  Zmiana schematu = nowa migracja Alembic; `alembic check` musi przechodzić (indeksy `*_time_idx` TimescaleDB są ignorowane w `env.py`).
+- `deploy/docker-compose.yml` – `db` (`timescale/timescaledb:2.31.0-pg17`, bez portu na hoście) + `backend` (port `NETPULSE_PORT`, domyślnie 8080). Backend robi `alembic upgrade head` przy starcie.
+- `install.sh` – idempotentny: instalacja i aktualizacja; `.env` tworzony tylko raz. Zmienne `NETPULSE_DIR`, `NETPULSE_REPO`, `NETPULSE_BRANCH`.
+- Sprawdzanie: `cd backend && uv run pytest && uv run ruff check . && uv run ruff format --check .`
+
 ## Wyniki analizy SNMP (szczegóły: `docs/02-wyniki-snmp.md`)
 
 - Wszystkie urządzenia: IF-MIB z licznikami 64-bit, UCD-SNMP-MIB (RAM, load).
@@ -62,7 +71,7 @@ zapisuje do TimescaleDB.
 ## Plan prac
 
 1. ✅ Inwentaryzacja i test SNMP
-2. Szkielet projektu – struktura, Docker Compose, baza, `install.sh`
+2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`
 3. Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk
 4. Backend API – urządzenia, porty, metryki, uwierzytelnianie
 5. Panel (MVP) – lista urządzeń, widok portów, wykresy ruchu
