@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend – lint i testy
+    runs-on: ubuntu-24.04
+    services:
+      db:
+        image: timescale/timescaledb:latest-pg17
+        env:
+          POSTGRES_DB: netpulse
+          POSTGRES_USER: netpulse
+          POSTGRES_PASSWORD: netpulse
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U netpulse -d netpulse"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NETPULSE_DATABASE_URL: postgresql+asyncpg://netpulse:netpulse@localhost:5432/netpulse
+      NETPULSE_TEST_DB: "1"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Instalacja
+        run: |
+          pip install -e ".[dev]" 2>&1 | tee ../pip.log
+          pip freeze | grep -iE "pysnmp|snmpsim|sqlalchemy|fastapi|asyncpg|pyasn1" | tee ../versions.log
+      - name: Ruff
+        run: ruff check netpulse tests tools 2>&1 | tee ../ruff.log
+      - name: Pytest
+        run: python -m pytest -v -rs --tb=short 2>&1 | tee ../pytest.log; exit ${PIPESTATUS[0]}
+      - name: Raport błędów
+        if: failure()
+        working-directory: .
+        run: |
+          bash .github/scripts/annotate.sh pip.log "pip" 40
+          bash .github/scripts/annotate.sh ruff.log "ruff" 60
+          bash .github/scripts/annotate.sh versions.log "wersje" 20
+          bash .github/scripts/annotate.sh pytest.log "pytest" 150
+
+  install:
+    name: Instalacja jednym linkiem + update (end-to-end)
+    needs: backend
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Symulator urządzeń (snmpsim z danymi UniFi)
+        run: |
+          pip install snmpsim
+          mkdir -p /tmp/snmpsim-cache
+          nohup snmpsim-command-responder --data-dir=backend/tests/fixtures \
+            --cache-dir=/tmp/snmpsim-cache --agent-udpv4-endpoint=0.0.0.0:1161 > snmpsim.log 2>&1 &
+          sleep 3
+      - name: install.sh (jak u użytkownika)
+        run: |
+          sudo NETPULSE_REPO="https://github.com/${{ github.repository }}.git" \
+               NETPULSE_BRANCH="${{ github.ref_name }}" \
+               bash install.sh 2>&1 | tee install.log; exit ${PIPESTATUS[0]}
+      - name: Szybszy interwał do testu
+        run: |
+          sudo sed -i 's/^NETPULSE_POLL_INTERVAL=.*/NETPULSE_POLL_INTERVAL=5/' /opt/netpulse/deploy/.env
+          sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env up -d
+      - name: netpulse probe / device add
+        run: |
+          GW=$(sudo docker network inspect netpulse_default -f '{{(index .IPAM.Config 0).Gateway}}')
+          echo "Brama sieci Dockera: $GW"
+          sudo netpulse version
+          sudo netpulse probe "$GW" --port 1161 --community ucg-ultra 2>&1 | tee probe.log
+          grep -q "WAN" probe.log
+          sudo netpulse device add "UCG Ultra" "$GW" --port 1161 --community ucg-ultra 2>&1 | tee -a probe.log
+          sudo netpulse device list 2>&1 | tee -a probe.log
+      - name: Kolektor zapisuje dane, API je zwraca
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -fsS http://127.0.0.1:8000/api/devices | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['status'] if d else 'none')")
+            [ "$STATUS" = "up" ] && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/devices | tee api.log
+          echo
+          curl -fsS http://127.0.0.1:8000/api/devices/1/interfaces | tee -a api.log
+          echo
+          [ "$STATUS" = "up" ]
+          curl -fsS http://127.0.0.1:8000/api/devices/1/interfaces | python3 -c "
+          import sys, json
+          labels = [p['label'] for p in json.load(sys.stdin)]
+          print(labels)
+          assert labels == ['WAN', 'LAN 1', 'LAN 2', 'LAN 3', 'LAN 4'], labels
+          "
+      - name: netpulse update
+        run: |
+          sudo netpulse update --force 2>&1 | tee update.log; test ${PIPESTATUS[0]} -eq 0
+          curl -fsS http://127.0.0.1:8000/api/health
+      - name: Raport błędów
+        if: failure()
+        run: |
+          sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env logs --tail=80 > compose.log 2>&1 || true
+          bash .github/scripts/annotate.sh install.log "install.sh" 60
+          bash .github/scripts/annotate.sh probe.log "probe" 60
+          bash .github/scripts/annotate.sh api.log "api" 40
+          bash .github/scripts/annotate.sh update.log "update" 40
+          bash .github/scripts/annotate.sh snmpsim.log "snmpsim" 30
+          bash .github/scripts/annotate.sh compose.log "docker compose logs" 150

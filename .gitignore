@@ -1,6 +1,7 @@
 # Surowe zrzuty SNMP z sieci domowej (MAC-i, SSID, trasy) – nie publikować
 snmpwalk*.txt*
 *.walk
+!backend/tests/fixtures/*.snmprec
 
 # Sekrety
 .env

@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# NetPulse – polecenie zarządzające na serwerze (instalowane jako /usr/local/bin/netpulse).
+#
+#   netpulse update          pobierz najnowszą wersję z GitHuba i zrestartuj usługi
+#   netpulse status          stan usług
+#   netpulse logs [usługa]   logi (collector | api | db), Ctrl+C kończy
+#   netpulse restart|stop|start
+#   netpulse version
+#   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
+#
+# Pozostałe polecenia trafiają do aplikacji w kontenerze, np.:
+#   netpulse probe 192.168.1.1 --community public
+#   netpulse device add "UCG Ultra" 192.168.1.1 --community public
+#   netpulse device list
+set -euo pipefail
+
+INSTALL_DIR="${NETPULSE_DIR:-/opt/netpulse}"
+COMPOSE_FILE="$INSTALL_DIR/deploy/docker-compose.yml"
+ENV_FILE="$INSTALL_DIR/deploy/.env"
+
+c_info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+c_ok() { printf '\033[1;32m✓\033[0m %s\n' "$*"; }
+c_err() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; }
+
+need_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    exec sudo -E "$0" "$@"
+  fi
+}
+
+compose() {
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+}
+
+version() {
+  local ver commit
+  ver=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$INSTALL_DIR/backend/netpulse/__init__.py" 2>/dev/null || echo "?")
+  commit=$(git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "?")
+  echo "NetPulse $ver ($commit)"
+}
+
+wait_healthy() {
+  local port
+  port=$(sed -n 's/^NETPULSE_PORT=//p' "$ENV_FILE" 2>/dev/null)
+  port=${port:-8000}
+  c_info "Czekam na start usług..."
+  for _ in $(seq 1 60); do
+    if curl -fsS "http://127.0.0.1:${port}/api/health" >/dev/null 2>&1; then
+      c_ok "NetPulse działa: http://$(hostname -I | awk '{print $1}'):${port}"
+      return 0
+    fi
+    sleep 2
+  done
+  c_err "API nie odpowiada – sprawdź: netpulse logs"
+  return 1
+}
+
+cmd_update() {
+  need_root update "$@"
+  # Aktualizacja podmienia ten plik – uruchom kopię, żeby bash nie czytał zmienianego skryptu
+  if [ -z "${NETPULSE_UPDATE_COPY:-}" ]; then
+    local tmp
+    tmp=$(mktemp /tmp/netpulse-update.XXXXXX)
+    cp "$(readlink -f "$0")" "$tmp"
+    NETPULSE_UPDATE_COPY="$tmp" exec bash "$tmp" update "$@"
+  fi
+  trap 'rm -f "$NETPULSE_UPDATE_COPY"' EXIT
+  cd "$INSTALL_DIR"
+  local branch before after
+  branch=$(git rev-parse --abbrev-ref HEAD)
+  before=$(git rev-parse HEAD)
+  c_info "Sprawdzam aktualizacje ($branch)..."
+  git fetch --quiet origin "$branch"
+  after=$(git rev-parse "origin/$branch")
+  if [ "$before" = "$after" ] && [ "${1:-}" != "--force" ]; then
+    c_ok "Masz najnowszą wersję: $(version)"
+    return 0
+  fi
+  if [ "$before" != "$after" ]; then
+    echo "Zmiany:"
+    git log --oneline --no-decorate "$before..$after" | sed 's/^/  /'
+    git merge --ff-only --quiet "origin/$branch"
+  fi
+  # Uzupełnij .env o nowe zmienne z .env.example (bez nadpisywania istniejących)
+  while IFS='=' read -r key value; do
+    case "$key" in ''|\#*) continue ;; esac
+    grep -q "^${key}=" "$ENV_FILE" || echo "${key}=${value}" >>"$ENV_FILE"
+  done <"$INSTALL_DIR/deploy/.env.example"
+  c_info "Buduję i uruchamiam nową wersję..."
+  compose up -d --build --remove-orphans
+  docker image prune -f >/dev/null 2>&1 || true
+  wait_healthy
+  c_ok "Zaktualizowano do: $(version)"
+}
+
+cmd_uninstall() {
+  need_root uninstall "$@"
+  read -r -p "Usunąć NetPulse z tego serwera? [t/N] " ans
+  [[ "$ans" =~ ^[tTyY]$ ]] || exit 0
+  read -r -p "Usunąć też bazę danych z historią metryk? [t/N] " data
+  if [[ "$data" =~ ^[tTyY]$ ]]; then
+    compose down -v --rmi local
+  else
+    compose down --rmi local
+    c_info "Dane zostały w wolumenie Dockera 'netpulse_db-data'."
+  fi
+  rm -f /usr/local/bin/netpulse
+  rm -rf "$INSTALL_DIR"
+  c_ok "NetPulse usunięty."
+}
+
+main() {
+  if [ ! -f "$COMPOSE_FILE" ]; then
+    c_err "Nie znaleziono instalacji w $INSTALL_DIR"
+    exit 1
+  fi
+  local cmd="${1:-help}"
+  shift || true
+  case "$cmd" in
+    update) cmd_update "$@" ;;
+    status) need_root status; compose ps ;;
+    logs) need_root logs "$@"; compose logs -f --tail=100 "$@" ;;
+    restart) need_root restart; compose restart && wait_healthy ;;
+    stop) need_root stop; compose stop ;;
+    start) need_root start; compose up -d && wait_healthy ;;
+    version | --version | -V) version ;;
+    uninstall) cmd_uninstall "$@" ;;
+    help | -h | --help)
+      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      ;;
+    *)
+      need_root "$cmd" "$@"
+      if [ -t 0 ] && [ -t 1 ]; then
+        compose exec collector netpulse "$cmd" "$@"
+      else
+        compose exec -T collector netpulse "$cmd" "$@"
+      fi
+      ;;
+  esac
+}
+
+main "$@"

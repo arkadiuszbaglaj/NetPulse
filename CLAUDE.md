@@ -18,6 +18,17 @@ Repozytorium: https://github.com/arkadiuszbaglaj/NetPulse
   `curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash`
   (skrypt instaluje Dockera, jeśli go brak, pobiera projekt, tworzy `.env` z losowymi hasłami i uruchamia `docker compose up -d`).
 
+## Sposób pracy
+
+- Kod pisze Claude i wypycha na GitHub (`main`). Użytkownik instaluje/aktualizuje na serwerze
+  (`install.sh`, potem `netpulse update`) i zgłasza wyniki.
+- Każdy push przechodzi CI (`.github/workflows/ci.yml`): ruff, pytest (drivery na fixtures,
+  pysnmp kontra snmpsim v2c/v3, kolektor + TimescaleDB, API) oraz test end-to-end `install.sh`
+  → `device add` → dane w API → `netpulse update`. Wynik CI sprawdzać przed zgłoszeniem
+  użytkownikowi, że wersja jest gotowa.
+- Fixtures `backend/tests/fixtures/*.snmprec` to zanonimizowane zrzuty z prawdziwych urządzeń
+  (`backend/tools/walk2snmprec.py` – podmienia MAC-i i SSID).
+
 ## Środowisko docelowe
 
 - Ubuntu Server (na start), wdrożenie przez Docker Compose.
@@ -57,13 +68,13 @@ zapisuje do TimescaleDB.
 - USW Lite 8 PoE (sysDescr `Linux UBNT ...`): porty `ifName` 0/1–0/8, nazwy z UniFi w `ifAlias` (np. „AP U6+”, „UCG Ultra”). BRIDGE-MIB z tablicą MAC. Brak PoE-MIB i LLDP-MIB.
 - U6+ (sysObjectID `.1.3.6.1.4.1.41112`): uplink `eth0`; `ra*` = 2.4 GHz, `rai*` = 5 GHz. UBNT-UniFi-MIB VAP table `.1.3.6.1.4.1.41112.1.6.1.2.1`: .2 BSSID, .4 kanał, .6 ESSID, .7 nazwa interfejsu, .8 liczba klientów, .9 radio (ng/na), .10 rx bytes, .16 tx bytes (Counter32). Ukryć wewnętrzne SSID `element-*`, `vwire-*`.
 - Czego SNMP nie da: PoE na portach, LLDP/topologia, lista klientów WiFi z nazwami i sygnałem → UniFi Network API (klucz API), etap 6.
-- Surowe zrzuty `snmpwalk` mogą służyć jako fixtures do testów, ale **nie trafiają do repo** (MAC-i, SSID, trasy sieci domowej) – są w `.gitignore`.
+- Surowe zrzuty `snmpwalk` **nie trafiają do repo** (MAC-i, SSID, trasy sieci domowej) – są w `.gitignore`; do repo idą tylko zanonimizowane `.snmprec`.
 
 ## Plan prac
 
 1. ✅ Inwentaryzacja i test SNMP
-2. Szkielet projektu – struktura, Docker Compose, baza, `install.sh`
-3. Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk
+2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`, `netpulse update`
+3. ✅ Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk (+ wstępne API tylko do odczytu)
 4. Backend API – urządzenia, porty, metryki, uwierzytelnianie
 5. Panel (MVP) – lista urządzeń, widok portów, wykresy ruchu
 6. Driver UniFi przez API – PoE, klienci WiFi

@@ -31,14 +31,20 @@ Jedna komenda na czystym Ubuntu Server:
 curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
 ```
 
-> W przygotowaniu – skrypt powstanie w kroku 2.
+Potem dodaj urządzenia (`netpulse device add ...`), a aktualizuj jednym poleceniem:
+
+```bash
+netpulse update
+```
+
+Szczegóły: [`docs/04-instalacja-i-aktualizacja.md`](docs/04-instalacja-i-aktualizacja.md).
 
 ## Stack technologiczny
 
 | Warstwa            | Technologia                                              |
 |--------------------|----------------------------------------------------------|
 | Kolektor           | Python 3.13, asyncio, `pysnmp` 7 (v1/v2c/v3)             |
-| Backend API        | FastAPI, Pydantic v2, SQLAlchemy 2 (async), `uv`          |
+| Backend API        | FastAPI, Pydantic v2, SQLAlchemy 2 (async)               |
 | Baza danych        | PostgreSQL 17 + TimescaleDB (metryki jako hypertables)   |
 | Zadania / kolejka  | Redis (cache bieżących wartości, pub/sub do live update) |
 | Frontend           | React 19 + TypeScript, Vite, Tailwind CSS, TanStack Query, Apache ECharts |
@@ -76,8 +82,8 @@ dokładają dane dodatkowe.
 ## Plan prac
 
 1. ✅ **Inwentaryzacja i test SNMP** – włączenie SNMP, `snmpwalk` z serwera Ubuntu (→ `docs/01-snmp-test.md`, `docs/02-wyniki-snmp.md`)
-2. **Szkielet projektu** – repo, struktura katalogów, Docker Compose, baza
-3. **Kolektor SNMP** – driver generyczny IF-MIB, zapis metryk do TimescaleDB
+2. ✅ **Szkielet projektu** – struktura, Docker Compose, baza, `install.sh`, `netpulse update`
+3. ✅ **Kolektor SNMP** – driver generyczny IF-MIB + UniFi, zapis metryk do TimescaleDB
 4. **Backend API** – urządzenia, porty, metryki, uwierzytelnianie
 5. **Panel (MVP)** – lista urządzeń, widok portów, wykresy ruchu
 6. **Driver UniFi** – PoE, klienci WiFi z UniFi Network API
@@ -85,12 +91,14 @@ dokładają dane dodatkowe.
 8. **Alerty** – port down, przeciążenie łącza, urządzenie offline
 9. **SNMP v3, MikroTik, Omada**
 
-## Struktura katalogów (docelowa)
+## Struktura katalogów
 
 ```
 NetPulse/
 ├── backend/        # FastAPI + kolektor (wspólny kod modeli i driverów)
 ├── frontend/       # React + Vite
 ├── deploy/         # docker-compose.yml, .env.example
+├── scripts/        # polecenie `netpulse` na serwerze (update, status, logs...)
+├── install.sh      # instalator jednym linkiem
 └── docs/           # dokumentacja i instrukcje krok po kroku
 ```

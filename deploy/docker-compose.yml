@@ -1,0 +1,52 @@
+name: netpulse
+
+x-backend: &backend
+  build:
+    context: ../backend
+  image: netpulse-backend:local
+  restart: unless-stopped
+  environment:
+    NETPULSE_DATABASE_URL: postgresql+asyncpg://netpulse:${POSTGRES_PASSWORD:?ustaw POSTGRES_PASSWORD w .env}@db:5432/netpulse
+    NETPULSE_POLL_INTERVAL: ${NETPULSE_POLL_INTERVAL:-30}
+    NETPULSE_RETENTION_DAYS: ${NETPULSE_RETENTION_DAYS:-30}
+    NETPULSE_LOG_LEVEL: ${NETPULSE_LOG_LEVEL:-INFO}
+    TZ: ${TZ:-Europe/Warsaw}
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: netpulse
+      POSTGRES_USER: netpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ustaw POSTGRES_PASSWORD w .env}
+      TIMESCALEDB_TELEMETRY: "off"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netpulse -d netpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  collector:
+    <<: *backend
+    command: ["sh", "-c", "netpulse db init && exec netpulse collector"]
+
+  api:
+    <<: *backend
+    command: ["netpulse", "api"]
+    ports:
+      - "${NETPULSE_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+volumes:
+  db-data:
