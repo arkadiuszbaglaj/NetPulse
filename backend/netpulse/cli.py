@@ -290,20 +290,16 @@ def cmd_user_passwd(args) -> int:
     from .db import Session
     from .db.models import AuthSession, User
 
-    async def find() -> User | None:
-        async with Session() as session:
-            return await session.scalar(select(User).where(User.username == args.username))
-
-    if asyncio.run(find()) is None:
-        print(f"Nie ma konta {args.username} (lista: netpulse user list).", file=sys.stderr)
-        return 1
-    password = _read_password(args)
-    if password is None:
-        return 1
-
+    # Jedno asyncio.run: pula połączeń jest związana z pętlą, w której powstała
     async def run() -> int:
         async with Session() as session, session.begin():
             user = await session.scalar(select(User).where(User.username == args.username))
+            if user is None:
+                print(f"Nie ma konta {args.username} (lista: netpulse user list).", file=sys.stderr)
+                return 1
+            password = _read_password(args)  # pytanie o hasło dopiero, gdy konto istnieje
+            if password is None:
+                return 1
             user.password_hash = hash_password(password)
             await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
         print(f"Zmieniono hasło konta {args.username}. Wszystkie jego sesje zostały wylogowane.")
