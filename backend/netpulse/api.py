@@ -104,7 +104,7 @@ async def _series(model, id_col, obj_id: int, columns: list[str], minutes: int) 
             )
         rows = (await session.execute(stmt)).all()
     return [
-        Point(time=r.t, values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:])})
+        Point(time=r.t, values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
         for r in rows
     ]
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pyasn1.type import univ
 from pysnmp.hlapi.v3arch import asyncio as hl
 from pysnmp.proto import rfc1902, rfc1905
-from pyasn1.type import univ
 
 from .types import SnmpCredentials, SnmpError, SnmpValue
 

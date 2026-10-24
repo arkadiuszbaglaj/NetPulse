@@ -6,13 +6,18 @@ import logging
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from ..config import settings
 from .models import HYPERTABLES, Base
 
 log = logging.getLogger(__name__)
 
-engine: AsyncEngine = create_async_engine(settings.database_url, pool_pre_ping=True)
+engine: AsyncEngine = (
+    create_async_engine(settings.database_url, poolclass=NullPool)
+    if settings.db_nullpool
+    else create_async_engine(settings.database_url, pool_pre_ping=True)
+)
 Session = async_sessionmaker(engine, expire_on_commit=False)
 
 

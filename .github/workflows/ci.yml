@@ -28,6 +28,7 @@ jobs:
     env:
       NETPULSE_DATABASE_URL: postgresql+asyncpg://netpulse:netpulse@localhost:5432/netpulse
       NETPULSE_TEST_DB: "1"
+      NETPULSE_DB_NULLPOOL: "1"
     defaults:
       run:
         working-directory: backend
@@ -41,8 +42,9 @@ jobs:
           pip install -e ".[dev]" 2>&1 | tee ../pip.log
           pip freeze | grep -iE "pysnmp|snmpsim|sqlalchemy|fastapi|asyncpg|pyasn1" | tee ../versions.log
       - name: Ruff
-        run: ruff check netpulse tests tools 2>&1 | tee ../ruff.log
+        run: ruff check --output-format=concise netpulse tests tools 2>&1 | tee ../ruff.log; exit ${PIPESTATUS[0]}
       - name: Pytest
+        if: always()
         run: python -m pytest -v -rs --tb=short 2>&1 | tee ../pytest.log; exit ${PIPESTATUS[0]}
       - name: Raport błędów
         if: failure()
@@ -51,7 +53,9 @@ jobs:
           bash .github/scripts/annotate.sh pip.log "pip" 40
           bash .github/scripts/annotate.sh ruff.log "ruff" 60
           bash .github/scripts/annotate.sh versions.log "wersje" 20
-          bash .github/scripts/annotate.sh pytest.log "pytest" 150
+          grep -E '^(FAILED|ERROR)|^E |Error|assert' pytest.log | head -80 > pytest-summary.log || true
+          bash .github/scripts/annotate.sh pytest-summary.log "pytest – podsumowanie" 80
+          bash .github/scripts/annotate.sh pytest.log "pytest" 60
 
   install:
     name: Instalacja jednym linkiem + update (end-to-end)

@@ -46,7 +46,7 @@ class SnmprecClient:
         self._data = data
 
     @classmethod
-    def from_file(cls, path: str | Path) -> "SnmprecClient":
+    def from_file(cls, path: str | Path) -> SnmprecClient:
         return cls(parse_snmprec(Path(path).read_text()))
 
     async def get(self, oids: list[str]) -> dict[str, SnmpValue]:

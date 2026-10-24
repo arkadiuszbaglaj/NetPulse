@@ -26,6 +26,8 @@ class Settings:
     api_host: str = _env("API_HOST", "0.0.0.0")
     api_port: int = int(_env("API_PORT", "8000"))
     log_level: str = _env("LOG_LEVEL", "INFO")
+    # Bez puli połączeń (testy, jednorazowe polecenia CLI)
+    db_nullpool: bool = _env("DB_NULLPOOL", "0") == "1"
 
 
 settings = Settings()
