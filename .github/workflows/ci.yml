@@ -87,6 +87,10 @@ jobs:
           GW=$(sudo docker network inspect netpulse_default -f '{{(index .IPAM.Config 0).Gateway}}')
           echo "Brama sieci Dockera: $GW"
           sudo netpulse version
+          netpulse help | grep -q "netpulse reset"
+          # bez sudo – skrypt sam podnosi uprawnienia (need_root)
+          netpulse status 2>&1 | tee status.log
+          if grep -q "'-E' is ignored" status.log; then exit 1; fi
           sudo netpulse probe "$GW" --port 1161 --community ucg-ultra 2>&1 | tee probe.log
           grep -q "WAN" probe.log
           sudo netpulse device add "UCG Ultra" "$GW" --port 1161 --community ucg-ultra 2>&1 | tee -a probe.log

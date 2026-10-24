@@ -100,6 +100,26 @@ def test_collector_end_to_end():
     asyncio.run(scenario())
 
 
+def test_old_schema_is_detected():
+    """Baza ze starszej wersji (brak kolumny) → czytelny błąd zamiast błędów SQL."""
+    from sqlalchemy import text
+
+    from netpulse.db import SchemaMismatchError, missing_columns
+
+    async def scenario():
+        await init_db()
+        async with engine.connect() as conn:
+            assert await conn.run_sync(missing_columns) == {}
+            trans = await conn.begin()
+            await conn.execute(text("ALTER TABLE devices DROP COLUMN port"))
+            assert await conn.run_sync(missing_columns) == {"devices": ["port"]}
+            await trans.rollback()
+        await engine.dispose()
+
+    asyncio.run(scenario())
+    assert issubclass(SchemaMismatchError, RuntimeError)
+
+
 def test_api_endpoints():
     from fastapi.testclient import TestClient
 

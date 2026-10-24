@@ -15,6 +15,8 @@ import argparse
 import asyncio
 import logging
 import sys
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import __version__
 from .config import settings
@@ -37,6 +39,17 @@ def _fmt_uptime(s: float | None) -> str:
     d, rem = divmod(int(s), 86400)
     h, rem = divmod(rem, 3600)
     return f"{d}d {h}h {rem // 60}m"
+
+
+def _fmt_time(dt: datetime | None) -> str:
+    """Czas z bazy (UTC) w lokalnej strefie serwera (TZ)."""
+    if dt is None:
+        return "-"
+    try:
+        tz = ZoneInfo(settings.timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        tz = UTC
+    return dt.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _creds(args: argparse.Namespace) -> SnmpCredentials:
@@ -181,8 +194,8 @@ def cmd_device_list(args) -> int:
             return 0
         print(f"  {'id':>3}  {'Nazwa':<20} {'Adres':<16} {'Typ':<8} {'Model':<14} {'Status':<7} Ostatni odczyt")
         for d in devices:
-            last = d.last_polled_at.strftime("%Y-%m-%d %H:%M:%S") if d.last_polled_at else "-"
-            print(f"  {d.id:>3}  {d.name:<20} {d.host:<16} {d.kind:<8} {d.model or '-':<14} {d.status:<7} {last}")
+            print(f"  {d.id:>3}  {d.name:<20} {d.host:<16} {d.kind:<8} {d.model or '-':<14} {d.status:<7} "
+                  f"{_fmt_time(d.last_polled_at)}")
             if d.last_error:
                 print(f"       błąd: {d.last_error}")
         return 0
@@ -267,7 +280,13 @@ def main(argv: list[str] | None = None) -> int:
     level = logging.DEBUG if args.verbose else getattr(logging, settings.log_level.upper(), logging.INFO)
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
     logging.getLogger("pysnmp").setLevel(logging.WARNING)
-    return args.func(args) or 0
+    from .db import SchemaMismatchError
+
+    try:
+        return args.func(args) or 0
+    except SchemaMismatchError as exc:
+        print(f"Błąd: {exc}", file=sys.stderr)
+        return 3
 
 
 if __name__ == "__main__":

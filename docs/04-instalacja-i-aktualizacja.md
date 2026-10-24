@@ -62,6 +62,7 @@ usługi. Dane i konfiguracja zostają. Jeśli nie ma nic nowego – nic nie robi
 | `netpulse logs collector` | logi tylko kolektora                    |
 | `netpulse restart`        | restart usług                           |
 | `netpulse device remove ID` | usunięcie urządzenia z historią       |
+| `netpulse reset`          | wyczyszczenie bazy (urządzenia i historia), konfiguracja zostaje |
 | `netpulse version`        | zainstalowana wersja                    |
 | `netpulse uninstall`      | usunięcie NetPulse                      |
 
@@ -76,5 +77,18 @@ Plik `/opt/netpulse/deploy/.env`:
 | `NETPULSE_RETENTION_DAYS` | 30        | ile dni trzymać metryki           |
 
 Po zmianie: `netpulse restart`.
+
+Czasy w `netpulse device list` są pokazywane w strefie ze zmiennej `TZ` (domyślnie `Europe/Warsaw`).
+
+## Baza ze starszej wersji
+
+Jeśli na serwerze była wcześniej inna (testowa) wersja NetPulse, polecenia mogą zgłosić:
+„Baza danych pochodzi ze starszej, niezgodnej wersji NetPulse”. Wtedy:
+
+```bash
+netpulse reset
+```
+
+Usuwa urządzenia i historię metryk, zostawia `.env`. Potem dodaj urządzenia ponownie.
 
 > Uwaga: API nie ma jeszcze logowania (dojdzie w kroku 4) – nie wystawiaj portu 8000 do internetu.

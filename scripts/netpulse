@@ -7,6 +7,7 @@
 #   netpulse restart|stop|start
 #   netpulse version
 #   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
+#   netpulse reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
 #
 # Pozostałe polecenia trafiają do aplikacji w kontenerze, np.:
 #   netpulse probe 192.168.1.1 --community public
@@ -24,7 +25,8 @@ c_err() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; }
 
 need_root() {
   if [ "$(id -u)" -ne 0 ]; then
-    exec sudo -E "$0" "$@"
+    # Bez `sudo -E` – sudo-rs (Ubuntu 25.10+) go nie obsługuje; przekazujemy tylko to, co potrzebne
+    exec sudo env NETPULSE_DIR="$INSTALL_DIR" "$0" "$@"
   fi
 }
 
@@ -93,6 +95,17 @@ cmd_update() {
   c_ok "Zaktualizowano do: $(version)"
 }
 
+cmd_reset() {
+  need_root reset "$@"
+  echo "Usunięte zostaną wszystkie urządzenia i cała historia metryk. Konfiguracja (.env) zostaje."
+  read -r -p "Wyczyścić bazę NetPulse? [t/N] " ans
+  [[ "$ans" =~ ^[tTyY]$ ]] || exit 0
+  compose down -v
+  compose up -d
+  wait_healthy
+  c_ok "Baza wyczyszczona. Dodaj urządzenia: netpulse device add NAZWA IP --community public"
+}
+
 cmd_uninstall() {
   need_root uninstall "$@"
   read -r -p "Usunąć NetPulse z tego serwera? [t/N] " ans
@@ -125,8 +138,9 @@ main() {
     start) need_root start; compose up -d && wait_healthy ;;
     version | --version | -V) version ;;
     uninstall) cmd_uninstall "$@" ;;
+    reset) cmd_reset "$@" ;;
     help | -h | --help)
-      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
       ;;
     *)
       need_root "$cmd" "$@"
