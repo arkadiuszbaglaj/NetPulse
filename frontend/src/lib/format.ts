@@ -1,3 +1,5 @@
+import type { ChartUnit, UnitClass } from "./layout";
+
 const rtf = new Intl.RelativeTimeFormat("pl", { numeric: "auto" });
 
 /** „12 s temu”, „5 min temu”, „wczoraj”. `now` do testów. */
@@ -39,6 +41,37 @@ export function formatBps(bps: number | null | undefined): string {
   }
   const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
   return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+}
+
+/** Prędkość z bitów/s jako bajty/s: „5,3 MB/s”. */
+export function formatBytesPerSec(bps: number | null | undefined): string {
+  if (bps == null || !Number.isFinite(bps)) return "–";
+  const units = ["B/s", "kB/s", "MB/s", "GB/s"];
+  let v = Math.abs(bps) / 8;
+  let i = 0;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
+  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+}
+
+/** Formatowanie wartości osi i podpowiedzi wykresu według klasy jednostki metryki. */
+export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number) => string {
+  const num = (digits: number) => (v: number) => new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v);
+  switch (cls) {
+    case "rate":
+      return unit === "bytes" ? formatBytesPerSec : formatBps;
+    case "percent":
+      return (v) => `${num(1)(v)}%`;
+    case "load":
+      return num(2);
+    case "ms":
+      return (v) => `${num(0)(v)} ms`;
+    default:
+      return num(1);
+  }
 }
 
 /** Etykieta zakresu czasu: 15 → „15 min”, 60 → „1 godz.”, 1440 → „24 godz.”, 10080 → „7 dni”. */

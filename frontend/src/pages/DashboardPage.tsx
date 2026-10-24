@@ -1,59 +1,46 @@
-import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconRouter } from "@tabler/icons-react";
-import { ChartCard } from "../components/charts/ChartCard";
-import type { ChartSeries } from "../components/charts/TimeSeriesChart";
-import { Card, ErrorNote, PageHeader } from "../components/ui";
-import { t, type TextKey } from "../i18n";
-import type { Device } from "../lib/api";
-import { formatBps, formatRange, relativeTime } from "../lib/format";
-import { useDashboardSummary, useDevices, useSeries } from "../lib/queries";
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconGripVertical,
+  IconPencil,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
+import { useState } from "react";
+import { Dialog } from "../components/Dialog";
+import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
+import { WidgetEditDialog } from "../components/widgets/WidgetEditDialog";
+import { Button, Card, ErrorNote, PageHeader } from "../components/ui";
+import { t } from "../i18n";
+import { formatRange } from "../lib/format";
+import {
+  GRID_WIDTHS,
+  MAX_WIDGETS,
+  addWidget,
+  dropOn,
+  newWidget,
+  removeWidget,
+  replaceWidget,
+  resizeWidget,
+  sameLayout,
+  shiftWidget,
+  type DashboardLayout,
+  type GridWidth,
+  type Widget,
+  type WidgetType,
+} from "../lib/layout";
+import { useDashboardLayout, useResetLayout, useSaveLayout } from "../lib/layoutApi";
+import { useDashboardSummary, useDevices } from "../lib/queries";
 import { RANGE_OPTIONS, useRefresh } from "../lib/refresh";
 
-const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint } as const;
-const KIND_LABEL: Record<string, TextKey> = {
-  gateway: "dash.kind.gateway",
-  switch: "dash.kind.switch",
-  ap: "dash.kind.ap",
-  other: "dash.kind.other",
+// Pełne nazwy klas, żeby Tailwind je znalazł (od `lg` układ 12-kolumnowy, niżej jedna kolumna)
+const COL_SPAN: Record<GridWidth, string> = {
+  3: "lg:col-span-3",
+  4: "lg:col-span-4",
+  6: "lg:col-span-6",
+  8: "lg:col-span-8",
+  12: "lg:col-span-12",
 };
-const STATUS_STYLE: Record<string, string> = {
-  up: "bg-success-soft text-success",
-  down: "bg-danger-soft text-danger",
-  unknown: "bg-surface-2 text-text-2",
-};
-const STATUS_LABEL: Record<string, TextKey> = {
-  up: "dash.status.up",
-  down: "dash.status.down",
-  unknown: "dash.status.unknown",
-};
-
-// Stałe poza komponentem: wykres odrysowuje się tylko przy zmianie danych, nie przy każdym renderze
-const TRAFFIC_SERIES: ChartSeries[] = [
-  { key: "in_bps", name: t("chart.traffic.in"), color: 1 },
-  { key: "out_bps", name: t("chart.traffic.out"), color: 2 },
-];
-const WIFI_SERIES: ChartSeries[] = [{ key: "clients", name: t("chart.wifi.clients"), color: 3 }];
-const formatClients = (v: number) => String(Math.round(v * 10) / 10);
-
-function Metric({
-  label,
-  value,
-  note,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  note?: string;
-  tone?: "success" | "danger";
-}) {
-  const color = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-text";
-  return (
-    <Card className="px-4 py-3">
-      <p className="text-xs text-text-2">{label}</p>
-      <p className={`mt-0.5 text-2xl font-medium ${color}`}>{value}</p>
-      {note && <p className="mt-0.5 text-xs text-text-2">{note}</p>}
-    </Card>
-  );
-}
 
 function RangePicker() {
   const { rangeMinutes, setRangeMinutes } = useRefresh();
@@ -76,63 +63,213 @@ function RangePicker() {
   );
 }
 
-function DeviceCard({ device }: { device: Device }) {
-  const Icon = KIND_ICON[device.kind as keyof typeof KIND_ICON] ?? IconDeviceDesktop;
-  const status = device.status in STATUS_STYLE ? device.status : "unknown";
-  const polled = relativeTime(device.last_polled_at);
+function IconButton({ label, onClick, disabled, danger, children }: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: React.ReactNode }) {
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Icon size={22} aria-hidden="true" className="shrink-0 text-text-2" />
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-medium">{device.name}</h3>
-            <p className="truncate text-xs text-text-2">
-              {device.host} · {t(KIND_LABEL[device.kind] ?? "dash.kind.other")}
-            </p>
-          </div>
-        </div>
-        <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`}>{t(STATUS_LABEL[status])}</span>
-      </div>
-      <dl className="flex justify-between gap-3 text-xs text-text-2">
-        <div className="min-w-0">
-          <dt className="sr-only">Model</dt>
-          <dd className="truncate">{[device.vendor, device.model].filter(Boolean).join(" ") || "-"}</dd>
-        </div>
-        <div className="shrink-0 text-right">
-          <dt className="sr-only">{t("dash.polled")}</dt>
-          <dd>{polled ?? t("dash.never")}</dd>
-        </div>
-      </dl>
-      {device.status === "down" && device.last_error && (
-        <p className="truncate text-xs text-danger" title={device.last_error}>
-          {device.last_error}
-        </p>
-      )}
-    </Card>
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex size-8 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 disabled:opacity-40 ${
+        danger ? "hover:text-danger" : "hover:text-text"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
-/** Pulpit: podsumowanie sieci, wykresy ruchu WAN i klientów WiFi, karty urządzeń. */
+/** Pasek narzędzi widgetu w trybie edycji: przeciąganie, kolejność, szerokość, edycja, usuwanie. */
+function EditBar({
+  widget,
+  index,
+  count,
+  onShift,
+  onResize,
+  onEdit,
+  onRemove,
+  onDragStart,
+}: {
+  widget: Widget;
+  index: number;
+  count: number;
+  onShift: (d: -1 | 1) => void;
+  onResize: (w: GridWidth) => void;
+  onEdit: () => void;
+  onRemove: () => void;
+  onDragStart: (e: React.DragEvent) => void;
+}) {
+  const name = widgetTitle(widget);
+  return (
+    <div className="mb-1 flex flex-wrap items-center gap-1 rounded-lg border border-dashed border-border-strong bg-surface-2 px-1.5 py-1">
+      <span
+        draggable
+        onDragStart={onDragStart}
+        aria-label={t("widget.drag", { name })}
+        title={t("widget.drag", { name })}
+        className="flex size-8 cursor-grab items-center justify-center text-muted active:cursor-grabbing"
+      >
+        <IconGripVertical size={18} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-xs font-medium">{name}</span>
+      <IconButton label={t("widget.move.earlier", { name })} onClick={() => onShift(-1)} disabled={index === 0}>
+        <IconArrowLeft size={16} aria-hidden="true" />
+      </IconButton>
+      <IconButton label={t("widget.move.later", { name })} onClick={() => onShift(1)} disabled={index === count - 1}>
+        <IconArrowRight size={16} aria-hidden="true" />
+      </IconButton>
+      <select
+        aria-label={t("widget.width", { name })}
+        value={widget.w}
+        onChange={(e) => onResize(Number(e.target.value) as GridWidth)}
+        className="hidden h-8 rounded-lg border border-border bg-surface px-1.5 text-xs lg:block"
+      >
+        {GRID_WIDTHS.map((w) => (
+          <option key={w} value={w}>
+            {t(`widget.width.${w}` as const)}
+          </option>
+        ))}
+      </select>
+      <IconButton label={t("widget.edit", { name })} onClick={onEdit}>
+        <IconPencil size={16} aria-hidden="true" />
+      </IconButton>
+      <IconButton label={t("widget.remove", { name })} onClick={onRemove} danger>
+        <IconTrash size={16} aria-hidden="true" />
+      </IconButton>
+    </div>
+  );
+}
+
+function AddWidgetDialog({ onPick, onClose }: { onPick: (type: WidgetType) => void; onClose: () => void }) {
+  return (
+    <Dialog title={t("widget.add.title")} size="sm" onClose={onClose}>
+      <ul className="flex flex-col gap-2">
+        {WIDGET_TYPES.map(({ type, label, description, icon: Icon }) => (
+          <li key={type}>
+            <button
+              type="button"
+              onClick={() => onPick(type)}
+              className="flex w-full items-start gap-3 rounded-xl border border-border p-3 text-left hover:bg-surface-2"
+            >
+              <Icon size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
+              <span>
+                <span className="block text-sm font-medium">{t(label)}</span>
+                <span className="block text-xs text-text-2">{t(description)}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Dialog>
+  );
+}
+
+function ConfirmDialog({ title, body, go, keep, onGo, onKeep, danger }: { title: string; body: string; go: string; keep: string; onGo: () => void; onKeep: () => void; danger?: boolean }) {
+  return (
+    <Dialog
+      title={title}
+      size="sm"
+      onClose={onKeep}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onKeep}>
+            {keep}
+          </Button>
+          <Button variant={danger ? "danger" : "primary"} onClick={onGo}>
+            {go}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-text-2">{body}</p>
+    </Dialog>
+  );
+}
+
+/** Pulpit: widgety z układu zapisanego na koncie (albo domyślnego); „Edytuj pulpit” włącza tryb edycji. */
 export function DashboardPage() {
+  const { layout: saved, isCustom } = useDashboardLayout();
+  const save = useSaveLayout();
+  const reset = useResetLayout();
   const summary = useDashboardSummary();
   const devices = useDevices();
-  const traffic = useSeries("traffic");
-  const wifi = useSeries("wifi");
 
-  const s = summary.data;
-  const list = devices.data ?? [];
-  const noDevices = !devices.isLoading && !devices.isError && list.length === 0;
+  const [draft, setDraft] = useState<DashboardLayout | null>(null); // null = tryb podglądu
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ widget: Widget; isNew: boolean } | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirm, setConfirm] = useState<"discard" | "reset" | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  const edit = draft !== null;
+  const layout = draft ?? saved;
+  const noDevices = !devices.isLoading && !devices.isError && (devices.data?.length ?? 0) === 0;
+  const dirty = draft !== null && !sameLayout(draft, saved);
+
+  const update = (fn: (l: DashboardLayout) => DashboardLayout) => setDraft((d) => (d ? fn(d) : d));
+
+  const startEdit = () => {
+    setSaveFailed(false);
+    setDraft(saved);
+  };
+  const cancel = () => (dirty ? setConfirm("discard") : setDraft(null));
+  const commit = () => {
+    if (!draft) return;
+    setSaveFailed(false);
+    save.mutate(draft, {
+      onSuccess: () => setDraft(null),
+      onError: () => setSaveFailed(true),
+    });
+  };
+  const doReset = () => {
+    setConfirm(null);
+    reset.mutate(undefined, { onSuccess: () => setDraft(null), onError: () => setSaveFailed(true) });
+  };
+
+  const atLimit = (draft?.widgets.length ?? 0) >= MAX_WIDGETS;
 
   return (
     <>
       <PageHeader title={t("dash.title")}>
-        <RangePicker />
+        <div className="flex flex-wrap items-center gap-2">
+          {!edit && <RangePicker />}
+          {!edit ? (
+            <Button onClick={startEdit}>
+              <IconPencil size={16} aria-hidden="true" />
+              {t("dash.edit")}
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => setAdding(true)} disabled={atLimit} title={atLimit ? t("dash.edit.limit", { max: MAX_WIDGETS }) : undefined}>
+                <IconPlus size={16} aria-hidden="true" />
+                {t("dash.edit.add")}
+              </Button>
+              {isCustom && (
+                <Button variant="ghost" onClick={() => setConfirm("reset")}>
+                  {t("dash.edit.reset")}
+                </Button>
+              )}
+              <Button variant="ghost" onClick={cancel}>
+                {t("dash.edit.cancel")}
+              </Button>
+              <Button variant="primary" onClick={commit} disabled={save.isPending || !dirty}>
+                {save.isPending ? t("dash.edit.saving") : t("dash.edit.save")}
+              </Button>
+            </>
+          )}
+        </div>
       </PageHeader>
 
-      {(summary.isError || devices.isError) && !s && <ErrorNote>{t("dash.error")}</ErrorNote>}
+      {edit && (
+        <p role="status" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
+          {t("dash.edit.banner")}
+        </p>
+      )}
+      {saveFailed && <ErrorNote>{t("dash.edit.saveError")}</ErrorNote>}
+      {(summary.isError || devices.isError) && !summary.data && !edit && <ErrorNote>{t("dash.error")}</ErrorNote>}
 
-      {noDevices && (
+      {noDevices && !edit && (
         <Card className="mb-4 p-6">
           <h2 className="text-base font-medium">{t("dash.empty.title")}</h2>
           <p className="mt-1 text-sm text-text-2">{t("dash.empty.body")}</p>
@@ -142,53 +279,94 @@ export function DashboardPage() {
         </Card>
       )}
 
-      {s && !noDevices && (
-        <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
-          <Metric
-            label={t("dash.devices")}
-            value={`${s.devices.up} ${t("dash.of", { total: s.devices.total })}`}
-            tone={s.devices.down > 0 ? "danger" : s.devices.up > 0 ? "success" : undefined}
-            note={s.devices.down > 0 ? `${s.devices.down} ${t("dash.down").toLowerCase()}` : t("dash.up")}
-          />
-          <Metric label={t("dash.wanDown")} value={formatBps(s.wan.in_bps)} />
-          <Metric label={t("dash.wanUp")} value={formatBps(s.wan.out_bps)} />
-          <Metric label={t("dash.wifiClients")} value={s.wifi_clients ?? "–"} />
-        </div>
-      )}
-
-      {!noDevices && (
-        <div className="mb-6 grid gap-3 lg:grid-cols-3">
-          <ChartCard
-            className="lg:col-span-2"
-            title={t("chart.traffic.title")}
-            series={TRAFFIC_SERIES}
-            data={traffic.data}
-            isLoading={traffic.isLoading}
-            isError={traffic.isError}
-            format={formatBps}
-          />
-          <ChartCard
-            title={t("chart.wifi.title")}
-            series={WIFI_SERIES}
-            data={wifi.data}
-            isLoading={wifi.isLoading}
-            isError={wifi.isError}
-            format={formatClients}
-          />
-        </div>
-      )}
-
-      {list.length > 0 && (
-        <section aria-labelledby="devices-heading">
-          <h2 id="devices-heading" className="mb-3 text-sm font-medium text-text-2">
-            {t("dash.devicesTitle")}
-          </h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
-            {list.map((d) => (
-              <DeviceCard key={d.id} device={d} />
+      {layout.widgets.length === 0 ? (
+        <p className="py-10 text-center text-sm text-text-2">{t(edit ? "dash.edit.empty" : "dash.empty.layout")}</p>
+      ) : (
+        !(noDevices && !edit) && (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+            {layout.widgets.map((widget, index) => (
+              <div
+                key={widget.id}
+                className={`min-w-0 ${COL_SPAN[widget.w]} ${dragId === widget.id ? "opacity-50" : ""}`}
+                onDragOver={edit && dragId ? (e) => e.preventDefault() : undefined}
+                onDrop={
+                  edit && dragId
+                    ? (e) => {
+                        e.preventDefault();
+                        update((l) => dropOn(l, dragId, widget.id));
+                        setDragId(null);
+                      }
+                    : undefined
+                }
+              >
+                {edit && (
+                  <EditBar
+                    widget={widget}
+                    index={index}
+                    count={layout.widgets.length}
+                    onShift={(d) => update((l) => shiftWidget(l, widget.id, d))}
+                    onResize={(w) => update((l) => resizeWidget(l, widget.id, w))}
+                    onEdit={() => setEditing({ widget, isNew: false })}
+                    onRemove={() => update((l) => removeWidget(l, widget.id))}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", widget.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      setDragId(widget.id);
+                    }}
+                  />
+                )}
+                <div onDragEnd={() => setDragId(null)}>
+                  <WidgetView widget={widget} />
+                </div>
+              </div>
             ))}
           </div>
-        </section>
+        )
+      )}
+
+      {adding && (
+        <AddWidgetDialog
+          onClose={() => setAdding(false)}
+          onPick={(type) => {
+            setAdding(false);
+            setEditing({ widget: newWidget(type), isNew: true });
+          }}
+        />
+      )}
+      {editing && (
+        <WidgetEditDialog
+          widget={editing.widget}
+          isNew={editing.isNew}
+          onClose={() => setEditing(null)}
+          onSave={(widget) => {
+            update((l) => (editing.isNew ? addWidget(l, widget) : replaceWidget(l, widget)));
+            setEditing(null);
+          }}
+        />
+      )}
+      {confirm === "discard" && (
+        <ConfirmDialog
+          title={t("dash.edit.discard.title")}
+          body={t("dash.edit.discard.body")}
+          go={t("dash.edit.discard.go")}
+          keep={t("dash.edit.keep")}
+          danger
+          onKeep={() => setConfirm(null)}
+          onGo={() => {
+            setConfirm(null);
+            setDraft(null);
+          }}
+        />
+      )}
+      {confirm === "reset" && (
+        <ConfirmDialog
+          title={t("dash.edit.reset.title")}
+          body={t("dash.edit.reset.body")}
+          go={t("dash.edit.reset.go")}
+          keep={t("common.cancel")}
+          onKeep={() => setConfirm(null)}
+          onGo={doReset}
+        />
       )}
     </>
   );

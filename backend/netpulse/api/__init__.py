@@ -13,15 +13,17 @@ from sqlalchemy import text
 from .. import __version__
 from ..config import settings
 from ..db import engine, has_timescale
-from . import auth_routes, dashboard, devices, metrics, updates
+from . import auth_routes, dashboard, dashboards, devices, metrics, preferences, updates
 from .security import check_origin
 from .web import mount_web
 
 app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)])
 app.include_router(auth_routes.router)
 app.include_router(dashboard.router)
+app.include_router(dashboards.router)
 app.include_router(devices.router)
 app.include_router(metrics.router)
+app.include_router(preferences.router)
 app.include_router(updates.router)
 
 

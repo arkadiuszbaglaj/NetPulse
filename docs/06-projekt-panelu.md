@@ -177,6 +177,88 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 |--------|------|----------------|-----------|
 | Wskaźnik siły hasła | Przy ustawianiu i zmianie hasła pokazuje na żywo, czy hasło spełnia wymagania: liczba znaków, cyfry, wielkie litery, znaki specjalne (każdy warunek jako ✓/✗ pod polem, plus pasek siły). Ten sam komponent w kreatorze pierwszego konta i w Ustawienia → Konto. | Kreator konta, Ustawienia → Konto | 2026-10-24 |
 | Monitorowanie serwerów Linux | Serwer jako urządzenie w panelu: CPU, RAM, dyski, obciążenie, sieć. Etap 1 przez SNMP (`snmpd`), etap 2 własny agent z usługami systemd, kontenerami Docker i SMART. | Dashboard (karty), Ustawienia → Urządzenia, alerty | 2026-10-24 |
+| Alerty w panelu | Reguły z progami (np. ruch, błędy, CPU/RAM, zajętość dysku, port down, urządzenie offline), lista aktywnych i historii alertów, wskaźnik w pasku górnym. To rozwinięcie etapu 8. | Pasek górny (dzwonek), nowa sekcja Alerty, Ustawienia → Alerty | 2026-10-24 |
+| Stan serwera NetPulse | Parametry maszyny, na której działa aplikacja: CPU, RAM i swap, obciążenie, dyski (zajętość, miejsce pod bazę), czas pracy, temperatura, rozmiar bazy, stan usług NetPulse. Z historią na wykresach. | Dashboard (karta „Serwer”), Ustawienia → System | 2026-10-25 |
+| Kreator dashboardów: prywatny i publiczny | Kreator tworzenia własnych dashboardów (nazwa lub szablon, wybór i układ widgetów, widoczność). **Prywatny** widzi tylko administrator po zalogowaniu, **publiczny** otwiera się pod osobnym adresem bez logowania (tylko do odczytu, np. wyświetlacz ścienny, podgląd dla domowników). | Dashboard (lista i przełącznik dashboardów), Ustawienia → Dashboardy, publiczna strona poza powłoką aplikacji | 2026-10-25 |
+
+### Szczegóły: kreator dashboardów (prywatny i publiczny)
+
+- **Kreator (kroki):** 1) nazwa i szablon wyjściowy (np. „Pełny przegląd”, „Tylko ruch WAN”, „Status urządzeń”,
+  „Wyświetlacz ścienny”, pusty); 2) wybór i układ widgetów z rejestru widgetów (ten sam co w etapie 5e);
+  3) widoczność: **Prywatny** (tylko administrator) albo **Publiczny** (bez logowania) z opcjami prywatności;
+  4) podsumowanie z linkiem do skopiowania i kodem QR. Edycja później tym samym kreatorem.
+- **Publiczny dashboard:** adres w osobnej przestrzeni (np. `/p/<losowy-token>`), strona bez menu i paska
+  użytkownika, tylko odczyt. Link z nieodgadywalnym tokenem, który można w każdej chwili **unieważnić lub wymienić**,
+  opcjonalna data wygaśnięcia i opcjonalne hasło (PIN). Tryb ekranu pełnego bez elementów sterujących
+  (wyświetlacz ścienny, telewizor), z odświeżaniem nie częściej niż co 10 s.
+- **Bezpieczeństwo (to jest sedno pomysłu):**
+  - Osobny, **tylko do odczytu** interfejs API dla publicznych dashboardów (np. `/api/public/dashboards/{token}`),
+    który zwraca wyłącznie dane widgetów wybranych w tym dashboardzie. Nie korzysta z ciasteczek sesji
+    i nie wystawia pozostałego API. Lista dozwolonych widgetów jest jawna (biała lista), a nowe widgety są
+    domyślnie niedostępne publicznie, dopóki ktoś ich nie oznaczy.
+  - **Opcje prywatności publicznego widoku:** ukryj adresy IP i MAC, nazwy sieci WiFi i opisy portów,
+    zaokrąglij wartości, nie pokazuj błędów urządzeń. Domyślnie wszystko ukryte. Publiczny widok nigdy nie
+    pokazuje community, haseł, tokenów, wersji oprogramowania ani informacji o aktualizacjach.
+  - **Globalny wyłącznik** w Ustawienia → Dashboardy: „Zezwalaj na dashboardy publiczne”, **domyślnie wyłączony**.
+    Dopóki nie jest włączony, kreator oferuje tylko prywatne.
+  - Ograniczenie liczby żądań (per adres i per token), pamięć podręczna odpowiedzi (kilka sekund), żeby publiczny
+    link nie obciążał serwera ani bazy; nagłówki `noindex`, `Cache-Control`, `Referrer-Policy: no-referrer`;
+    osadzanie w `<iframe>` tylko po jawnym włączeniu (`frame-ancestors`).
+  - Dziennik: kto, kiedy i który dashboard upublicznił, wymienił token albo wyłączył. Ostrzeżenie w kreatorze,
+    że **publiczny link ujawnia dane o sieci każdemu, kto go ma**, oraz że panel nie powinien być wystawiony
+    wprost do internetu: dostęp z zewnątrz tylko przez VPN albo reverse proxy z HTTPS.
+- **Prywatny dashboard:** dostępny po zalogowaniu wyłącznie dla administratora. Gdy pojawią się role (tylko do
+  odczytu), prywatny może być współdzielony z wybranymi użytkownikami; to osobna decyzja.
+- **Model danych:** nowa tabela `dashboards` (nazwa, właściciel, widoczność, token publiczny, ustawienia
+  prywatności, wygaśnięcie, skrót hasła, JSON z układem i widgetami w wersjonowanym schemacie z etapu 5e).
+  Nowa tabela powstaje sama przy `netpulse update` (bez migracji Alembic). Ten sam model posłuży aplikacji
+  mobilnej i widgetom.
+- **Zależności:** etap 5e (rejestr widgetów, edytor układu, zapis na koncie), etap 5f (tryb „Na żywo” może
+  napędzać wyświetlacz ścienny), ograniczanie liczby żądań w API (nie ma go jeszcze).
+- **Decyzje do podjęcia:** czy publiczny link ma być chroniony tylko tokenem, czy domyślnie także hasłem;
+  które widgety mogą być publiczne w pierwszej wersji (na start np. podsumowanie, ruch WAN, liczba klientów
+  WiFi, stan urządzeń bez adresów); czy dopuścić wiele publicznych dashboardów naraz; czy dashboard główny
+  (domyślny po zalogowaniu) też jest jednym z dashboardów kreatora.
+
+### Szczegóły: stan serwera NetPulse
+
+- **Skąd dane:** kontener czyta `/proc` (CPU, RAM, obciążenie, czas pracy pokazują wartości całego serwera,
+  nie kontenera), `/sys` (temperatura, jeśli system ją udostępnia) i zajętość dysku. Bez SNMP i bez agenta.
+- **Historia:** próbka co cykl kolektora (30 s) do **nowej tabeli** metryk systemowych (nowa tabela powstaje
+  sama przy `netpulse update`, więc nie wymaga migracji Alembic); wykresy i interwały jak na Dashboardzie.
+- **Zakres:** CPU %, obciążenie 1/5/15 min, RAM i swap, dyski (root i dysk z danymi Dockera), czas pracy,
+  temperatura, rozmiar bazy i jej przyrost, czas ostatniego cyklu kolektora, stan usług (api, kolektor, baza,
+  updater). Stan kontenerów podaje `updater` (jedyny z dostępem do Dockera) w osobnej akcji tylko do odczytu.
+- **Panel:** karta „Serwer” na Dashboardzie (CPU, RAM, dysk z paskiem zapełnienia) i podstrona
+  Ustawienia → System ze szczegółami i wykresami.
+- **Ograniczenia:** inne dyski niż ten z Dockerem widać tylko po dodatkowym zamontowaniu (tylko do odczytu);
+  temperatury nie ma na części maszyn wirtualnych.
+- **Powiązania:** pierwszy krok do pozycji „Monitorowanie serwerów Linux” (ten sam model danych posłuży innym
+  serwerom), ostrzeżenia typu „dysk > 90%” wejdą w alerty (etap 8). Pomysł z rozmowy o błędzie „brak miejsca
+  na dysku” przy aktualizacji.
+
+### Szczegóły: alerty w panelu
+
+- **Reguła** = metryka + warunek + próg + czas trwania + ważność. Przykłady: „ruch WAN pobierania
+  > 800 Mb/s przez 5 min”, „błędy na porcie rosną”, „CPU > 90% przez 10 min”, „RAM > 85%”,
+  „dysk > 90%”, „port przeszedł w stan down”, „urządzenie nie odpowiada 2 minuty”,
+  „spadek liczby klientów WiFi do 0”.
+- **Stany alertu:** wyzwolony → potwierdzony (przez użytkownika) → zakończony, z historią
+  (kiedy, jak długo, jaka wartość szczytowa). Histereza i minimalny czas trwania, żeby krótkie
+  skoki nie sypały alertami.
+- **Panel:** dzwonek w pasku górnym z licznikiem aktywnych, sekcja **Alerty** (aktywne i historia,
+  filtr po ważności i urządzeniu), formularz reguł w Ustawienia → Alerty z gotowymi szablonami
+  („urządzenie offline”, „port down”, „wysokie CPU”). Z poziomu wykresu: „utwórz alert z tego
+  progu” (linia progu rysowana na wykresie).
+- **Silnik:** ocena reguł po każdym cyklu kolektora, na ogólnych metrykach (wymóg wstępny jak przy
+  serwerach Linux), żeby ta sama reguła działała dla sieci i dla serwerów. Zapis zdarzeń w jednym
+  modelu zdarzeń, wspólnym z powiadomieniami o aktualizacjach.
+- **Powiadomienia:** w panelu (od razu), potem kanały jako wtyczki: e-mail, webhook, push do aplikacji
+  mobilnej (przez chmurę). Ciche godziny i grupowanie, żeby awaria switcha nie dała dwudziestu wiadomości.
+- **Decyzje do podjęcia:** czy progi mają być bezwzględne, czy też względem normy (np. „2× więcej niż
+  zwykle o tej porze”); czy reguły domyślne włączać od razu po instalacji (np. offline i port down).
+- **Zależności:** migracje Alembic i ogólna tabela metryk (jak w opisie serwerów Linux), model
+  zdarzeń i tokenów pod aplikację mobilną.
 
 ### Szczegóły: wskaźnik siły hasła
 

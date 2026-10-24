@@ -10,6 +10,7 @@ import type {
   UpdatesResponse,
   User,
 } from "../lib/api";
+import type { DashboardLayout } from "../lib/layout";
 
 export const USER: User = {
   id: 1,
@@ -166,6 +167,8 @@ interface MockState {
   afterCheck?: UpdatesResponse;
   /** Odpowiedź na POST /api/updates/apply (domyślnie zadanie w toku) */
   afterApply?: UpdatesResponse;
+  /** Zapisany układ pulpitu (null = domyślny) */
+  layout: DashboardLayout | null;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -184,6 +187,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     wifi: { interval_s: 30, points: [{ time: "2026-10-24T20:00:00Z", values: { clients: 5 } }] },
     probe: PROBE,
     admin: true,
+    layout: null,
     updates: UPDATES,
     overrides: {},
     ...initial,
@@ -212,6 +216,18 @@ export function mockApi(initial: Partial<MockState> = {}) {
 
     // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
     if (state.authenticated) {
+      if (key === "GET /api/dashboards/default") return json(200, { layout: state.layout, updated_at: null });
+      if (key === "PUT /api/dashboards/default") {
+        state.layout = body as DashboardLayout;
+        return json(200, { layout: state.layout, updated_at: new Date().toISOString() });
+      }
+      if (key === "DELETE /api/dashboards/default") {
+        state.layout = null;
+        return json(204);
+      }
+      if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, label: "Port 1", alias: "AP U6+" }, { id: 12, label: "Port 2", alias: null }]);
+      if (key === "GET /api/devices/1/wifi") return json(200, [{ id: 21, ssid: "Dom", radio: "ng" }]);
+      if (/^GET \/api\/(interfaces|wifi|devices)\/\d+\/metrics$/.test(key)) return json(200, state.traffic.points);
       if (key === "GET /api/updates") return json(200, state.updates);
       if (key === "POST /api/updates/check") {
         state.updates = state.afterCheck ?? state.updates;

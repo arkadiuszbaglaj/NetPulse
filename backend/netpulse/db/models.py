@@ -1,7 +1,7 @@
 """Modele bazy danych (SQLAlchemy 2).
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
-Konta: users, auth_sessions.
+Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
 Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics, wifi_metrics.
 """
 
@@ -21,6 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -141,6 +142,33 @@ class AuthSession(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ip: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(255))
+
+
+class Dashboard(Base):
+    """Układ pulpitu: wersjonowany JSON z widgetami (schemat: api/layout_schemas.py).
+
+    Na razie każdy użytkownik ma jeden pulpit domyślny; tabela jest gotowa na wiele pulpitów."""
+
+    __tablename__ = "dashboards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80), default="Mój pulpit")
+    is_default: Mapped[bool] = mapped_column(Boolean, default=True)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1)
+    layout: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserPreference(Base):
+    """Drobne ustawienia konta (np. odświeżanie) jako JSON, jedna sekcja = jeden klucz."""
+
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # --- metryki (hypertables) --------------------------------------------------

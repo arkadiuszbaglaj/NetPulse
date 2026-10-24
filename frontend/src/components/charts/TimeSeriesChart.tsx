@@ -29,6 +29,11 @@ export interface TimeSeriesChartProps {
   format: (value: number) => string;
   /** Odstęp między punktami w sekundach – dłuższa przerwa rysowana jest jako luka */
   intervalS: number;
+  /** Rodzaj wykresu: linia, obszar (domyślnie) albo słupki */
+  kind?: "line" | "area" | "bar";
+  smooth?: boolean;
+  /** Maksimum osi Y w jednostkach surowych metryki; puste = automatycznie */
+  yMax?: number | null;
   height?: number;
   ariaLabel: string;
 }
@@ -36,7 +41,17 @@ export interface TimeSeriesChartProps {
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "medium" });
 
-export default function TimeSeriesChart({ series, points, format, intervalS, height = 240, ariaLabel }: TimeSeriesChartProps) {
+export default function TimeSeriesChart({
+  series,
+  points,
+  format,
+  intervalS,
+  kind = "area",
+  smooth = false,
+  yMax = null,
+  height = 240,
+  ariaLabel,
+}: TimeSeriesChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
@@ -91,27 +106,33 @@ export default function TimeSeriesChart({ series, points, format, intervalS, hei
         yAxis: {
           type: "value",
           min: 0,
+          max: yMax ?? undefined,
           axisLabel: { color: text, formatter: (v: number) => format(v) },
           splitLine: { lineStyle: { color: grid } },
         },
         series: series.map((s, i) => {
           const color = css(`--chart-${s.color ?? ((i % 4) + 1)}`);
+          const data = toChartRows(points, s.key, intervalS);
+          if (kind === "bar") {
+            return { name: s.name, type: "bar", barMaxWidth: 14, itemStyle: { color }, data };
+          }
           return {
             name: s.name,
             type: "line",
+            smooth,
             showSymbol: false,
             symbol: "circle",
             symbolSize: 6,
             lineStyle: { width: 2, color },
             itemStyle: { color },
-            areaStyle: s.area === false ? undefined : { color, opacity: 0.1 },
-            data: toChartRows(points, s.key, intervalS),
+            areaStyle: kind === "area" && s.area !== false ? { color, opacity: 0.1 } : undefined,
+            data,
           };
         }),
       },
       true,
     );
-  }, [series, points, format, intervalS, resolved]);
+  }, [series, points, format, intervalS, kind, smooth, yMax, resolved]);
 
   return <div ref={el} role="img" aria-label={ariaLabel} style={{ height }} className="w-full" />;
 }
