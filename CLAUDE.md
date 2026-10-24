@@ -85,8 +85,8 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
 3. ✅ Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk (+ wstępne API tylko do odczytu)
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
-   5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d aktualizacja jednym kliknięciem (updater + obrazy GHCR),
-   5e personalizacja wykresów i układu, 5f tryb „Na żywo” (WebSocket, ruch WAN co 1–2 s; opis w `docs/06-projekt-panelu.md`)
+   5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
+   5e ✅ personalizacja wykresów i układu, 5f tryb „Na żywo” (WebSocket, ruch WAN co 1–2 s; opis w `docs/06-projekt-panelu.md`)
 6. Driver UniFi przez API – PoE, klienci WiFi
 7. Topologia LLDP – mapa sieci
 8. Alerty – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
