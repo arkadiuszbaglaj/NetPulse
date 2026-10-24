@@ -91,20 +91,20 @@ async def _series(model, id_col, obj_id: int, columns: list[str], minutes: int) 
         if timescale:
             bucket = func.time_bucket(text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), model.time)
             stmt = (
-                select(bucket.label("t"), *[func.avg(c).label(c.key) for c in cols])
+                select(bucket.label("bucket"), *[func.avg(c).label(c.key) for c in cols])
                 .where(id_col == obj_id, model.time >= since)
-                .group_by("t")
-                .order_by("t")
+                .group_by("bucket")
+                .order_by("bucket")
             )
         else:
             stmt = (
-                select(model.time.label("t"), *cols)
+                select(model.time.label("bucket"), *cols)
                 .where(id_col == obj_id, model.time >= since)
                 .order_by(model.time)
             )
         rows = (await session.execute(stmt)).all()
     return [
-        Point(time=r.t, values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
+        Point(time=r[0], values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
         for r in rows
     ]
 

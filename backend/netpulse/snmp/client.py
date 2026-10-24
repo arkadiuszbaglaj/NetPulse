@@ -113,6 +113,7 @@ class PySnmpClient:
             target,
             self._context,
             *[hl.ObjectType(hl.ObjectIdentity(oid)) for oid in oids],
+            lookupMib=False,
         )
         if err_ind:
             raise SnmpError(f"{self.host}: {err_ind}")
@@ -145,6 +146,7 @@ class PySnmpClient:
                 self._context,
                 hl.ObjectType(hl.ObjectIdentity(prefix)),
                 lexicographicMode=False,
+                lookupMib=False,
             )
         else:
             iterator = hl.bulk_walk_cmd(
@@ -156,6 +158,7 @@ class PySnmpClient:
                 _MAX_REPETITIONS,
                 hl.ObjectType(hl.ObjectIdentity(prefix)),
                 lexicographicMode=False,
+                lookupMib=False,
             )
         async for err_ind, err_status, _err_index, var_binds in iterator:
             if err_ind:

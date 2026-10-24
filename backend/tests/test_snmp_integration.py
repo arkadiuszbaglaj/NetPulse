@@ -36,6 +36,8 @@ def _free_port() -> int:
 def agent(tmp_path_factory):
     port = _free_port()
     cache = tmp_path_factory.mktemp("snmpsim-cache")
+    log_path = cache / "snmpsim.log"
+    log_file = open(log_path, "w")  # noqa: SIM115 - zamykany po teście
     proc = subprocess.Popen(
         [
             RESPONDER,
@@ -48,35 +50,37 @@ def agent(tmp_path_factory):
             "--v3-priv-key=netpulse-priv",
             "--v3-priv-proto=AES",
         ],
-        stdout=subprocess.PIPE,
+        stdout=log_file,
         stderr=subprocess.STDOUT,
-        text=True,
     )
-    creds = SnmpCredentials(version="2c", community="usw-lite-8-poe")
-    deadline = time.time() + 30
-    while time.time() < deadline:
-        if proc.poll() is not None:
-            pytest.fail(f"snmpsim zakończył się:\n{proc.stdout.read()}")
-        client = PySnmpClient("127.0.0.1", creds, port=port, timeout=0.5, retries=0)
-        try:
-            if asyncio.run(client.get(["1.3.6.1.2.1.1.5.0"])):
-                break
-        except SnmpError:
-            pass
-        finally:
-            asyncio.run(client.close())
-        time.sleep(0.5)
-    else:
-        proc.kill()
-        pytest.fail(f"snmpsim nie wystartował:\n{proc.stdout.read()}")
+    # Rozgrzewka: snmpsim indeksuje każdy plik przy pierwszym dostępie
+    for community in ("usw-lite-8-poe", "ucg-ultra", "u6-plus"):
+        creds = SnmpCredentials(version="2c", community=community)
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            if proc.poll() is not None:
+                pytest.fail(f"snmpsim zakończył się:\n{log_path.read_text()[-3000:]}")
+            client = PySnmpClient("127.0.0.1", creds, port=port, timeout=2, retries=0)
+            try:
+                if asyncio.run(client.walk("1.3.6.1.2.1.2.2.1.2")):
+                    break
+            except SnmpError:
+                pass
+            finally:
+                asyncio.run(client.close())
+            time.sleep(0.5)
+        else:
+            proc.kill()
+            pytest.fail(f"snmpsim nie odpowiada dla {community}:\n{log_path.read_text()[-3000:]}")
     yield port
     proc.terminate()
     proc.wait(10)
+    log_file.close()
 
 
 def _poll(port: int, creds: SnmpCredentials):
     async def run():
-        client = PySnmpClient("127.0.0.1", creds, port=port, timeout=2, retries=1)
+        client = PySnmpClient("127.0.0.1", creds, port=port, timeout=5, retries=1)
         try:
             return await poll_device(client)
         finally:
