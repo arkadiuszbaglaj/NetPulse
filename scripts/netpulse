@@ -8,6 +8,7 @@
 #   netpulse version
 #   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
 #   netpulse reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
+#   netpulse cleanup         zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje)
 #
 # Pozostałe polecenia trafiają do aplikacji w kontenerze, np.:
 #   netpulse probe 192.168.1.1 --community public
@@ -57,6 +58,64 @@ wait_healthy() {
   return 1
 }
 
+# --- miejsce na dysku -----------------------------------------------------------
+# Budowanie obrazu (Node + Python) potrzebuje kilku GB; bez miejsca Docker kończy się długim błędem.
+MIN_FREE_MB="${NETPULSE_MIN_FREE_MB:-2000}"   # poniżej tego aktualizacja się zatrzymuje
+WARN_FREE_MB="${NETPULSE_WARN_FREE_MB:-4000}" # poniżej tego czyścimy i ostrzegamy
+KEEP_CACHE_HOURS="${NETPULSE_KEEP_BUILD_CACHE_HOURS:-72}"
+
+# Wolne miejsce (MB) tam, gdzie Docker trzyma dane
+docker_free_mb() {
+  local dir
+  dir=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || true)
+  [ -d "$dir" ] || dir=/var/lib/docker
+  [ -d "$dir" ] || dir=/
+  df -Pk "$dir" 2>/dev/null | awk 'NR==2 {print int($4/1024)}'
+}
+
+# Usuwa nieużywane dane Dockera. Wolumeny (baza z historią metryk) są nietykalne.
+clean_docker() {
+  docker builder prune -af >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+}
+
+# Po aktualizacji: zostaw świeży cache (kolejna aktualizacja będzie szybka), usuń stary
+prune_build_cache() {
+  docker builder prune -f --filter "until=${KEEP_CACHE_HOURS}h" >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+}
+
+# Zwraca 1, gdy miejsca jest za mało na budowanie (po próbie automatycznego sprzątania)
+check_disk() {
+  local free
+  free=$(docker_free_mb)
+  case "$free" in '' | *[!0-9]*) return 0 ;; esac # nie umiemy sprawdzić – nie blokujemy
+  if [ "$free" -lt "$WARN_FREE_MB" ]; then
+    c_info "Mało wolnego miejsca (${free} MB) – czyszczę nieużywane dane Dockera (baza i konfiguracja zostają)..."
+    clean_docker
+    free=$(docker_free_mb)
+  fi
+  if [ "$free" -lt "$MIN_FREE_MB" ]; then
+    c_err "Za mało miejsca na dysku: wolne ${free} MB, a aktualizacja wymaga co najmniej ${MIN_FREE_MB} MB."
+    c_err "Sprawdź: df -h /   oraz   sudo docker system df"
+    c_err "Jeśli dysk jest duży, a system używa tylko jego części (LVM): sudo vgs, potem sudo lvextend -r -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv"
+    c_err "Nic nie zostało zmienione – po zwolnieniu miejsca uruchom ponownie: netpulse update"
+    return 1
+  fi
+  if [ "$free" -lt "$WARN_FREE_MB" ]; then
+    c_info "Uwaga: wolne ${free} MB – na aktualizację wystarczy, ale warto zwolnić miejsce."
+  fi
+}
+
+cmd_cleanup() {
+  need_root cleanup "$@"
+  local before after
+  before=$(docker_free_mb)
+  clean_docker
+  after=$(docker_free_mb)
+  c_ok "Wolne miejsce: ${before} MB → ${after} MB (baza i konfiguracja nietknięte)"
+}
+
 cmd_update() {
   need_root update "$@"
   # Aktualizacja podmienia ten plik – uruchom kopię, żeby bash nie czytał zmienianego skryptu
@@ -81,6 +140,10 @@ cmd_update() {
   if [ "$before" != "$after" ]; then
     echo "Zmiany:"
     git log --oneline --no-decorate "$before..$after" | sed 's/^/  /'
+  fi
+  # Miejsce sprawdzamy PRZED zmianą kodu: przy niepowodzeniu nic się nie zmienia i wystarczy ponowić update
+  check_disk || exit 1
+  if [ "$before" != "$after" ]; then
     git merge --ff-only --quiet "origin/$branch"
   fi
   # Uzupełnij .env o nowe zmienne z .env.example (bez nadpisywania istniejących)
@@ -89,8 +152,12 @@ cmd_update() {
     grep -q "^${key}=" "$ENV_FILE" || echo "${key}=${value}" >>"$ENV_FILE"
   done <"$INSTALL_DIR/deploy/.env.example"
   c_info "Buduję i uruchamiam nową wersję..."
-  compose up -d --build --remove-orphans
-  docker image prune -f >/dev/null 2>&1 || true
+  if ! compose up -d --build --remove-orphans; then
+    c_err "Budowanie nie powiodło się. Usługi działają dalej na poprzedniej wersji."
+    c_err "Usuń przyczynę (np. zwolnij miejsce: netpulse cleanup) i uruchom: netpulse update --force"
+    exit 1
+  fi
+  prune_build_cache
   wait_healthy
   c_ok "Zaktualizowano do: $(version)"
 }
@@ -139,6 +206,7 @@ main() {
     version | --version | -V) version ;;
     uninstall) cmd_uninstall "$@" ;;
     reset) cmd_reset "$@" ;;
+    cleanup) cmd_cleanup "$@" ;;
     help | -h | --help)
       awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
       ;;
@@ -153,4 +221,7 @@ main() {
   esac
 }
 
-main "$@"
+# Plik można załadować (source) w testach bez uruchamiania poleceń
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi

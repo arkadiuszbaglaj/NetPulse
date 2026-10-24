@@ -109,6 +109,7 @@ jobs:
           echo "Brama sieci Dockera: $GW"
           sudo netpulse version
           netpulse help | grep -q "netpulse reset"
+          netpulse help | grep -q "netpulse cleanup"
           # bez sudo – skrypt sam podnosi uprawnienia (need_root)
           netpulse status 2>&1 | tee status.log
           if grep -q "'-E' is ignored" status.log; then exit 1; fi
@@ -197,6 +198,23 @@ jobs:
           assert d["interval_s"] == 30 and isinstance(d["points"], list), d
           PY
           done
+      - name: Za mało miejsca – aktualizacja zatrzymuje się, nic nie psując
+        run: |
+          # Progi ustawione absurdalnie wysoko, żeby wymusić brak miejsca
+          if sudo NETPULSE_MIN_FREE_MB=999999999 NETPULSE_WARN_FREE_MB=999999999 netpulse update --force > lowdisk.log 2>&1; then
+            echo "Aktualizacja powinna się zatrzymać przy braku miejsca"; cat lowdisk.log; exit 1
+          fi
+          cat lowdisk.log
+          grep -q "Za mało miejsca na dysku" lowdisk.log
+          grep -q "Nic nie zostało zmienione" lowdisk.log
+          # usługi nadal działają na dotychczasowej wersji
+          curl -fsS http://127.0.0.1:8000/api/health
+          curl -fsS -b cookies.txt http://127.0.0.1:8000/api/auth/me
+      - name: netpulse cleanup
+        run: |
+          sudo netpulse cleanup 2>&1 | tee cleanup.log
+          grep -q "Wolne miejsce" cleanup.log
+          curl -fsS http://127.0.0.1:8000/api/health
       - name: netpulse update
         run: |
           sudo netpulse update --force 2>&1 | tee update.log; test ${PIPESTATUS[0]} -eq 0
@@ -211,6 +229,8 @@ jobs:
           bash .github/scripts/annotate.sh probe.log "probe" 60
           bash .github/scripts/annotate.sh panel.log "panel" 40
           bash .github/scripts/annotate.sh auth.log "logowanie" 40
+          bash .github/scripts/annotate.sh lowdisk.log "mało miejsca" 40
+          bash .github/scripts/annotate.sh cleanup.log "cleanup" 20
           bash .github/scripts/annotate.sh dashboard.log "dashboard" 40
           bash .github/scripts/annotate.sh api.log "api" 40
           bash .github/scripts/annotate.sh update.log "update" 40

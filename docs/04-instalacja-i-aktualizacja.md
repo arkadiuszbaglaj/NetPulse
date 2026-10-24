@@ -70,11 +70,32 @@ usługi. Dane i konfiguracja zostają. Jeśli nie ma nic nowego – nic nie robi
 | `netpulse logs collector` | logi tylko kolektora                    |
 | `netpulse restart`        | restart usług                           |
 | `netpulse device remove ID` | usunięcie urządzenia z historią       |
+| `netpulse cleanup`        | zwolnienie miejsca: nieużywane obrazy i cache budowania (baza zostaje) |
 | `netpulse reset`          | wyczyszczenie bazy (urządzenia i historia), konfiguracja zostaje |
 | `netpulse user list`      | konta panelu                            |
 | `netpulse user passwd NAZWA` | nowe hasło (np. zapomniane)          |
 | `netpulse version`        | zainstalowana wersja                    |
 | `netpulse uninstall`      | usunięcie NetPulse                      |
+
+## Miejsce na dysku
+
+Budowanie obrazów (panel w Node + backend w Pythonie) potrzebuje kilku GB wolnego miejsca. Dlatego
+`install.sh` i `netpulse update` sprawdzają je **przed** zmianą czegokolwiek:
+
+- poniżej 4 GB: automatycznie usuwają nieużywane dane Dockera (stary cache budowania i obrazy),
+  a baza z historią metryk i konfiguracja nie są ruszane,
+- poniżej 2 GB po sprzątaniu: zatrzymują się z komunikatem i podpowiedzią, **bez żadnej zmiany**
+  (po zwolnieniu miejsca wystarczy ponowić `netpulse update`),
+- po udanej aktualizacji usuwają cache budowania starszy niż 72 godziny (świeży zostaje, więc
+  kolejna aktualizacja jest szybka).
+
+Ręcznie: `netpulse cleanup`. Gdy dysk jest duży, ale system używa tylko jego części (domyślny układ
+LVM w Ubuntu Server): `sudo vgs`, a jeśli `VFree` pokazuje wolne miejsce,
+`sudo lvextend -r -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv`.
+
+Jeśli budowanie nie powiodło się z innej przyczyny po pobraniu kodu, usługi działają dalej na
+poprzedniej wersji, a po usunięciu przyczyny trzeba uruchomić `netpulse update --force`
+(zwykły `update` powie, że masz już najnowszą wersję).
 
 ## Konfiguracja
 
@@ -85,6 +106,10 @@ Plik `/opt/netpulse/deploy/.env`:
 | `NETPULSE_PORT`           | 8000      | port API/panelu                   |
 | `NETPULSE_POLL_INTERVAL`  | 30        | co ile sekund odpytywać urządzenia |
 | `NETPULSE_RETENTION_DAYS` | 30        | ile dni trzymać metryki           |
+
+Progi kontroli miejsca (zmienne środowiskowe polecenia, nie `.env`): `NETPULSE_MIN_FREE_MB` (domyślnie
+2000), `NETPULSE_WARN_FREE_MB` (4000), `NETPULSE_KEEP_BUILD_CACHE_HOURS` (72), np.
+`sudo NETPULSE_MIN_FREE_MB=1000 netpulse update`.
 
 Po zmianie: `netpulse restart`.
 

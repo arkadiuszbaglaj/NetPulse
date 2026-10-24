@@ -10,6 +10,45 @@
 
 set -euo pipefail
 
+# --- miejsce na dysku ---------------------------------------------------------------
+# Budowanie obrazów (Node + Python) potrzebuje kilku GB. Sprawdzamy to przed pobraniem projektu,
+# żeby brak miejsca nie kończył się długim błędem Dockera w połowie instalacji.
+np_min_free_mb() { echo "${NETPULSE_MIN_FREE_MB:-2000}"; }
+np_warn_free_mb() { echo "${NETPULSE_WARN_FREE_MB:-4000}"; }
+
+np_free_mb() {
+  local dir
+  dir=$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || true)
+  [ -d "$dir" ] || dir=/var/lib/docker
+  [ -d "$dir" ] || dir=/
+  df -Pk "$dir" 2>/dev/null | awk 'NR==2 {print int($4/1024)}'
+}
+
+# Zwraca 1, gdy miejsca jest za mało (po próbie sprzątania nieużywanych danych Dockera)
+np_ensure_disk() {
+  local free min warn
+  min=$(np_min_free_mb)
+  warn=$(np_warn_free_mb)
+  free=$(np_free_mb)
+  case "$free" in '' | *[!0-9]*) return 0 ;; esac # nie umiemy sprawdzić – nie blokujemy
+  if [ "$free" -lt "$warn" ]; then
+    printf '\033[1;34m==>\033[0m Mało wolnego miejsca (%s MB) – czyszczę nieużywane dane Dockera...\n' "$free"
+    docker builder prune -af >/dev/null 2>&1 || true
+    docker image prune -f >/dev/null 2>&1 || true
+    free=$(np_free_mb)
+  fi
+  if [ "$free" -lt "$min" ]; then
+    printf '\033[1;31m✗ Za mało miejsca na dysku: wolne %s MB, a instalacja wymaga co najmniej %s MB.\033[0m\n' "$free" "$min" >&2
+    echo "  Sprawdź: df -h /   oraz   sudo docker system df" >&2
+    echo "  Jeśli dysk jest duży, a system używa tylko jego części (LVM): sudo vgs, potem" >&2
+    echo "  sudo lvextend -r -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv" >&2
+    return 1
+  fi
+  if [ "$free" -lt "$warn" ]; then
+    printf '\033[1;34m==>\033[0m Uwaga: wolne %s MB – wystarczy na instalację, ale warto zwolnić miejsce.\n' "$free"
+  fi
+}
+
 main() {
   local REPO="${NETPULSE_REPO:-https://github.com/arkadiuszbaglaj/NetPulse.git}"
   local BRANCH="${NETPULSE_BRANCH:-main}"
@@ -51,6 +90,7 @@ main() {
   systemctl enable --now docker >/dev/null 2>&1 || true
   docker compose version >/dev/null 2>&1 || die "Brak 'docker compose' – zainstaluj pakiet docker-compose-plugin"
   ok "Docker: $(docker --version | cut -d, -f1)"
+  np_ensure_disk || exit 1
 
   # 3. Kod aplikacji
   if [ -d "$DIR/.git" ]; then
@@ -108,4 +148,7 @@ main() {
 }
 
 # Całość w funkcji – przy `curl | bash` nic się nie wykona, dopóki skrypt nie pobierze się w całości.
-main "$@"
+# (Warunek pozwala załadować plik w testach; przy `curl | bash` BASH_SOURCE jest puste, więc main startuje.)
+if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
+  main "$@"
+fi

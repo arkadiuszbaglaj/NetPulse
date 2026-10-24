@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.PORT ?? 8000);
-const VERSION = "0.5.0";
+const VERSION = "0.5.1";
 const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
