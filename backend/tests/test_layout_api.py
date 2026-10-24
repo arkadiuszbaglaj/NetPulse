@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import delete, func, insert, select  # noqa: E402
 
 from netpulse.api import app  # noqa: E402
+from netpulse.api.layout_schemas import DashboardLayout  # noqa: E402
 from netpulse.api.security import login_limiter  # noqa: E402
 from netpulse.auth import hash_password  # noqa: E402
 from netpulse.db import Session, engine, init_db  # noqa: E402
@@ -26,7 +27,7 @@ from netpulse.db.models import Dashboard, Device, User, UserPreference  # noqa: 
 ADMIN = {"username": "admin", "password": "haslo-testowe-1"}
 OTHER = {"username": "domownik", "password": "inne-haslo-123"}
 
-LAYOUT = {
+_RAW_LAYOUT = {
     "version": 1,
     "widgets": [
         {"id": "s1", "type": "summary", "w": 12, "config": {"tiles": ["devices", "wan_down"]}},
@@ -49,6 +50,9 @@ LAYOUT = {
         {"id": "d1", "type": "devices", "w": 12, "config": {"kinds": ["switch", "ap"]}},
     ],
 }
+
+# API zwraca układ z uzupełnionymi wartościami domyślnymi, więc porównujemy postać znormalizowaną
+LAYOUT = DashboardLayout.model_validate(_RAW_LAYOUT).model_dump(mode="json")
 
 
 def run(coro_fn):
