@@ -88,8 +88,17 @@ def test_collector_end_to_end():
             assert wan.label == "WAN" and wan.role == "wan"
             metric = await s.scalar(select(InterfaceMetric).where(InterfaceMetric.interface_id == wan.id))
             assert metric is not None
-            # 12.5 MB w ~1 s ≈ 100 Mb/s
-            assert 40e6 < metric.in_bps < 110e6, metric.in_bps
+            # +12.5 MB między dwoma odczytami; czas z rzeczywistych znaczników odczytów
+            # (na wolnym CI pierwszy zapis potrafi trwać kilka sekund)
+            t1, t2 = (
+                await s.scalars(
+                    select(DeviceMetric.time)
+                    .where(DeviceMetric.device_id == devices["10.0.0.1"].id)
+                    .order_by(DeviceMetric.time)
+                )
+            ).all()
+            expected = 12_500_000 * 8 / (t2 - t1).total_seconds()
+            assert abs(metric.in_bps - expected) < expected * 0.01, (metric.in_bps, expected)
 
             assert await s.scalar(select(func.count()).select_from(WifiNetwork)) == 6
             assert await s.scalar(select(func.count()).select_from(WifiMetric)) == 12
@@ -109,8 +118,9 @@ def test_old_schema_is_detected():
     async def scenario():
         await init_db()
         async with engine.connect() as conn:
-            assert await conn.run_sync(missing_columns) == {}
             trans = await conn.begin()
+            assert await conn.run_sync(missing_columns) == {}
+            # DDL w PostgreSQL jest transakcyjne – rollback przywraca kolumnę
             await conn.execute(text("ALTER TABLE devices DROP COLUMN port"))
             assert await conn.run_sync(missing_columns) == {"devices": ["port"]}
             await trans.rollback()
