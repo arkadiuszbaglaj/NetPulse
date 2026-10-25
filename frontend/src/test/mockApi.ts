@@ -354,6 +354,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, {
           firing: firing.length,
           unacked: firing.filter((a) => !a.acked_at).length,
+          unacked_critical: firing.filter((a) => !a.acked_at && a.severity === "critical").length,
           critical: count("critical"),
           warning: count("warning"),
           info: count("info"),

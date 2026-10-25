@@ -444,7 +444,8 @@ export const pl = {
 
   "alerts.title": "Alerty",
   "alerts.rules": "Reguły alertów",
-  "alerts.bell.count": "Alerty: {n} aktywnych",
+  "alerts.bell.count": "Alerty: {n} niepotwierdzonych",
+  "alerts.bell.acked": "Alerty: {n} aktywnych, wszystkie potwierdzone",
   "alerts.bell.none": "Alerty: brak aktywnych",
   "alerts.tabs": "Widok alertów",
   "alerts.tab.firing": "Aktywne",

@@ -59,10 +59,21 @@ describe("pomocnicze funkcje alertów", () => {
 });
 
 describe("dzwonek", () => {
-  it("pokazuje liczbę aktywnych alertów", async () => {
+  it("pokazuje liczbę niepotwierdzonych alertów", async () => {
     mockApi({ alerts: [ALERT, RESOLVED] });
     renderApp();
-    expect(await screen.findByRole("link", { name: "Alerty: 1 aktywnych" })).toHaveAttribute("href", "/alerts");
+    const bell = await screen.findByRole("link", { name: "Alerty: 1 niepotwierdzonych" });
+    expect(bell).toHaveAttribute("href", "/alerts");
+    expect(bell).toHaveTextContent("1");
+  });
+
+  it("gaśnie po potwierdzeniu alertu, choć alert dalej jest aktywny", async () => {
+    mockApi({ alerts: [ALERT, RESOLVED] });
+    renderApp("/alerts");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Potwierdź" }));
+    const bell = await screen.findByRole("link", { name: "Alerty: 1 aktywnych, wszystkie potwierdzone" });
+    expect(bell).not.toHaveTextContent(/\d/);
   });
 
   it("bez alertów nie pokazuje licznika", async () => {

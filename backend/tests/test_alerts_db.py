@@ -265,12 +265,19 @@ def test_ack_and_summary(client):
     add_device(status="down", last_ok_at=NOW - timedelta(seconds=600))
     add_rule(name="offline", kind="device_offline", severity="critical")
     evaluate()
-    assert client.get("/api/alerts/summary").json() == {"firing": 1, "unacked": 1, "critical": 1, "warning": 0, "info": 0}
+    assert client.get("/api/alerts/summary").json() == {
+        "firing": 1,
+        "unacked": 1,
+        "unacked_critical": 1,
+        "critical": 1,
+        "warning": 0,
+        "info": 0,
+    }
     aid = alerts(client)[0]["id"]
     acked = client.post(f"/api/alerts/{aid}/ack")
     assert acked.status_code == 200 and acked.json()["acked_by"] == "admin"
     summary = client.get("/api/alerts/summary").json()
-    assert summary["unacked"] == 0 and summary["firing"] == 1
+    assert summary["unacked"] == 0 and summary["unacked_critical"] == 0 and summary["firing"] == 1
     assert client.post("/api/alerts/99999/ack").status_code == 404
     assert client.get("/api/alerts", params={"state": "resolved"}).json() == []
     assert client.get("/api/alerts", params={"severity": "info"}).json() == []

@@ -86,6 +86,8 @@ class AlertOut(BaseModel):
 class AlertSummary(BaseModel):
     firing: int
     unacked: int
+    # Niepotwierdzone krytyczne – kolor plakietki dzwonka
+    unacked_critical: int
     critical: int
     warning: int
     info: int
@@ -180,9 +182,11 @@ async def alerts_summary():
             )
         ).all()
     counts = {sev: n for sev, n, _ in rows}
+    unacked = {sev: u for sev, _, u in rows}
     return AlertSummary(
         firing=sum(counts.values()),
-        unacked=sum(u for _, _, u in rows),
+        unacked=sum(unacked.values()),
+        unacked_critical=unacked.get("critical", 0),
         critical=counts.get("critical", 0),
         warning=counts.get("warning", 0),
         info=counts.get("info", 0),

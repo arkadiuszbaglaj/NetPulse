@@ -38,6 +38,8 @@ export interface Alert {
 export interface AlertSummary {
   firing: number;
   unacked: number;
+  /** Niepotwierdzone krytyczne – kolor plakietki dzwonka */
+  unacked_critical: number;
   critical: number;
   warning: number;
   info: number;

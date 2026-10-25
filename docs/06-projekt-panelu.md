@@ -309,7 +309,7 @@ trzecie jest najbardziej widoczne w codziennym użyciu.
 - **Stany alertu:** wyzwolony → potwierdzony (przez użytkownika) → zakończony, z historią
   (kiedy, jak długo, jaka wartość szczytowa). Histereza i minimalny czas trwania, żeby krótkie
   skoki nie sypały alertami.
-- **Panel:** dzwonek w pasku górnym z licznikiem aktywnych, sekcja **Alerty** (aktywne i historia,
+- **Panel:** dzwonek w pasku górnym z licznikiem niepotwierdzonych aktywnych (potwierdzony alert go nie zapala), sekcja **Alerty** (aktywne i historia,
   filtr po ważności i urządzeniu), formularz reguł w Ustawienia → Alerty z gotowymi szablonami
   („urządzenie offline”, „port down”, „wysokie CPU”). Z poziomu wykresu: „utwórz alert z tego
   progu” (linia progu rysowana na wykresie).

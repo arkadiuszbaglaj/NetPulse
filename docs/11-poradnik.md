@@ -208,7 +208,7 @@ Czego SNMP nie da: kontenerów, usług systemd, SMART i temperatur (to zakres pl
 | **Dashboard** | Podsumowanie (urządzenia, ruch WAN, klienci WiFi), wykresy, karty urządzeń, PoE, stan serwera |
 | **Klienci** | Lista klientów sieci: WiFi (sieć, pasmo, sygnał) i po kablu (switch i port), z wyszukiwarką |
 | **Mapa sieci** | Schemat połączeń: Internet, brama, switche, access pointy, klienci przy portach |
-| **Alerty** | Aktywne alerty i historia, potwierdzanie. Dzwonek w pasku górnym pokazuje licznik aktywnych |
+| **Alerty** | Aktywne alerty i historia, potwierdzanie. Dzwonek w pasku górnym pokazuje licznik niepotwierdzonych aktywnych alertów |
 | **Ustawienia** | Konto, Urządzenia, Kontrolery UniFi, Reguły alertów, Odświeżanie, System, Aktualizacja |
 
 ### Dashboard i personalizacja
