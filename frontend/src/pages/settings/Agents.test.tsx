@@ -23,16 +23,16 @@ describe("Ustawienia → Agenci", () => {
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Utwórz token" }));
     expect(within(dialog).getByText("Podaj nazwę.")).toBeInTheDocument();
-    await user.type(within(dialog).getByLabelText("Nazwa"), "Proxmox");
+    await user.type(within(dialog).getByLabelText("Nazwa"), "Serwer plików");
     await user.click(within(dialog).getByRole("button", { name: "Utwórz token" }));
 
-    const tokenDialog = await screen.findByRole("dialog", { name: "Instalacja agenta: Proxmox" });
+    const tokenDialog = await screen.findByRole("dialog", { name: "Instalacja agenta: Serwer plików" });
     const command = within(tokenDialog).getByLabelText("Polecenie instalacji");
     expect(command).toHaveTextContent(installCommand(window.location.origin, "npa_test1tokenXyZ9"));
     expect(calls.some((c) => c.method === "POST" && c.path === "/api/agents")).toBe(true);
     await user.click(within(tokenDialog).getByRole("button", { name: "Gotowe" }));
     // Lista: nowy serwer czeka na pierwszy raport
-    expect(await screen.findByText("Proxmox")).toBeInTheDocument();
+    expect(await screen.findByText("Serwer plików")).toBeInTheDocument();
     expect(screen.getByText("czeka na agenta")).toBeInTheDocument();
     expect(screen.queryByText(/npa_test1tokenXyZ9/)).not.toBeInTheDocument();
   });
