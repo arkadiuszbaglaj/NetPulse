@@ -1,6 +1,7 @@
 # Surowe zrzuty SNMP z sieci domowej (MAC-i, SSID, trasy) – nie publikować
 snmpwalk*.txt*
 *.walk
+unifi_probe_*.json
 !backend/tests/fixtures/*.snmprec
 
 # Stan i kopie z aktualizacji z panelu (na serwerze)
