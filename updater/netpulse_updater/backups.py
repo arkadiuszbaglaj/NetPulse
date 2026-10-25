@@ -68,8 +68,10 @@ def list_backups(s: Settings) -> list[dict[str, Any]]:
         if not m:
             continue
         created = datetime.strptime(m.group(2), "%Y%m%d-%H%M%S").astimezone().isoformat(timespec="seconds")
-        out.append({"name": p.name, "kind": m.group(1) or "update", "size_bytes": p.stat().st_size, "created_at": created})
-    return sorted(out, key=lambda b: b["created_at"], reverse=True)
+        st = p.stat()
+        out.append((created, st.st_mtime_ns, {"name": p.name, "kind": m.group(1) or "update", "size_bytes": st.st_size, "created_at": created}))
+    # Nazwa ma dokładność do sekundy – kopie z tej samej sekundy (np. kopia i jej wgranie) układa czas zapisu pliku
+    return [b for *_, b in sorted(out, key=lambda x: x[:2], reverse=True)]
 
 
 def prune(s: Settings, kind: str) -> None:

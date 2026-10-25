@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import sys
 import threading
 import time
@@ -104,6 +105,17 @@ def test_create_list_and_limits_per_kind(settings):
     assert created["kind"] == "manual" and created["size_bytes"] > 20
     assert list_backups(settings)[0]["name"] == created["name"]  # najnowsza na górze
     assert [b["kind"] for b in list_backups(settings)].count("manual") == 10
+
+
+def test_same_second_backups_newest_file_first(settings):
+    d = settings.backups_dir
+    d.mkdir()
+    upload, manual = d / "netpulse-upload-20261025-151041.sql.gz", d / "netpulse-manual-20261025-151041.sql.gz"
+    upload.write_bytes(b"x")
+    manual.write_bytes(b"x")
+    os.utime(manual, ns=(1_000_000_000, 1_000_000_000))
+    os.utime(upload, ns=(2_000_000_000, 2_000_000_000))
+    assert [b["kind"] for b in list_backups(settings)] == ["upload", "manual"]
 
 
 def test_failed_dump_leaves_no_file(settings):
