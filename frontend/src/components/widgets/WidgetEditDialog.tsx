@@ -422,16 +422,27 @@ function PoeForm({ initial, onSave, onClose }: { initial: number | null | undefi
 }
 
 /** Karta serwera nie ma ustawień – okno tylko wyjaśnia, skąd bierze dane. */
-function ServerInfo({ onClose }: { onClose: () => void }) {
+function ServerInfo({ isNew, onSave, onClose }: { isNew: boolean; onSave: () => void; onClose: () => void }) {
   return (
     <Dialog
       title={t("widget.type.server")}
       size="sm"
       onClose={onClose}
       footer={
-        <Button variant="primary" onClick={onClose}>
-          {t("common.close")}
-        </Button>
+        isNew ? (
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="primary" onClick={onSave}>
+              {t("widget.add.title")}
+            </Button>
+          </>
+        ) : (
+          <Button variant="primary" onClick={onClose}>
+            {t("common.close")}
+          </Button>
+        )
       }
     >
       <p className="text-sm text-text-2">{t("widget.server.info")}</p>
@@ -449,7 +460,7 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
     case "devices":
       return <DevicesForm initial={widget.config.kinds} onClose={onClose} onSave={(kinds) => onSave({ ...widget, config: { kinds } })} />;
     case "server":
-      return <ServerInfo onClose={onClose} />;
+      return <ServerInfo isNew={isNew} onClose={onClose} onSave={() => onSave(widget)} />;
     case "poe":
       return <PoeForm initial={widget.config.device_id} onClose={onClose} onSave={(device_id) => onSave({ ...widget, config: { device_id } })} />;
   }

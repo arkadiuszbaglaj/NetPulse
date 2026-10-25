@@ -13,6 +13,7 @@ import type {
 } from "../lib/api";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
+import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
 
@@ -218,6 +219,8 @@ interface MockState {
   clients: NetworkClient[];
   poe: PoeInfo;
   topology: Topology;
+  /** Ostatnia próbka stanu serwera (null = kolektor jeszcze jej nie zapisał) */
+  system: SystemInfo | null;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -243,6 +246,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     clients: [],
     poe: { budget: null, ports: [] },
     topology: { nodes: [], edges: [] },
+    system: null,
     updateSettings: { auto_check: true, interval_h: 24 },
     updates: UPDATES,
     overrides: {},
@@ -347,6 +351,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
       }
       if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
       if (key === "GET /api/topology") return json(200, state.topology);
+      if (key === "GET /api/system") return json(200, state.system);
+      if (key === "GET /api/system/metrics") return json(200, state.traffic.points);
       if (key === "GET /api/dashboards/default") return json(200, { layout: state.layout, updated_at: null });
       if (key === "PUT /api/dashboards/default") {
         state.layout = body as DashboardLayout;
