@@ -12,7 +12,7 @@ from .. import __version__
 from ..config import settings
 from ..db import Session, engine, has_timescale
 from ..db.models import Controller, Device, SystemMetric
-from .metrics import MinutesQuery, _series
+from .metrics import MinutesQuery, OffsetQuery, _series
 from .schemas import Point
 from .security import require_user
 from .updates import STATUS_TIMEOUT, _call, _configured, _Unreachable
@@ -68,8 +68,8 @@ async def current():
 
 
 @router.get("/metrics", response_model=list[Point])
-async def metrics(minutes: int = MinutesQuery):
-    return await _series(SystemMetric, None, None, SERIES_COLUMNS, minutes)
+async def metrics(minutes: int = MinutesQuery, offset: int = OffsetQuery):
+    return await _series(SystemMetric, None, None, SERIES_COLUMNS, minutes, offset=offset)
 
 
 # --- stan usług ---------------------------------------------------------------------------------

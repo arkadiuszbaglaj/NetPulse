@@ -38,9 +38,13 @@ describe("wykresy z danych agenta", () => {
     await user.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() => expect(state.layout).not.toBeNull());
-    const chart = (state.layout as DashboardLayout).widgets.find((w) => w.type === "chart" && w.config.source.kind === "agent_container");
-    expect(chart?.type === "chart" && chart.config.source).toEqual({ kind: "agent_container", id: 7, key: "nextcloud" });
-    // CPU i pamięć mają różne jednostki – zostaje ostatnio wybrana
-    expect(chart?.type === "chart" && chart.config.series.map((s) => s.key)).toEqual(["container_mem_bytes"]);
+    const chart = (state.layout as DashboardLayout).widgets.find((w) => w.type === "chart" && w.config.queries[0].source.kind === "agent_container");
+    const query = chart?.type === "chart" ? chart.config.queries[0] : null;
+    expect(query?.source).toEqual({ kind: "agent_container", id: 7, key: "nextcloud" });
+    // CPU i pamięć mają różne jednostki – pamięć trafia na oś prawą
+    expect(query?.series.map((s) => [s.key, s.axis])).toEqual([
+      ["container_cpu_percent", "left"],
+      ["container_mem_bytes", "right"],
+    ]);
   });
 });

@@ -1,34 +1,19 @@
 import { IconBroadcast } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { t } from "../../i18n";
-import { ApiError } from "../../lib/api";
-import { formatBps, metricFormatter } from "../../lib/format";
+import { ApiError, type Series } from "../../lib/api";
+import { formatBps, formatRange, metricFormatter } from "../../lib/format";
 import { useLiveWan } from "../../lib/live";
-import { METRICS, autoColor, unitClassOf, type ChartConfig, type SeriesConfig, type Source } from "../../lib/layout";
-import { ChartCard } from "../charts/ChartCard";
-import type { ChartSeries } from "../charts/TimeSeriesChart";
-import { defaultTitle, useChartSeries } from "./chartSource";
+import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
+import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
+import { buildLines, lineStats } from "../charts/panelData";
+import { Card } from "../ui";
+import { defaultTitle, useChartQueries } from "./chartSource";
+
+// ECharts jest duży – ładowany dopiero, gdy wykres jest na ekranie
+const PanelChart = lazy(() => import("../charts/PanelChart"));
 
 const HEIGHT = { sm: 180, md: 240, lg: 340 } as const;
-
-/** Nazwa serii: własna etykieta, dla WAN „Pobieranie/Wysyłanie” (perspektywa użytkownika), inaczej nazwa metryki. */
-function seriesName(source: Source, s: SeriesConfig): string {
-  if (s.label) return s.label;
-  if (source.kind === "wan") {
-    if (s.key === "in_bps") return t("chart.traffic.in");
-    if (s.key === "out_bps") return t("chart.traffic.out");
-  }
-  const meta = METRICS[s.key];
-  return meta ? t(meta.label) : s.key;
-}
-
-export function chartSeriesOf(config: ChartConfig): ChartSeries[] {
-  return config.series.map((s, i) => ({
-    key: s.key,
-    name: seriesName(config.source, s),
-    color: s.color ?? autoColor(i),
-  }));
-}
 
 function LiveToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -46,10 +31,23 @@ function LiveToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-/** Wykres skonfigurowany w widgecie: źródło, serie, typ, jednostki, zakres i odświeżanie.
- * `allowLive` dodaje przełącznik „Na żywo” (tylko dla ruchu WAN). */
-export function ChartWidget({ config, className = "", allowLive = false }: { config: ChartConfig; className?: string; allowLive?: boolean }) {
-  const canLive = allowLive && config.source.kind === "wan";
+export function chartTitle(config: ChartConfig | LegacyChartConfig): string {
+  const c = upgradeChartConfig(config);
+  return c.title || defaultTitle(c.queries[0].source);
+}
+
+const loading = (
+  <p role="status" className="py-10 text-center text-sm text-text-2">
+    {t("chart.loading")}
+  </p>
+);
+
+/** Wykres w czasie skonfigurowany w widgecie: zapytania (źródła), osie, progi, legenda, zakres i odświeżanie.
+ * `allowLive` dodaje przełącznik „Na żywo” (tylko dla samego ruchu WAN, bez porównań). */
+export function ChartWidget({ config: raw, className = "", allowLive = false }: { config: ChartConfig | LegacyChartConfig; className?: string; allowLive?: boolean }) {
+  const config = useMemo(() => upgradeChartConfig(raw), [raw]);
+  const first = config.queries[0];
+  const canLive = allowLive && config.queries.length === 1 && first.source.kind === "wan" && !first.offset_min;
   const [live, setLive] = useState(false);
   const stream = useLiveWan(live && canLive);
   const lost = live && stream.status === "lost";
@@ -62,33 +60,60 @@ export function ChartWidget({ config, className = "", allowLive = false }: { con
     if (lost) setNotice(true);
     else if (live) setNotice(false);
   }, [lost, live]);
-
-  const { data, isLoading, isError, error, minutes } = useChartSeries(config);
-  const series = useMemo(() => chartSeriesOf(config), [config]);
-  const format = useMemo(
-    () => metricFormatter(unitClassOf(config.series[0]?.key ?? ""), config.unit),
-    [config.series, config.unit],
-  );
-  const gone = error instanceof ApiError && error.status === 404;
   const showLive = live && canLive;
-  const toggle = canLive ? <LiveToggle on={showLive} onClick={() => setLive((v) => !v)} /> : undefined;
+
+  const result = useChartQueries(config);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setHidden((h) => {
+      const next = new Set(h);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const byQuery = useMemo(() => {
+    const map = new Map<string, Series | undefined>(result.queries.map((q) => [q.query.id, q.data]));
+    if (showLive) map.set(first.id, stream.series);
+    return map;
+  }, [result.queries, showLive, first.id, stream.series]);
+  const lines = useMemo(() => buildLines(config, byQuery, defaultTitle), [config, byQuery]);
+  const leftFormat = useMemo(() => metricFormatter(axisClass(config, "left") ?? axisClass(config, "right") ?? "count", config.unit), [config]);
+  const rightCls = axisClass(config, "right");
+  const rightFormat = useMemo(() => (rightCls ? metricFormatter(rightCls, config.unit) : null), [rightCls, config.unit]);
+  const legendItems: LegendItem[] = useMemo(
+    () =>
+      lines.map((line) => ({
+        line,
+        stats: lineStats(line.rows),
+        format: line.axis === "right" && rightFormat ? rightFormat : leftFormat,
+        hidden: hidden.has(line.id),
+      })),
+    [lines, hidden, leftFormat, rightFormat],
+  );
+
+  const visible = useMemo(() => lines.filter((l) => !hidden.has(l.id)), [lines, hidden]);
+  const axes = config.axes ?? {};
+  const left = useMemo(() => ({ format: leftFormat, min: axes.left?.min, max: axes.left?.max, label: axes.left?.label }), [leftFormat, axes.left]);
+  const right = useMemo(
+    () => (rightFormat && visible.some((l) => l.axis === "right") ? { format: rightFormat, min: axes.right?.min, max: axes.right?.max, label: axes.right?.label } : null),
+    [rightFormat, visible, axes.right],
+  );
+
+  const title = config.title || defaultTitle(first.source);
+  const gone = result.error instanceof ApiError && result.error.status === 404;
+  const isLoading = showLive ? stream.status === "connecting" : result.isLoading && lines.every((l) => l.rows.length === 0);
+  const isError = showLive ? false : result.isError;
+  const empty = !isLoading && !isError && lines.every((l) => l.rows.length === 0);
+  const legend = config.legend ?? DEFAULT_LEGEND;
+  const legendRight = legend.placement === "right" && legend.mode !== "hidden";
+
   return (
-    <ChartCard
-      className={className}
-      title={config.title || defaultTitle(config.source)}
-      series={series}
-      data={showLive ? stream.series : data}
-      isLoading={showLive ? stream.status === "connecting" : isLoading}
-      isError={showLive ? false : isError}
-      errorText={gone ? t("chart.sourceGone") : undefined}
-      format={format}
-      rangeMinutes={showLive ? undefined : minutes}
-      kind={config.chart}
-      smooth={config.smooth}
-      yMax={config.y_max}
-      height={HEIGHT[config.height]}
-      actions={toggle}
-    >
+    <Card className={`p-4 ${className}`}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="truncate text-sm font-medium">{title}</h2>
+        {canLive && <LiveToggle on={showLive} onClick={() => setLive((v) => !v)} />}
+      </div>
       {showLive && stream.status === "live" && (
         <p className="mb-1 flex gap-4 text-lg font-medium" aria-live="off">
           <span>
@@ -104,6 +129,37 @@ export function ChartWidget({ config, className = "", allowLive = false }: { con
           {t("live.lost")}
         </p>
       )}
-    </ChartCard>
+      {isError ? (
+        <p role="alert" className="py-10 text-center text-sm text-danger">
+          {gone ? t("chart.sourceGone") : t("chart.error")}
+        </p>
+      ) : empty ? (
+        <p className="py-10 text-center text-sm text-text-2">{t("chart.empty")}</p>
+      ) : isLoading ? (
+        loading
+      ) : (
+        <div className={legendRight ? "flex flex-col gap-3 lg:flex-row" : "flex flex-col gap-2"}>
+          <div className="min-w-0 flex-1">
+            <Suspense fallback={loading}>
+              <PanelChart
+                lines={visible}
+                kind={config.chart}
+                stack={config.stack ?? false}
+                smooth={config.smooth}
+                left={left}
+                right={right}
+                thresholds={config.thresholds ?? []}
+                thresholdStyle={config.threshold_style ?? "line"}
+                height={HEIGHT[config.height]}
+                ariaLabel={t("chart.summary", { title, range: formatRange(showLive ? 15 : result.minutes) })}
+              />
+            </Suspense>
+          </div>
+          <div className={legendRight ? "lg:w-64 lg:shrink-0" : ""}>
+            <ChartLegend items={legendItems} config={legend} onToggle={toggle} />
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

@@ -37,23 +37,100 @@ export const AGENT_SOURCE_KINDS: AgentSourceKind[] = ["agent_cpu", "agent_net", 
 export const isAgentSource = (kind: SourceKind): kind is AgentSourceKind => (AGENT_SOURCE_KINDS as string[]).includes(kind);
 export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server", ...AGENT_SOURCE_KINDS];
 
+export type Axis = "left" | "right";
+/** Porównanie w czasie: to samo okno godzinę, dzień albo tydzień wcześniej (parametr `offset` API metryk). */
+export type OffsetMinutes = 0 | 60 | 1440 | 10080;
+export const OFFSET_OPTIONS: OffsetMinutes[] = [0, 60, 1440, 10080];
+export type LegendValue = "last" | "min" | "max" | "avg";
+export const LEGEND_VALUES: LegendValue[] = ["last", "min", "max", "avg"];
+export type LegendMode = "list" | "table" | "hidden";
+export type ThresholdStyle = "off" | "line" | "area" | "line_area";
+export const MAX_QUERIES = 6;
+export const MAX_SERIES = 12;
+const QUERY_IDS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 export interface SeriesConfig {
   key: string;
   color?: ColorIndex | null;
   label?: string | null;
+  axis?: Axis;
+}
+
+/** Jedno źródło danych wykresu (schemat: backend/netpulse/api/layout_schemas.py ChartQuery). */
+export interface ChartQuery {
+  id: string;
+  source: Source;
+  series: SeriesConfig[];
+  offset_min?: OffsetMinutes;
+}
+
+/** Zakres osi w jednostkach surowych metryki (przepustowość w bit/s); puste = automatycznie. */
+export interface AxisConfig {
+  min?: number | null;
+  max?: number | null;
+  label?: string | null;
+}
+
+/** Próg w jednostkach surowych osi lewej. */
+export interface Threshold {
+  value: number;
+  color: ColorIndex;
+}
+
+export interface LegendConfig {
+  mode: LegendMode;
+  placement: "bottom" | "right";
+  values: LegendValue[];
 }
 
 export interface ChartConfig {
   title?: string | null;
-  source: Source;
-  series: SeriesConfig[];
+  queries: ChartQuery[];
   chart: ChartKind;
+  stack?: boolean;
   unit: ChartUnit;
   smooth: boolean;
-  y_max?: number | null;
+  axes?: { left?: AxisConfig; right?: AxisConfig };
+  thresholds?: Threshold[];
+  threshold_style?: ThresholdStyle;
+  legend?: LegendConfig;
   range_min?: RangeMinutes | null;
   refresh_s?: RefreshSeconds | null;
   height: ChartHeight;
+}
+
+/** Konfiguracja wykresu sprzed 0.26.0: jedno źródło i `y_max`. Serwer zamienia ją przy odczycie; tu na wszelki wypadek. */
+export type LegacyChartConfig = Omit<ChartConfig, "queries"> & { source: Source; series: SeriesConfig[]; y_max?: number | null };
+
+export function upgradeChartConfig(c: ChartConfig | LegacyChartConfig): ChartConfig {
+  if (!("source" in c) || "queries" in c) return c as ChartConfig;
+  const { source, series, y_max, ...rest } = c;
+  return { ...rest, queries: [{ id: "A", source, series, offset_min: 0 }], axes: y_max != null ? { left: { max: y_max } } : rest.axes };
+}
+
+export const DEFAULT_LEGEND: LegendConfig = { mode: "list", placement: "bottom", values: [] };
+
+/** Wszystkie serie wykresu w kolejności zapytań, z zapytaniem, do którego należą. */
+export function allSeries(c: ChartConfig): { query: ChartQuery; series: SeriesConfig }[] {
+  return c.queries.flatMap((query) => query.series.map((series) => ({ query, series })));
+}
+
+/** Jednostka osi = jednostka pierwszej serii na tej osi; null, gdy oś jest pusta. */
+export function axisClass(c: ChartConfig, axis: Axis): UnitClass | null {
+  const first = allSeries(c).find(({ series }) => (series.axis ?? "left") === axis);
+  return first ? unitClassOf(first.series.key) : null;
+}
+
+/** Kolejny wolny identyfikator zapytania: A, B, C… */
+export function nextQueryId(c: ChartConfig): string {
+  const used = new Set(c.queries.map((q) => q.id));
+  return [...QUERY_IDS].find((id) => !used.has(id)) ?? "Z";
+}
+
+/** Pierwszy kolor palety, którego nie używa jeszcze żadna seria wykresu. */
+export function freeColor(c: ChartConfig): ColorIndex {
+  const used = new Set(allSeries(c).map(({ series }) => series.color));
+  return COLOR_INDEXES.find((i) => !used.has(i)) ?? 1;
 }
 
 interface WidgetBase {
@@ -188,15 +265,17 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
   }
 }
 
-/** Po zmianie metryk zostają tylko te z klasy jednostki ostatnio wybranej (jedna oś Y). */
-export function toggleMetric(series: SeriesConfig[], key: string, enabled: boolean): SeriesConfig[] {
-  if (!enabled) return series.filter((s) => s.key !== key);
-  if (series.some((s) => s.key === key)) return series;
-  const cls = unitClassOf(key);
-  const kept = series.filter((s) => unitClassOf(s.key) === cls);
-  const used = new Set(kept.map((s) => s.color));
-  const color = COLOR_INDEXES.find((c) => !used.has(c)) ?? 1;
-  return [...kept, { key, color }];
+/** Włącza albo wyłącza metrykę w zapytaniu. Nowa seria o innej jednostce niż oś lewa trafia na oś prawą. */
+export function toggleMetric(c: ChartConfig, queryId: string, key: string, enabled: boolean): ChartConfig {
+  const queries = c.queries.map((q) => {
+    if (q.id !== queryId) return q;
+    if (!enabled) return { ...q, series: q.series.filter((s) => s.key !== key) };
+    if (q.series.some((s) => s.key === key)) return q;
+    const left = axisClass(c, "left");
+    const axis: Axis = left && left !== unitClassOf(key) ? "right" : "left";
+    return { ...q, series: [...q.series, { key, color: freeColor(c), axis }] };
+  });
+  return { ...c, queries };
 }
 
 // --- fabryki widgetów ------------------------------------------------------------------
@@ -205,15 +284,23 @@ export function newId(): string {
   return `w${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`;
 }
 
-export function newChartConfig(source: Source = { kind: "wan" }): ChartConfig {
+export function newQuery(id: string, source: Source, series: SeriesConfig[] = defaultSeries(source.kind)): ChartQuery {
+  return { id, source, series, offset_min: 0 };
+}
+
+/** Wykres z jednym źródłem; `series` domyślnie jak dla źródła. */
+export function newChartConfig(source: Source = { kind: "wan" }, series?: SeriesConfig[]): ChartConfig {
   return {
     title: null,
-    source,
-    series: defaultSeries(source.kind),
+    queries: [newQuery("A", source, series)],
     chart: "area",
+    stack: false,
     unit: "bits",
     smooth: false,
-    y_max: null,
+    axes: { left: { min: null, max: null, label: null }, right: { min: null, max: null, label: null } },
+    thresholds: [],
+    threshold_style: "line",
+    legend: { ...DEFAULT_LEGEND },
     range_min: null,
     refresh_s: null,
     height: "md",
@@ -250,13 +337,13 @@ export const DEFAULT_LAYOUT: DashboardLayout = {
       id: "ruch-wan",
       type: "chart",
       w: 8,
-      config: { ...newChartConfig({ kind: "wan" }), series: defaultSeries("wan"), height: "md" },
+      config: newChartConfig({ kind: "wan" }),
     },
     {
       id: "klienci-wifi",
       type: "chart",
       w: 4,
-      config: { ...newChartConfig({ kind: "wifi_total" }), series: defaultSeries("wifi_total"), height: "md" },
+      config: newChartConfig({ kind: "wifi_total" }),
     },
     { id: "urzadzenia", type: "devices", w: 12, config: { kinds: null } },
   ],
@@ -311,17 +398,20 @@ export function sameLayout(a: DashboardLayout, b: DashboardLayout): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-// --- przeliczanie osi Y: wartość w jednostce widocznej dla użytkownika ↔ surowa z API ---
+// --- przeliczanie osi i progów: wartość w jednostce widocznej dla użytkownika ↔ surowa z API ---
 
-/** Surowa metryka przepustowości jest w bitach/s: wyświetlamy Mb/s albo MB/s. */
+/** Surowa metryka przepustowości jest w bitach/s: wyświetlamy Mb/s albo MB/s. Rozmiar (bajty) – w GB. */
 const MB = 1_000_000;
+const GB = 1_000_000_000;
 
-export function yMaxToRaw(display: number, firstKey: string, unit: ChartUnit): number {
-  if (unitClassOf(firstKey) !== "rate") return display;
-  return unit === "bytes" ? display * MB * 8 : display * MB;
+export function valueToRaw(display: number, cls: UnitClass | null, unit: ChartUnit): number {
+  if (cls === "rate") return unit === "bytes" ? display * MB * 8 : display * MB;
+  if (cls === "size") return display * GB;
+  return display;
 }
 
-export function yMaxFromRaw(raw: number, firstKey: string, unit: ChartUnit): number {
-  if (unitClassOf(firstKey) !== "rate") return raw;
-  return unit === "bytes" ? raw / (MB * 8) : raw / MB;
+export function valueFromRaw(raw: number, cls: UnitClass | null, unit: ChartUnit): number {
+  if (cls === "rate") return unit === "bytes" ? raw / (MB * 8) : raw / MB;
+  if (cls === "size") return raw / GB;
+  return raw;
 }

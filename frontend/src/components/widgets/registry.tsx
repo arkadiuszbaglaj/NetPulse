@@ -14,8 +14,7 @@ import { useContext } from "react";
 import { t, type TextKey } from "../../i18n";
 import type { Widget, WidgetType } from "../../lib/layout";
 import { PublicModeContext } from "../../lib/publicMode";
-import { ChartWidget } from "./ChartWidget";
-import { defaultTitle } from "./chartSource";
+import { ChartWidget, chartTitle } from "./ChartWidget";
 import { DevicesWidget } from "./DevicesWidget";
 import { PoeWidget } from "./PoeWidget";
 import { ServerWidget } from "./ServerWidget";
@@ -38,7 +37,7 @@ export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: Text
 export function widgetTitle(w: Widget): string {
   switch (w.type) {
     case "chart":
-      return w.config.title || defaultTitle(w.config.source);
+      return chartTitle(w.config);
     case "summary":
       return t("widget.type.summary");
     case "devices":

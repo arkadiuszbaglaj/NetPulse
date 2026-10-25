@@ -145,18 +145,17 @@ function WifiCard({ deviceId }: { deviceId: number }) {
 
 function DeviceCharts({ deviceId }: { deviceId: number }) {
   const [usage, poll] = useMemo((): [ChartConfig, ChartConfig] => {
-    const base = newChartConfig({ kind: "device", id: deviceId });
+    const source = { kind: "device", id: deviceId } as const;
     return [
       {
-        ...base,
-        title: t("device.chart.usage"),
-        series: [
+        ...newChartConfig(source, [
           { key: "cpu_percent", color: 1 },
           { key: "mem_used_percent", color: 2 },
-        ],
+        ]),
+        title: t("device.chart.usage"),
         chart: "line",
       },
-      { ...base, title: t("device.chart.poll"), series: [{ key: "poll_ms", color: 4 }], chart: "line" },
+      { ...newChartConfig(source, [{ key: "poll_ms", color: 4 }]), title: t("device.chart.poll"), chart: "line" },
     ];
   }, [deviceId]);
   return (

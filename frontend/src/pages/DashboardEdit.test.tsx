@@ -10,8 +10,9 @@ import {
   resizeWidget,
   shiftWidget,
   toggleMetric,
-  yMaxFromRaw,
-  yMaxToRaw,
+  newChartConfig,
+  valueFromRaw,
+  valueToRaw,
 } from "../lib/layout";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
@@ -41,17 +42,22 @@ describe("operacje na układzie pulpitu", () => {
     expect(addWidget(DEFAULT_LAYOUT, newWidget("chart", "nowy")).widgets.at(-1)?.id).toBe("nowy");
   });
 
-  it("metryki w jednym wykresie mają tę samą jednostkę", () => {
-    const series = toggleMetric([{ key: "in_bps", color: 1 }], "in_errors", true);
-    expect(series.map((s) => s.key)).toEqual(["in_errors"]);
-    expect(toggleMetric(series, "in_errors", false)).toEqual([]);
+  it("metryka w innej jednostce niż oś lewa trafia na oś prawą", () => {
+    const cfg = newChartConfig({ kind: "interface", id: 1 }, [{ key: "in_bps", color: 1 }]);
+    const next = toggleMetric(cfg, "A", "in_errors", true);
+    expect(next.queries[0].series.map((s) => [s.key, s.axis])).toEqual([
+      ["in_bps", undefined],
+      ["in_errors", "right"],
+    ]);
+    expect(toggleMetric(next, "A", "in_errors", false).queries[0].series.map((s) => s.key)).toEqual(["in_bps"]);
   });
 
-  it("przelicza maksimum osi Y między jednostką widoczną a surową", () => {
-    expect(yMaxToRaw(100, "in_bps", "bits")).toBe(100_000_000);
-    expect(yMaxToRaw(10, "in_bps", "bytes")).toBe(80_000_000);
-    expect(yMaxFromRaw(80_000_000, "in_bps", "bytes")).toBe(10);
-    expect(yMaxToRaw(90, "cpu_percent", "bits")).toBe(90);
+  it("przelicza wartości osi i progów między jednostką widoczną a surową", () => {
+    expect(valueToRaw(100, "rate", "bits")).toBe(100_000_000);
+    expect(valueToRaw(10, "rate", "bytes")).toBe(80_000_000);
+    expect(valueFromRaw(80_000_000, "rate", "bytes")).toBe(10);
+    expect(valueToRaw(90, "percent", "bits")).toBe(90);
+    expect(valueToRaw(2, "size", "bits")).toBe(2_000_000_000);
   });
 });
 

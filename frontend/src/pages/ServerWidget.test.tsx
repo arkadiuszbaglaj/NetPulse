@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { formatBytes, metricFormatter } from "../lib/format";
-import { newWidget, SOURCE_METRICS, toggleMetric, unitClassOf } from "../lib/layout";
+import { newChartConfig, newWidget, SOURCE_METRICS, toggleMetric, unitClassOf } from "../lib/layout";
 import { usageTone, type SystemInfo } from "../lib/system";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
@@ -44,9 +44,13 @@ describe("formatowanie stanu serwera", () => {
     expect(SOURCE_METRICS.server).toContain("disk_used_percent");
     expect(unitClassOf("temp_c")).toBe("temp");
     expect(unitClassOf("db_size_bytes")).toBe("size");
-    const series = toggleMetric([{ key: "cpu_percent", color: 1 }], "disk_used_percent", true);
-    expect(series.map((s) => s.key)).toEqual(["cpu_percent", "disk_used_percent"]);
-    expect(toggleMetric(series, "temp_c", true).map((s) => s.key)).toEqual(["temp_c"]); // inna jednostka
+    const cfg = toggleMetric(newChartConfig({ kind: "server" }, [{ key: "cpu_percent", color: 1 }]), "A", "disk_used_percent", true);
+    expect(cfg.queries[0].series.map((s) => [s.key, s.axis ?? "left"])).toEqual([
+      ["cpu_percent", "left"],
+      ["disk_used_percent", "left"],
+    ]);
+    const temp = toggleMetric(cfg, "A", "temp_c", true).queries[0].series.at(-1);
+    expect(temp).toMatchObject({ key: "temp_c", axis: "right" }); // inna jednostka – druga oś
   });
 });
 

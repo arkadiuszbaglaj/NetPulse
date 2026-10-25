@@ -83,19 +83,18 @@ export function PortPage() {
   const poeNow = poe.data ? (poe.data.ports.find((p) => p.port_idx === poeIdx)?.power_w ?? null) : undefined;
 
   const [traffic, errors] = useMemo((): [ChartConfig, ChartConfig] => {
-    const base = newChartConfig({ kind: "interface", id, device_id: deviceId });
+    const source = { kind: "interface", id, device_id: deviceId } as const;
     return [
-      { ...base, title: t("port.chart.traffic") },
+      { ...newChartConfig(source), title: t("port.chart.traffic") },
       {
-        ...base,
-        title: t("port.chart.errors"),
-        chart: "line",
-        series: [
+        ...newChartConfig(source, [
           { key: "in_errors", color: 6 },
           { key: "out_errors", color: 7 },
           { key: "in_discards", color: 3 },
           { key: "out_discards", color: 4 },
-        ],
+        ]),
+        title: t("port.chart.errors"),
+        chart: "line",
       },
     ];
   }, [id, deviceId]);

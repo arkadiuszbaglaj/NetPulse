@@ -67,7 +67,7 @@ def test_every_source_accepts_its_own_metrics():
 def test_interface_and_wifi_sources_remember_their_device():
     for source in ({"kind": "interface", "id": 7, "device_id": 2}, {"kind": "wifi_network", "id": 3, "device_id": 4}):
         parsed = ChartConfig.model_validate({"source": source, "series": [{"key": "clients" if source["kind"] == "wifi_network" else "in_bps"}]})
-        assert parsed.source.device_id == source["device_id"]
+        assert parsed.queries[0].source.device_id == source["device_id"]
     with pytest.raises(ValidationError):
         ChartConfig.model_validate({"source": {"kind": "interface", "id": 7, "device_id": 0}, "series": [{"key": "in_bps"}]})
     with pytest.raises(ValidationError):  # urządzenie i WAN nie mają pola device_id
@@ -176,7 +176,7 @@ def test_agent_source_needs_key_except_cpu():
     with pytest.raises(ValidationError):
         ChartConfig.model_validate({"source": {"kind": "agent_net", "id": 2, "key": "  "}, "series": series})
     cpu = ChartConfig.model_validate({"source": {"kind": "agent_cpu", "id": 2, "key": "x"}, "series": [{"key": "core_max_percent"}]})
-    assert cpu.source.key == ""
+    assert cpu.queries[0].source.key == ""
     with pytest.raises(ValidationError):  # metryka innego źródła z agenta
         ChartConfig.model_validate({"source": {"kind": "agent_net", "id": 2, "key": "eth0"}, "series": [{"key": "temp_c"}]})
 
@@ -214,3 +214,66 @@ def test_long_ranges_from_hourly_aggregates():
         parsed = DashboardLayout.model_validate(layout(chart(config={"range_min": minutes})))
         assert parsed.widgets[0].config.range_min == minutes
         assert RefreshPrefs.model_validate({"interval_s": 60, "range_min": minutes}).range_min == minutes
+
+
+# --- wykres od 0.26.0: zapytania, osie, progi, legenda ----------------------------------------------
+
+
+def test_legacy_chart_config_is_upgraded():
+    parsed = ChartConfig.model_validate({"source": {"kind": "wan"}, "series": [{"key": "in_bps", "color": 2}], "y_max": 1e9, "chart": "line"})
+    assert parsed.queries[0].id == "A" and parsed.queries[0].source.kind == "wan" and parsed.queries[0].offset_min == 0
+    assert parsed.queries[0].series[0].color == 2 and parsed.queries[0].series[0].axis == "left"
+    assert parsed.axes.left.max == 1e9 and parsed.chart == "line"
+    assert parsed.legend.mode == "list" and parsed.thresholds == [] and not parsed.stack
+    dumped = parsed.model_dump(mode="json")
+    assert "source" not in dumped and "y_max" not in dumped
+    assert ChartConfig.model_validate(dumped) == parsed  # nowy format czyta się sam
+
+
+def full(**over):
+    cfg = {
+        "queries": [
+            {"id": "A", "source": {"kind": "wan"}, "series": [{"key": "in_bps"}]},
+            {"id": "B", "source": {"kind": "wan"}, "offset_min": 1440, "series": [{"key": "in_bps", "label": "Wczoraj"}]},
+            {"id": "C", "source": {"kind": "device", "id": 1}, "series": [{"key": "cpu_percent", "axis": "right"}]},
+        ],
+        "stack": True,
+        "axes": {"left": {"min": 0}, "right": {"min": 0, "max": 100, "label": "CPU"}},
+        "thresholds": [{"value": 8e8, "color": 4}],
+        "threshold_style": "line_area",
+        "legend": {"mode": "table", "placement": "right", "values": ["last", "max", "max", "avg"]},
+    }
+    cfg.update(over)
+    return cfg
+
+
+def test_multi_source_chart_with_axes_thresholds_and_legend():
+    parsed = ChartConfig.model_validate(full())
+    assert [q.id for q in parsed.queries] == ["A", "B", "C"] and parsed.queries[1].offset_min == 1440
+    assert parsed.queries[2].series[0].axis == "right" and parsed.axes.right.max == 100
+    assert parsed.legend.values == ["last", "max", "avg"]  # bez powtórzeń
+    DashboardLayout.model_validate(layout({"id": "c1", "type": "chart", "w": 6, "config": full()}))
+
+
+@pytest.mark.parametrize(
+    "over",
+    [
+        {"queries": []},
+        {"queries": [{"id": "A", "source": {"kind": "wan"}, "series": [{"key": "in_bps"}]}] * 2},  # to samo id
+        {"queries": [{"id": "a", "source": {"kind": "wan"}, "series": [{"key": "in_bps"}]}]},
+        {"queries": [{"id": "A", "source": {"kind": "wan"}, "offset_min": 30, "series": [{"key": "in_bps"}]}]},
+        {"queries": [{"id": "A", "source": {"kind": "wan"}, "series": [{"key": "in_bps", "axis": "top"}]}]},
+        {"queries": [{"id": "A", "source": {"kind": "device", "id": 1}, "series": [{"key": "in_bps"}]}]},
+        {"queries": [{"id": c, "source": {"kind": "wan"}, "series": [{"key": "in_bps"}, {"key": "out_bps"}]} for c in "ABCDEFG"]},
+        {"queries": [{"id": c, "source": {"kind": "interface", "id": 1}, "series": [{"key": k} for k in ("in_bps", "out_bps", "in_errors")]} for c in "ABCDE"]},
+        {"axes": {"left": {"min": 10, "max": 5}}},
+        {"thresholds": [{"value": 1}] * 5},
+        {"thresholds": [{"value": 1, "color": 9}]},
+        {"threshold_style": "kropki"},
+        {"legend": {"mode": "chmurka"}},
+        {"legend": {"values": ["median"]}},
+    ],
+)
+def test_rejects_invalid_multi_source_chart(over):
+    with pytest.raises(ValidationError):
+        ChartConfig.model_validate(full(**over))

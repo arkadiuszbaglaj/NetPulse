@@ -1,8 +1,8 @@
 /** Skąd bierze dane wykres: ścieżki API dla każdego rodzaju źródła i normalizacja odpowiedzi. */
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { t } from "../../i18n";
 import { get, type Series, type SeriesPoint } from "../../lib/api";
-import type { ChartConfig, Source } from "../../lib/layout";
+import type { ChartConfig, ChartQuery, Source } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 
 /** Powyżej 7 dni API liczy wykres z agregatów godzinowych: kubełki to pełne godziny (backend/netpulse/aggregates.py). */
@@ -16,22 +16,24 @@ export function bucketSeconds(minutes: number): number {
   return (LONG_BUCKETS_H.find((h) => h * 3600 >= raw) ?? LONG_BUCKETS_H[LONG_BUCKETS_H.length - 1]) * 3600;
 }
 
-export function sourcePath(source: Source, minutes: number): string {
+/** Ścieżka API danych źródła; `offset` (minuty) przesuwa okno wstecz – porównanie z wcześniejszym okresem. */
+export function sourcePath(source: Source, minutes: number, offset = 0): string {
+  const shift = offset > 0 ? `&offset=${offset}` : "";
   switch (source.kind) {
     case "wan":
-      return `/api/dashboard/traffic?minutes=${minutes}`;
+      return `/api/dashboard/traffic?minutes=${minutes}${shift}`;
     case "wifi_total":
-      return `/api/dashboard/wifi?minutes=${minutes}`;
+      return `/api/dashboard/wifi?minutes=${minutes}${shift}`;
     case "interface":
-      return `/api/interfaces/${source.id}/metrics?minutes=${minutes}`;
+      return `/api/interfaces/${source.id}/metrics?minutes=${minutes}${shift}`;
     case "device":
-      return `/api/devices/${source.id}/metrics?minutes=${minutes}`;
+      return `/api/devices/${source.id}/metrics?minutes=${minutes}${shift}`;
     case "wifi_network":
-      return `/api/wifi/${source.id}/metrics?minutes=${minutes}`;
+      return `/api/wifi/${source.id}/metrics?minutes=${minutes}${shift}`;
     case "server":
-      return `/api/system/metrics?minutes=${minutes}`;
+      return `/api/system/metrics?minutes=${minutes}${shift}`;
     default:
-      return `/api/devices/${source.id}/agent-metrics?source=${source.kind}&key=${encodeURIComponent(source.key)}&minutes=${minutes}`;
+      return `/api/devices/${source.id}/agent-metrics?source=${source.kind}&key=${encodeURIComponent(source.key)}&minutes=${minutes}${shift}`;
   }
 }
 
@@ -43,10 +45,14 @@ const AGENT_TITLE = {
   pve_guest: "ce.source.pve_guest",
 } as const;
 
-/** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów. */
-export async function fetchSeries(source: Source, minutes: number): Promise<Series> {
-  const raw = await get<Series | SeriesPoint[]>(sourcePath(source, minutes));
-  return Array.isArray(raw) ? { interval_s: bucketSeconds(minutes), points: raw } : raw;
+/** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów.
+ * Dane z przesunięciem dostają czas przesunięty do przodu, żeby nałożyły się na bieżące. */
+export async function fetchSeries(source: Source, minutes: number, offset = 0): Promise<Series> {
+  const raw = await get<Series | SeriesPoint[]>(sourcePath(source, minutes, offset));
+  const series = Array.isArray(raw) ? { interval_s: bucketSeconds(minutes), points: raw } : raw;
+  if (!offset) return series;
+  const ms = offset * 60_000;
+  return { ...series, points: series.points.map((p) => ({ ...p, time: new Date(new Date(p.time).getTime() + ms).toISOString() })) };
 }
 
 export function defaultTitle(source: Source): string {
@@ -70,18 +76,40 @@ export function defaultTitle(source: Source): string {
   }
 }
 
-/** Dane wykresu z własnym zakresem i odświeżaniem widgetu (puste = ustawienia globalne). */
-export function useChartSeries(config: ChartConfig) {
+export interface QueryResult {
+  query: ChartQuery;
+  data: Series | undefined;
+  isError: boolean;
+  error: unknown;
+}
+
+/** Dane wszystkich zapytań wykresu z własnym zakresem i odświeżaniem widgetu (puste = ustawienia globalne). */
+export function useChartQueries(config: ChartConfig) {
   const global = useRefresh();
   const minutes = config.range_min ?? global.rangeMinutes;
   const own = config.refresh_s;
   const refetchInterval = own == null ? global.refetchInterval : own > 0 ? own * 1000 : false;
-  const query = useQuery({
-    queryKey: ["chart", config.source, minutes],
-    queryFn: () => fetchSeries(config.source, minutes),
-    refetchInterval,
-    placeholderData: (previous) => previous, // przy zmianie zakresu stary wykres zostaje do czasu nowych danych
-    retry: false,
+  const results = useQueries({
+    queries: config.queries.map((q) => ({
+      queryKey: ["chart", q.source, minutes, q.offset_min ?? 0],
+      queryFn: () => fetchSeries(q.source, minutes, q.offset_min ?? 0),
+      refetchInterval,
+      placeholderData: (previous: Series | undefined) => previous, // przy zmianie zakresu stary wykres zostaje do czasu nowych danych
+      retry: false,
+    })),
   });
-  return { ...query, minutes };
+  const queries: QueryResult[] = config.queries.map((query, i) => ({
+    query,
+    data: results[i]?.data,
+    isError: results[i]?.isError ?? false,
+    error: results[i]?.error,
+  }));
+  return {
+    queries,
+    minutes,
+    isLoading: results.some((r) => r.isLoading),
+    // Błąd wykresu tylko wtedy, gdy żadne zapytanie nie dało danych (jedno brakujące źródło nie gasi reszty)
+    isError: results.length > 0 && results.every((r) => r.isError && !r.data),
+    error: results.find((r) => r.error)?.error,
+  };
 }

@@ -13,7 +13,7 @@ from ..config import settings
 from ..db import Session, engine, has_timescale
 from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
 from ..modules import hidden_drivers, read_modules
-from .metrics import MinutesQuery, _bucket_seconds
+from .metrics import MinutesQuery, OffsetQuery, _bucket_seconds, window
 from .schemas import Point
 from .security import require_user
 
@@ -108,7 +108,7 @@ _TRAFFIC_SQL = text(
         FROM interface_metrics m
         JOIN interfaces i ON i.id = m.interface_id
         JOIN devices d ON d.id = i.device_id
-        WHERE i.role = 'wan' AND d.enabled AND m.time >= :since
+        WHERE i.role = 'wan' AND d.enabled AND m.time >= :since AND m.time < :until
         GROUP BY bucket, m.interface_id
     ) per_interface
     GROUP BY bucket ORDER BY bucket
@@ -123,7 +123,7 @@ _WIFI_SQL = text(
         FROM wifi_metrics m
         JOIN wifi_networks w ON w.id = m.wifi_id
         JOIN devices d ON d.id = w.device_id
-        WHERE NOT w.hidden AND d.enabled AND m.time >= :since
+        WHERE NOT w.hidden AND d.enabled AND m.time >= :since AND m.time < :until
         GROUP BY bucket, m.wifi_id
     ) per_network
     GROUP BY bucket ORDER BY bucket
@@ -140,7 +140,7 @@ _TRAFFIC_1H_SQL = text(
         FROM interface_metrics_1h m
         JOIN interfaces i ON i.id = m.interface_id
         JOIN devices d ON d.id = i.device_id
-        WHERE i.role = 'wan' AND d.enabled AND m.bucket >= :since
+        WHERE i.role = 'wan' AND d.enabled AND m.bucket >= :since AND m.bucket < :until
         GROUP BY 1, m.interface_id
     ) per_interface
     GROUP BY bucket ORDER BY bucket
@@ -155,7 +155,7 @@ _WIFI_1H_SQL = text(
         FROM wifi_metrics_1h m
         JOIN wifi_networks w ON w.id = m.wifi_id
         JOIN devices d ON d.id = w.device_id
-        WHERE NOT w.hidden AND d.enabled AND m.bucket >= :since
+        WHERE NOT w.hidden AND d.enabled AND m.bucket >= :since AND m.bucket < :until
         GROUP BY 1, m.wifi_id
     ) per_network
     GROUP BY bucket ORDER BY bucket
@@ -163,15 +163,15 @@ _WIFI_1H_SQL = text(
 )
 
 
-async def _aggregate(sql, sql_1h, minutes: int, columns: list[str]) -> SeriesOut:
+async def _aggregate(sql, sql_1h, minutes: int, columns: list[str], offset: int = 0) -> SeriesOut:
     stride = _bucket_seconds(minutes)
-    since = datetime.now(UTC) - timedelta(minutes=minutes)
+    since, until = window(minutes, offset)
     async with engine.connect() as conn:
         timescale = await has_timescale(conn)
     if aggregates.use_aggregate(minutes, timescale):
         sql = sql_1h
     async with Session() as session:
-        rows = (await session.execute(sql, {"stride": timedelta(seconds=stride), "since": since})).all()
+        rows = (await session.execute(sql, {"stride": timedelta(seconds=stride), "since": since, "until": until})).all()
     points = [
         Point(time=r[0], values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
         for r in rows
@@ -180,12 +180,12 @@ async def _aggregate(sql, sql_1h, minutes: int, columns: list[str]) -> SeriesOut
 
 
 @router.get("/traffic", response_model=SeriesOut)
-async def traffic(minutes: int = MinutesQuery):
+async def traffic(minutes: int = MinutesQuery, offset: int = OffsetQuery):
     """Ruch WAN (suma po wszystkich routerach): pobieranie `in_bps` i wysyłanie `out_bps`."""
-    return await _aggregate(_TRAFFIC_SQL, _TRAFFIC_1H_SQL, minutes, ["in_bps", "out_bps"])
+    return await _aggregate(_TRAFFIC_SQL, _TRAFFIC_1H_SQL, minutes, ["in_bps", "out_bps"], offset)
 
 
 @router.get("/wifi", response_model=SeriesOut)
-async def wifi(minutes: int = MinutesQuery):
+async def wifi(minutes: int = MinutesQuery, offset: int = OffsetQuery):
     """Liczba klientów WiFi (suma po wszystkich widocznych sieciach)."""
-    return await _aggregate(_WIFI_SQL, _WIFI_1H_SQL, minutes, ["clients"])
+    return await _aggregate(_WIFI_SQL, _WIFI_1H_SQL, minutes, ["clients"], offset)

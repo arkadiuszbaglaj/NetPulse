@@ -139,22 +139,22 @@ def _chart_path(source: Source) -> tuple[str, dict[str, str]]:
     return f"/api/devices/{source.id}/agent-metrics", {"source": source.kind, "key": source.key}
 
 
-async def _chart(source: Source, minutes: int) -> Any:
+async def _chart(source: Source, minutes: int, offset: int = 0) -> Any:
     match source.kind:
         case "wan":
-            return await dashboard.traffic(minutes)
+            return await dashboard.traffic(minutes, offset)
         case "wifi_total":
-            return await dashboard.wifi(minutes)
+            return await dashboard.wifi(minutes, offset)
         case "interface":
-            return await metrics.interface_metrics(source.id, minutes)
+            return await metrics.interface_metrics(source.id, minutes, offset)
         case "device":
-            return await metrics.device_metrics(source.id, minutes)
+            return await metrics.device_metrics(source.id, minutes, offset)
         case "wifi_network":
-            return await metrics.wifi_metrics(source.id, minutes)
+            return await metrics.wifi_metrics(source.id, minutes, offset)
         case "server":
-            return await system.metrics(minutes)
+            return await system.metrics(minutes, offset)
     assert isinstance(source, AgentSource)
-    return await metrics.agent_metrics(source.id, source.kind, source.key, minutes)
+    return await metrics.agent_metrics(source.id, source.kind, source.key, minutes, offset)
 
 
 def _public_device(d, opts: PublicOptions) -> dict:
@@ -216,18 +216,18 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         if days not in SLA_DAYS:
             raise HTTPException(403, "Niedozwolony okres")
         return await wan.sla(days)
-    for w in widgets:
-        if w.type != "chart":
-            continue
-        source = w.config.source
+    offset = _int(query.get("offset"), 0)
+    for q in (q for w in widgets if w.type == "chart" for q in w.config.queries):
+        source = q.source
         chart_path, fixed = _chart_path(source)
-        if path != chart_path or any(query.get(k) != v for k, v in fixed.items()):
+        # Przesunięcie w czasie tylko takie, jakie ma zapytanie wykresu na tym pulpicie
+        if path != chart_path or any(query.get(k) != v for k, v in fixed.items()) or offset != q.offset_min:
             continue
         if source.kind == "pve_guest" and not mods.get("proxmox", True):
             break
         if source.kind.startswith("agent_") and not mods.get("agents", True):
             break
-        return await _chart(source, minutes())
+        return await _chart(source, minutes(), offset)
     raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
 
 

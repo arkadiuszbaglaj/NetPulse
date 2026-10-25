@@ -1,5 +1,6 @@
 """Schemat układu pulpitu (wersja 1) – to samo JSON-owe wejście i wyjście dla panelu, aplikacji mobilnej
-i przyszłych pulpitów publicznych. Walidacja jest ścisła (brak nieznanych pól, ograniczone liczby i
+i pulpitów publicznych. Wykres od 0.26.0 ma zapytania (wiele źródeł), osie, progi i legendę; starsza konfiguracja
+wykresu jest zamieniana przy odczycie (`upgrade_chart`). Walidacja jest ścisła (brak nieznanych pól, ograniczone liczby i
 długości), bo układ jest danymi od użytkownika zapisywanymi w bazie."""
 
 from __future__ import annotations
@@ -91,23 +92,108 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
 }
 
 
+ColorIndex = Literal[1, 2, 3, 4, 5, 6, 7, 8]  # numer koloru z palety motywu (--chart-1…8)
+OffsetMinutes = Literal[0, 60, 1440, 10080]  # porównanie w czasie: bez przesunięcia, godzina, dzień, tydzień wcześniej
+LegendValue = Literal["last", "min", "max", "avg"]
+MAX_QUERIES = 6
+MAX_SERIES = 12
+
+
 class SeriesConfig(Strict):
     key: str = Field(max_length=32)
-    color: Literal[1, 2, 3, 4, 5, 6, 7, 8] | None = None  # numer koloru z palety motywu (--chart-1…8); puste = kolejny
+    color: ColorIndex | None = None  # puste = kolejny kolor
     label: str | None = Field(None, max_length=40)
+    axis: Literal["left", "right"] = "left"
+
+
+class ChartQuery(Strict):
+    """Jedno źródło danych wykresu i jego serie; `offset_min` przesuwa okno wstecz (porównanie z wcześniej)."""
+
+    id: str = Field(pattern=r"^[A-Z]$")
+    source: Source
+    series: list[SeriesConfig] = Field(min_length=1, max_length=6)
+    offset_min: OffsetMinutes = 0
+
+    @model_validator(mode="after")
+    def _metrics_match_source(self) -> ChartQuery:
+        allowed = ALLOWED_METRICS[self.source.kind]
+        keys = [s.key for s in self.series]
+        bad = [k for k in keys if k not in allowed]
+        if bad:
+            raise ValueError(f"Metryka {bad[0]!r} nie jest dostępna dla źródła {self.source.kind!r}")
+        if len(set(keys)) != len(keys):
+            raise ValueError("Metryki w jednym zapytaniu nie mogą się powtarzać")
+        return self
+
+
+class AxisConfig(Strict):
+    """Zakres osi w jednostkach surowych metryki (przepustowość w bit/s); puste = automatycznie."""
+
+    min: float | None = Field(None, ge=-1e15, le=1e15)
+    max: float | None = Field(None, gt=-1e15, le=1e15)
+    label: str | None = Field(None, max_length=40)
+
+    @model_validator(mode="after")
+    def _order(self) -> AxisConfig:
+        if self.min is not None and self.max is not None and self.min >= self.max:
+            raise ValueError("Minimum osi musi być mniejsze niż maksimum")
+        return self
+
+
+class Axes(Strict):
+    left: AxisConfig = AxisConfig()
+    right: AxisConfig = AxisConfig()
+
+
+class Threshold(Strict):
+    value: float = Field(ge=-1e15, le=1e15)  # w jednostkach surowych osi lewej
+    color: ColorIndex = 4
+
+
+class LegendConfig(Strict):
+    mode: Literal["list", "table", "hidden"] = "list"
+    placement: Literal["bottom", "right"] = "bottom"
+    values: list[LegendValue] = Field([], max_length=4)
+
+    @field_validator("values")
+    @classmethod
+    def _unique(cls, v: list[str]) -> list[str]:
+        return list(dict.fromkeys(v))
+
+
+def upgrade_chart(data):
+    """Konfiguracja sprzed 0.26.0 (jedno `source` + `series`, `y_max`) → zapytania, osie i legenda."""
+    if not isinstance(data, dict) or "source" not in data or "queries" in data:
+        return data
+    data = dict(data)
+    source, series, y_max = data.pop("source"), data.pop("series", []), data.pop("y_max", None)
+    data["queries"] = [{"id": "A", "source": source, "series": series}]
+    if y_max is not None:
+        if not isinstance(y_max, int | float) or y_max <= 0:
+            raise ValueError("Maksimum osi Y musi być większe od zera")
+        data["axes"] = {"left": {"max": y_max}}
+    return data
 
 
 class ChartConfig(Strict):
     title: str | None = Field(None, max_length=80)
-    source: Source
-    series: list[SeriesConfig] = Field(min_length=1, max_length=6)
+    queries: list[ChartQuery] = Field(min_length=1, max_length=MAX_QUERIES)
     chart: Literal["line", "area", "bar"] = "area"
+    stack: bool = False  # serie piętrowane (osobno na osi lewej i prawej)
     unit: Literal["bits", "bytes"] = "bits"  # dla metryk przepustowości: bit/s albo bajty/s
     smooth: bool = False
-    y_max: float | None = Field(None, gt=0, le=1e15)
+    axes: Axes = Axes()
+    thresholds: list[Threshold] = Field([], max_length=4)
+    threshold_style: Literal["off", "line", "area", "line_area"] = "line"
+    legend: LegendConfig = LegendConfig()
     range_min: RangeMinutes | None = None  # puste = zakres globalny
     refresh_s: RefreshSeconds | None = None  # puste = interwał globalny
     height: Literal["sm", "md", "lg"] = "md"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _upgrade(cls, data):
+        return upgrade_chart(data)
 
     @field_validator("title")
     @classmethod
@@ -116,14 +202,12 @@ class ChartConfig(Strict):
         return v or None
 
     @model_validator(mode="after")
-    def _metrics_match_source(self) -> ChartConfig:
-        allowed = ALLOWED_METRICS[self.source.kind]
-        keys = [s.key for s in self.series]
-        bad = [k for k in keys if k not in allowed]
-        if bad:
-            raise ValueError(f"Metryka {bad[0]!r} nie jest dostępna dla źródła {self.source.kind!r}")
-        if len(set(keys)) != len(keys):
-            raise ValueError("Metryki w wykresie nie mogą się powtarzać")
+    def _limits(self) -> ChartConfig:
+        ids = [q.id for q in self.queries]
+        if len(set(ids)) != len(ids):
+            raise ValueError("Identyfikatory zapytań muszą być unikalne")
+        if sum(len(q.series) for q in self.queries) > MAX_SERIES:
+            raise ValueError(f"Wykres może mieć najwyżej {MAX_SERIES} serii")
         return self
 
 

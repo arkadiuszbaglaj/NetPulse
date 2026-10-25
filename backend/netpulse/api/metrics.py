@@ -29,6 +29,15 @@ router = APIRouter(prefix="/api", tags=["metryki"], dependencies=[Depends(requir
 
 # Do roku wstecz: powyżej 7 dni dane idą z agregatów godzinowych (aggregates.py)
 MinutesQuery = Query(60, ge=5, le=60 * 24 * 366, description="zakres wstecz w minutach")
+# Porównanie w czasie: to samo okno przesunięte wstecz (np. 1440 = dzień wcześniej)
+OffsetQuery = Query(0, ge=0, le=60 * 24 * 366, description="przesunięcie okna wstecz w minutach")
+
+
+def window(minutes: int, offset: int = 0) -> tuple[datetime, datetime]:
+    """Okno wykresu [od, do). Bez przesunięcia „do” jest z zapasem w przyszłości (próbki z bieżącej chwili)."""
+    now = datetime.now(UTC)
+    until = now - timedelta(minutes=offset) if offset else now + timedelta(days=1)
+    return until - timedelta(minutes=minutes) if offset else now - timedelta(minutes=minutes), until
 
 
 def _bucket_seconds(minutes: int) -> int:
@@ -36,16 +45,16 @@ def _bucket_seconds(minutes: int) -> int:
     return aggregates.bucket_seconds(minutes)
 
 
-async def _aggregate_series(agg: aggregates.Aggregate, obj_id: int, columns: list[str], minutes: int) -> list[Point]:
+async def _aggregate_series(agg: aggregates.Aggregate, obj_id: int, columns: list[str], minutes: int, offset: int = 0) -> list[Point]:
     """Szereg z agregatu godzinowego, przeliczony na większe kubełki (długie zakresy wykresów)."""
-    since = datetime.now(UTC) - timedelta(minutes=minutes)
+    since, until = window(minutes, offset)
     view = table(agg.view, column("bucket"), column(agg.key), *[column(c) for c in columns])
     bucket = func.date_bin(
         text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), view.c.bucket, text("TIMESTAMPTZ '2000-01-01 00:00:00+00'")
     ).label("b")
     stmt = (
         select(bucket, *[func.avg(view.c[c]).label(c) for c in columns])
-        .where(view.c[agg.key] == obj_id, view.c.bucket >= since)
+        .where(view.c[agg.key] == obj_id, view.c.bucket >= since, view.c.bucket < until)
         .group_by("b")
         .order_by("b")
     )
@@ -57,17 +66,19 @@ async def _aggregate_series(agg: aggregates.Aggregate, obj_id: int, columns: lis
     ]
 
 
-async def _series(model, id_col, obj_id: int | None, columns: list[str], minutes: int, extra_where: tuple = ()) -> list[Point]:
+async def _series(
+    model, id_col, obj_id: int | None, columns: list[str], minutes: int, extra_where: tuple = (), offset: int = 0
+) -> list[Point]:
     """Szereg czasowy; `id_col=None` dla tabel bez klucza obiektu (np. stan serwera)."""
-    since = datetime.now(UTC) - timedelta(minutes=minutes)
+    since, until = window(minutes, offset)
     async with engine.connect() as conn:
         timescale = await has_timescale(conn)
     agg = aggregates.BY_SOURCE.get(model.__tablename__)
     if agg is not None and obj_id is not None and aggregates.use_aggregate(minutes, timescale):
-        return await _aggregate_series(agg, obj_id, columns, minutes)
+        return await _aggregate_series(agg, obj_id, columns, minutes, offset)
     async with Session() as session:
         cols = [getattr(model, c) for c in columns]
-        where = [model.time >= since, *extra_where] + ([id_col == obj_id] if id_col is not None else [])
+        where = [model.time >= since, model.time < until, *extra_where] + ([id_col == obj_id] if id_col is not None else [])
         if timescale:
             bucket = func.time_bucket(text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), model.time)
             stmt = (
@@ -96,7 +107,7 @@ async def _exists(model, obj_id: int, what: str) -> None:
 
 
 @router.get("/devices/{device_id}/metrics", response_model=list[Point])
-async def device_metrics(device_id: int, minutes: int = MinutesQuery):
+async def device_metrics(device_id: int, minutes: int = MinutesQuery, offset: int = OffsetQuery):
     await _exists(Device, device_id, "urządzenie")
     return await _series(
         DeviceMetric,
@@ -104,11 +115,12 @@ async def device_metrics(device_id: int, minutes: int = MinutesQuery):
         device_id,
         ["cpu_percent", "mem_used_percent", "load1", "poll_ms"],
         minutes,
+        offset=offset,
     )
 
 
 @router.get("/interfaces/{interface_id}/metrics", response_model=list[Point])
-async def interface_metrics(interface_id: int, minutes: int = MinutesQuery):
+async def interface_metrics(interface_id: int, minutes: int = MinutesQuery, offset: int = OffsetQuery):
     await _exists(Interface, interface_id, "port")
     return await _series(
         InterfaceMetric,
@@ -116,6 +128,7 @@ async def interface_metrics(interface_id: int, minutes: int = MinutesQuery):
         interface_id,
         ["in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards"],
         minutes,
+        offset=offset,
     )
 
 
@@ -181,16 +194,16 @@ def _bucket(minutes: int, timescale: bool):
 
 
 @router.get("/devices/{device_id}/agent-metrics", response_model=list[Point])
-async def agent_metrics(device_id: int, source: AgentSourceKind, key: str = "", minutes: int = MinutesQuery):
+async def agent_metrics(device_id: int, source: AgentSourceKind, key: str = "", minutes: int = MinutesQuery, offset: int = OffsetQuery):
     """Szereg z ogólnej tabeli `metrics` dla wykresu. `agent_cpu`: najbardziej i średnio obciążony rdzeń."""
     await _exists(Device, device_id, "urządzenie")
-    since = datetime.now(UTC) - timedelta(minutes=minutes)
+    since, until = window(minutes, offset)
     async with engine.connect() as conn:
         timescale = await has_timescale(conn)
     bucket = _bucket(minutes, timescale).label("bucket")
     async with Session() as session:
         devices = await _same_server_devices(session, device_id) if source == "pve_guest" else [device_id]
-        base = [Metric.device_id.in_(devices), Metric.time >= since]
+        base = [Metric.device_id.in_(devices), Metric.time >= since, Metric.time < until]
         if source == "agent_cpu":
             rows = (
                 await session.execute(
@@ -241,6 +254,6 @@ async def agent_keys(device_id: int) -> dict[str, list[str]]:
 
 
 @router.get("/wifi/{wifi_id}/metrics", response_model=list[Point])
-async def wifi_metrics(wifi_id: int, minutes: int = MinutesQuery):
+async def wifi_metrics(wifi_id: int, minutes: int = MinutesQuery, offset: int = OffsetQuery):
     await _exists(WifiNetwork, wifi_id, "sieć WiFi")
-    return await _series(WifiMetric, WifiMetric.wifi_id, wifi_id, ["clients", "rx_bps", "tx_bps"], minutes)
+    return await _series(WifiMetric, WifiMetric.wifi_id, wifi_id, ["clients", "rx_bps", "tx_bps"], minutes, offset=offset)

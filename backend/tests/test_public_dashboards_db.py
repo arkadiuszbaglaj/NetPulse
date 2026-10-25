@@ -121,6 +121,9 @@ def test_public_link_serves_only_whitelisted_data(client):
         assert device["name"] == "UCG" and device["host"] == "" and device["last_error"] is None and "community" not in device
         assert data("/api/dashboard/traffic?minutes=60").status_code == 200
         assert data("/api/dashboard/traffic?minutes=7").status_code == 403  # zakres spoza listy
+        # Przesunięcie w czasie tylko takie, jakie ma zapytanie wykresu na pulpicie (tu: żadne)
+        assert data("/api/dashboard/traffic?minutes=60&offset=1440").status_code == 403
+        assert data("/api/dashboard/traffic?minutes=60&offset=0").status_code == 200
         assert data("/api/availability?days=30").status_code == 200
         # Danych, których nie pokazuje żaden widget tego pulpitu, nie ma
         for path in ("/api/wan/status", "/api/devices/1/metrics", "/api/system", "/api/clients", "/api/alerts", "/api/dashboard/wifi"):

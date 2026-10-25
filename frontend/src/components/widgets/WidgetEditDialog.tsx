@@ -1,28 +1,12 @@
-/** Okna edycji widgetów: wykres (źródło, metryki, wygląd), podsumowanie (kafelki), karty urządzeń (filtr). */
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+/** Okna edycji widgetów: wykres (ChartEditor), podsumowanie (kafelki), karty urządzeń (filtr), PoE i łącza WAN. */
+import { useState } from "react";
 import { t, type TextKey } from "../../i18n";
-import { get, type Device } from "../../lib/api";
+import { type Device } from "../../lib/api";
 import {
-  COLOR_INDEXES,
   DEVICE_KINDS,
-  METRICS,
-  isAgentSource,
-  SOURCE_KINDS,
-  SOURCE_METRICS,
   SUMMARY_TILES,
-  defaultSeries,
-  toggleMetric,
-  unitClassOf,
-  yMaxFromRaw,
-  yMaxToRaw,
-  type ChartConfig,
   type ChartHeight,
-  type ChartKind,
-  type ChartUnit,
   type DeviceKind,
-  type Source,
-  type SourceKind,
   type SummaryTile,
   type WanChartWidgetModel,
   type WanMetric,
@@ -31,59 +15,21 @@ import {
   type Widget,
 } from "../../lib/layout";
 import { SLA_DAYS, type SlaDays } from "../../lib/wan";
-import { isOn, sourceModule, useModules } from "../../lib/modules";
 import { useDevices } from "../../lib/queries";
 import { formatRange } from "../../lib/format";
-import { RANGE_OPTIONS, REFRESH_OPTIONS, type RangeMinutes, type RefreshSeconds } from "../../lib/refresh";
+import { RANGE_OPTIONS, type RangeMinutes } from "../../lib/refresh";
 import { Dialog } from "../Dialog";
-import { refreshLabel } from "../RefreshControl";
-import { Button, Field, Select } from "../ui";
-import { ChartWidget } from "./ChartWidget";
+import { Button, Select } from "../ui";
+import { ChartEditor } from "./ChartEditor";
 import { KIND_LABEL } from "./DevicesWidget";
 
-interface InterfaceItem {
-  id: number;
-  label: string;
-  alias: string | null;
-}
-interface WifiItem {
-  id: number;
-  ssid: string;
-  radio: string | null;
-}
-
-const SOURCE_LABEL: Record<SourceKind, TextKey> = {
-  wan: "ce.source.wan",
-  interface: "ce.source.interface",
-  device: "ce.source.device",
-  wifi_total: "ce.source.wifi_total",
-  wifi_network: "ce.source.wifi_network",
-  server: "ce.source.server",
-  agent_cpu: "ce.source.agent_cpu",
-  agent_net: "ce.source.agent_net",
-  agent_disk: "ce.source.agent_disk",
-  agent_temp: "ce.source.agent_temp",
-  agent_container: "ce.source.agent_container",
-  pve_guest: "ce.source.pve_guest",
-};
-/** Lista do wyboru w edytorze dla źródła z agenta (odpowiedź /api/devices/{id}/agent-keys). */
-type AgentKeys = Record<"agent_net" | "agent_disk" | "agent_temp" | "agent_container" | "pve_guest", string[]>;
-const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
-  agent_net: "ce.agent.key.net",
-  agent_disk: "ce.agent.key.disk",
-  agent_temp: "ce.agent.key.temp",
-  agent_container: "ce.agent.key.container",
-  pve_guest: "ce.agent.key.guest",
-};
 const TILE_LABEL: Record<SummaryTile, TextKey> = {
   devices: "widget.tile.devices",
   wan_down: "widget.tile.wan_down",
   wan_up: "widget.tile.wan_up",
   wifi_clients: "widget.tile.wifi_clients",
 };
-const KIND_OPTIONS: ChartKind[] = ["area", "line", "bar"];
 const HEIGHTS: ChartHeight[] = ["sm", "md", "lg"];
-const COLORS = COLOR_INDEXES;
 
 function Checkbox({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -91,301 +37,6 @@ function Checkbox({ id, label, checked, onChange }: { id: string; label: string;
       <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-accent" />
       {label}
     </label>
-  );
-}
-
-// --- wykres ------------------------------------------------------------------------------------
-
-/** Id urządzenia wybranego w formularzu: dla portu i sieci WiFi zapisane razem ze źródłem. */
-const deviceIdOf = (s: Source): number | null =>
-  s.kind === "device" || isAgentSource(s.kind)
-    ? (s as { id: number }).id || null
-    : s.kind === "interface" || s.kind === "wifi_network"
-      ? (s.device_id ?? null)
-      : null;
-/** Źródło wymaga wskazania obiektu (portu, urządzenia, sieci albo – dla agenta – serwera i klucza). */
-const sourceComplete = (s: Source): boolean => {
-  if (s.kind === "interface" || s.kind === "device" || s.kind === "wifi_network") return !!s.id;
-  if (isAgentSource(s.kind)) {
-    const a = s as { id: number; key: string };
-    return !!a.id && (s.kind === "agent_cpu" || !!a.key);
-  }
-  return true;
-};
-
-function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; onSave: (c: ChartConfig) => void; onClose: () => void; isNew: boolean }) {
-  const [cfg, setCfg] = useState<ChartConfig>(initial);
-  const [yMax, setYMax] = useState(
-    initial.y_max != null ? String(yMaxFromRaw(initial.y_max, initial.series[0]?.key ?? "", initial.unit)) : "",
-  );
-  const [errors, setErrors] = useState<{ source?: string; metrics?: string; ymax?: string }>({});
-  const devices = useDevices();
-  const modulesState = useModules().data;
-  const [deviceId, setDeviceId] = useState<number | null>(deviceIdOf(initial.source));
-
-  const needsDevice = cfg.source.kind === "interface" || cfg.source.kind === "wifi_network";
-  const agentKind = isAgentSource(cfg.source.kind) ? cfg.source.kind : null;
-  const agentKeys = useQuery({
-    queryKey: ["agent-keys", deviceId],
-    queryFn: () => get<AgentKeys>(`/api/devices/${deviceId}/agent-keys`),
-    enabled: agentKind != null && agentKind !== "agent_cpu" && deviceId != null,
-  });
-  // Dla źródeł z agenta tylko serwery z agentem, dla maszyn Proxmox – węzły Proxmox
-  const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind ? "agent" : null;
-  const deviceOptions = (devices.data ?? []).filter((d: Device) => !wantedDriver || d.driver === wantedDriver);
-  const interfaces = useQuery({
-    queryKey: ["device-interfaces", deviceId],
-    queryFn: () => get<InterfaceItem[]>(`/api/devices/${deviceId}/interfaces`),
-    enabled: cfg.source.kind === "interface" && deviceId != null,
-  });
-  const wifi = useQuery({
-    queryKey: ["device-wifi", deviceId],
-    queryFn: () => get<WifiItem[]>(`/api/devices/${deviceId}/wifi`),
-    enabled: cfg.source.kind === "wifi_network" && deviceId != null,
-  });
-
-  const firstKey = cfg.series[0]?.key ?? "";
-  const cls = unitClassOf(firstKey);
-  const set = (patch: Partial<ChartConfig>) => setCfg((c) => ({ ...c, ...patch }));
-
-  const changeKind = (kind: SourceKind) => {
-    const source: Source =
-      kind === "wan" || kind === "wifi_total" || kind === "server"
-        ? { kind }
-        : kind === "device"
-          ? { kind, id: deviceId ?? 0 }
-          : isAgentSource(kind)
-            ? { kind, id: deviceId ?? 0, key: "" }
-            : { kind, id: 0, device_id: deviceId };
-    set({ source, series: defaultSeries(kind) });
-  };
-  const changeDevice = (id: number | null) => {
-    setDeviceId(id);
-    if (cfg.source.kind === "device") set({ source: { kind: "device", id: id ?? 0 } });
-    else if (agentKind) set({ source: { kind: agentKind, id: id ?? 0, key: "" } });
-    else if (needsDevice) set({ source: { ...cfg.source, id: 0, device_id: id } as Source });
-  };
-
-  const submit = () => {
-    const next: typeof errors = {};
-    if (!sourceComplete(cfg.source)) next.source = t("ce.err.source");
-    if (cfg.series.length === 0) next.metrics = t("ce.err.metrics");
-    let y: number | null = null;
-    if (yMax.trim() !== "") {
-      const n = Number(yMax.replace(",", "."));
-      if (!Number.isFinite(n) || n <= 0) next.ymax = t("ce.err.ymax");
-      else y = yMaxToRaw(n, firstKey, cfg.unit);
-    }
-    setErrors(next);
-    if (Object.keys(next).length === 0) onSave({ ...cfg, title: cfg.title?.trim() || null, y_max: y });
-  };
-
-  const unitHint =
-    cls === "rate"
-      ? t(cfg.unit === "bytes" ? "ce.unit.hint.rate.bytes" : "ce.unit.hint.rate.bits")
-      : cls === "percent"
-        ? t("ce.unit.hint.percent")
-        : cls === "ms"
-          ? t("ce.unit.hint.ms")
-          : t("ce.unit.hint.other");
-
-  const previewOk = useMemo(() => sourceComplete(cfg.source) && cfg.series.length > 0, [cfg]);
-
-  return (
-    <Dialog
-      title={t(isNew ? "ce.title.new" : "ce.title.edit")}
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button variant="primary" onClick={submit}>
-            {t("common.save")}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Field id="ce-title" label={t("ce.field.title")} hint={t("ce.field.title.hint")} value={cfg.title ?? ""} maxLength={80} onChange={(e) => set({ title: e.target.value })} />
-
-        <Select id="ce-source" label={t("ce.source")} value={cfg.source.kind} error={errors.source} onChange={(e) => changeKind(e.target.value as SourceKind)}>
-          {SOURCE_KINDS.filter((k) => isOn(modulesState, sourceModule(k)) || k === cfg.source.kind).map((k) => (
-            <option key={k} value={k}>
-              {t(SOURCE_LABEL[k])}
-            </option>
-          ))}
-        </Select>
-
-        {(needsDevice || cfg.source.kind === "device" || agentKind) && (
-          <Select
-            id="ce-device"
-            label={t("ce.device")}
-            value={deviceId ?? ""}
-            onChange={(e) => changeDevice(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">{t("ce.choose")}</option>
-            {deviceOptions.map((d: Device) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </Select>
-        )}
-        {needsDevice && devices.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noDevices")}</p>}
-        {agentKind && devices.data && deviceOptions.length === 0 && (
-          <p className="text-xs text-text-2">{t(agentKind === "pve_guest" ? "ce.pve.none" : "ce.agent.none")}</p>
-        )}
-
-        {agentKind && agentKind !== "agent_cpu" && deviceId != null && (
-          <Select
-            id="ce-agent-key"
-            label={t(AGENT_KEY_LABEL[agentKind])}
-            value={(cfg.source as { key: string }).key}
-            onChange={(e) => set({ source: { kind: agentKind, id: deviceId, key: e.target.value } })}
-          >
-            <option value="">{t("ce.choose")}</option>
-            {(agentKeys.data?.[agentKind] ?? []).map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </Select>
-        )}
-        {agentKind && agentKind !== "agent_cpu" && agentKeys.data?.[agentKind]?.length === 0 && (
-          <p className="text-xs text-text-2">{t("ce.agent.noKeys")}</p>
-        )}
-
-        {cfg.source.kind === "interface" && deviceId != null && (
-          <Select
-            id="ce-interface"
-            label={t("ce.interface")}
-            value={cfg.source.id || ""}
-            onChange={(e) => set({ source: { kind: "interface", id: Number(e.target.value), device_id: deviceId } })}
-          >
-            <option value="">{t("ce.choose")}</option>
-            {(interfaces.data ?? []).map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.alias ? `${i.label} (${i.alias})` : i.label}
-              </option>
-            ))}
-          </Select>
-        )}
-        {cfg.source.kind === "interface" && interfaces.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noInterfaces")}</p>}
-
-        {cfg.source.kind === "wifi_network" && deviceId != null && (
-          <Select
-            id="ce-wifi"
-            label={t("ce.wifi")}
-            value={cfg.source.id || ""}
-            onChange={(e) => set({ source: { kind: "wifi_network", id: Number(e.target.value), device_id: deviceId } })}
-          >
-            <option value="">{t("ce.choose")}</option>
-            {(wifi.data ?? []).map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.radio ? `${w.ssid} (${w.radio})` : w.ssid}
-              </option>
-            ))}
-          </Select>
-        )}
-        {cfg.source.kind === "wifi_network" && wifi.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noWifi")}</p>}
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">{t("ce.metrics")}</legend>
-          <p className="text-xs text-muted">{t("ce.metrics.hint")}</p>
-          {SOURCE_METRICS[cfg.source.kind].map((key) => {
-            const selected = cfg.series.find((s) => s.key === key);
-            const name = t(METRICS[key].label);
-            return (
-              <div key={key} className="flex flex-wrap items-center gap-3">
-                <Checkbox id={`ce-m-${key}`} label={name} checked={!!selected} onChange={(on) => set({ series: toggleMetric(cfg.series, key, on) })} />
-                {selected && (
-                  <div role="group" aria-label={t("ce.color", { name })} className="flex gap-1.5">
-                    {COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        aria-label={t("ce.colorN", { n: c })}
-                        title={t(`ce.colorName.${c}` as TextKey)}
-                        aria-pressed={selected.color === c}
-                        onClick={() => set({ series: cfg.series.map((s) => (s.key === key ? { ...s, color: c } : s)) })}
-                        style={{ backgroundColor: `var(--chart-${c})` }}
-                        className={`size-5 rounded-full border-2 ${selected.color === c ? "border-text" : "border-transparent"}`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {errors.metrics && <p className="text-xs text-danger">{errors.metrics}</p>}
-        </fieldset>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select id="ce-kind" label={t("ce.kind")} value={cfg.chart} onChange={(e) => set({ chart: e.target.value as ChartKind })}>
-            {KIND_OPTIONS.map((k) => (
-              <option key={k} value={k}>
-                {t(`ce.kind.${k}` as TextKey)}
-              </option>
-            ))}
-          </Select>
-          <Select id="ce-height" label={t("ce.height")} value={cfg.height} onChange={(e) => set({ height: e.target.value as ChartHeight })}>
-            {HEIGHTS.map((h) => (
-              <option key={h} value={h}>
-                {t(`ce.height.${h}` as TextKey)}
-              </option>
-            ))}
-          </Select>
-          {cls === "rate" && (
-            <Select id="ce-unit" label={t("ce.unit")} value={cfg.unit} onChange={(e) => set({ unit: e.target.value as ChartUnit })}>
-              <option value="bits">{t("ce.unit.bits")}</option>
-              <option value="bytes">{t("ce.unit.bytes")}</option>
-            </Select>
-          )}
-          <Field
-            id="ce-ymax"
-            label={t("ce.ymax")}
-            hint={t("ce.ymax.hint", { unit: unitHint })}
-            inputMode="decimal"
-            value={yMax}
-            error={errors.ymax}
-            onChange={(e) => setYMax(e.target.value)}
-          />
-          <Select
-            id="ce-range"
-            label={t("ce.range")}
-            value={cfg.range_min ?? ""}
-            onChange={(e) => set({ range_min: e.target.value ? (Number(e.target.value) as RangeMinutes) : null })}
-          >
-            <option value="">{t("ce.range.global")}</option>
-            {RANGE_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {formatRange(m)}
-              </option>
-            ))}
-          </Select>
-          <Select
-            id="ce-refresh"
-            label={t("ce.refresh")}
-            value={cfg.refresh_s ?? ""}
-            onChange={(e) => set({ refresh_s: e.target.value === "" ? null : (Number(e.target.value) as RefreshSeconds) })}
-          >
-            <option value="">{t("ce.refresh.global")}</option>
-            {REFRESH_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {refreshLabel(s)}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <Checkbox id="ce-smooth" label={t("ce.smooth")} checked={cfg.smooth} onChange={(v) => set({ smooth: v })} />
-
-        <section aria-label={t("ce.preview")}>
-          <h3 className="mb-2 text-sm font-medium">{t("ce.preview")}</h3>
-          {previewOk ? <ChartWidget config={{ ...cfg, y_max: null }} /> : <p className="text-xs text-text-2">{t("ce.preview.invalid")}</p>}
-        </section>
-      </div>
-    </Dialog>
   );
 }
 
@@ -604,7 +255,7 @@ function WanForm({ initial, isNew, onSave, onClose }: { initial: WanWidget; isNe
 export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { widget: Widget; isNew?: boolean; onSave: (w: Widget) => void; onClose: () => void }) {
   switch (widget.type) {
     case "chart":
-      return <ChartForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
+      return <ChartEditor initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
     case "summary":
       return <SummaryForm initial={widget.config.tiles} onClose={onClose} onSave={(tiles) => onSave({ ...widget, config: { tiles } })} />;
     case "devices":

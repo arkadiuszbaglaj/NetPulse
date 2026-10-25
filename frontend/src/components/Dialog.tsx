@@ -11,8 +11,8 @@ interface DialogProps {
   children: ReactNode;
   /** Przyciski na dole okna */
   footer?: ReactNode;
-  /** Szerokość: sm (potwierdzenia) albo lg (formularze) */
-  size?: "sm" | "lg";
+  /** Szerokość: sm (potwierdzenia), lg (formularze) albo xl (edytor wykresu z podglądem) */
+  size?: "sm" | "lg" | "xl";
 }
 
 /**
@@ -74,7 +74,7 @@ export function Dialog({ title, onClose, children, footer, size = "lg" }: Dialog
         aria-labelledby={titleId}
         tabIndex={-1}
         className={`flex max-h-full w-full flex-col rounded-t-2xl border border-border bg-surface shadow-xl outline-none sm:rounded-2xl ${
-          size === "sm" ? "sm:max-w-md" : "sm:max-w-xl"
+          size === "sm" ? "sm:max-w-md" : size === "xl" ? "sm:max-w-6xl" : "sm:max-w-xl"
         }`}
       >
         <div className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 border-b border-border px-5 py-3">

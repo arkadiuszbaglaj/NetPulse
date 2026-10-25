@@ -144,6 +144,15 @@ Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):
   (migracja 0008): API `api/public.py` z białą listą danych z widgetów pulpitu – **nowy widget = dopisać jego ścieżki
   w `resolve()`**; w panelu `setPublicDashboard` w `lib/api.ts` kieruje zapytania widgetów do API publicznego.
 
+## Wykresy (przebudowa w stylu Grafany)
+
+Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`
+(do 6 źródeł, 12 serii; `offset_min` = porównanie z godziną/dniem/tygodniem wcześniej – parametr `offset` w API metryk),
+osie lewa/prawa, progi, legendę lista/tabela z min/maks/śr./ostatnią, stos. Stary format (`source`, `series`, `y_max`)
+zamienia `upgrade_chart` w `layout_schemas.py` (i `upgradeChartConfig` w panelu). Render: `components/charts/PanelChart.tsx`
++ `ChartLegend.tsx` + czyste funkcje `panelData.ts`; edytor: `components/widgets/ChartEditor.tsx`. Pulpit publiczny
+przepuszcza `offset` tylko taki, jaki ma zapytanie. Dalej: etap B (nowe panele), etap C (swobodna siatka).
+
 ## Do sprawdzenia później
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej

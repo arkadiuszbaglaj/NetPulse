@@ -147,3 +147,22 @@ def test_long_ranges(switch):
         assert client.get("/api/dashboard/traffic", params={"minutes": minutes}).status_code == 200
         assert client.get("/api/dashboard/wifi", params={"minutes": minutes}).status_code == 200
     assert client.get(f"/api/devices/{dev_id}/metrics", params={"minutes": 60 * 24 * 400}).status_code == 422
+
+
+def test_offset_moves_the_window_back(switch):
+    """Porównanie w czasie: offset=1440 to to samo okno dzień wcześniej (próbki sprzed 4 min tam nie trafiają)."""
+    client, (dev_id, port_id) = switch
+
+    async def yesterday():
+        async with Session() as s, s.begin():
+            s.add(DeviceMetric(time=ago(1440 + 10), device_id=dev_id, reachable=True, cpu_percent=77.0))
+
+    run(yesterday)
+    now = client.get(f"/api/devices/{dev_id}/metrics", params={"minutes": 60}).json()
+    before = client.get(f"/api/devices/{dev_id}/metrics", params={"minutes": 60, "offset": 1440}).json()
+    assert 77.0 not in [p["values"]["cpu_percent"] for p in now]
+    assert [p["values"]["cpu_percent"] for p in before] == [pytest.approx(77.0)]
+    assert client.get(f"/api/interfaces/{port_id}/metrics", params={"minutes": 60, "offset": 1440}).json() == []
+    assert client.get("/api/dashboard/traffic", params={"minutes": 60, "offset": 60}).json()["points"] == []
+    assert client.get("/api/system/metrics", params={"minutes": 60, "offset": 10080}).status_code == 200
+    assert client.get(f"/api/devices/{dev_id}/metrics", params={"offset": -1}).status_code == 422

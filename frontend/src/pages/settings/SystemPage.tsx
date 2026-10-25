@@ -61,9 +61,11 @@ function useServices() {
 }
 
 const chart = (title: string, keys: string[], height: ChartConfig["height"] = "md"): ChartConfig => ({
-  ...newChartConfig({ kind: "server" }),
+  ...newChartConfig(
+    { kind: "server" },
+    keys.map((key, i) => ({ key, color: ((i % 4) + 1) as 1 | 2 | 3 | 4 })),
+  ),
   title,
-  series: keys.map((key, i) => ({ key, color: ((i % 4) + 1) as 1 | 2 | 3 | 4 })),
   height,
 });
 
