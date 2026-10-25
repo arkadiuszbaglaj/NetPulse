@@ -11,6 +11,7 @@ import type {
   UpdatesResponse,
   User,
 } from "../lib/api";
+import type { Agent } from "../lib/agents";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
 import type { NotificationChannel } from "../lib/notifications";
@@ -190,6 +191,20 @@ export const POE: PoeInfo = {
   ],
 };
 
+export const AGENT: Agent = {
+  id: 1,
+  device_id: 7,
+  name: "NAS",
+  enabled: true,
+  status: "up",
+  token_hint: "Ab3x",
+  created_at: "2026-10-25T10:00:00Z",
+  last_seen_at: new Date().toISOString(),
+  last_ip: "192.168.1.30",
+  agent_version: "0.11.0",
+  hostname: "nas",
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -216,6 +231,7 @@ interface MockState {
   /** Zapisany układ pulpitu (null = domyślny) */
   layout: DashboardLayout | null;
   controllers: Controller[];
+  agents: Agent[];
   alerts: Alert[];
   rules: AlertRule[];
   clients: NetworkClient[];
@@ -249,6 +265,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     admin: true,
     layout: null,
     controllers: [],
+    agents: [],
     alerts: [],
     rules: [],
     clients: [],
@@ -341,6 +358,29 @@ export function mockApi(initial: Partial<MockState> = {}) {
         }
         Object.assign(rule, body);
         return json(200, rule);
+      }
+      if (key === "GET /api/agents") return json(200, state.agents);
+      if (key === "POST /api/agents") {
+        const b = body as { name: string };
+        const id = Math.max(0, ...state.agents.map((a) => a.id)) + 1;
+        const token = `npa_test${id}tokenXyZ9`;
+        const created: Agent = { ...AGENT, id, device_id: 100 + id, name: b.name, status: "unknown", last_seen_at: null, last_ip: null, agent_version: null, hostname: null, token_hint: token.slice(-4) };
+        state.agents.push(created);
+        return json(201, { agent: created, token });
+      }
+      const agentToken = /^POST \/api\/agents\/(\d+)\/token$/.exec(key);
+      if (agentToken) {
+        const found = state.agents.find((a) => a.id === Number(agentToken[1]));
+        if (!found) return json(404, { detail: "Nie ma takiego agenta" });
+        const token = `npa_rotated${found.id}NeW1`;
+        found.token_hint = token.slice(-4);
+        return json(200, { agent: found, token });
+      }
+      const agentDevice = /^DELETE \/api\/devices\/(\d+)$/.exec(key);
+      if (agentDevice && state.agents.some((a) => a.device_id === Number(agentDevice[1]))) {
+        state.agents = state.agents.filter((a) => a.device_id !== Number(agentDevice[1]));
+        state.devices = state.devices.filter((d) => d.id !== Number(agentDevice[1]));
+        return json(204);
       }
       if (key === "GET /api/controllers") return json(200, state.controllers);
       if (key === "POST /api/controllers/probe") {

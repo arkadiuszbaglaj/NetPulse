@@ -5,7 +5,7 @@ NetPulse monitoruje serwer tak samo jak router czy switch: przez SNMP, bez agent
 na interfejsach. Interfejsy Dockera (`docker0`, `br-…`, `veth…`) są ukrywane, a dyski bez pamięci, `tmpfs`,
 `/run`, `/dev`, snap-ów i warstw Dockera pomijane.
 
-Czego SNMP nie da: kontenerów, usług systemd, SMART i temperatur. To zakres etapu B (własny agent), opisanego
+Czego SNMP nie da: kontenerów, usług systemd, SMART i temperatur. To zakres etapu B (własny agent, `docs/14-agent-linux.md`), opisanego
 w `docs/06-projekt-panelu.md`.
 
 ## 1. Zainstaluj i skonfiguruj `snmpd` (na monitorowanym serwerze)

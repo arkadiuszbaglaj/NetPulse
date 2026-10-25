@@ -94,7 +94,7 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 7. ✅ Topologia LLDP – mapa sieci
 8. Alerty (8a ✅ silnik, 8b ✅ panel; brakuje reguł dla dysku i błędów portów oraz powiadomień poza panelem) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
 9. SNMP v3 ✅ (testowane klientem pysnmp kontra snmpsim w CI), MikroTik i Omada: drivery SNMP gotowe, ale na zrzutach syntetycznych – czekają na prawdziwe zrzuty (opis: `docs/12-mikrotik-omada-snmp.md`); API kontrolera Omada i RouterOS dalej do zrobienia
-10. Serwery Linux – etap A: SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B: własny agent (push, tokeny, systemd, Docker, SMART; wymaga ogólnej tabeli metryk; Alembic ✅ od 0.10.0). Opis w `docs/06-projekt-panelu.md` (backlog)
+10. Serwery Linux – etap A ✅ SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B ✅ (0.11.0) własny agent: push z tokenem (`api/agents.py`), jeden plik Pythona `backend/netpulse/agent/netpulse_agent.py` + `install.sh` serwowane przez API, systemd, Docker, SMART, ogólna tabela `metrics` (migracja 0002), Ustawienia → Agenci. Opis: `docs/14-agent-linux.md`; dalej: alerty na ogólnych metrykach i wykresy z `metrics`
 
 ## Do sprawdzenia później
 

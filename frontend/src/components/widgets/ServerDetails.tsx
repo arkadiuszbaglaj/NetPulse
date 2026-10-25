@@ -12,6 +12,29 @@ export interface ServerDisk {
   used_percent: number;
 }
 
+/** Zdjęcie stanu z agenta NetPulse (backend: api/servers.py AgentInfo). */
+export interface AgentContainer {
+  name: string;
+  image: string | null;
+  state: string;
+  status: string | null;
+  cpu_percent: number | null;
+  mem_bytes: number | null;
+}
+
+export interface AgentInfo {
+  agent_version: string | null;
+  os: string | null;
+  kernel: string | null;
+  cpu_cores: number | null;
+  load: number[];
+  mem_total_bytes: number | null;
+  temps: { sensor: string; celsius: number }[];
+  services: { running: number; failed: number; items: { name: string; active: string; sub: string | null }[] } | null;
+  containers: AgentContainer[] | null;
+  smart: { device: string; model: string | null; passed: boolean | null; temp_c: number | null }[] | null;
+}
+
 export interface ServerStatus {
   sampled_at: string;
   cpu_percent: number | null;
@@ -21,6 +44,7 @@ export interface ServerStatus {
   uptime_s: number | null;
   processes: number | null;
   disks: ServerDisk[];
+  agent?: AgentInfo | null;
 }
 
 /** Dyski pokazywane na karcie; kolejne zostają w „…i N więcej”, bo serwer z dużą liczbą woluminów rozdmuchałby pulpit. */
@@ -35,7 +59,53 @@ export function useServerStatus(deviceId: number) {
   });
 }
 
-/** CPU, RAM, swap i dyski serwera Linux (dane z snmpd) – wnętrze karty urządzenia. */
+/** Lista nazw do jednej linijki: pierwsze kilka, reszta jako „+N”. */
+function names(list: string[], max = 3): string {
+  return list.length > max ? `${list.slice(0, max).join(", ")} +${list.length - max}` : list.join(", ");
+}
+
+/** Kontenery, usługi, temperatura i SMART – tylko z agenta (SNMP tego nie podaje). Problemy na czerwono. */
+function AgentLines({ agent }: { agent: AgentInfo }) {
+  const lines: { key: string; text: string; problem?: boolean }[] = [];
+  if (agent.containers?.length) {
+    const running = agent.containers.filter((c) => c.state === "running");
+    const stopped = agent.containers.filter((c) => c.state !== "running").map((c) => c.name);
+    lines.push({ key: "containers", text: t("agent.containers", { running: running.length, total: agent.containers.length }) });
+    if (stopped.length) lines.push({ key: "stopped", text: t("agent.containers.stopped", { names: names(stopped) }), problem: true });
+  }
+  if (agent.services) {
+    const failed = agent.services.items.filter((s) => s.active !== "active").map((s) => s.name.replace(/\.service$/, ""));
+    lines.push(
+      failed.length
+        ? { key: "services", text: t("agent.services.failed", { names: names(failed) }), problem: true }
+        : { key: "services", text: t("agent.services.ok", { n: agent.services.running }) },
+    );
+  }
+  if (agent.temps.length) {
+    const max = Math.max(...agent.temps.map((x) => x.celsius));
+    lines.push({ key: "temp", text: `${t("server.temp")}: ${Math.round(max)}°C`, problem: max >= 85 });
+  }
+  if (agent.smart?.length) {
+    const bad = agent.smart.filter((d) => d.passed === false).map((d) => d.device);
+    lines.push(
+      bad.length
+        ? { key: "smart", text: t("agent.smart.bad", { names: names(bad) }), problem: true }
+        : { key: "smart", text: t("agent.smart.ok", { n: agent.smart.length }) },
+    );
+  }
+  if (!lines.length) return null;
+  return (
+    <ul className="flex flex-col gap-0.5 text-xs" aria-label={t("agent.details")}>
+      {lines.map((l) => (
+        <li key={l.key} className={l.problem ? "font-medium text-danger" : "text-text-2"}>
+          {l.text}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** CPU, RAM, swap i dyski serwera Linux (snmpd albo agent) – wnętrze karty urządzenia. */
 export function ServerDetails({ deviceId }: { deviceId: number }) {
   const { data } = useServerStatus(deviceId);
   if (!data) return null;
@@ -55,6 +125,7 @@ export function ServerDetails({ deviceId }: { deviceId: number }) {
         />
       ))}
       {disks.length > MAX_DISKS && <p className="text-xs text-text-2">{t("topo.more", { n: disks.length - MAX_DISKS })}</p>}
+      {data.agent && <AgentLines agent={data.agent} />}
       <p className="text-xs text-text-2">
         {[
           data.uptime_s != null ? `${t("server.uptime")}: ${formatUptime(data.uptime_s)}` : null,

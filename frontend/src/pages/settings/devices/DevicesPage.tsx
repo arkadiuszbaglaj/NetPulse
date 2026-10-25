@@ -70,6 +70,8 @@ function DeviceRow({
   const Icon = KIND_ICON[device.kind as keyof typeof KIND_ICON] ?? IconDeviceDesktop;
   const status = device.status in STATUS_STYLE ? device.status : "unknown";
   const polled = relativeTime(device.last_polled_at);
+  // Serwer z agentem nie ma ustawień SNMP: test i edycja nie mają sensu (token: Ustawienia → Agenci)
+  const agent = device.driver === "agent";
   const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
 
   return (
@@ -80,7 +82,8 @@ function DeviceRow({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{device.name}</p>
             <p className="truncate text-xs text-text-2">
-              {device.host}:{device.port} · {t(KIND_LABEL[device.kind] ?? "dash.kind.other")} · {snmpLabel(device)}
+              {agent ? device.host : `${device.host}:${device.port}`} · {t(KIND_LABEL[device.kind] ?? "dash.kind.other")} ·{" "}
+              {agent ? t("devices.agentRow") : snmpLabel(device)}
             </p>
           </div>
         </div>
@@ -99,19 +102,23 @@ function DeviceRow({
             label={`${t("devices.enabled")}: ${device.name}`}
             onChange={(enabled) => toggle.mutate(enabled)}
           />
-          <button
-            type="button"
-            className={iconButton}
-            aria-label={`${t("devices.test")} ${device.name}`}
-            title={t("devices.test")}
-            disabled={probe?.status === "loading"}
-            onClick={onTest}
-          >
-            <IconPlugConnected size={18} aria-hidden="true" />
-          </button>
-          <button type="button" className={iconButton} aria-label={`${t("common.edit")} ${device.name}`} title={t("common.edit")} onClick={onEdit}>
-            <IconPencil size={18} aria-hidden="true" />
-          </button>
+          {!agent && (
+            <>
+              <button
+                type="button"
+                className={iconButton}
+                aria-label={`${t("devices.test")} ${device.name}`}
+                title={t("devices.test")}
+                disabled={probe?.status === "loading"}
+                onClick={onTest}
+              >
+                <IconPlugConnected size={18} aria-hidden="true" />
+              </button>
+              <button type="button" className={iconButton} aria-label={`${t("common.edit")} ${device.name}`} title={t("common.edit")} onClick={onEdit}>
+                <IconPencil size={18} aria-hidden="true" />
+              </button>
+            </>
+          )}
           <button type="button" className={iconButton} aria-label={`${t("common.delete")} ${device.name}`} title={t("common.delete")} onClick={onDelete}>
             <IconTrash size={18} aria-hidden="true" />
           </button>

@@ -198,6 +198,43 @@ jobs:
           assert d["interval_s"] == 30 and isinstance(d["points"], list), d
           PY
           done
+      - name: Agent serwera Linux (instalacja jednym poleceniem z panelu)
+        run: |
+          API=http://127.0.0.1:8000
+          api() { curl -fsS -b cookies.txt -H 'Content-Type: application/json' "$@"; }
+          OUT=$(api -X POST -d '{"name":"Runner CI"}' $API/api/agents)
+          TOKEN=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['token'])" "$OUT")
+          DEV=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['agent']['device_id'])" "$OUT")
+          # polecenie jak w panelu (Ustawienia → Agenci)
+          curl -fsSL $API/agent/install.sh | sudo bash -s -- --url $API --token "$TOKEN" 2>&1 | tee agent.log
+          systemctl is-active netpulse-agent
+          SERVER=null
+          for i in $(seq 1 30); do
+            SERVER=$(api $API/api/devices/$DEV/server)
+            [ "$SERVER" != "null" ] && break
+            sleep 2
+          done
+          echo "$SERVER" | tee -a agent.log
+          python3 - "$SERVER" <<'PY'
+          import json, sys
+          s = json.loads(sys.argv[1])
+          assert s and s["cpu_percent"] is not None and s["mem_used_percent"] is not None, s
+          assert any(d["mount"] == "/" for d in s["disks"]), s["disks"]
+          a = s["agent"]
+          assert a and a["services"]["running"] > 0, a
+          assert a["containers"] and any(c["name"].startswith("netpulse") for c in a["containers"]), a["containers"]
+          PY
+          AGENTS=$(api $API/api/agents)
+          echo "$AGENTS" | tee -a agent.log
+          python3 -c "import json,sys; a=json.loads(sys.argv[1])[0]; assert a['status']=='up' and a['hostname'], a" "$AGENTS"
+          # ponowna instalacja bez tokenu = aktualizacja (konfiguracja zostaje)
+          curl -fsSL $API/agent/install.sh | sudo bash -s -- 2>&1 | tee -a agent.log
+          sudo journalctl -u netpulse-agent --no-pager -n 20 | tee -a agent.log
+          # usunięcie: urządzenie w panelu i agent na serwerze
+          api -X DELETE $API/api/devices/$DEV
+          curl -fsSL $API/agent/install.sh | sudo bash -s -- --uninstall 2>&1 | tee -a agent.log
+          if systemctl is-active --quiet netpulse-agent; then echo "agent nadal działa"; exit 1; fi
+          test ! -e /etc/netpulse-agent.conf
       - name: Za mało miejsca – aktualizacja zatrzymuje się, nic nie psując
         run: |
           # Progi ustawione absurdalnie wysoko, żeby wymusić brak miejsca
@@ -295,6 +332,7 @@ jobs:
           bash .github/scripts/annotate.sh updater-job.log "zadanie aktualizacji" 60
           bash .github/scripts/annotate.sh install.log "install.sh" 60
           bash .github/scripts/annotate.sh probe.log "probe" 60
+          bash .github/scripts/annotate.sh agent.log "agent serwera" 60
           bash .github/scripts/annotate.sh panel.log "panel" 40
           bash .github/scripts/annotate.sh auth.log "logowanie" 40
           bash .github/scripts/annotate.sh lowdisk.log "mało miejsca" 40

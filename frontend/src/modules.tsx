@@ -15,11 +15,13 @@ import {
   IconKey,
   IconServer2,
   IconSettings,
+  IconTerminal2,
   IconUserCircle,
   type Icon,
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
+import { AgentsPage } from "./pages/settings/AgentsPage";
 import { AlertRulesPage } from "./pages/settings/AlertRulesPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AccountPage } from "./pages/settings/AccountPage";
@@ -94,6 +96,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.devices",
         icon: IconServer2,
         element: <DevicesPage />,
+      },
+      {
+        path: "agents",
+        label: "nav.settings.agents",
+        icon: IconTerminal2,
+        element: <AgentsPage />,
       },
       {
         path: "controllers",
