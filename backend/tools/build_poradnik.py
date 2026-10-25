@@ -110,16 +110,17 @@ main p, main li { color: var(--text); }
 main li { margin: .25em 0; }
 main hr { display: none; }
 main code { font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface-2); padding: .12em .4em; border-radius: 5px; }
-.code { position: relative; margin: 1em 0; }
-.code pre { margin: 0; background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code { margin: 1em 0; border-radius: 10px; overflow: hidden; background: var(--code-bg); }
+.code .bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px 5px 14px; background: rgba(255,255,255,.07); }
+.code .lang { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #8e9bb0; }
+.code pre { margin: 0; color: var(--code-text); padding: 12px 16px 14px; overflow-x: auto; line-height: 1.55; }
 .code pre code { background: none; padding: 0; color: inherit; font-size: .87rem; white-space: pre; }
 .code button.copy {
-  position: absolute; top: 8px; right: 8px; font: inherit; font-size: 12px; color: #cfd8e6; background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 3px 9px; cursor: pointer;
+  font: inherit; font-size: 12px; color: #cfd8e6; background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 3px 10px; cursor: pointer;
 }
 .code button.copy:hover { background: rgba(255,255,255,.16); }
 .code button.copy.done { color: #8fe0a8; border-color: #8fe0a8; }
-.code pre { padding-right: 76px; }
 .table-wrap { overflow-x: auto; margin: 1em 0; border: 1px solid var(--border); border-radius: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: .94rem; }
 th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
@@ -199,6 +200,14 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; color: var(--t
     var wrap = document.createElement("div");
     wrap.className = "code";
     pre.parentNode.insertBefore(wrap, pre);
+    var bar = document.createElement("div");
+    bar.className = "bar";
+    var code = pre.querySelector("code");
+    var lang = document.createElement("span");
+    lang.className = "lang";
+    lang.textContent = code && /language-bash/.test(code.className) ? "Terminal" : "Konfiguracja";
+    bar.appendChild(lang);
+    wrap.appendChild(bar);
     wrap.appendChild(pre);
     var btn = document.createElement("button");
     btn.type = "button"; btn.className = "copy"; btn.textContent = "Kopiuj";
@@ -209,7 +218,7 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; color: var(--t
       }, function () { btn.textContent = "Zaznacz i skopiuj"; });
       setTimeout(function () { btn.textContent = "Kopiuj"; btn.classList.remove("done"); }, 1800);
     });
-    wrap.appendChild(btn);
+    bar.appendChild(btn);
   });
 
   // Podświetlanie bieżącej sekcji w spisie
