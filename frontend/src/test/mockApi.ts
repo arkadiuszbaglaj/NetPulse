@@ -413,6 +413,10 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
       if (key === "GET /api/topology") return json(200, state.topology);
       if (/^GET \/api\/devices\/\d+\/server$/.test(key)) return json(200, state.server);
+      if (/^GET \/api\/devices\/\d+\/agent-keys$/.test(key)) {
+        return json(200, { agent_net: ["eth0"], agent_disk: ["sda"], agent_temp: ["coretemp/Core 0"], agent_container: ["nextcloud", "db"] });
+      }
+      if (/^GET \/api\/devices\/\d+\/agent-metrics$/.test(key)) return json(200, state.traffic.points);
       if (key === "GET /api/notification-channels") return json(200, state.channels);
       if (key === "POST /api/notification-channels") {
         const b = body as { name: string; url: string; min_severity?: string; notify_resolved?: boolean };

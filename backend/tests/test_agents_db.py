@@ -138,6 +138,18 @@ def test_agent_report_flow(client):
     assert dm == 1 and disks == 1
     assert {"cpu_core_percent", "load15", "net_rx_bps", "temp_c", "service_up", "container_up", "smart_ok"} <= names
 
+    # Wykresy z danych agenta (tabela metrics)
+    dev = agent["device_id"]
+    keys = client.get(f"/api/devices/{dev}/agent-keys").json()
+    assert keys == {"agent_net": ["eth0"], "agent_disk": [], "agent_temp": ["coretemp/Package id 0"], "agent_container": ["nextcloud"]}
+    net = client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "agent_net", "key": "eth0"}).json()
+    assert net[-1]["values"] == {"rx_bps": 1000.0, "tx_bps": 2000.0}
+    cpu = client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "agent_cpu"}).json()
+    assert cpu[-1]["values"] == {"core_max_percent": 15.0, "core_avg_percent": 12.5}
+    cont = client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "agent_container", "key": "nextcloud"}).json()
+    assert cont[-1]["values"]["container_mem_bytes"] == 500_000_000
+    assert client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "nie_ma"}).status_code == 422
+
     # Panel: SNMP nie dotyczy serwera z agentem; nazwę zmienić można
     assert client.post(f"/api/devices/{agent['device_id']}/probe").status_code == 409
     assert client.patch(f"/api/devices/{agent['device_id']}", json={"host": "10.0.0.9"}).status_code == 409

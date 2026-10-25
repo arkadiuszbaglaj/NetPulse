@@ -117,7 +117,22 @@ np. `nextcloud*`, `smbd`, `nvme*`, `coretemp*`. Wielkość liter nie ma znaczeni
 Reguły domyślne dochodzą raz (znacznik `alert_defaults` w `app_settings`): usunięta reguła nie wraca po restarcie.
 Instalacja z wersji ≤ 0.11 dostaje przy aktualizacji tylko nowe reguły z agenta.
 
+## Wykresy (od 0.13.0)
+
+Pulpit → Edytuj pulpit → Dodaj widget → Wykres → **Źródło danych**: „Serwer z agentem: …”.
+
+| Źródło | Co pokazuje |
+|--------|-------------|
+| rdzenie CPU | najbardziej obciążony rdzeń i średnia na rdzeń (pojedynczy zapchany rdzeń widać, choć całe CPU jest „wolne”) |
+| sieć | odbierane i wysyłane na wybranym interfejsie |
+| dysk | odczyt i zapis wybranego dysku (bit/s albo bajty/s, jak przy sieci) |
+| temperatura | wybrany czujnik |
+| kontener Docker | CPU (100% = jeden rdzeń) albo pamięć wybranego kontenera |
+
+Lista interfejsów, dysków, czujników i kontenerów pochodzi z raportów agenta z ostatniej godziny
+(`GET /api/devices/{id}/agent-keys`), dane wykresu z `GET /api/devices/{id}/agent-metrics?source=…&key=…`.
+
 ## Co dalej (backlog)
 
-- Wykresy z tabeli `metrics` (rdzenie, sieć, dyski, kontenery) i szczegóły serwera na osobnej stronie.
+- Szczegóły serwera na osobnej stronie (wszystkie kontenery, usługi, dyski naraz).
 - Informacja w panelu, że agent ma starszą wersję niż NetPulse.

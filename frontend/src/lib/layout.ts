@@ -24,9 +24,14 @@ export type Source =
   | { kind: "interface"; id: number; device_id?: number | null }
   | { kind: "device"; id: number }
   | { kind: "wifi_network"; id: number; device_id?: number | null }
-  | { kind: "server" };
+  | { kind: "server" }
+  | { kind: AgentSourceKind; id: number; key: string };
 export type SourceKind = Source["kind"];
-export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server"];
+/** Źródła z agenta serwera: urządzenie (`id`) i wybrany interfejs, dysk, czujnik albo kontener (`key`). */
+export type AgentSourceKind = "agent_cpu" | "agent_net" | "agent_disk" | "agent_temp" | "agent_container";
+export const AGENT_SOURCE_KINDS: AgentSourceKind[] = ["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container"];
+export const isAgentSource = (kind: SourceKind): kind is AgentSourceKind => (AGENT_SOURCE_KINDS as string[]).includes(kind);
+export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server", ...AGENT_SOURCE_KINDS];
 
 export interface SeriesConfig {
   key: string;
@@ -92,6 +97,12 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   disk_used_percent: { label: "metric.disk_used_percent", unitClass: "percent" },
   temp_c: { label: "metric.temp_c", unitClass: "temp" },
   db_size_bytes: { label: "metric.db_size_bytes", unitClass: "size" },
+  core_max_percent: { label: "metric.core_max_percent", unitClass: "percent" },
+  core_avg_percent: { label: "metric.core_avg_percent", unitClass: "percent" },
+  read_bps: { label: "metric.read_bps", unitClass: "rate" },
+  write_bps: { label: "metric.write_bps", unitClass: "rate" },
+  container_cpu_percent: { label: "metric.container_cpu_percent", unitClass: "percent" },
+  container_mem_bytes: { label: "metric.container_mem_bytes", unitClass: "size" },
 };
 
 /** Metryki dostępne dla źródła (zgodnie z endpointami metryk i schematem serwera). */
@@ -102,6 +113,11 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   wifi_total: ["clients"],
   wifi_network: ["clients", "rx_bps", "tx_bps"],
   server: ["cpu_percent", "mem_used_percent", "swap_used_percent", "disk_used_percent", "load1", "temp_c", "db_size_bytes"],
+  agent_cpu: ["core_max_percent", "core_avg_percent"],
+  agent_net: ["rx_bps", "tx_bps"],
+  agent_disk: ["read_bps", "write_bps"],
+  agent_temp: ["temp_c"],
+  agent_container: ["container_cpu_percent", "container_mem_bytes"],
 };
 
 export const unitClassOf = (key: string): UnitClass => METRICS[key]?.unitClass ?? "count";
@@ -125,6 +141,25 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
         { key: "cpu_percent", color: 1 },
         { key: "mem_used_percent", color: 2 },
       ];
+    case "agent_cpu":
+      return [
+        { key: "core_max_percent", color: 1 },
+        { key: "core_avg_percent", color: 2 },
+      ];
+    case "agent_net":
+      return [
+        { key: "rx_bps", color: 1 },
+        { key: "tx_bps", color: 2 },
+      ];
+    case "agent_disk":
+      return [
+        { key: "read_bps", color: 1 },
+        { key: "write_bps", color: 2 },
+      ];
+    case "agent_temp":
+      return [{ key: "temp_c", color: 3 }];
+    case "agent_container":
+      return [{ key: "container_cpu_percent", color: 1 }];
   }
 }
 

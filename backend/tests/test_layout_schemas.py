@@ -51,7 +51,13 @@ def test_every_source_accepts_its_own_metrics():
         "wifi_total": {"kind": "wifi_total"},
         "wifi_network": {"kind": "wifi_network", "id": 7},
         "server": {"kind": "server"},
+        "agent_cpu": {"kind": "agent_cpu", "id": 2},
+        "agent_net": {"kind": "agent_net", "id": 2, "key": "eth0"},
+        "agent_disk": {"kind": "agent_disk", "id": 2, "key": "sda"},
+        "agent_temp": {"kind": "agent_temp", "id": 2, "key": "coretemp/Core 0"},
+        "agent_container": {"kind": "agent_container", "id": 2, "key": "nextcloud"},
     }
+    assert set(sources) == set(ALLOWED_METRICS)
     for kind, source in sources.items():
         series = [{"key": k} for k in ALLOWED_METRICS[kind]]
         ChartConfig.model_validate({"source": source, "series": series[:6]})
@@ -162,3 +168,13 @@ def test_refresh_prefs():
     for bad in ({"interval_s": 7, "range_min": 60}, {"interval_s": 30, "range_min": 5}, {"interval_s": 30}):
         with pytest.raises(ValidationError):
             RefreshPrefs.model_validate(bad)
+
+
+def test_agent_source_needs_key_except_cpu():
+    series = [{"key": "rx_bps"}]
+    with pytest.raises(ValidationError):
+        ChartConfig.model_validate({"source": {"kind": "agent_net", "id": 2, "key": "  "}, "series": series})
+    cpu = ChartConfig.model_validate({"source": {"kind": "agent_cpu", "id": 2, "key": "x"}, "series": [{"key": "core_max_percent"}]})
+    assert cpu.source.key == ""
+    with pytest.raises(ValidationError):  # metryka innego źródła z agenta
+        ChartConfig.model_validate({"source": {"kind": "agent_net", "id": 2, "key": "eth0"}, "series": [{"key": "temp_c"}]})

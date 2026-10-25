@@ -52,8 +52,25 @@ class ServerSource(Strict):
     kind: Literal["server"]  # serwer, na którym działa NetPulse
 
 
+class AgentSource(Strict):
+    """Dane z agenta serwera (tabela `metrics`): CPU na rdzeniach, sieć, dysk, czujnik albo kontener."""
+
+    kind: Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container"]
+    id: int = Field(ge=1)  # urządzenie (serwer z agentem)
+    key: str = Field("", max_length=255)  # interfejs, dysk, czujnik albo kontener; dla agent_cpu puste
+
+    @model_validator(mode="after")
+    def _key_required(self) -> AgentSource:
+        self.key = self.key.strip()
+        if self.kind != "agent_cpu" and not self.key:
+            raise ValueError("Wybierz interfejs, dysk, czujnik albo kontener")
+        if self.kind == "agent_cpu":
+            self.key = ""
+        return self
+
+
 Source = Annotated[
-    WanSource | WifiTotalSource | InterfaceSource | DeviceSource | WifiNetworkSource | ServerSource,
+    WanSource | WifiTotalSource | InterfaceSource | DeviceSource | WifiNetworkSource | ServerSource | AgentSource,
     Field(discriminator="kind"),
 ]
 
@@ -65,6 +82,11 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "wifi_total": ("clients",),
     "wifi_network": ("clients", "rx_bps", "tx_bps"),
     "server": ("cpu_percent", "mem_used_percent", "swap_used_percent", "disk_used_percent", "load1", "temp_c", "db_size_bytes"),
+    "agent_cpu": ("core_max_percent", "core_avg_percent"),
+    "agent_net": ("rx_bps", "tx_bps"),
+    "agent_disk": ("read_bps", "write_bps"),
+    "agent_temp": ("temp_c",),
+    "agent_container": ("container_cpu_percent", "container_mem_bytes"),
 }
 
 

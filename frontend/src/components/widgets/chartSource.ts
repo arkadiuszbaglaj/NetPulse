@@ -22,8 +22,17 @@ export function sourcePath(source: Source, minutes: number): string {
       return `/api/wifi/${source.id}/metrics?minutes=${minutes}`;
     case "server":
       return `/api/system/metrics?minutes=${minutes}`;
+    default:
+      return `/api/devices/${source.id}/agent-metrics?source=${source.kind}&key=${encodeURIComponent(source.key)}&minutes=${minutes}`;
   }
 }
+
+const AGENT_TITLE = {
+  agent_net: "ce.source.agent_net",
+  agent_disk: "ce.source.agent_disk",
+  agent_temp: "ce.source.agent_temp",
+  agent_container: "ce.source.agent_container",
+} as const;
 
 /** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów. */
 export async function fetchSeries(source: Source, minutes: number): Promise<Series> {
@@ -45,6 +54,10 @@ export function defaultTitle(source: Source): string {
       return t("widget.title.wifi_network", { id: source.id });
     case "server":
       return t("widget.type.server");
+    case "agent_cpu":
+      return t("widget.title.agent_cpu");
+    default:
+      return `${t(AGENT_TITLE[source.kind])}: ${source.key}`;
   }
 }
 

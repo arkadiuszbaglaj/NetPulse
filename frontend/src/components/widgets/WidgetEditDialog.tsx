@@ -6,6 +6,7 @@ import { get, type Device } from "../../lib/api";
 import {
   DEVICE_KINDS,
   METRICS,
+  isAgentSource,
   SOURCE_KINDS,
   SOURCE_METRICS,
   SUMMARY_TILES,
@@ -52,6 +53,19 @@ const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   wifi_total: "ce.source.wifi_total",
   wifi_network: "ce.source.wifi_network",
   server: "ce.source.server",
+  agent_cpu: "ce.source.agent_cpu",
+  agent_net: "ce.source.agent_net",
+  agent_disk: "ce.source.agent_disk",
+  agent_temp: "ce.source.agent_temp",
+  agent_container: "ce.source.agent_container",
+};
+/** Lista do wyboru w edytorze dla źródła z agenta (odpowiedź /api/devices/{id}/agent-keys). */
+type AgentKeys = Record<"agent_net" | "agent_disk" | "agent_temp" | "agent_container", string[]>;
+const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
+  agent_net: "ce.agent.key.net",
+  agent_disk: "ce.agent.key.disk",
+  agent_temp: "ce.agent.key.temp",
+  agent_container: "ce.agent.key.container",
 };
 const TILE_LABEL: Record<SummaryTile, TextKey> = {
   devices: "widget.tile.devices",
@@ -76,7 +90,20 @@ function Checkbox({ id, label, checked, onChange }: { id: string; label: string;
 
 /** Id urządzenia wybranego w formularzu: dla portu i sieci WiFi zapisane razem ze źródłem. */
 const deviceIdOf = (s: Source): number | null =>
-  s.kind === "device" ? s.id : s.kind === "interface" || s.kind === "wifi_network" ? (s.device_id ?? null) : null;
+  s.kind === "device" || isAgentSource(s.kind)
+    ? (s as { id: number }).id || null
+    : s.kind === "interface" || s.kind === "wifi_network"
+      ? (s.device_id ?? null)
+      : null;
+/** Źródło wymaga wskazania obiektu (portu, urządzenia, sieci albo – dla agenta – serwera i klucza). */
+const sourceComplete = (s: Source): boolean => {
+  if (s.kind === "interface" || s.kind === "device" || s.kind === "wifi_network") return !!s.id;
+  if (isAgentSource(s.kind)) {
+    const a = s as { id: number; key: string };
+    return !!a.id && (s.kind === "agent_cpu" || !!a.key);
+  }
+  return true;
+};
 
 function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; onSave: (c: ChartConfig) => void; onClose: () => void; isNew: boolean }) {
   const [cfg, setCfg] = useState<ChartConfig>(initial);
@@ -88,6 +115,14 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
   const [deviceId, setDeviceId] = useState<number | null>(deviceIdOf(initial.source));
 
   const needsDevice = cfg.source.kind === "interface" || cfg.source.kind === "wifi_network";
+  const agentKind = isAgentSource(cfg.source.kind) ? cfg.source.kind : null;
+  const agentKeys = useQuery({
+    queryKey: ["agent-keys", deviceId],
+    queryFn: () => get<AgentKeys>(`/api/devices/${deviceId}/agent-keys`),
+    enabled: agentKind != null && agentKind !== "agent_cpu" && deviceId != null,
+  });
+  // Dla źródeł z agenta tylko serwery z agentem
+  const deviceOptions = (devices.data ?? []).filter((d: Device) => !agentKind || d.driver === "agent");
   const interfaces = useQuery({
     queryKey: ["device-interfaces", deviceId],
     queryFn: () => get<InterfaceItem[]>(`/api/devices/${deviceId}/interfaces`),
@@ -109,19 +144,21 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
         ? { kind }
         : kind === "device"
           ? { kind, id: deviceId ?? 0 }
-          : { kind, id: 0, device_id: deviceId };
+          : isAgentSource(kind)
+            ? { kind, id: deviceId ?? 0, key: "" }
+            : { kind, id: 0, device_id: deviceId };
     set({ source, series: defaultSeries(kind) });
   };
   const changeDevice = (id: number | null) => {
     setDeviceId(id);
     if (cfg.source.kind === "device") set({ source: { kind: "device", id: id ?? 0 } });
+    else if (agentKind) set({ source: { kind: agentKind, id: id ?? 0, key: "" } });
     else if (needsDevice) set({ source: { ...cfg.source, id: 0, device_id: id } as Source });
   };
 
   const submit = () => {
     const next: typeof errors = {};
-    const s = cfg.source;
-    if ((s.kind === "interface" || s.kind === "device" || s.kind === "wifi_network") && !s.id) next.source = t("ce.err.source");
+    if (!sourceComplete(cfg.source)) next.source = t("ce.err.source");
     if (cfg.series.length === 0) next.metrics = t("ce.err.metrics");
     let y: number | null = null;
     if (yMax.trim() !== "") {
@@ -142,11 +179,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
           ? t("ce.unit.hint.ms")
           : t("ce.unit.hint.other");
 
-  const previewOk = useMemo(() => {
-    const s = cfg.source;
-    const sourceOk = !(s.kind === "interface" || s.kind === "device" || s.kind === "wifi_network") || !!s.id;
-    return sourceOk && cfg.series.length > 0;
-  }, [cfg]);
+  const previewOk = useMemo(() => sourceComplete(cfg.source) && cfg.series.length > 0, [cfg]);
 
   return (
     <Dialog
@@ -174,7 +207,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
           ))}
         </Select>
 
-        {(needsDevice || cfg.source.kind === "device") && (
+        {(needsDevice || cfg.source.kind === "device" || agentKind) && (
           <Select
             id="ce-device"
             label={t("ce.device")}
@@ -182,7 +215,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
             onChange={(e) => changeDevice(e.target.value ? Number(e.target.value) : null)}
           >
             <option value="">{t("ce.choose")}</option>
-            {(devices.data ?? []).map((d: Device) => (
+            {deviceOptions.map((d: Device) => (
               <option key={d.id} value={d.id}>
                 {d.name}
               </option>
@@ -190,6 +223,26 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
           </Select>
         )}
         {needsDevice && devices.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noDevices")}</p>}
+        {agentKind && devices.data && deviceOptions.length === 0 && <p className="text-xs text-text-2">{t("ce.agent.none")}</p>}
+
+        {agentKind && agentKind !== "agent_cpu" && deviceId != null && (
+          <Select
+            id="ce-agent-key"
+            label={t(AGENT_KEY_LABEL[agentKind])}
+            value={(cfg.source as { key: string }).key}
+            onChange={(e) => set({ source: { kind: agentKind, id: deviceId, key: e.target.value } })}
+          >
+            <option value="">{t("ce.choose")}</option>
+            {(agentKeys.data?.[agentKind] ?? []).map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </Select>
+        )}
+        {agentKind && agentKind !== "agent_cpu" && agentKeys.data?.[agentKind]?.length === 0 && (
+          <p className="text-xs text-text-2">{t("ce.agent.noKeys")}</p>
+        )}
 
         {cfg.source.kind === "interface" && deviceId != null && (
           <Select
