@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog } from "../../../components/Dialog";
-import { Button, ErrorNote, Field, Select } from "../../../components/ui";
+import { Button, Card, ErrorNote, Field, Select } from "../../../components/ui";
 import { t } from "../../../i18n";
 import { ApiError, patch, post, type Device, type ProbeResult } from "../../../lib/api";
 import { ProbeSummary } from "./ProbeSummary";
@@ -31,10 +31,14 @@ interface DeviceFormProps {
   /** Brak = dodawanie nowego urządzenia */
   device?: Device;
   onClose: () => void;
+  /** Formularz w treści strony (kreator pierwszej konfiguracji) zamiast okna */
+  inline?: boolean;
+  /** Wywoływane po zapisaniu urządzenia */
+  onSaved?: (device: Device) => void;
 }
 
 /** Okno dodawania i edycji urządzenia (SNMP v1/v2c/v3) z testem połączenia. */
-export function DeviceForm({ device, onClose }: DeviceFormProps) {
+export function DeviceForm({ device, onClose, inline = false, onSaved }: DeviceFormProps) {
   const qc = useQueryClient();
   const editing = device !== undefined;
   const [values, setValues] = useState<DeviceFormValues>(() => (device ? formFromDevice(device) : emptyForm()));
@@ -61,9 +65,10 @@ export function DeviceForm({ device, onClose }: DeviceFormProps) {
       if (device) return patch<Device>(`/api/devices/${device.id}`, buildPatch(values, device));
       return post<Device>(`/api/devices${probeFirst ? "" : "?probe=false"}`, buildCreate(values));
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       await refreshLists();
-      onClose();
+      onSaved?.(saved);
+      if (!inline) onClose();
     },
   });
 
@@ -98,29 +103,26 @@ export function DeviceForm({ device, onClose }: DeviceFormProps) {
   const canSaveAnyway = !editing && save.error instanceof ApiError && save.error.status === 422;
   const busy = save.isPending || probe.isPending;
 
-  return (
-    <Dialog
-      title={editing ? t("devform.title.edit", { name: device.name }) : t("devform.title.add")}
-      onClose={onClose}
-      footer={
-        <>
-          {!editing && (
-            <Button onClick={onTest} disabled={busy} className="mr-auto">
-              {probe.isPending ? t("devices.testing") : t("devform.test")}
-            </Button>
-          )}
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          {canSaveAnyway && (
-            <Button disabled={busy} onClick={(e) => onSubmit(e, false)}>
-              {t("devform.saveAnyway")}
-            </Button>
-          )}
-          <Button type="submit" form={FORM_ID} variant="primary" disabled={busy}>
-            {save.isPending ? t("common.saving") : t("devform.save")}
-          </Button>
-        </>
-      }
-    >
+  const footer = (
+    <>
+      {!editing && (
+        <Button onClick={onTest} disabled={busy} className="mr-auto">
+          {probe.isPending ? t("devices.testing") : t("devform.test")}
+        </Button>
+      )}
+      {!inline && <Button onClick={onClose}>{t("common.cancel")}</Button>}
+      {canSaveAnyway && (
+        <Button disabled={busy} onClick={(e) => onSubmit(e, false)}>
+          {t("devform.saveAnyway")}
+        </Button>
+      )}
+      <Button type="submit" form={FORM_ID} variant="primary" disabled={busy}>
+        {save.isPending ? t("common.saving") : t("devform.save")}
+      </Button>
+    </>
+  );
+
+  const form = (
       <form id={FORM_ID} onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <Field
           id="dev-name"
@@ -273,6 +275,19 @@ export function DeviceForm({ device, onClose }: DeviceFormProps) {
           <p className="text-xs text-muted">{t("devform.testFirst")}</p>
         )}
       </form>
+  );
+
+  if (inline) {
+    return (
+      <Card className="p-4 sm:p-5">
+        {form}
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">{footer}</div>
+      </Card>
+    );
+  }
+  return (
+    <Dialog title={editing ? t("devform.title.edit", { name: device.name }) : t("devform.title.add")} onClose={onClose} footer={footer}>
+      {form}
     </Dialog>
   );
 }

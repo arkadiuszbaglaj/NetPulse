@@ -5,8 +5,10 @@ import {
   IconPencil,
   IconPlus,
   IconTrash,
+  IconWand,
 } from "@tabler/icons-react";
 import { useState } from "react";
+import { Link } from "react-router";
 import { Dialog } from "../components/Dialog";
 import { RangePicker } from "../components/RangePicker";
 import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
@@ -250,8 +252,16 @@ export function DashboardPage() {
       {noDevices && !edit && (
         <Card className="mb-4 p-6">
           <h2 className="text-base font-medium">{t("dash.empty.title")}</h2>
-          <p className="mt-1 text-sm text-text-2">{t("dash.empty.body")}</p>
-          <code className="mt-3 block overflow-x-auto rounded-lg bg-surface-2 px-3 py-2 font-mono text-xs">
+          <p className="mt-1 text-sm text-text-2">{t("dash.empty.wizard")}</p>
+          <Link
+            to="/setup"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
+          >
+            <IconWand size={16} aria-hidden="true" />
+            {t("dash.empty.start")}
+          </Link>
+          <p className="mt-4 text-sm text-text-2">{t("dash.empty.body")}</p>
+          <code className="mt-2 block overflow-x-auto rounded-lg bg-surface-2 px-3 py-2 font-mono text-xs">
             netpulse device add &quot;UCG Ultra&quot; 192.168.1.1 --community public
           </code>
         </Card>

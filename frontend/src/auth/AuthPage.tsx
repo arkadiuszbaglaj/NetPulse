@@ -19,7 +19,11 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
 
   const submit = useMutation({
     mutationFn: () => post<User>(setup ? "/api/auth/setup" : "/api/auth/login", { username, password }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: AUTH_KEY }),
+    onSuccess: () => {
+      // Po założeniu konta panel otwiera się na kreatorze pierwszej konfiguracji (pierwsze urządzenie)
+      if (setup) window.history.replaceState(null, "", "/setup");
+      return qc.invalidateQueries({ queryKey: AUTH_KEY });
+    },
   });
 
   function onSubmit(e: FormEvent) {

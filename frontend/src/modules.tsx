@@ -21,6 +21,7 @@ import {
   IconSettings,
   IconTerminal2,
   IconUserCircle,
+  IconWand,
   IconWorld,
   type Icon,
 } from "@tabler/icons-react";
@@ -48,6 +49,7 @@ import { WanLinksPage } from "./pages/settings/WanLinksPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DevicePage } from "./pages/DevicePage";
 import { PortPage } from "./pages/PortPage";
+import { SetupPage } from "./pages/SetupPage";
 
 export interface NavChild {
   /** Ścieżka względem rodzica, np. "account" → /settings/account */
@@ -82,6 +84,14 @@ export const modules: NavModule[] = [
     label: "nav.dashboard",
     icon: IconLayoutDashboard,
     element: <DashboardPage />,
+  },
+  {
+    id: "setup",
+    path: "/setup",
+    label: "nav.setup",
+    icon: IconWand,
+    element: <SetupPage />,
+    hidden: true,
   },
   {
     id: "device",

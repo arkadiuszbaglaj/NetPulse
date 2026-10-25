@@ -28,7 +28,7 @@ describe("kreator pierwszego konta", () => {
     expect(calls.some((c) => c.path === "/api/auth/setup")).toBe(false);
   });
 
-  it("zakłada konto i od razu wchodzi do panelu", async () => {
+  it("zakłada konto i od razu otwiera kreator pierwszej konfiguracji", async () => {
     const user = userEvent.setup();
     const { calls } = mockApi({ setupRequired: true, authenticated: false });
     renderApp();
@@ -37,7 +37,8 @@ describe("kreator pierwszego konta", () => {
     await user.type(screen.getByLabelText("Powtórz hasło"), "dlugie-haslo-1");
     await user.click(screen.getByRole("button", { name: "Utwórz konto" }));
 
-    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Pierwsza konfiguracja" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/setup");
     const setup = calls.find((c) => c.path === "/api/auth/setup");
     expect(setup?.body).toEqual({ username: "admin", password: "dlugie-haslo-1" });
   });
