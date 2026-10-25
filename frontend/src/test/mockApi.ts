@@ -272,6 +272,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
   };
   // Kopie urządzeń: PATCH zmienia obiekty, a testy nie mogą sobie nawzajem psuć wspólnego DEVICE
   state.devices = state.devices.map((d) => ({ ...d }));
+  // Kopie kanałów: PATCH zmienia obiekty, a stała z testu nie może się zmieniać między testami
+  state.channels = state.channels.map((c) => ({ ...c }));
   const calls: Call[] = [];
 
   const status = (): AuthStatus => ({
