@@ -1,8 +1,8 @@
 /** Ocena hasła dla podpowiedzi w formularzach. Lista warunków i progi są tutaj, w jednym miejscu.
- * To tylko wskazówka: twarda reguła (min. 8 znaków) jest w `MIN_PASSWORD` i w backendzie. */
+ * To tylko wskazówka: twarda reguła (min. 10 znaków) jest w `MIN_PASSWORD` i w backendzie. */
 import type { TextKey } from "../i18n";
 
-export const MIN_PASSWORD = 8;
+export const MIN_PASSWORD = 10;
 export const RECOMMENDED_PASSWORD = 12;
 
 export interface PasswordRule {

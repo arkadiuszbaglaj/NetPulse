@@ -1,3 +1,3 @@
 """NetPulse – self-hosted monitoring ruchu sieciowego (router, switch, access point)."""
 
-__version__ = "0.8.2"
+__version__ = "0.8.3"

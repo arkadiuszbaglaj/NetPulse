@@ -14,7 +14,7 @@ _hasher = PasswordHasher()
 _DUMMY_HASH = _hasher.hash(secrets.token_hex(16))
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
-MIN_PASSWORD = 8
+MIN_PASSWORD = 10
 
 
 def hash_password(password: str) -> str:

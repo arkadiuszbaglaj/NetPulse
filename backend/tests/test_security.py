@@ -30,7 +30,7 @@ def test_username_and_password_rules():
     assert username_error("admin") is None
     assert username_error("ja.nowak_1-x") is None
     assert username_error("") and username_error("z spacją") and username_error("a" * 65)
-    assert password_error("12345678") is None
+    assert password_error("1234567890") is None
     assert password_error("krotkie")
 
 

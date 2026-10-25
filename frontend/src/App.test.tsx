@@ -19,7 +19,7 @@ describe("kreator pierwszego konta", () => {
     await user.type(screen.getByLabelText("Hasło"), "krotkie");
     await user.type(screen.getByLabelText("Powtórz hasło"), "krotkie");
     await user.click(screen.getByRole("button", { name: "Utwórz konto" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("co najmniej 8 znaków");
+    expect(await screen.findByRole("alert")).toHaveTextContent("co najmniej 10 znaków");
 
     await user.clear(screen.getByLabelText("Hasło"));
     await user.type(screen.getByLabelText("Hasło"), "dlugie-haslo-1");

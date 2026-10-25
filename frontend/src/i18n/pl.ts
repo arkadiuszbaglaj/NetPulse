@@ -25,9 +25,9 @@ export const pl = {
   "auth.username": "Login",
   "auth.password": "Hasło",
   "auth.password.repeat": "Powtórz hasło",
-  "auth.password.hint": "Co najmniej 8 znaków.",
+  "auth.password.hint": "Co najmniej 10 znaków.",
   "auth.error.mismatch": "Hasła się różnią.",
-  "auth.error.short": "Hasło musi mieć co najmniej 8 znaków.",
+  "auth.error.short": "Hasło musi mieć co najmniej 10 znaków.",
   "auth.error.generic": "Coś poszło nie tak. Spróbuj ponownie.",
 
   "nav.main": "Menu główne",
@@ -506,7 +506,7 @@ export const pl = {
   "server.error": "Nie udało się pobrać stanu serwera.",
 
   "password.rules": "Wymagania dla hasła",
-  "password.rule.length": "Co najmniej 8 znaków (wymagane)",
+  "password.rule.length": "Co najmniej 10 znaków (wymagane)",
   "password.rule.recommended": "Zalecane: 12 znaków lub więcej",
   "password.rule.lower": "Mała litera",
   "password.rule.upper": "Wielka litera",

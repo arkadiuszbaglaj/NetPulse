@@ -11,8 +11,9 @@ describe("ocena hasła", () => {
 
   it("rozpoznaje poszczególne warunki", () => {
     expect(ok("")).toEqual([]);
-    expect(ok("abcdefgh")).toEqual(["length", "lower"]);
-    expect(ok("ABCDEFGH1")).toEqual(["length", "upper", "digit"]);
+    expect(ok("abcdefghij")).toEqual(["length", "lower"]);
+    expect(ok("abcdefgh")).toEqual(["lower"]); // 8 znaków to już za mało
+    expect(ok("ABCDEFGH12")).toEqual(["length", "upper", "digit"]);
     expect(ok("zażółć!")).toEqual(["lower", "special"]); // polskie litery to litery, nie znaki specjalne
     expect(ok("Abcdefgh1!xy")).toEqual(["length", "recommended", "lower", "upper", "digit", "special"]);
   });
@@ -21,8 +22,8 @@ describe("ocena hasła", () => {
     expect(evaluatePassword("").strength).toBe("none");
     expect(evaluatePassword("Ab1!").strength).toBe("weak"); // krótkie, choć różnorodne
     expect(evaluatePassword("abcdefgh").strength).toBe("weak");
-    expect(evaluatePassword("abcdefG1").strength).toBe("fair");
-    expect(evaluatePassword("abcdefG1!").strength).toBe("good");
+    expect(evaluatePassword("abcdefG1xy").strength).toBe("fair");
+    expect(evaluatePassword("abcdefG1!x").strength).toBe("good");
     expect(evaluatePassword("kon-zjadl-zielone-jablko").strength).toBe("strong"); // długie hasło z samych słów
     expect(evaluatePassword("Abcdefgh1!xy").strength).toBe("strong");
   });
@@ -45,8 +46,8 @@ describe("PasswordRequirements", () => {
     expect(within(list).getAllByText("niespełnione")).toHaveLength(6);
     expect(screen.getByText("Wpisz hasło")).toBeInTheDocument();
 
-    await userEvent.setup().type(screen.getByLabelText("hasło"), "Abcdefg1");
-    const length = within(list).getByText("Co najmniej 8 znaków (wymagane)").closest("li")!;
+    await userEvent.setup().type(screen.getByLabelText("hasło"), "Abcdefg1xy");
+    const length = within(list).getByText("Co najmniej 10 znaków (wymagane)").closest("li")!;
     expect(within(length).getByText("spełnione")).toBeInTheDocument();
     const special = within(list).getByText("Znak specjalny").closest("li")!;
     expect(within(special).getByText("niespełnione")).toBeInTheDocument();

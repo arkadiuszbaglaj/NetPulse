@@ -6,7 +6,7 @@ domyślnie 8000). Interaktywna dokumentacja z możliwością wywoływania: `http
 ## Pierwsze konto (kreator)
 
 Po instalacji nie ma żadnego konta. Otwórz panel (`http://IP-serwera:PORT`) – zobaczysz kreator:
-podaj login i hasło (min. 8 znaków), a panel założy konto administratora i od razu Cię zaloguje.
+podaj login i hasło (min. 10 znaków), a panel założy konto administratora i od razu Cię zaloguje.
 
 Bez panelu (skrypty, `/docs`) to samo robi `POST /api/auth/setup` z `username` i `password`.
 

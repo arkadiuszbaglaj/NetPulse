@@ -264,7 +264,7 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 
 ### Szczegóły: wskaźnik siły hasła
 
-- **Dziś:** backend wymaga tylko minimum 8 znaków (`backend/netpulse/auth.py`, `MIN_PASSWORD`),
+- **Dziś:** backend wymaga tylko minimum 10 znaków (wcześniej 8) (`backend/netpulse/auth.py`, `MIN_PASSWORD`),
   a panel pokazuje błąd dopiero po wysłaniu formularza.
 - **Warunki do pokazania:** długość (np. min. 8, zalecane 12), cyfra, wielka litera, mała litera,
   znak specjalny. Lista warunków i progi mają być w jednym miejscu, żeby dało się je zmienić.
