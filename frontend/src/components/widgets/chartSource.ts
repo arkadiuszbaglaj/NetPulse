@@ -20,6 +20,8 @@ export function sourcePath(source: Source, minutes: number): string {
       return `/api/devices/${source.id}/metrics?minutes=${minutes}`;
     case "wifi_network":
       return `/api/wifi/${source.id}/metrics?minutes=${minutes}`;
+    case "server":
+      return `/api/system/metrics?minutes=${minutes}`;
   }
 }
 
@@ -41,6 +43,8 @@ export function defaultTitle(source: Source): string {
       return t("widget.title.device", { id: source.id });
     case "wifi_network":
       return t("widget.title.wifi_network", { id: source.id });
+    case "server":
+      return t("widget.type.server");
   }
 }
 

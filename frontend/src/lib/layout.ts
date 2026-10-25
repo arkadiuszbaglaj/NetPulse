@@ -23,9 +23,10 @@ export type Source =
   | { kind: "wifi_total" }
   | { kind: "interface"; id: number; device_id?: number | null }
   | { kind: "device"; id: number }
-  | { kind: "wifi_network"; id: number; device_id?: number | null };
+  | { kind: "wifi_network"; id: number; device_id?: number | null }
+  | { kind: "server" };
 export type SourceKind = Source["kind"];
-export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network"];
+export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server"];
 
 export interface SeriesConfig {
   key: string;
@@ -54,7 +55,8 @@ export type SummaryWidgetModel = WidgetBase & { type: "summary"; config: { tiles
 export type ChartWidgetModel = WidgetBase & { type: "chart"; config: ChartConfig };
 export type DevicesWidgetModel = WidgetBase & { type: "devices"; config: { kinds?: DeviceKind[] | null } };
 export type PoeWidgetModel = WidgetBase & { type: "poe"; config: { device_id?: number | null } };
-export type Widget = SummaryWidgetModel | ChartWidgetModel | DevicesWidgetModel | PoeWidgetModel;
+export type ServerWidgetModel = WidgetBase & { type: "server"; config: Record<string, never> };
+export type Widget = SummaryWidgetModel | ChartWidgetModel | DevicesWidgetModel | PoeWidgetModel | ServerWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -70,7 +72,7 @@ export interface DashboardResponse {
 // --- metryki ---------------------------------------------------------------------------
 
 /** Klasa jednostki: metryki w jednym wykresie muszą należeć do tej samej klasy (wspólna oś Y). */
-export type UnitClass = "rate" | "count" | "percent" | "load" | "ms";
+export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size";
 
 export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> = {
   in_bps: { label: "metric.in_bps", unitClass: "rate" },
@@ -86,6 +88,10 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   mem_used_percent: { label: "metric.mem_used_percent", unitClass: "percent" },
   load1: { label: "metric.load1", unitClass: "load" },
   poll_ms: { label: "metric.poll_ms", unitClass: "ms" },
+  swap_used_percent: { label: "metric.swap_used_percent", unitClass: "percent" },
+  disk_used_percent: { label: "metric.disk_used_percent", unitClass: "percent" },
+  temp_c: { label: "metric.temp_c", unitClass: "temp" },
+  db_size_bytes: { label: "metric.db_size_bytes", unitClass: "size" },
 };
 
 /** Metryki dostępne dla źródła (zgodnie z endpointami metryk i schematem serwera). */
@@ -95,6 +101,7 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   device: ["cpu_percent", "mem_used_percent", "load1", "poll_ms"],
   wifi_total: ["clients"],
   wifi_network: ["clients", "rx_bps", "tx_bps"],
+  server: ["cpu_percent", "mem_used_percent", "swap_used_percent", "disk_used_percent", "load1", "temp_c", "db_size_bytes"],
 };
 
 export const unitClassOf = (key: string): UnitClass => METRICS[key]?.unitClass ?? "count";
@@ -113,6 +120,11 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
     case "wifi_total":
     case "wifi_network":
       return [{ key: "clients", color: 3 }];
+    case "server":
+      return [
+        { key: "cpu_percent", color: 1 },
+        { key: "mem_used_percent", color: 2 },
+      ];
   }
 }
 
@@ -158,6 +170,8 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 12, config: { kinds: null } };
     case "poe":
       return { id, type, w: 12, config: { device_id: null } };
+    case "server":
+      return { id, type, w: 4, config: {} };
   }
 }
 

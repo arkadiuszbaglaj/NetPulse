@@ -124,6 +124,10 @@ class DevicesConfig(Strict):
     kinds: list[Literal["gateway", "switch", "ap", "other"]] | None = Field(None, max_length=4)  # puste = wszystkie
 
 
+class ServerConfig(Strict):
+    pass  # karta stanu serwera NetPulse nie ma ustawień
+
+
 class PoeConfig(Strict):
     device_id: int | None = Field(None, ge=1)  # puste = wszystkie switche z danymi PoE
 
@@ -156,7 +160,16 @@ class PoeWidget(Strict):
     config: PoeConfig = PoeConfig()
 
 
-Widget = Annotated[SummaryWidget | ChartWidget | DevicesWidget | PoeWidget, Field(discriminator="type")]
+class ServerWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["server"]
+    w: GridWidth
+    config: ServerConfig = ServerConfig()
+
+
+Widget = Annotated[
+    SummaryWidget | ChartWidget | DevicesWidget | PoeWidget | ServerWidget, Field(discriminator="type")
+]
 
 
 class DashboardLayout(Strict):

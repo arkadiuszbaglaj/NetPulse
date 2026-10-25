@@ -50,6 +50,7 @@ def test_every_source_accepts_its_own_metrics():
         "device": {"kind": "device", "id": 1},
         "wifi_total": {"kind": "wifi_total"},
         "wifi_network": {"kind": "wifi_network", "id": 7},
+        "server": {"kind": "server"},
     }
     for kind, source in sources.items():
         series = [{"key": k} for k in ALLOWED_METRICS[kind]]

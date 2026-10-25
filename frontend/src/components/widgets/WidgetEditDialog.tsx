@@ -51,6 +51,7 @@ const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   device: "ce.source.device",
   wifi_total: "ce.source.wifi_total",
   wifi_network: "ce.source.wifi_network",
+  server: "ce.source.server",
 };
 const TILE_LABEL: Record<SummaryTile, TextKey> = {
   devices: "widget.tile.devices",
@@ -104,7 +105,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
 
   const changeKind = (kind: SourceKind) => {
     const source: Source =
-      kind === "wan" || kind === "wifi_total"
+      kind === "wan" || kind === "wifi_total" || kind === "server"
         ? { kind }
         : kind === "device"
           ? { kind, id: deviceId ?? 0 }
@@ -420,6 +421,24 @@ function PoeForm({ initial, onSave, onClose }: { initial: number | null | undefi
   );
 }
 
+/** Karta serwera nie ma ustawień – okno tylko wyjaśnia, skąd bierze dane. */
+function ServerInfo({ onClose }: { onClose: () => void }) {
+  return (
+    <Dialog
+      title={t("widget.type.server")}
+      size="sm"
+      onClose={onClose}
+      footer={
+        <Button variant="primary" onClick={onClose}>
+          {t("common.close")}
+        </Button>
+      }
+    >
+      <p className="text-sm text-text-2">{t("widget.server.info")}</p>
+    </Dialog>
+  );
+}
+
 /** Okno edycji odpowiednie dla typu widgetu. `isNew` zmienia tylko tytuł okna wykresu. */
 export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { widget: Widget; isNew?: boolean; onSave: (w: Widget) => void; onClose: () => void }) {
   switch (widget.type) {
@@ -429,6 +448,8 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
       return <SummaryForm initial={widget.config.tiles} onClose={onClose} onSave={(tiles) => onSave({ ...widget, config: { tiles } })} />;
     case "devices":
       return <DevicesForm initial={widget.config.kinds} onClose={onClose} onSave={(kinds) => onSave({ ...widget, config: { kinds } })} />;
+    case "server":
+      return <ServerInfo onClose={onClose} />;
     case "poe":
       return <PoeForm initial={widget.config.device_id} onClose={onClose} onSave={(device_id) => onSave({ ...widget, config: { device_id } })} />;
   }

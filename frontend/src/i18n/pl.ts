@@ -484,6 +484,26 @@ export const pl = {
   "rules.sum.offline": "Brak odpowiedzi: {after}",
   "rules.sum.portdown": "Port przeszedł w stan down",
   "rules.sum.metric": "{metric} {op} {value}, {duration}",
+
+  "metric.swap_used_percent": "Swap",
+  "metric.disk_used_percent": "Dysk",
+  "metric.temp_c": "Temperatura",
+  "metric.db_size_bytes": "Rozmiar bazy",
+  "ce.source.server": "Serwer NetPulse (CPU, RAM, dysk)",
+  "widget.type.server": "Serwer",
+  "widget.type.server.desc": "Stan maszyny, na której działa NetPulse: CPU, RAM, dysk, baza",
+  "widget.server.info": "Karta pokazuje bieżący stan serwera z NetPulse (CPU, RAM, swap, dysk, obciążenie, temperatura, rozmiar bazy). Historię tych wartości możesz dodać jako wykres ze źródłem „Serwer NetPulse”.",
+  "server.cpu": "CPU",
+  "server.ram": "RAM",
+  "server.swap": "Swap",
+  "server.disk": "Dysk",
+  "server.load": "Obciążenie (1 / 5 / 15 min)",
+  "server.uptime": "Czas pracy",
+  "server.temp": "Temperatura",
+  "server.db": "Baza danych",
+  "server.free": "wolne {free} z {total}",
+  "server.noData": "Brak próbek stanu serwera. Pojawią się po pierwszym cyklu kolektora.",
+  "server.error": "Nie udało się pobrać stanu serwera.",
 } as const;
 
 export type TextKey = keyof typeof pl;

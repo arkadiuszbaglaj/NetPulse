@@ -1,11 +1,12 @@
 /** Rejestr widgetów: typ → nazwa, opis, ikona i widok. Nowy typ widgetu = jeden wpis tutaj. */
-import { IconBolt, IconChartLine, IconLayoutGrid, IconListDetails, type Icon } from "@tabler/icons-react";
+import { IconBolt, IconChartLine, IconLayoutGrid, IconListDetails, IconServer, type Icon } from "@tabler/icons-react";
 import { t, type TextKey } from "../../i18n";
 import type { Widget, WidgetType } from "../../lib/layout";
 import { ChartWidget } from "./ChartWidget";
 import { defaultTitle } from "./chartSource";
 import { DevicesWidget } from "./DevicesWidget";
 import { PoeWidget } from "./PoeWidget";
+import { ServerWidget } from "./ServerWidget";
 import { SummaryWidget } from "./SummaryWidget";
 
 export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: TextKey; icon: Icon }[] = [
@@ -13,6 +14,7 @@ export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: Text
   { type: "summary", label: "widget.type.summary", description: "widget.type.summary.desc", icon: IconLayoutGrid },
   { type: "devices", label: "widget.type.devices", description: "widget.type.devices.desc", icon: IconListDetails },
   { type: "poe", label: "widget.type.poe", description: "widget.type.poe.desc", icon: IconBolt },
+  { type: "server", label: "widget.type.server", description: "widget.type.server.desc", icon: IconServer },
 ];
 
 export function widgetTitle(w: Widget): string {
@@ -25,6 +27,8 @@ export function widgetTitle(w: Widget): string {
       return t("widget.type.devices");
     case "poe":
       return t("widget.type.poe");
+    case "server":
+      return t("widget.type.server");
   }
 }
 
@@ -39,5 +43,7 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <DevicesWidget kinds={widget.config.kinds} />;
     case "poe":
       return <PoeWidget deviceId={widget.config.device_id} />;
+    case "server":
+      return <ServerWidget />;
   }
 }

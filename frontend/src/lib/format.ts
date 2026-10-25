@@ -57,6 +57,20 @@ export function formatBytesPerSec(bps: number | null | undefined): string {
   return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
 }
 
+/** Rozmiar w bajtach: „2,4 GB” (dziesiętnie, jak w systemie dysków i bazie). */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null || !Number.isFinite(bytes)) return "–";
+  const units = ["B", "kB", "MB", "GB", "TB"];
+  let v = Math.abs(bytes);
+  let i = 0;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
+  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+}
+
 /** Formatowanie wartości osi i podpowiedzi wykresu według klasy jednostki metryki. */
 export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number) => string {
   const num = (digits: number) => (v: number) => new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v);
@@ -69,6 +83,10 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
       return num(2);
     case "ms":
       return (v) => `${num(0)(v)} ms`;
+    case "temp":
+      return (v) => `${num(1)(v)} °C`;
+    case "size":
+      return formatBytes;
     default:
       return num(1);
   }
