@@ -15,14 +15,14 @@ from pathlib import Path
 
 DEVICE_KEYS = (
     "type", "model", "name", "mac", "ip", "state", "version", "num_sta", "uptime",
-    "total_used_power", "total_max_power", "overheating", "port_table", "lldp_table",
+    "total_used_power", "total_max_power", "overheating", "port_table", "lldp_table", "ethernet_table",
 )  # fmt: skip
 PORT_KEYS = (
     "port_idx", "name", "up", "enable", "speed", "full_duplex", "is_uplink", "port_poe", "poe_caps", "poe_mode",
     "poe_enable", "poe_good", "poe_class", "poe_power", "poe_voltage", "poe_current", "rx_bytes", "tx_bytes",
     "rx_bytes-r", "tx_bytes-r", "rx_errors", "tx_errors", "rx_dropped", "tx_dropped",
 )  # fmt: skip
-LLDP_KEYS = ("chassis_id", "local_port_idx", "local_port_name", "port_id")
+LLDP_KEYS = ("chassis_id", "local_port_idx", "local_port_name", "port_id", "mgmt_ips")
 STA_KEYS = (
     "mac", "name", "hostname", "ip", "is_wired", "is_guest", "essid", "radio", "channel", "signal", "rssi", "noise",
     "tx_rate", "rx_rate", "ap_mac", "sw_mac", "sw_port", "last_uplink_name", "last_uplink_mac", "uptime", "last_seen",
@@ -46,6 +46,8 @@ def main() -> int:
     for d in by_suffix["device"]["data"]:
         item = pick(d, DEVICE_KEYS)
         item["port_table"] = [pick(p, PORT_KEYS) for p in d.get("port_table", [])]
+        if "ethernet_table" in d:
+            item["ethernet_table"] = [pick(e, ("mac",)) for e in d["ethernet_table"]]
         if "lldp_table" in d:
             item["lldp_table"] = [pick(x, LLDP_KEYS) for x in d["lldp_table"]]
         devices.append(item)

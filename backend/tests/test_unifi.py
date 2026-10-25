@@ -10,6 +10,7 @@ import pytest
 from conftest import FIXTURES
 
 from netpulse.unifi import UnifiApi, UnifiError, parse_clients, parse_devices
+from netpulse.unifi_collector import match_devices
 
 
 def load(name: str) -> dict:
@@ -119,3 +120,26 @@ def test_parse_lldp_links():
     }
     assert len(devices["udm"].lldp) == 2  # switch i nieznany sąsiad na porcie WAN
     assert parse_devices({"data": [{"mac": "aa:bb:cc:00:00:01", "lldp_table": [{"chassis_id": "nie-mac", "local_port_idx": 1}]}]})[0].lldp == []
+
+
+def test_lldp_carries_lan_address_and_interface_macs():
+    devices = {d.type: d for d in parse_devices(load("unifi_devices.json"))}
+    link = next(x for x in devices["usw"].lldp if x.remote_mac == devices["udm"].mac)
+    assert len(link.remote_ips) == 1 and link.remote_ips[0] != devices["udm"].ip  # adres LAN, nie `ip` z kontrolera
+    assert devices["udm"].mac in devices["udm"].macs and len(devices["udm"].macs) > 1
+
+
+def test_match_devices_by_ip_lan_address_then_mac():
+    devices = list(parse_devices(load("unifi_devices.json")))
+    by_type = {d.type: d for d in devices}
+    lan = next(x for x in by_type["usw"].lldp if x.remote_mac == by_type["udm"].mac).remote_ips[0]
+
+    # Switch i AP znamy po `ip`, bramę dopiero po adresie LAN z LLDP sąsiada
+    hosts = {by_type["usw"].ip: 1, by_type["uap"].ip: 2, lan: 3}
+    assert match_devices(devices, hosts, {}) == {by_type["usw"].mac: 1, by_type["uap"].mac: 2, by_type["udm"].mac: 3}
+
+    # Bez adresu LAN ratuje adres MAC interfejsu znany z SNMP
+    mac_only = match_devices(devices, {}, {by_type["udm"].macs[-1]: 7})
+    assert mac_only == {by_type["udm"].mac: 7}
+
+    assert match_devices(devices, {"10.9.9.9": 1}, {"aa:aa:aa:aa:aa:aa": 2}) == {}

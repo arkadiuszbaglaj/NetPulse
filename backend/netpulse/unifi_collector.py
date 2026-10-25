@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import insert
 from .collector import _write_with_retry
 from .config import settings
 from .db import Session
-from .db.models import Controller, Device, NetworkClient, PoeBudgetMetric, PoePortMetric, TopologyLink
+from .db.models import Controller, Device, Interface, NetworkClient, PoeBudgetMetric, PoePortMetric, TopologyLink
 from .unifi import UnifiApi, UnifiClient, UnifiDevice, UnifiError
 
 log = logging.getLogger("netpulse.unifi")
@@ -40,6 +40,30 @@ def make_api(target: ControllerTarget) -> UnifiApi:
         verify_tls=target.verify_tls,
         timeout=max(5.0, settings.snmp_timeout * 3),
     )
+
+
+def match_devices(devices: list[UnifiDevice], by_host: dict[str, int], by_iface_mac: dict[str, int]) -> dict[str, int]:
+    """Łączy urządzenia kontrolera z urządzeniami NetPulse (SNMP): {MAC z kontrolera: id urządzenia}.
+
+    Samo pole `ip` z kontrolera bywa mylące (brama podaje tam adres WAN), więc próbujemy po kolei:
+    1) `ip` z kontrolera, 2) adresy, pod którymi widzą to urządzenie sąsiedzi w LLDP (adres w sieci LAN),
+    3) adresy MAC interfejsów, które NetPulse zna z SNMP (ifPhysAddress)."""
+    lan_ips: dict[str, list[str]] = {}
+    for d in devices:
+        for link in d.lldp:
+            lan_ips.setdefault(link.remote_mac, []).extend(link.remote_ips)
+    matched: dict[str, int] = {}
+    for d in devices:
+        for ip in [d.ip, *lan_ips.get(d.mac, [])]:
+            if ip in by_host:
+                matched[d.mac] = by_host[ip]
+                break
+        else:
+            for mac in d.macs:
+                if mac in by_iface_mac:
+                    matched[d.mac] = by_iface_mac[mac]
+                    break
+    return matched
 
 
 class UnifiCollector:
@@ -113,7 +137,13 @@ class UnifiCollector:
             )
             # Urządzenia NetPulse (SNMP) łączymy z kontrolerem po adresie IP
             by_host = {host: dev_id for dev_id, host in (await session.execute(select(Device.id, Device.host))).all()}
-            by_mac = {d.mac: by_host[d.ip] for d in devices if d.ip in by_host}
+            by_iface_mac = {
+                mac.lower(): dev_id
+                for dev_id, mac in (
+                    await session.execute(select(Interface.device_id, Interface.mac).where(Interface.mac.is_not(None)))
+                ).all()
+            }
+            by_mac = match_devices(devices, by_host, by_iface_mac)
 
             for d in devices:
                 dev_id = by_mac.get(d.mac)

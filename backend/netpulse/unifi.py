@@ -39,6 +39,7 @@ class LldpLink:
 
     local_port_idx: int
     remote_mac: str
+    remote_ips: tuple[str, ...] = ()  # adresy IPv4 sąsiada z LLDP (adres w sieci LAN, nie ten z pola `ip` kontrolera)
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ class UnifiDevice:
     poe_max_w: float | None = None
     poe_ports: list[PoePort] = field(default_factory=list)
     lldp: list[LldpLink] = field(default_factory=list)
+    macs: tuple[str, ...] = ()  # wszystkie adresy MAC interfejsów urządzenia (ethernet_table)
 
 
 @dataclass(frozen=True)
@@ -73,6 +75,7 @@ class UnifiClient:
 
 
 MAC_RE = re.compile(r"^[0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}$")
+IPV4_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
 
 
 def _float(v: Any) -> float | None:
@@ -114,7 +117,11 @@ def parse_devices(raw: dict) -> list[UnifiDevice]:
             if p.get("port_poe") and "port_idx" in p
         ]
         links = [
-            LldpLink(local_port_idx=int(x["local_port_idx"]), remote_mac=_str(x["chassis_id"]).lower())
+            LldpLink(
+                local_port_idx=int(x["local_port_idx"]),
+                remote_mac=_str(x["chassis_id"]).lower(),
+                remote_ips=tuple(ip for ip in x.get("mgmt_ips") or [] if isinstance(ip, str) and IPV4_RE.match(ip)),
+            )
             for x in d.get("lldp_table", [])
             if "local_port_idx" in x and _str(x.get("chassis_id")) and MAC_RE.match(x["chassis_id"].strip())
         ]
@@ -130,6 +137,12 @@ def parse_devices(raw: dict) -> list[UnifiDevice]:
                 poe_max_w=_float(d.get("total_max_power")),
                 poe_ports=ports,
                 lldp=links,
+                macs=tuple(
+                    sorted(
+                        {em.lower() for e in d.get("ethernet_table", []) if (em := _str(e.get("mac"))) and MAC_RE.match(em)}
+                        | {mac.lower()}
+                    )
+                ),
             )
         )
     return out

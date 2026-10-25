@@ -73,6 +73,12 @@ def run(coro_fn):
 def seed() -> None:
     """Switch i AP pod adresami z fixtures (kolektor łączy urządzenia z kontrolerem po IP)."""
     devices = {d["type"]: d["ip"] for d in fixture("unifi_devices.json")["data"]}
+    # Brama podaje w polu `ip` inny adres (WAN) niż ten, pod którym widzi ją sieć LAN (SNMP, LLDP u sąsiadów)
+    (lan_ip,) = {ip for d in fixture("unifi_devices.json")["data"] for x in d.get("lldp_table", [])
+                 if x["chassis_id"] == next(g["mac"] for g in fixture("unifi_devices.json")["data"] if g["type"] == "udm")
+                 for ip in x.get("mgmt_ips") or [] if "." in ip}
+    assert lan_ip != devices["udm"]
+    devices["udm"] = lan_ip
 
     async def go():
         await init_db()

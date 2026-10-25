@@ -203,13 +203,29 @@
      "chassis_id": "02:00:74:e3:56:ae",
      "local_port_idx": 1,
      "local_port_name": "AP U6_",
-     "port_id": "02:00:74:e3:56:ae"
+     "port_id": "02:00:74:e3:56:ae",
+     "mgmt_ips": [
+      "fe80:0000:0000:0000:1c6a:1bff:fe16:a9f5",
+      "10.0.0.134"
+     ]
     },
     {
      "chassis_id": "02:00:32:f2:24:9a",
      "local_port_idx": 8,
      "local_port_name": "UCG Ultra",
-     "port_id": "02:00:32:f2:24:9a"
+     "port_id": "02:00:32:f2:24:9a",
+     "mgmt_ips": [
+      "2001:0db8:1000:0000:0000:0000:0000:00fa",
+      "10.0.0.174"
+     ]
+    }
+   ],
+   "ethernet_table": [
+    {
+     "mac": "02:00:21:97:7f:07"
+    },
+    {
+     "mac": "02:00:61:52:7b:02"
     }
    ]
   },
@@ -230,6 +246,11 @@
      "local_port_idx": 1,
      "local_port_name": "eth0",
      "port_id": "local Port 1"
+    }
+   ],
+   "ethernet_table": [
+    {
+     "mac": "02:00:74:e3:56:ae"
     }
    ]
   },
@@ -363,6 +384,23 @@
      "local_port_idx": 1,
      "local_port_name": "eth0",
      "port_id": "local Port 8"
+    }
+   ],
+   "ethernet_table": [
+    {
+     "mac": "02:00:32:f2:24:9a"
+    },
+    {
+     "mac": "02:00:71:c4:e5:b2"
+    },
+    {
+     "mac": "02:00:f3:43:f0:f7"
+    },
+    {
+     "mac": "02:00:35:93:fa:8b"
+    },
+    {
+     "mac": "02:00:f9:a3:d9:1c"
     }
    ]
   }
