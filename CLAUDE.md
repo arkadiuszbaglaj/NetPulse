@@ -66,9 +66,11 @@ Kolektor co 30 s: odpytuje urządzenia równolegle, liczy przepływ z różnic l
 (`ifHCInOctets`/`ifHCOutOctets`; obsługa przepełnienia Counter32 i resetu urządzenia),
 zapisuje do TimescaleDB.
 
-Schemat bazy tworzy `init_db` (`create_all`) – nowe **tabele** dochodzą same przy `netpulse update`,
-ale nowe **kolumny** w istniejących tabelach nie (init_db zgłosi wtedy niezgodny schemat).
-Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacja nie wymagała `netpulse reset`.
+Schemat bazy zmieniają **migracje Alembic** (od 0.10.0; `backend/netpulse/db/migrations/`, opis:
+`docs/13-migracje-bazy.md`). `init_db` (kolektor przy starcie, `netpulse db init`) wykonuje `upgrade head` pod blokadą
+w jednej transakcji, potem zakłada hypertables. Każda zmiana w `models.py` = nowa migracja (`--rev-id 0002`, …);
+brak migracji wyłapie `test_migrations.py::test_fresh_db_matches_models`. Migracja bazowa `0001` = schemat 0.9.0
+i przejmuje bazy sprzed migracji bez utraty danych.
 
 ## Wyniki analizy SNMP (szczegóły: `docs/02-wyniki-snmp.md`)
 
@@ -92,7 +94,7 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
 7. ✅ Topologia LLDP – mapa sieci
 8. Alerty (8a ✅ silnik, 8b ✅ panel; brakuje reguł dla dysku i błędów portów oraz powiadomień poza panelem) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
 9. SNMP v3 ✅ (testowane klientem pysnmp kontra snmpsim w CI), MikroTik i Omada: drivery SNMP gotowe, ale na zrzutach syntetycznych – czekają na prawdziwe zrzuty (opis: `docs/12-mikrotik-omada-snmp.md`); API kontrolera Omada i RouterOS dalej do zrobienia
-10. Serwery Linux – etap A: SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B: własny agent (push, tokeny, systemd, Docker, SMART; wymaga ogólnej tabeli metryk i Alembic). Opis w `docs/06-projekt-panelu.md` (backlog)
+10. Serwery Linux – etap A: SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B: własny agent (push, tokeny, systemd, Docker, SMART; wymaga ogólnej tabeli metryk; Alembic ✅ od 0.10.0). Opis w `docs/06-projekt-panelu.md` (backlog)
 
 ## Do sprawdzenia później
 

@@ -316,6 +316,24 @@ def cmd_db_init(args) -> int:
     return 0
 
 
+def cmd_db_status(args) -> int:
+    from .db import engine
+    from .db.migrate import current_revision, head_revision
+
+    async def run() -> str | None:
+        async with engine.connect() as conn:
+            rev = await conn.run_sync(current_revision)
+        await engine.dispose()
+        return rev
+
+    current, head = asyncio.run(run()), head_revision()
+    print(f"Wersja schematu bazy: {current or 'brak (baza sprzed migracji albo pusta)'}")
+    print(f"Najnowsza wersja schematu: {head}")
+    if current != head:
+        print("Schemat zostanie zaktualizowany przy starcie kolektora (albo: netpulse db init).")
+    return 0
+
+
 def cmd_collector(args) -> int:
     from .collector import run
 
@@ -367,7 +385,8 @@ def build_parser() -> argparse.ArgumentParser:
         p.set_defaults(func=func)
 
     db = sub.add_parser("db", help="baza danych").add_subparsers(dest="action", required=True)
-    db.add_parser("init", help="utwórz/uzupełnij schemat").set_defaults(func=cmd_db_init)
+    db.add_parser("init", help="utwórz albo zaktualizuj schemat (migracje)").set_defaults(func=cmd_db_init)
+    db.add_parser("status", help="wersja schematu bazy").set_defaults(func=cmd_db_status)
 
     sub.add_parser("collector", help="uruchom kolektor").set_defaults(func=cmd_collector)
     sub.add_parser("api", help="uruchom API").set_defaults(func=cmd_api)

@@ -1,4 +1,4 @@
-"""Połączenie z bazą i inicjalizacja schematu."""
+"""Połączenie z bazą i inicjalizacja schematu (migracje Alembic: `migrate.py`, `migrations/`)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async
 from sqlalchemy.pool import NullPool
 
 from ..config import settings
+from . import migrate
 from .models import HYPERTABLES, Base
 
 log = logging.getLogger(__name__)
@@ -43,7 +44,9 @@ async def has_timescale(conn) -> bool:
 
 
 async def init_db(retention_days: int | None = None) -> bool:
-    """Tworzy tabele i hypertables (idempotentnie). Zwraca True, jeśli TimescaleDB jest aktywne."""
+    """Migruje schemat do najnowszej wersji i zakłada hypertables (idempotentnie).
+
+    Zwraca True, jeśli TimescaleDB jest aktywne."""
     retention_days = retention_days or settings.retention_days
     async with engine.begin() as conn:
         try:
@@ -51,8 +54,14 @@ async def init_db(retention_days: int | None = None) -> bool:
         except Exception as exc:  # zwykły PostgreSQL bez Timescale (np. testy)
             log.warning("TimescaleDB niedostępne: %s", exc)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # create_all nie zmienia istniejących tabel – wykryj stary układ zamiast sypać błędami SQL
+        # Kolektor i polecenia CLI mogą startować jednocześnie – migracje wykonuje jeden naraz
+        await conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": migrate.LOCK_KEY})
+        before = await conn.run_sync(migrate.current_revision)
+        await conn.run_sync(migrate.upgrade)
+        after = await conn.run_sync(migrate.current_revision)
+        if before != after:
+            log.info("Migracja schematu bazy: %s → %s", before or "brak", after)
+        # Bezpiecznik: baza ze starej wersji, której migracja bazowa nie uzupełni (tabela bez kolumny)
         missing = await conn.run_sync(missing_columns)
         if missing:
             details = "; ".join(f"{t}: {', '.join(cols)}" for t, cols in missing.items())
