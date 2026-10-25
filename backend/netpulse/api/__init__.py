@@ -17,6 +17,7 @@ from .. import __version__
 from ..config import settings
 from ..db import engine, has_timescale
 from . import (
+    alerts,
     auth_routes,
     controllers,
     dashboard,
@@ -43,6 +44,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)], lifespan=lifespan)
+app.include_router(alerts.router)
 app.include_router(auth_routes.router)
 app.include_router(controllers.router)
 app.include_router(dashboard.router)

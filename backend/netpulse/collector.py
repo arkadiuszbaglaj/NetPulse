@@ -59,7 +59,8 @@ def make_client(target: DeviceTarget) -> SnmpClient:
 
 
 class Collector:
-    def __init__(self, client_factory=make_client) -> None:
+    def __init__(self, client_factory=make_client, alert_engine=None) -> None:
+        self.alert_engine = alert_engine
         self.tracker = CounterTracker()
         self.client_factory = client_factory
         self._clients: dict[int, tuple[DeviceTarget, SnmpClient]] = {}
@@ -75,6 +76,11 @@ class Collector:
                 await self.poll_all()
             except Exception:
                 log.exception("Błąd cyklu odpytywania")
+            if self.alert_engine is not None:
+                try:
+                    await self.alert_engine.evaluate()
+                except Exception:
+                    log.exception("Błąd oceny alertów")
             elapsed = time.monotonic() - started
             await asyncio.sleep(max(1.0, settings.poll_interval - elapsed))
 
@@ -315,8 +321,11 @@ async def _write_with_retry(write, attempts: int = 5) -> None:
 
 
 async def run() -> None:
+    from .alerts import AlertEngine
     from .db import init_db
     from .unifi_collector import UnifiCollector
 
     await init_db()
-    await asyncio.gather(Collector().run_forever(), UnifiCollector().run_forever())
+    engine = AlertEngine()
+    await engine.ensure_default_rules()
+    await asyncio.gather(Collector(alert_engine=engine).run_forever(), UnifiCollector().run_forever())

@@ -1,7 +1,7 @@
 """Modele bazy danych (SQLAlchemy 2).
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
-Kontrolery UniFi: controllers, network_clients, topology_links. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
+Kontrolery UniFi: controllers, network_clients, topology_links. Alerty: alert_rules, alerts. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
 Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics, wifi_metrics,
 poe_port_metrics, poe_budget_metrics.
 """
@@ -284,6 +284,45 @@ class TopologyLink(Base):
     remote_mac: Mapped[str] = mapped_column(String(17), primary_key=True)
     local_mac: Mapped[str] = mapped_column(String(17))  # MAC urządzenia lokalnego (do rozpoznania sąsiada)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AlertRule(Base):
+    """Reguła alertu: rodzaj (urządzenie offline, port down, próg metryki), próg, czas trwania i ważność."""
+
+    __tablename__ = "alert_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    kind: Mapped[str] = mapped_column(String(24))  # device_offline | port_down | metric
+    metric: Mapped[str | None] = mapped_column(String(32))  # tylko dla kind=metric
+    op: Mapped[str | None] = mapped_column(String(2))  # > | <
+    threshold: Mapped[float | None] = mapped_column(Float)
+    duration_s: Mapped[int] = mapped_column(Integer, default=0)  # warunek musi trwać co najmniej tyle
+    severity: Mapped[str] = mapped_column(String(10), default="warning")  # info | warning | critical
+    device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)  # None = wszystkie
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Alert(Base):
+    """Zdarzenie alertu: wyzwolone → (potwierdzone) → zakończone. Historia zostaje po usunięciu reguły."""
+
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[int | None] = mapped_column(ForeignKey("alert_rules.id", ondelete="SET NULL"), index=True)
+    subject: Mapped[str] = mapped_column(String(64))  # "d3" urządzenie, "i15" interfejs, "wan" – o kogo chodzi
+    state: Mapped[str] = mapped_column(String(10), default="firing", index=True)  # firing | resolved
+    severity: Mapped[str] = mapped_column(String(10))
+    title: Mapped[str] = mapped_column(String(255))
+    message: Mapped[str | None] = mapped_column(Text)
+    device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
+    value: Mapped[float | None] = mapped_column(Float)  # ostatnia wartość
+    peak: Mapped[float | None] = mapped_column(Float)  # skrajna wartość w trakcie alertu
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acked_by: Mapped[str | None] = mapped_column(String(64))
 
 
 class PoePortMetric(Base):
