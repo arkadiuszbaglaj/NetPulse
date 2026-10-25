@@ -17,7 +17,9 @@ from .security import CurrentUser, require_user
 router = APIRouter(prefix="/api", tags=["alerty"], dependencies=[Depends(require_user)])
 
 Severity = Literal["info", "warning", "critical"]
-Kind = Literal["device_offline", "port_down", "metric", "container_stopped", "service_failed", "smart_failed"]
+Kind = Literal[
+    "device_offline", "port_down", "metric", "container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed"
+]
 
 
 class RuleBase(BaseModel):

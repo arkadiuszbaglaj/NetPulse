@@ -38,7 +38,7 @@ async def drop_everything() -> None:
 
 
 # Tabele i kolumny dodane migracjami po 0001 – baza z 0.9.0 ich nie miała
-AFTER_BASELINE = {"agents", "metrics"}
+AFTER_BASELINE = {"agents", "metrics", "proxmox_servers", "proxmox_nodes", "proxmox_guests", "proxmox_storages"}
 COLUMNS_AFTER_BASELINE = {"alert_rules": ["match"]}
 
 

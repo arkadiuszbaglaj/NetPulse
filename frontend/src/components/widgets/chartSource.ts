@@ -32,6 +32,7 @@ const AGENT_TITLE = {
   agent_disk: "ce.source.agent_disk",
   agent_temp: "ce.source.agent_temp",
   agent_container: "ce.source.agent_container",
+  pve_guest: "ce.source.pve_guest",
 } as const;
 
 /** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów. */

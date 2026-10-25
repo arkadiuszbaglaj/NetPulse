@@ -34,6 +34,7 @@ SECRET_COLUMNS: dict[str, tuple[str, ...]] = {
     "devices": ("community", "v3_auth_key", "v3_priv_key"),
     "controllers": ("api_key",),
     "notification_channels": ("url",),
+    "proxmox_servers": ("token_secret",),
 }
 
 _key: str | None = None  # nadpisanie w testach; None = z ustawień

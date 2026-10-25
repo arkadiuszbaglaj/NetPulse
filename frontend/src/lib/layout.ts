@@ -28,8 +28,8 @@ export type Source =
   | { kind: AgentSourceKind; id: number; key: string };
 export type SourceKind = Source["kind"];
 /** Źródła z agenta serwera: urządzenie (`id`) i wybrany interfejs, dysk, czujnik albo kontener (`key`). */
-export type AgentSourceKind = "agent_cpu" | "agent_net" | "agent_disk" | "agent_temp" | "agent_container";
-export const AGENT_SOURCE_KINDS: AgentSourceKind[] = ["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container"];
+export type AgentSourceKind = "agent_cpu" | "agent_net" | "agent_disk" | "agent_temp" | "agent_container" | "pve_guest";
+export const AGENT_SOURCE_KINDS: AgentSourceKind[] = ["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"];
 export const isAgentSource = (kind: SourceKind): kind is AgentSourceKind => (AGENT_SOURCE_KINDS as string[]).includes(kind);
 export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server", ...AGENT_SOURCE_KINDS];
 
@@ -103,6 +103,8 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   write_bps: { label: "metric.write_bps", unitClass: "rate" },
   container_cpu_percent: { label: "metric.container_cpu_percent", unitClass: "percent" },
   container_mem_bytes: { label: "metric.container_mem_bytes", unitClass: "size" },
+  guest_cpu_percent: { label: "metric.guest_cpu_percent", unitClass: "percent" },
+  guest_mem_bytes: { label: "metric.guest_mem_bytes", unitClass: "size" },
 };
 
 /** Metryki dostępne dla źródła (zgodnie z endpointami metryk i schematem serwera). */
@@ -118,6 +120,7 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   agent_disk: ["read_bps", "write_bps"],
   agent_temp: ["temp_c"],
   agent_container: ["container_cpu_percent", "container_mem_bytes"],
+  pve_guest: ["guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"],
 };
 
 export const unitClassOf = (key: string): UnitClass => METRICS[key]?.unitClass ?? "count";
@@ -160,6 +163,8 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
       return [{ key: "temp_c", color: 3 }];
     case "agent_container":
       return [{ key: "container_cpu_percent", color: 1 }];
+    case "pve_guest":
+      return [{ key: "guest_cpu_percent", color: 1 }];
   }
 }
 

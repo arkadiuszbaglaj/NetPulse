@@ -31,11 +31,15 @@ const KIND_LABEL: Record<RuleKind, TextKey> = {
   container_stopped: "rules.kind.container_stopped",
   service_failed: "rules.kind.service_failed",
   smart_failed: "rules.kind.smart_failed",
+  guest_stopped: "rules.kind.guest_stopped",
+  backup_failed: "rules.kind.backup_failed",
 };
 const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
   container_stopped: "rules.match.hint.container",
   service_failed: "rules.match.hint.service",
   smart_failed: "rules.match.hint.smart",
+  guest_stopped: "rules.match.hint.guest",
+  backup_failed: "rules.match.hint.backup",
 };
 const SEVERITY_LABEL: Record<Severity, TextKey> = {
   critical: "alerts.severity.critical",
@@ -157,7 +161,11 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
           </>
         )}
 
-        {agentKind && <p className="text-xs text-text-2">{t("rules.agent.hint")}</p>}
+        {agentKind && (
+          <p className="text-xs text-text-2">
+            {t(values.kind === "guest_stopped" || values.kind === "backup_failed" ? "rules.proxmox.hint" : "rules.agent.hint")}
+          </p>
+        )}
         {matchable && (
           <Field
             id="rule-match"

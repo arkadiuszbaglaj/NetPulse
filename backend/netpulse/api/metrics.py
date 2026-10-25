@@ -9,7 +9,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, text
 
 from ..db import Session, engine, has_timescale
-from ..db.models import Device, DeviceMetric, Interface, InterfaceMetric, Metric, WifiMetric, WifiNetwork
+from ..db.models import (
+    Device,
+    DeviceMetric,
+    Interface,
+    InterfaceMetric,
+    Metric,
+    ProxmoxNode,
+    WifiMetric,
+    WifiNetwork,
+)
 from .schemas import Point
 from .security import require_user
 
@@ -88,10 +97,33 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
     "agent_disk": {"read_bps": ("disk_read_bps", 8.0), "write_bps": ("disk_write_bps", 8.0)},
     "agent_temp": {"temp_c": ("temp_c", 1.0)},
     "agent_container": {"container_cpu_percent": ("container_cpu_percent", 1.0), "container_mem_bytes": ("container_mem_bytes", 1.0)},
+    # Maszyna Proxmox: kolektor zapisuje już bity/s (sieć) i bajty/s (dysk) – dysk przeliczamy na bity jak przy agencie
+    "pve_guest": {
+        "guest_cpu_percent": ("guest_cpu_percent", 1.0),
+        "guest_mem_bytes": ("guest_mem_bytes", 1.0),
+        "rx_bps": ("guest_net_rx_bps", 1.0),
+        "tx_bps": ("guest_net_tx_bps", 1.0),
+        "read_bps": ("guest_disk_read_bps", 8.0),
+        "write_bps": ("guest_disk_write_bps", 8.0),
+    },
 }
-AgentSourceKind = Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container"]
+AgentSourceKind = Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"]
 # Lista kluczy do edytora wykresu: źródło → nazwa metryki, z której bierzemy klucze
-AGENT_KEY_NAMES = {"agent_net": "net_rx_bps", "agent_disk": "disk_read_bps", "agent_temp": "temp_c", "agent_container": "container_up"}
+AGENT_KEY_NAMES = {
+    "agent_net": "net_rx_bps",
+    "agent_disk": "disk_read_bps",
+    "agent_temp": "temp_c",
+    "agent_container": "container_up",
+    "pve_guest": "guest_up",
+}
+
+
+async def _same_server_devices(session, device_id: int) -> list[int]:
+    """Maszyna Proxmox może przejść na inny węzeł (migracja) – wykres bierze dane ze wszystkich węzłów serwera."""
+    server_id = await session.scalar(select(ProxmoxNode.server_id).where(ProxmoxNode.device_id == device_id))
+    if server_id is None:
+        return [device_id]
+    return list((await session.scalars(select(ProxmoxNode.device_id).where(ProxmoxNode.server_id == server_id))).all())
 
 
 def _bucket(minutes: int, timescale: bool):
@@ -108,8 +140,9 @@ async def agent_metrics(device_id: int, source: AgentSourceKind, key: str = "", 
     async with engine.connect() as conn:
         timescale = await has_timescale(conn)
     bucket = _bucket(minutes, timescale).label("bucket")
-    base = [Metric.device_id == device_id, Metric.time >= since]
     async with Session() as session:
+        devices = await _same_server_devices(session, device_id) if source == "pve_guest" else [device_id]
+        base = [Metric.device_id.in_(devices), Metric.time >= since]
         if source == "agent_cpu":
             rows = (
                 await session.execute(
@@ -146,11 +179,12 @@ async def agent_keys(device_id: int) -> dict[str, list[str]]:
         rows = (
             await session.execute(
                 select(Metric.name, Metric.key)
-                .where(Metric.device_id == device_id, Metric.time >= since, Metric.name.in_(list(AGENT_KEY_NAMES.values())))
+                .where(Metric.device_id.in_(await _same_server_devices(session, device_id)), Metric.time >= since, Metric.name.in_(list(AGENT_KEY_NAMES.values())))
                 .distinct()
                 .order_by(Metric.name, Metric.key)
             )
         ).all()
+        rows = list(dict.fromkeys(rows))
     out: dict[str, list[str]] = {source: [] for source in AGENT_KEY_NAMES}
     by_name = {name: source for source, name in AGENT_KEY_NAMES.items()}
     for name, key in rows:

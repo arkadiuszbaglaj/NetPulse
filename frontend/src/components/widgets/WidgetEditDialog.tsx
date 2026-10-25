@@ -58,14 +58,16 @@ const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   agent_disk: "ce.source.agent_disk",
   agent_temp: "ce.source.agent_temp",
   agent_container: "ce.source.agent_container",
+  pve_guest: "ce.source.pve_guest",
 };
 /** Lista do wyboru w edytorze dla źródła z agenta (odpowiedź /api/devices/{id}/agent-keys). */
-type AgentKeys = Record<"agent_net" | "agent_disk" | "agent_temp" | "agent_container", string[]>;
+type AgentKeys = Record<"agent_net" | "agent_disk" | "agent_temp" | "agent_container" | "pve_guest", string[]>;
 const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
   agent_net: "ce.agent.key.net",
   agent_disk: "ce.agent.key.disk",
   agent_temp: "ce.agent.key.temp",
   agent_container: "ce.agent.key.container",
+  pve_guest: "ce.agent.key.guest",
 };
 const TILE_LABEL: Record<SummaryTile, TextKey> = {
   devices: "widget.tile.devices",
@@ -121,8 +123,9 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
     queryFn: () => get<AgentKeys>(`/api/devices/${deviceId}/agent-keys`),
     enabled: agentKind != null && agentKind !== "agent_cpu" && deviceId != null,
   });
-  // Dla źródeł z agenta tylko serwery z agentem
-  const deviceOptions = (devices.data ?? []).filter((d: Device) => !agentKind || d.driver === "agent");
+  // Dla źródeł z agenta tylko serwery z agentem, dla maszyn Proxmox – węzły Proxmox
+  const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind ? "agent" : null;
+  const deviceOptions = (devices.data ?? []).filter((d: Device) => !wantedDriver || d.driver === wantedDriver);
   const interfaces = useQuery({
     queryKey: ["device-interfaces", deviceId],
     queryFn: () => get<InterfaceItem[]>(`/api/devices/${deviceId}/interfaces`),
@@ -223,7 +226,9 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
           </Select>
         )}
         {needsDevice && devices.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noDevices")}</p>}
-        {agentKind && devices.data && deviceOptions.length === 0 && <p className="text-xs text-text-2">{t("ce.agent.none")}</p>}
+        {agentKind && devices.data && deviceOptions.length === 0 && (
+          <p className="text-xs text-text-2">{t(agentKind === "pve_guest" ? "ce.pve.none" : "ce.agent.none")}</p>
+        )}
 
         {agentKind && agentKind !== "agent_cpu" && deviceId != null && (
           <Select

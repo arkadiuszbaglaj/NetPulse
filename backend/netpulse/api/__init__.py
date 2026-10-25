@@ -29,6 +29,7 @@ from . import (
     metrics,
     notifications,
     preferences,
+    proxmox,
     servers,
     system,
     topology,
@@ -62,6 +63,7 @@ app.include_router(live.router)
 app.include_router(metrics.router)
 app.include_router(notifications.router)
 app.include_router(preferences.router)
+app.include_router(proxmox.router)
 app.include_router(servers.router)
 app.include_router(system.router)
 app.include_router(topology.router)

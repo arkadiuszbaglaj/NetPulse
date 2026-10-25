@@ -34,8 +34,8 @@ from .notifications import AlertEvent, Notifier
 log = logging.getLogger("netpulse.alerts")
 
 SEVERITIES = ("info", "warning", "critical")
-# Rodzaje z agenta serwera (ogólna tabela `metrics`): stan kontenera, usługi systemd i SMART dysku
-AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed")
+# Rodzaje na ogólnej tabeli `metrics`: z agenta (kontener, usługa systemd, SMART) i z Proxmoxa (maszyna, kopia)
+AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed")
 KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS)
 OPS = (">", "<")
 
@@ -53,6 +53,7 @@ METRICS: dict[str, tuple[str, str]] = {
     "system_disk_used_percent": ("Serwer NetPulse: dysk", "%"),
     "temp_c": ("Temperatura (każdy czujnik serwera z agentem)", "°C"),
     "smart_reallocated": ("SMART: realokowane sektory (każdy dysk serwera z agentem)", ""),
+    "backup_age_h": ("Proxmox: godziny od ostatniej kopii (każda VM i LXC)", " h"),
 }
 DEVICE_METRICS = ("cpu_percent", "mem_used_percent", "load1")
 DISK_METRICS = ("disk_used_percent",)
@@ -64,7 +65,9 @@ SYSTEM_METRICS = {
     "system_disk_used_percent": "disk_used_percent",
 }
 # Metryki z agenta: nazwa reguły → nazwa w tabeli `metrics` (jeden alert na klucz, np. czujnik albo dysk)
-AGENT_METRICS = {"temp_c": "temp_c", "smart_reallocated": "smart_reallocated"}
+AGENT_METRICS = {"temp_c": "temp_c", "smart_reallocated": "smart_reallocated", "backup_age_h": "backup_age_h"}
+# Tytuł alertu progu z agenta/Proxmoxa: „<urządzenie>: <co> <klucz> <wartość>”
+AGENT_METRIC_WHAT = {"temp_c": "temperatura", "smart_reallocated": "realokowane sektory", "backup_age_h": "ostatnia kopia"}
 # Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer NetPulse) są globalne
 PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS + tuple(AGENT_METRICS)
 # Reguły, które można zawęzić wzorcem nazwy (pole `match`)
@@ -75,7 +78,11 @@ AGENT_STATES = {
     "container_stopped": ("container_up", "kontener", "zatrzymany"),
     "service_failed": ("service_up", "usługa", "nie działa"),
     "smart_failed": ("smart_ok", "dysk", "zgłasza błąd SMART"),
+    "guest_stopped": ("guest_up", "maszyna", "zatrzymana"),
+    "backup_failed": ("backup_task_ok", "kopia zapasowa", "zakończyła się błędem"),
 }
+# Bez filtru nazwy alarm tylko dla tych, które przed chwilą działały (zatrzymane od dawna są zamierzone)
+WENT_DOWN_KINDS = ("container_stopped", "guest_stopped")
 
 # Reguły domyślne w kolejnych wersjach. Instalacja dostaje każdy zestaw raz (znacznik w app_settings),
 # więc reguła usunięta przez użytkownika nie wraca po restarcie.
@@ -89,6 +96,11 @@ DEFAULT_RULE_SETS = (
         dict(name="Usługa systemd nie działa", kind="service_failed", duration_s=60, severity="warning"),
         dict(name="SMART: dysk zgłasza błąd", kind="smart_failed", duration_s=0, severity="critical"),
         dict(name="Wysoka temperatura", kind="metric", metric="temp_c", op=">", threshold=85.0, duration_s=300, severity="warning"),
+    ),
+    (
+        dict(name="Proxmox: maszyna zatrzymana", kind="guest_stopped", duration_s=60, severity="warning"),
+        dict(name="Proxmox: kopia zapasowa nie powiodła się", kind="backup_failed", duration_s=0, severity="critical"),
+        dict(name="Proxmox: brak świeżej kopii VM", kind="metric", metric="backup_age_h", op=">", threshold=36.0, duration_s=0, severity="warning"),
     ),
 )
 DEFAULTS_KEY = "alert_defaults"
@@ -460,16 +472,15 @@ class AlertEngine:
         for (dev_id, key), series in (await self._series(session, AGENT_METRICS[metric], scope, since, rule.match)).items():
             if sustained(series, now, rule.duration_s, op, threshold, float(settings.poll_interval)):
                 v = series[-1][1]
-                what = "temperatura" if metric == "temp_c" else "realokowane sektory"
-                title = f"{names[dev_id]}: {what} {key} {format_value(metric, v)}"
+                title = f"{names[dev_id]}: {AGENT_METRIC_WHAT[metric]} {key} {format_value(metric, v)}"
                 hits.append(Hit(subject_key(f"d{dev_id}:{metric}", key), title, self._detail(rule, metric), dev_id, v))
         return hits
 
     async def _agent_state(self, session, rule: AlertRule, scope: list[Device], now: datetime) -> list[Hit]:
-        """Kontener zatrzymany, usługa nie działa, SMART zgłasza błąd (wartość 0 w `metrics`) przez `duration_s`.
+        """Kontener albo maszyna zatrzymana, usługa nie działa, SMART albo kopia zgłasza błąd (wartość 0 w `metrics`).
 
-        Kontener bez filtru nazwy alarmuje tylko, jeśli przed chwilą działał: kontenery zatrzymane od dawna
-        (np. jednorazowe zadania) nie dają alarmu. Z filtrem nazwy – zawsze, bo o ten kontener chodzi."""
+        Kontener i maszyna bez filtru nazwy alarmują tylko, jeśli przed chwilą działały: zatrzymane od dawna
+        (np. jednorazowe zadania, zapasowe VM) nie dają alarmu. Z filtrem nazwy – zawsze, bo o nie chodzi."""
         name, what, state = AGENT_STATES[rule.kind]
         interval = float(settings.poll_interval)
         since = now - timedelta(seconds=rule.duration_s + interval * 3)
@@ -482,7 +493,7 @@ class AlertEngine:
             if not sustained(series, now, rule.duration_s, "<", 1.0, interval):
                 continue
             subject = subject_key(f"d{dev_id}:{rule.kind[0]}", key)
-            if rule.kind == "container_stopped" and not rule.match and subject not in already:
+            if rule.kind in WENT_DOWN_KINDS and not rule.match and subject not in already:
                 if not any(v is not None and v >= 1 for _t, v in series):
                     continue
             label = key.removesuffix(".service") if rule.kind == "service_failed" else key

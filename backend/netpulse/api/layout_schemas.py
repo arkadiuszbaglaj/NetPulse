@@ -55,15 +55,15 @@ class ServerSource(Strict):
 class AgentSource(Strict):
     """Dane z agenta serwera (tabela `metrics`): CPU na rdzeniach, sieć, dysk, czujnik albo kontener."""
 
-    kind: Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container"]
-    id: int = Field(ge=1)  # urządzenie (serwer z agentem)
+    kind: Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"]
+    id: int = Field(ge=1)  # urządzenie (serwer z agentem albo węzeł Proxmox)
     key: str = Field("", max_length=255)  # interfejs, dysk, czujnik albo kontener; dla agent_cpu puste
 
     @model_validator(mode="after")
     def _key_required(self) -> AgentSource:
         self.key = self.key.strip()
         if self.kind != "agent_cpu" and not self.key:
-            raise ValueError("Wybierz interfejs, dysk, czujnik albo kontener")
+            raise ValueError("Wybierz interfejs, dysk, czujnik, kontener albo maszynę")
         if self.kind == "agent_cpu":
             self.key = ""
         return self
@@ -87,6 +87,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "agent_disk": ("read_bps", "write_bps"),
     "agent_temp": ("temp_c",),
     "agent_container": ("container_cpu_percent", "container_mem_bytes"),
+    "pve_guest": ("guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"),
 }
 
 
