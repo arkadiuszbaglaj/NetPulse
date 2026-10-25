@@ -56,3 +56,12 @@ Urządzenie z kontrolera łączymy z urządzeniem NetPulse (SNMP) po adresie IP,
   `network_clients` (nowe tabele powstają same przy `netpulse update`), API: `/api/controllers` (CRUD i test połączenia),
   `/api/clients?kind=wifi|wired`, `/api/devices/{id}/poe`.
 - **6c** panel: Ustawienia → Kontrolery UniFi (dodawanie z testem), strona Klienci, PoE przy portach switcha, widgety.
+
+## Etap 7 – mapa sieci (LLDP)
+
+`stat/device` zawiera tablicę LLDP każdego urządzenia (`lldp_table`: port lokalny i adres MAC sąsiada).
+Kolektor zapisuje ją co cykl jako zdjęcie stanu (`topology_links`). `GET /api/topology` łączy wpisy obu końców
+kabla w jedną krawędź z numerami portów po obu stronach; sąsiad, którego kontroler nie zna (np. modem na porcie WAN),
+trafia na mapę jako „Nieznane urządzenie”. Panel (**Mapa sieci**) rysuje drzewo: brama w środku, modem nad nią,
+niżej switche i AP, a przy każdym urządzeniu liczba klientów WiFi i klienci po kablu z numerem portu
+(np. telewizor na porcie 7). Pod mapą jest lista połączeń tekstem.

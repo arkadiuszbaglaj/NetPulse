@@ -417,6 +417,16 @@ export const pl = {
   "poe.port": "Port {n}",
   "poe.off": "wyłączone",
   "poe.idle": "brak odbiornika",
+
+  "nav.topology": "Mapa sieci",
+  "topo.title": "Mapa sieci",
+  "topo.error": "Nie udało się pobrać mapy sieci.",
+  "topo.empty.title": "Brak danych o połączeniach",
+  "topo.empty.body": "Mapa powstaje z tablic LLDP, które NetPulse czyta z kontrolera UniFi. Dodaj kontroler w Ustawienia → Kontrolery UniFi i poczekaj na pierwszy odczyt.",
+  "topo.external": "Nieznane urządzenie",
+  "topo.wifi": "Klienci WiFi: {n}",
+  "topo.more": "…i {n} więcej",
+  "topo.links": "Połączenia",
 } as const;
 
 export type TextKey = keyof typeof pl;

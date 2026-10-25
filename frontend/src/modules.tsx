@@ -5,6 +5,7 @@
 import {
   IconDevicesPc,
   IconDownload,
+  IconHierarchy2,
   IconLayoutDashboard,
   IconRefresh,
   IconKey,
@@ -17,6 +18,7 @@ import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { ClientsPage } from "./pages/ClientsPage";
+import { TopologyPage } from "./pages/TopologyPage";
 import { ControllersPage } from "./pages/settings/ControllersPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
@@ -57,6 +59,13 @@ export const modules: NavModule[] = [
     label: "nav.clients",
     icon: IconDevicesPc,
     element: <ClientsPage />,
+  },
+  {
+    id: "topology",
+    path: "/topology",
+    label: "nav.topology",
+    icon: IconHierarchy2,
+    element: <TopologyPage />,
   },
   {
     id: "settings",
