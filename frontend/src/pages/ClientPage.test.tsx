@@ -16,7 +16,7 @@ describe("strona klienta", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Telefon Ani" })).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/clients/${PHONE.mac}`);
     expect(screen.getByText("w sieci")).toBeInTheDocument();
-    expect(screen.getByText("-52 dBm (Sygnał bardzo dobry)")).toBeInTheDocument();
+    expect(screen.getByText("-52 dBm (Sygnał dobry)")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "U6+" })).toHaveAttribute("href", "/devices/3");
     expect(await screen.findByText("Siła sygnału")).toBeInTheDocument();
     expect(screen.getByText("Prędkość łącza")).toBeInTheDocument();

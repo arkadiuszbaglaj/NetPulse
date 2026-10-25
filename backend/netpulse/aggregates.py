@@ -12,6 +12,7 @@ import logging
 from dataclasses import dataclass
 
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 log = logging.getLogger(__name__)
@@ -84,8 +85,10 @@ async def _exists(conn, view: str) -> bool:
 async def ensure(engine: AsyncEngine, raw_days: int, keep_days: int) -> list[str]:
     """Zakłada agregaty, zasady odświeżania i retencji (idempotentnie). Zwraca nazwy nowo utworzonych widoków.
 
-    Nowy widok od razu dostaje dane z całej zachowanej historii. Okno odświeżania jest krótsze niż retencja
-    surowych danych – inaczej odświeżenie po usunięciu starych chunków skasowałoby też ich agregaty."""
+    Nowy widok od razu dostaje dane z całej zachowanej historii – zanim dostanie zasadę odświeżania, bo zadanie
+    TimescaleDB rusza zaraz po jej dodaniu i dwa odświeżenia naraz się blokują. Okno odświeżania jest krótsze niż
+    retencja surowych danych – inaczej odświeżenie po usunięciu starych chunków skasowałoby też ich agregaty.
+    Błąd agregatu nie zatrzymuje startu: wykresy z ostatnich 7 dni i reszta NetPulse działają bez niego."""
     refresh_days = max(1, min(7, raw_days - 1))
     created: list[str] = []
     async with engine.connect() as base:
@@ -94,24 +97,28 @@ async def ensure(engine: AsyncEngine, raw_days: int, keep_days: int) -> list[str
         await conn.execute(text("SELECT pg_advisory_lock(:k)"), {"k": LOCK_KEY})
         try:
             for a in AGGREGATES:
-                if not await _exists(conn, a.view):
-                    await conn.execute(text(a.create_sql()))
-                    created.append(a.view)
-                await conn.execute(
-                    text(
-                        "SELECT add_continuous_aggregate_policy(:v, start_offset => make_interval(days => :s), "
-                        "end_offset => INTERVAL '1 hour', schedule_interval => INTERVAL '30 minutes', if_not_exists => TRUE)"
-                    ),
-                    {"v": a.view, "s": refresh_days},
-                )
-                await conn.execute(
-                    text("SELECT add_retention_policy(:v, make_interval(days => :d), if_not_exists => TRUE)"),
-                    {"v": a.view, "d": keep_days},
-                )
-            for view in created:
-                # Nazwa widoku to stała z AGGREGATES, nie dane od użytkownika
-                await conn.execute(text(f"CALL refresh_continuous_aggregate('{view}', NULL::timestamptz, now() - INTERVAL '1 hour')"))
-                log.info("Agregat godzinowy %s utworzony i wypełniony historią", view)
+                try:
+                    if not await _exists(conn, a.view):
+                        await conn.execute(text(a.create_sql()))
+                        # Nazwa widoku to stała z AGGREGATES, nie dane od użytkownika
+                        await conn.execute(
+                            text(f"CALL refresh_continuous_aggregate('{a.view}', NULL::timestamptz, now() - INTERVAL '1 hour')")
+                        )
+                        created.append(a.view)
+                        log.info("Agregat godzinowy %s utworzony i wypełniony historią", a.view)
+                    await conn.execute(
+                        text(
+                            "SELECT add_continuous_aggregate_policy(:v, start_offset => make_interval(days => :s), "
+                            "end_offset => INTERVAL '1 hour', schedule_interval => INTERVAL '30 minutes', if_not_exists => TRUE)"
+                        ),
+                        {"v": a.view, "s": refresh_days},
+                    )
+                    await conn.execute(
+                        text("SELECT add_retention_policy(:v, make_interval(days => :d), if_not_exists => TRUE)"),
+                        {"v": a.view, "d": keep_days},
+                    )
+                except DBAPIError as exc:
+                    log.error("Agregat godzinowy %s: %s", a.view, exc.orig)
         finally:
             await conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": LOCK_KEY})
     return created
