@@ -87,9 +87,9 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
    5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
-   5e ✅ personalizacja wykresów i układu, 5f tryb „Na żywo” (WebSocket, ruch WAN co 1–2 s; opis w `docs/06-projekt-panelu.md`)
-6. Driver UniFi przez API – PoE, klienci WiFi
-7. Topologia LLDP – mapa sieci
-8. Alerty – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
+   5e ✅ personalizacja wykresów i układu, 5f ✅ tryb „Na żywo” (WebSocket, ruch WAN co 1–2 s; opis w `docs/06-projekt-panelu.md`)
+6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`)
+7. ✅ Topologia LLDP – mapa sieci
+8. Alerty (8a ✅ silnik, 8b ✅ panel; brakuje reguł dla dysku i błędów portów oraz powiadomień poza panelem) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
 9. SNMP v3, MikroTik, Omada
 10. Serwery Linux – etap A: SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B: własny agent (push, tokeny, systemd, Docker, SMART; wymaga ogólnej tabeli metryk i Alembic). Opis w `docs/06-projekt-panelu.md` (backlog)
