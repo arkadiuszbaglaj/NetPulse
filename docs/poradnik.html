@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetPulse: kompletny poradnik</title>
+<meta name="description" content="Instalacja, konfiguracja i obsługa NetPulse: monitorowanie sieci w homelabie.">
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef1f5; --text: #1b2330; --text-2: #5a6678; --border: #dde2ea;
+  --accent: #1f5fbf; --accent-soft: #e4eefc; --code-bg: #0f1722; --code-text: #e6edf6; --warn-bg: #fff4dc; --warn-border: #e8b84a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131b; --surface: #151c27; --surface-2: #1c2533; --text: #e6ebf2; --text-2: #9aa7ba; --border: #28323f;
+    --accent: #6ea8ff; --accent-soft: #1b2a44; --code-bg: #090d13; --code-text: #e6edf6; --warn-bg: #2d2412; --warn-border: #8a6a1f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131b; --surface: #151c27; --surface-2: #1c2533; --text: #e6ebf2; --text-2: #9aa7ba; --border: #28323f;
+  --accent: #6ea8ff; --accent-soft: #1b2a44; --code-bg: #090d13; --code-text: #e6edf6; --warn-bg: #2d2412; --warn-border: #8a6a1f;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+header.top {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+header.top .brand { font-weight: 650; letter-spacing: .2px; margin-right: auto; }
+header.top button {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+header.top button:hover { border-color: var(--accent); }
+#menu-btn { display: none; }
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; gap: 32px; padding: 24px 16px 64px; }
+nav.toc { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 96px); overflow: auto; padding-right: 8px; }
+nav.toc h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-2); margin: 0 0 8px; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc a {
+  display: block; padding: 6px 10px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: 14.5px; line-height: 1.35;
+}
+nav.toc a:hover { background: var(--surface-2); color: var(--text); }
+nav.toc a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+main { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px 40px 40px; }
+main h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+main h2 { font-size: 1.45rem; margin: 2.4em 0 .6em; padding-top: .4em; border-top: 1px solid var(--border); line-height: 1.3; }
+main h2:first-of-type { border-top: 0; margin-top: 1.6em; }
+main h3 { font-size: 1.1rem; margin: 1.8em 0 .4em; }
+main p, main li { color: var(--text); }
+main li { margin: .25em 0; }
+main hr { display: none; }
+main code { font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface-2); padding: .12em .4em; border-radius: 5px; }
+.code { position: relative; margin: 1em 0; }
+.code pre { margin: 0; background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code pre code { background: none; padding: 0; color: inherit; font-size: .87rem; white-space: pre; }
+.code button.copy {
+  position: absolute; top: 8px; right: 8px; font: inherit; font-size: 12px; color: #cfd8e6; background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 3px 9px; cursor: pointer;
+}
+.code button.copy:hover { background: rgba(255,255,255,.16); }
+.code button.copy.done { color: #8fe0a8; border-color: #8fe0a8; }
+.code pre { padding-right: 76px; }
+.table-wrap { overflow-x: auto; margin: 1em 0; border: 1px solid var(--border); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: .94rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+blockquote { margin: 1em 0; padding: 10px 16px; background: var(--warn-bg); border-left: 4px solid var(--warn-border); border-radius: 6px; }
+blockquote p { margin: .3em 0; }
+footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; color: var(--text-2); font-size: 14px; text-align: center; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding-top: 16px; }
+  #menu-btn { display: inline-block; }
+  nav.toc {
+    position: fixed; inset: 56px 0 0 0; z-index: 15; max-height: none; background: var(--surface); padding: 16px; display: none;
+  }
+  nav.toc.open { display: block; }
+  main { padding: 22px 18px 28px; border-radius: 12px; }
+  main h1 { font-size: 1.6rem; }
+}
+@media print { header.top, nav.toc, .copy { display: none !important; } .layout { display: block; } main { border: 0; padding: 0; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button id="menu-btn" type="button" aria-expanded="false" aria-controls="toc">Spis treści</button>
+  <span class="brand">NetPulse · poradnik</span>
+  <button id="theme-btn" type="button" aria-label="Przełącz motyw jasny i ciemny">Motyw</button>
+</header>
+<div class="layout">
+  <nav class="toc" id="toc" aria-label="Spis treści">
+    <h2>Spis treści</h2>
+    <ul>
+<li><a href="#1-wymagania">1. Wymagania</a></li>
+<li><a href="#2-instalacja">2. Instalacja</a></li>
+<li><a href="#3-pierwsze-logowanie">3. Pierwsze logowanie</a></li>
+<li><a href="#4-przygotowanie-urządzeń-snmp">4. Przygotowanie urządzeń: SNMP</a></li>
+<li><a href="#5-dodawanie-urządzeń">5. Dodawanie urządzeń</a></li>
+<li><a href="#6-kontroler-unifi-poe-klienci-mapa-sieci">6. Kontroler UniFi: PoE, klienci, mapa sieci</a></li>
+<li><a href="#7-serwery-linux">7. Serwery Linux</a></li>
+<li><a href="#8-panel-co-gdzie-jest">8. Panel: co gdzie jest</a></li>
+<li><a href="#9-aktualizacja">9. Aktualizacja</a></li>
+<li><a href="#10-konfiguracja">10. Konfiguracja</a></li>
+<li><a href="#11-adres-bez-numeru-portu-nazwa-i-https">11. Adres bez numeru portu, nazwa i HTTPS</a></li>
+<li><a href="#12-kopia-i-przywracanie-bazy">12. Kopia i przywracanie bazy</a></li>
+<li><a href="#13-wszystkie-polecenia">13. Wszystkie polecenia</a></li>
+<li><a href="#14-bezpieczeństwo">14. Bezpieczeństwo</a></li>
+<li><a href="#15-rozwiązywanie-problemów">15. Rozwiązywanie problemów</a></li>
+<li><a href="#16-odinstalowanie">16. Odinstalowanie</a></li>
+    </ul>
+  </nav>
+  <main id="content">
+<h1 id="netpulse-kompletny-poradnik">NetPulse: kompletny poradnik</h1>
+<p>NetPulse to self-hosted panel do monitorowania sieci w homelabie. Zbiera w jednym miejscu ruch i stan portów
+routera, switchy i access pointów, klientów sieci, zasilanie PoE, mapę połączeń i stan serwerów Linux.
+Ten poradnik prowadzi od czystego serwera do działającego panelu i opisuje codzienną obsługę.</p>
+<p>Wszystkie polecenia są do skopiowania. Przykładowe adresy (<code>192.168.1.x</code>) zamień na własne.</p>
+<h2 id="1-wymagania">1. Wymagania</h2>
+<ul>
+<li>Serwer z <strong>Ubuntu Server</strong> (testowane na 24.04 LTS), dostęp przez SSH i konto z <code>sudo</code>.</li>
+<li>Serwer musi widzieć urządzenia w sieci (SNMP to UDP, port 161).</li>
+<li>Kilka GB wolnego miejsca na dysku: budowanie obrazów wymaga co najmniej 2 GB, zalecane 4 GB i więcej.</li>
+<li>Połączenie z internetem na czas instalacji i aktualizacji (pobieranie Dockera i kodu z GitHuba).</li>
+</ul>
+<p>Docker instaluje skrypt instalacyjny sam, jeśli go brak.</p>
+<h2 id="2-instalacja">2. Instalacja</h2>
+<p>Jedna komenda na serwerze:</p>
+<pre><code class="language-bash">curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
+</code></pre>
+<p>Skrypt:</p>
+<ol>
+<li>sprawdza wolne miejsce i w razie potrzeby sprząta nieużywane dane Dockera,</li>
+<li>instaluje Dockera (jeśli go nie ma),</li>
+<li>pobiera NetPulse do <code>/opt/netpulse</code>,</li>
+<li>tworzy <code>/opt/netpulse/deploy/.env</code> z losowym hasłem do bazy,</li>
+<li>instaluje polecenie <code>netpulse</code>,</li>
+<li>uruchamia usługi: baza (PostgreSQL + TimescaleDB), kolektor, API z panelem i usługę aktualizacji.</li>
+</ol>
+<p>Pierwsza instalacja trwa kilka minut (pobieranie obrazów i budowanie). Sprawdź, że wszystko działa:</p>
+<pre><code class="language-bash">netpulse status
+netpulse version
+</code></pre>
+<p>Panel jest pod adresem <code>http://IP-SERWERA:8000</code> (port ze zmiennej <code>NETPULSE_PORT</code>, patrz <a href="#10-konfiguracja">rozdział 10</a>).</p>
+<h2 id="3-pierwsze-logowanie">3. Pierwsze logowanie</h2>
+<p>Po instalacji nie ma żadnego konta. Otwórz <code>http://IP-SERWERA:8000</code>, a panel pokaże kreator: podaj login i hasło
+(co najmniej 10 znaków, panel pokazuje na żywo, czy hasło spełnia podpowiedzi). Kreator założy konto
+administratora i od razu Cię zaloguje. Działa tylko raz.</p>
+<blockquote>
+<p>Do chwili założenia konta zrobić to może każdy w sieci lokalnej, więc załóż je od razu po instalacji.</p>
+</blockquote>
+<p>Konta z terminala:</p>
+<pre><code class="language-bash">netpulse user list
+netpulse user add NAZWA
+netpulse user passwd admin
+</code></pre>
+<p><code>passwd</code> ustawia nowe hasło (np. zapomniane) i wylogowuje wszystkie sesje tego konta.</p>
+<h2 id="4-przygotowanie-urządzeń-snmp">4. Przygotowanie urządzeń: SNMP</h2>
+<p>NetPulse odpytuje urządzenia przez SNMP v1, v2c lub v3. Najpierw SNMP trzeba włączyć na urządzeniu.</p>
+<h3 id="unifi-router-switche-access-pointy">UniFi (router, switche, access pointy)</h3>
+<p>W aplikacji UniFi Network włącz SNMP. Nazwy menu zmieniają się między wersjami, zwykle jest to
+<strong>Settings → System → Advanced</strong> albo <strong>Settings → Control Plane → Integrations</strong>, sekcja <strong>SNMP Monitoring</strong>.</p>
+<ol>
+<li>Włącz <strong>SNMPv1/v2c</strong>.</li>
+<li>Ustaw własną nazwę community (nie zostawiaj <code>public</code>), np. <code>netpulse-ro</code>.</li>
+<li>Zapisz. Ustawienie trafia do adoptowanych urządzeń (switch, AP).</li>
+</ol>
+<h3 id="sprawdzenie-snmp-z-serwera-opcjonalnie">Sprawdzenie SNMP z serwera (opcjonalnie)</h3>
+<pre><code class="language-bash">sudo apt update &amp;&amp; sudo apt install -y snmp
+snmpwalk -v2c -c netpulse-ro 192.168.1.1 1.3.6.1.2.1.1
+</code></pre>
+<p>Odpowiedź z nazwą i opisem urządzenia oznacza, że SNMP działa. Brak odpowiedzi to zazwyczaj zła nazwa community,
+wyłączone SNMP albo zapora.</p>
+<h2 id="5-dodawanie-urządzeń">5. Dodawanie urządzeń</h2>
+<h3 id="w-panelu">W panelu</h3>
+<p><strong>Ustawienia → Urządzenia → Dodaj urządzenie.</strong> Podaj nazwę, adres IP, wersję SNMP i community (dla SNMP v3
+nazwę użytkownika i klucze), a potem <strong>Testuj połączenie</strong>: NetPulse pokaże, co wykrył (typ, model, liczba portów).
+Sterownik zostaw na „Automatyczny" (zalecany). Zapisane community i klucze nigdy nie wracają do przeglądarki;
+przy edycji puste pole oznacza „zostaw zapisane".</p>
+<h3 id="z-terminala">Z terminala</h3>
+<pre><code class="language-bash">netpulse device add &quot;UCG Ultra&quot; 192.168.1.1 --community netpulse-ro
+netpulse device add &quot;USW Lite 8 PoE&quot; 192.168.1.2 --community netpulse-ro
+netpulse device add &quot;U6+&quot; 192.168.1.3 --community netpulse-ro
+netpulse device list
+</code></pre>
+<p>Sam test, bez dodawania:</p>
+<pre><code class="language-bash">netpulse probe 192.168.1.2 --community netpulse-ro
+</code></pre>
+<p>SNMP v3 (uwierzytelnianie i szyfrowanie):</p>
+<pre><code class="language-bash">netpulse device add &quot;Router&quot; 192.168.1.1 --snmp-version 3 \
+  --v3-user monitor --v3-auth-proto SHA --v3-auth-key 'KLUCZ-AUTH' \
+  --v3-priv-proto AES --v3-priv-key 'KLUCZ-PRIV'
+</code></pre>
+<p>Usunięcie urządzenia razem z historią (ID z <code>netpulse device list</code>):</p>
+<pre><code class="language-bash">netpulse device remove 3
+</code></pre>
+<p>Pierwsze wykresy ruchu pojawiają się po drugim odczycie, czyli około minuty po dodaniu urządzenia
+(przepływ jest liczony z różnicy liczników).</p>
+<h2 id="6-kontroler-unifi-poe-klienci-mapa-sieci">6. Kontroler UniFi: PoE, klienci, mapa sieci</h2>
+<p>SNMP nie podaje mocy PoE na portach, listy klientów (nazwa, sygnał, port) ani połączeń między urządzeniami.
+Te dane NetPulse czyta z kontrolera UniFi Network przez klucz API (tylko odczyt).</p>
+<ol>
+<li>W UniFi Network: <strong>Settings → Control Plane → Integrations → Create API Key</strong>. Nazwa dowolna, np. <code>netpulse</code>.
+   Klucz widać tylko raz, więc skopiuj go od razu. Nie wklejaj go do czatów ani do repozytoriów.</li>
+<li>W NetPulse: <strong>Ustawienia → Kontrolery UniFi → Dodaj kontroler</strong>. Podaj adres kontrolera (u Ciebie brama,
+   np. <code>192.168.1.1</code>), klucz API i <code>site</code> (zwykle <code>default</code>). Kontrolery mają zwykle certyfikat samopodpisany,
+   więc zostaw weryfikację certyfikatu wyłączoną. <strong>Testuj połączenie</strong> pokaże wersję UniFi Network i liczbę
+   urządzeń oraz klientów.</li>
+<li>Po jednym cyklu (ok. 30 s) działają: strona <strong>Klienci</strong>, widget <strong>PoE switcha</strong> oraz <strong>Mapa sieci</strong>.</li>
+</ol>
+<p>Urządzenie z kontrolera łączone jest z urządzeniem w NetPulse po adresie IP, więc dodaj je też w Ustawienia → Urządzenia
+(adres musi się zgadzać).</p>
+<p>Uwaga: NetPulse używa też starszego, nieoficjalnego API kontrolera, bo tylko ono ma moc PoE i sygnał klientów.
+Po dużej aktualizacji UniFi coś może się zmienić. Testy na zapisanych odpowiedziach wykrywają taką zmianę
+w nowej wersji NetPulse.</p>
+<h2 id="7-serwery-linux">7. Serwery Linux</h2>
+<p>Serwer Linux jest w NetPulse zwykłym urządzeniem i działa przez SNMP (<code>snmpd</code>). Pokazuje CPU, RAM, swap,
+obciążenie, dyski, liczbę procesów, czas pracy i ruch na interfejsach (bez śmieci z Dockera).</p>
+<p>Na monitorowanym serwerze:</p>
+<pre><code class="language-bash">sudo apt update &amp;&amp; sudo apt install -y snmpd
+</code></pre>
+<p>Wpisz do <code>/etc/snmp/snmpd.conf</code> (zastąp zawartość). Podmień <code>192.168.1.10</code> na adres serwera z NetPulse,
+a <code>netpulse-ro</code> na własne community:</p>
+<pre><code>agentaddress udp:161
+rocommunity netpulse-ro 192.168.1.10
+sysLocation  szafa
+sysContact   admin
+</code></pre>
+<pre><code class="language-bash">sudo systemctl restart snmpd &amp;&amp; sudo systemctl enable snmpd
+sudo ufw allow from 192.168.1.10 to any port 161 proto udp
+</code></pre>
+<p>(Ostatnie polecenie tylko, jeśli używasz zapory <code>ufw</code>.) Sprawdzenie z serwera NetPulse:</p>
+<pre><code class="language-bash">snmpwalk -v2c -c netpulse-ro 192.168.1.20 1.3.6.1.2.1.25.2.3.1.3
+</code></pre>
+<p>Potem dodaj serwer w <strong>Ustawienia → Urządzenia</strong> ze sterownikiem „Automatyczny" (rozpozna serwer sam) albo
+„Serwer Linux (snmpd)". Szczegóły i rozwiązywanie problemów: <a href="https://github.com/arkadiuszbaglaj/NetPulse/blob/main/docs/10-serwer-linux-snmp.md"><code>docs/10-serwer-linux-snmp.md</code></a>.</p>
+<p>Czego SNMP nie da: kontenerów, usług systemd, SMART i temperatur (to zakres planowanego agenta).</p>
+<h2 id="8-panel-co-gdzie-jest">8. Panel: co gdzie jest</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Sekcja</th>
+<th>Co zawiera</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dashboard</strong></td>
+<td>Podsumowanie (urządzenia, ruch WAN, klienci WiFi), wykresy, karty urządzeń, PoE, stan serwera</td>
+</tr>
+<tr>
+<td><strong>Klienci</strong></td>
+<td>Lista klientów sieci: WiFi (sieć, pasmo, sygnał) i po kablu (switch i port), z wyszukiwarką</td>
+</tr>
+<tr>
+<td><strong>Mapa sieci</strong></td>
+<td>Schemat połączeń: Internet, brama, switche, access pointy, klienci przy portach</td>
+</tr>
+<tr>
+<td><strong>Alerty</strong></td>
+<td>Aktywne alerty i historia, potwierdzanie. Dzwonek w pasku górnym pokazuje licznik aktywnych</td>
+</tr>
+<tr>
+<td><strong>Ustawienia</strong></td>
+<td>Konto, Urządzenia, Kontrolery UniFi, Reguły alertów, Odświeżanie, System, Aktualizacja</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="dashboard-i-personalizacja">Dashboard i personalizacja</h3>
+<p><strong>Edytuj pulpit</strong> włącza tryb edycji: przeciągaj widgety, zmieniaj ich szerokość, edytuj i usuwaj, a potem <strong>Zapisz</strong>
+(układ zapisuje się na koncie). <strong>Przywróć domyślny</strong> wraca do wyglądu początkowego. Dostępne widgety:
+Wykres, Podsumowanie, Karty urządzeń, PoE switcha, Serwer.</p>
+<p>Wykres ma własne ustawienia: źródło (ruch WAN, port, urządzenie, sieć WiFi, klienci WiFi, serwer NetPulse),
+metryki i kolory, typ (linia, obszar, słupki), jednostkę (bity albo bajty), maksimum osi, zakres czasu, odświeżanie
+i wysokość.</p>
+<h3 id="odświeżanie-i-tryb-na-żywo">Odświeżanie i tryb „Na żywo"</h3>
+<p>W pasku górnym wybierasz interwał odświeżania, a zakres czasu wykresów nad pulpitem. Przy wykresie ruchu WAN
+jest przełącznik <strong>Na żywo</strong>: liczby i wykres odświeżają się co 1–2 sekundy przez WebSocket (bez zapisu do bazy,
+a gdy nikt nie patrzy, router nie jest dodatkowo odpytywany). Po zerwaniu połączenia wykres wraca do zwykłego odświeżania.</p>
+<h3 id="alerty">Alerty</h3>
+<p><strong>Ustawienia → Reguły alertów.</strong> Domyślnie włączone są „Urządzenie nie odpowiada" i „Port przeszedł w stan down".
+Można dodawać reguły z progami (np. CPU, RAM, ruch WAN) i czasem trwania, żeby krótkie skoki nie dawały alarmów.</p>
+<h3 id="system">System</h3>
+<p><strong>Ustawienia → System</strong> pokazuje stan usług NetPulse (API, baza, kolektor, kontrolery UniFi, usługa aktualizacji)
+oraz stan serwera, na którym NetPulse działa: CPU, RAM, dysk, obciążenie, temperaturę i rozmiar bazy, z wykresami.</p>
+<h2 id="9-aktualizacja">9. Aktualizacja</h2>
+<h3 id="z-panelu">Z panelu</h3>
+<p><strong>Ustawienia → Aktualizacja → Sprawdź aktualizacje</strong>, potem <strong>Aktualizuj do …</strong> (tylko administrator). Aktualizacja
+trwa kilka minut, panel jest wtedy chwilowo niedostępny. Przed zmianą robiona jest kopia bazy, a przy błędzie
+następuje automatyczne wycofanie do poprzedniej wersji. Można też włączyć automatyczne sprawdzanie i plakietkę
+w pasku górnym, gdy jest nowa wersja.</p>
+<h3 id="z-terminala_1">Z terminala</h3>
+<pre><code class="language-bash">netpulse update
+</code></pre>
+<p>Pobiera najnowszą wersję, pokazuje listę zmian, przebudowuje i restartuje usługi. Dane i konfiguracja zostają.
+Wymuszenie, gdy po nieudanym budowaniu potrzebna jest ponowna próba:</p>
+<pre><code class="language-bash">netpulse update --force
+</code></pre>
+<p>Aktualizacja z panelu pojawiła się w wersji 0.6.0. Na starszej instalacji zaktualizuj raz z terminala.</p>
+<h3 id="miejsce-na-dysku">Miejsce na dysku</h3>
+<p><code>install.sh</code> i <code>netpulse update</code> sprawdzają wolne miejsce przed zmianą czegokolwiek: poniżej 4 GB sprzątają
+nieużywane dane Dockera, a poniżej 2 GB po sprzątaniu zatrzymują się bez żadnych zmian. Ręcznie:</p>
+<pre><code class="language-bash">netpulse cleanup
+</code></pre>
+<p>Gdy dysk jest duży, ale system używa tylko jego części (domyślny układ LVM w Ubuntu Server):</p>
+<pre><code class="language-bash">sudo vgs
+sudo lvextend -r -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
+</code></pre>
+<p>(drugie polecenie tylko, jeśli <code>VFree</code> w pierwszym pokazuje wolne miejsce).</p>
+<h2 id="10-konfiguracja">10. Konfiguracja</h2>
+<p>Plik <code>/opt/netpulse/deploy/.env</code>. Po zmianie zastosuj ją poleceniem <code>netpulse start</code> (samo <code>netpulse restart</code>
+nie odtwarza kontenerów z nowym portem).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Zmienna</th>
+<th>Domyślnie</th>
+<th>Opis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NETPULSE_PORT</code></td>
+<td>8000</td>
+<td>port panelu i API na serwerze</td>
+</tr>
+<tr>
+<td><code>NETPULSE_POLL_INTERVAL</code></td>
+<td>30</td>
+<td>co ile sekund odpytywać urządzenia</td>
+</tr>
+<tr>
+<td><code>NETPULSE_RETENTION_DAYS</code></td>
+<td>30</td>
+<td>ile dni trzymać szczegółowe metryki</td>
+</tr>
+<tr>
+<td><code>NETPULSE_LOG_LEVEL</code></td>
+<td>INFO</td>
+<td>poziom logów</td>
+</tr>
+<tr>
+<td><code>TZ</code></td>
+<td>Europe/Warsaw</td>
+<td>strefa czasowa</td>
+</tr>
+<tr>
+<td><code>NETPULSE_UPDATER</code></td>
+<td>on</td>
+<td><code>off</code> wyłącza aktualizację z panelu</td>
+</tr>
+<tr>
+<td><code>NETPULSE_TRUSTED_ORIGINS</code></td>
+<td>puste</td>
+<td>dodatkowe adresy panelu (za reverse proxy), oddzielone przecinkami</td>
+</tr>
+<tr>
+<td><code>NETPULSE_SESSION_DAYS</code></td>
+<td>30</td>
+<td>ważność sesji logowania</td>
+</tr>
+</tbody>
+</table></div>
+<p>Przykład edycji:</p>
+<pre><code class="language-bash">sudo nano /opt/netpulse/deploy/.env
+netpulse start
+</code></pre>
+<p>Krótszy interwał odpytywania daje gęstsze wykresy, ale baza rośnie proporcjonalnie (10 s to około 3 razy więcej
+wierszy niż 30 s).</p>
+<h2 id="11-adres-bez-numeru-portu-nazwa-i-https">11. Adres bez numeru portu, nazwa i HTTPS</h2>
+<h3 id="port-80-httpip-serwera">Port 80: <code>http://IP-SERWERA</code></h3>
+<p>Sprawdź, czy port 80 jest wolny (pusty wynik oznacza wolny):</p>
+<pre><code class="language-bash">sudo ss -ltn 'sport = :80'
+</code></pre>
+<p>Ustaw port i zastosuj zmianę:</p>
+<pre><code class="language-bash">sudo sed -i 's/^NETPULSE_PORT=.*/NETPULSE_PORT=80/' /opt/netpulse/deploy/.env
+netpulse start
+</code></pre>
+<p>Dane, konto i urządzenia zostają, a stare zakładki z <code>:8000</code> przestaną działać. Powrót: ta sama komenda z <code>8000</code>.</p>
+<h3 id="nazwa-zamiast-adresu-ip">Nazwa zamiast adresu IP</h3>
+<ul>
+<li><strong>mDNS (z serwera):</strong> <code>sudo apt install -y avahi-daemon</code>, potem <code>http://NAZWA-SERWERA.local</code> (nazwę pokaże <code>hostname</code>).
+  Działa na Windows 10+, macOS i iOS; na Androidzie bywa różnie.</li>
+<li><strong>DNS w routerze (UniFi):</strong> lokalny wpis, np. <code>netpulse.lan</code> wskazujący na serwer. Robi się to w panelu routera.</li>
+</ul>
+<h3 id="https-reverse-proxy">HTTPS (reverse proxy)</h3>
+<p>Przed NetPulse można postawić proxy (np. Caddy) na portach 80 i 443. Wtedy w <code>.env</code> dopisz adres, pod którym panel
+jest dostępny, i zastosuj zmianę, bo inaczej ochrona CSRF odrzuci logowanie:</p>
+<pre><code class="language-bash">echo 'NETPULSE_TRUSTED_ORIGINS=https://netpulse.lan' | sudo tee -a /opt/netpulse/deploy/.env
+netpulse start
+</code></pre>
+<p>Nie wystawiaj panelu bezpośrednio do internetu: dostęp z zewnątrz tylko przez VPN albo porządnie skonfigurowane HTTPS.</p>
+<h2 id="12-kopia-i-przywracanie-bazy">12. Kopia i przywracanie bazy</h2>
+<p>Aktualizacja z panelu zapisuje kopię bazy w <code>/opt/netpulse/backups/netpulse-RRRRMMDD-GGMMSS.sql.gz</code> (zostają 3 ostatnie,
+prawa tylko dla roota). Ręczna kopia:</p>
+<pre><code class="language-bash">cd /opt/netpulse
+sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec -T db pg_dump -U netpulse netpulse | gzip | sudo tee backups/reczna-$(date +%Y%m%d-%H%M%S).sql.gz &gt; /dev/null
+</code></pre>
+<p>Przywracanie (potrzebne tylko, gdy trzeba wrócić do stanu sprzed zmiany). Podmień nazwę pliku:</p>
+<pre><code class="language-bash">cd /opt/netpulse
+DC=&quot;sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env&quot;
+$DC stop api collector
+$DC exec -T db psql -U netpulse -d postgres -c &quot;DROP DATABASE netpulse&quot; -c &quot;CREATE DATABASE netpulse&quot;
+$DC exec -T db psql -U netpulse -d netpulse -c &quot;CREATE EXTENSION IF NOT EXISTS timescaledb&quot; -c &quot;SELECT timescaledb_pre_restore()&quot;
+sudo zcat backups/netpulse-RRRRMMDD-GGMMSS.sql.gz | $DC exec -T db psql -U netpulse -d netpulse -q
+$DC exec -T db psql -U netpulse -d netpulse -c &quot;SELECT timescaledb_post_restore()&quot;
+$DC start api collector
+</code></pre>
+<h2 id="13-wszystkie-polecenia">13. Wszystkie polecenia</h2>
+<p>Polecenia <code>netpulse</code> uruchamiaj na serwerze (większość wymaga <code>sudo</code>, a gdy go brakuje, skrypt sam o tym powie).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Polecenie</th>
+<th>Co robi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>netpulse status</code></td>
+<td>stan usług (kontenerów)</td>
+</tr>
+<tr>
+<td><code>netpulse logs</code></td>
+<td>logi wszystkich usług (Ctrl+C kończy)</td>
+</tr>
+<tr>
+<td><code>netpulse logs collector</code></td>
+<td>logi tylko kolektora (analogicznie <code>api</code>, <code>db</code>, <code>updater</code>)</td>
+</tr>
+<tr>
+<td><code>netpulse start</code></td>
+<td>uruchom usługi (zastosuje też zmiany z <code>.env</code>)</td>
+</tr>
+<tr>
+<td><code>netpulse stop</code></td>
+<td>zatrzymaj usługi</td>
+</tr>
+<tr>
+<td><code>netpulse restart</code></td>
+<td>restart usług</td>
+</tr>
+<tr>
+<td><code>netpulse update</code></td>
+<td>aktualizacja do najnowszej wersji (<code>--force</code> wymusza)</td>
+</tr>
+<tr>
+<td><code>netpulse version</code></td>
+<td>zainstalowana wersja</td>
+</tr>
+<tr>
+<td><code>netpulse cleanup</code></td>
+<td>zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje)</td>
+</tr>
+<tr>
+<td><code>netpulse reset</code></td>
+<td>wyczyść bazę (urządzenia i historia), konfiguracja zostaje</td>
+</tr>
+<tr>
+<td><code>netpulse uninstall</code></td>
+<td>usuń NetPulse (pyta o usunięcie danych)</td>
+</tr>
+<tr>
+<td><code>netpulse device add NAZWA ADRES [opcje]</code></td>
+<td>dodaj urządzenie (opcje: <code>--community</code>, <code>--snmp-version</code>, <code>--port</code>, <code>--driver</code>, <code>--v3-*</code>, <code>--no-probe</code>)</td>
+</tr>
+<tr>
+<td><code>netpulse device list</code></td>
+<td>lista urządzeń ze statusem i czasem ostatniego odczytu</td>
+</tr>
+<tr>
+<td><code>netpulse device remove ID</code></td>
+<td>usuń urządzenie razem z historią</td>
+</tr>
+<tr>
+<td><code>netpulse probe ADRES [--community C] [--all]</code></td>
+<td>test SNMP bez zapisu (<code>--all</code> pokazuje też ukryte interfejsy)</td>
+</tr>
+<tr>
+<td><code>netpulse user list</code></td>
+<td>konta panelu</td>
+</tr>
+<tr>
+<td><code>netpulse user add NAZWA</code></td>
+<td>dodaj konto administratora</td>
+</tr>
+<tr>
+<td><code>netpulse user passwd NAZWA</code></td>
+<td>nowe hasło</td>
+</tr>
+</tbody>
+</table></div>
+<p>Interaktywna dokumentacja API (z możliwością wywołań po zalogowaniu): <code>http://IP-SERWERA:8000/docs</code>.</p>
+<h2 id="14-bezpieczeństwo">14. Bezpieczeństwo</h2>
+<ul>
+<li>Panel i API wymagają logowania. Hasła są w bazie jako skrót Argon2, sesja w ciasteczku <code>HttpOnly</code>, ważna 30 dni od ostatniej
+  aktywności. Po 10 nieudanych logowaniach z jednego adresu następuje 15 minut blokady.</li>
+<li>Zmiany (POST, PATCH, DELETE) przyjmowane są tylko z tej samej strony (ochrona CSRF).</li>
+<li>Community SNMP, klucze SNMP v3 i klucze API kontrolerów nigdy nie wracają do przeglądarki.</li>
+<li>Aktualizacja z panelu działa w osobnym kontenerze <code>updater</code>, jedynym z dostępem do Dockera. API rozmawia z nim przez sieć
+  wewnętrzną z losowym tokenem, a zlecić aktualizację może tylko administrator. Wyłączenie: <code>NETPULSE_UPDATER=off</code> w <code>.env</code>.</li>
+<li>Używaj własnego community SNMP zamiast <code>public</code> i ograniczaj odczyt do adresu serwera NetPulse (patrz <a href="#7-serwery-linux">rozdział 7</a>).</li>
+<li>Nie wystawiaj portu panelu do internetu bez VPN albo HTTPS.</li>
+</ul>
+<h2 id="15-rozwiązywanie-problemów">15. Rozwiązywanie problemów</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Co sprawdzić</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Panel się nie otwiera</td>
+<td><code>netpulse status</code>, <code>netpulse logs api</code>; port w <code>.env</code> i zapora serwera</td>
+</tr>
+<tr>
+<td>„Brak odpowiedzi SNMP" przy dodawaniu</td>
+<td>SNMP włączone na urządzeniu, nazwa community, adres, zapora (UDP 161): <code>snmpwalk -v2c -c COMMUNITY ADRES 1.3.6.1.2.1.1</code></td>
+</tr>
+<tr>
+<td>Brak wykresów po dodaniu urządzenia</td>
+<td>poczekaj 1–2 minuty (potrzebne dwa odczyty); <code>netpulse device list</code> pokazuje status</td>
+</tr>
+<tr>
+<td>Urządzenie „nie odpowiada"</td>
+<td><code>netpulse logs collector</code>; ten sam test <code>snmpwalk</code> z serwera</td>
+</tr>
+<tr>
+<td>„Baza danych pochodzi ze starszej, niezgodnej wersji"</td>
+<td><code>netpulse reset</code> (usuwa urządzenia i historię), potem dodaj urządzenia ponownie</td>
+</tr>
+<tr>
+<td>Brak PoE, klientów albo mapy sieci</td>
+<td>dodany kontroler UniFi (rozdział 6), poprawny klucz API i <code>site</code>; adres urządzenia w NetPulse zgodny z kontrolerem</td>
+</tr>
+<tr>
+<td>Za mało miejsca przy aktualizacji</td>
+<td><code>netpulse cleanup</code>, potem <code>netpulse update</code>; ewentualnie powiększ wolumen LVM (rozdział 9)</td>
+</tr>
+<tr>
+<td>Aktualizacja nieudana po pobraniu kodu</td>
+<td>usuń przyczynę (<code>netpulse logs</code>), potem <code>netpulse update --force</code></td>
+</tr>
+<tr>
+<td>Po zmianie <code>.env</code> nic się nie zmieniło</td>
+<td>użyj <code>netpulse start</code> (samo <code>restart</code> nie odtwarza kontenerów)</td>
+</tr>
+<tr>
+<td>Za reverse proxy nie da się zalogować</td>
+<td>dopisz adres w <code>NETPULSE_TRUSTED_ORIGINS</code> i <code>netpulse start</code></td>
+</tr>
+<tr>
+<td>Zapomniane hasło</td>
+<td><code>netpulse user passwd admin</code></td>
+</tr>
+<tr>
+<td>Serwer Linux bez dysków lub rozpoznany jako ogólne urządzenie</td>
+<td><a href="https://github.com/arkadiuszbaglaj/NetPulse/blob/main/docs/10-serwer-linux-snmp.md"><code>docs/10-serwer-linux-snmp.md</code></a></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="16-odinstalowanie">16. Odinstalowanie</h2>
+<pre><code class="language-bash">netpulse uninstall
+</code></pre>
+<p>Polecenie zapyta, czy usunąć NetPulse z serwera i czy usunąć też bazę z historią metryk. Odpowiedź „nie" na drugie pytanie
+zostawia dane do ewentualnej ponownej instalacji.</p>
+  </main>
+</div>
+<footer>NetPulse · self-hosted monitoring sieci w homelabie</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  // Motyw: zapamiętany wybór, inaczej ustawienie systemu
+  var saved = store("poradnik-theme");
+  if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+  document.getElementById("theme-btn").addEventListener("click", function () {
+    var dark = root.getAttribute("data-theme") === "dark" ||
+      (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var next = dark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    store("poradnik-theme", next);
+  });
+
+  // Spis treści na telefonie
+  var toc = document.getElementById("toc"), menuBtn = document.getElementById("menu-btn");
+  menuBtn.addEventListener("click", function () {
+    var open = toc.classList.toggle("open");
+    menuBtn.setAttribute("aria-expanded", String(open));
+  });
+  toc.addEventListener("click", function (e) {
+    if (e.target.tagName === "A") { toc.classList.remove("open"); menuBtn.setAttribute("aria-expanded", "false"); }
+  });
+
+  // Przyciski „Kopiuj" przy blokach kodu
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy") ? resolve() : reject(); } catch (e) { reject(e); } finally { document.body.removeChild(ta); }
+    });
+  }
+  document.querySelectorAll("main pre").forEach(function (pre) {
+    var wrap = document.createElement("div");
+    wrap.className = "code";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "copy"; btn.textContent = "Kopiuj";
+    btn.addEventListener("click", function () {
+      var text = pre.innerText.replace(/\n$/, "");
+      copyText(text).then(function () {
+        btn.textContent = "Skopiowano"; btn.classList.add("done");
+      }, function () { btn.textContent = "Zaznacz i skopiuj"; });
+      setTimeout(function () { btn.textContent = "Kopiuj"; btn.classList.remove("done"); }, 1800);
+    });
+    wrap.appendChild(btn);
+  });
+
+  // Podświetlanie bieżącej sekcji w spisie
+  var links = Array.prototype.slice.call(document.querySelectorAll("nav.toc a"));
+  var byId = {};
+  links.forEach(function (a) { byId[decodeURIComponent(a.getAttribute("href").slice(1))] = a; });
+  var heads = Array.prototype.slice.call(document.querySelectorAll("main h2")).filter(function (h) { return byId[h.id]; });
+  function spy() {
+    var current = heads[0];
+    heads.forEach(function (h) { if (h.getBoundingClientRect().top <= 100) current = h; });
+    links.forEach(function (a) { a.classList.remove("active"); });
+    if (current && byId[current.id]) byId[current.id].classList.add("active");
+  }
+  window.addEventListener("scroll", spy, { passive: true });
+  spy();
+})();
+</script>
+</body>
+</html>
