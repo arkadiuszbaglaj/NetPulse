@@ -277,3 +277,43 @@ def test_multi_source_chart_with_axes_thresholds_and_legend():
 def test_rejects_invalid_multi_source_chart(over):
     with pytest.raises(ValidationError):
         ChartConfig.model_validate(full(**over))
+
+
+# --- panele od 0.27.0 --------------------------------------------------------------------------------
+
+
+def panel(type_, config):
+    return layout({"id": "p1", "type": type_, "w": 4, "config": config})
+
+
+def test_new_panels_validate():
+    DashboardLayout.model_validate(panel("stat", {"source": {"kind": "wan"}, "key": "in_bps", "thresholds": [{"value": 5e8, "color": 5}]}))
+    DashboardLayout.model_validate(panel("bargauge", {"collection": {"kind": "disks", "device_id": 3}, "key": "used_percent", "max": 100}))
+    DashboardLayout.model_validate(panel("table", {"collection": {"kind": "ports", "device_id": 2}, "columns": ["up", "in_bps"], "sort_by": "in_bps", "sort_desc": True}))
+    parsed = DashboardLayout.model_validate(panel("state_timeline", {"items": [{"kind": "device", "id": 1}, {"kind": "device", "id": 1}, {"kind": "interface", "id": 5, "device_id": 1}]}))
+    assert [(i.kind, i.id) for i in parsed.widgets[0].config.items] == [("device", 1), ("interface", 5)]
+    assert DashboardLayout.model_validate(panel("state_timeline", {})).widgets[0].config.items == []
+    devices = DashboardLayout.model_validate(panel("table", {"collection": {"kind": "devices", "device_id": 9}, "columns": ["cpu_percent"]}))
+    assert devices.widgets[0].config.collection.device_id is None
+
+
+@pytest.mark.parametrize(
+    ("type_", "config"),
+    [
+        ("stat", {"source": {"kind": "wan"}, "key": "cpu_percent"}),
+        ("stat", {"source": {"kind": "wan"}, "key": "in_bps", "reduce": "median"}),
+        ("bargauge", {"collection": {"kind": "disks"}, "key": "used_percent"}),  # brak urządzenia
+        ("bargauge", {"collection": {"kind": "disks", "device_id": 1}, "key": "in_bps"}),
+        ("bargauge", {"collection": {"kind": "disks", "device_id": 1}, "key": "used_percent", "min": 50, "max": 10}),
+        ("bargauge", {"collection": {"kind": "ports", "device_id": 1}, "key": "in_bps", "limit": 0}),
+        ("table", {"collection": {"kind": "ports", "device_id": 1}, "columns": []}),
+        ("table", {"collection": {"kind": "ports", "device_id": 1}, "columns": ["up", "up"]}),
+        ("table", {"collection": {"kind": "ports", "device_id": 1}, "columns": ["up"], "sort_by": "in_bps"}),
+        ("table", {"collection": {"kind": "nieznane"}, "columns": ["up"]}),
+        ("state_timeline", {"items": [{"kind": "vm", "id": 1}]}),
+        ("state_timeline", {"items": [{"kind": "device", "id": i} for i in range(1, 22)]}),
+    ],
+)
+def test_new_panels_reject_invalid(type_, config):
+    with pytest.raises(ValidationError):
+        DashboardLayout.model_validate(panel(type_, config))

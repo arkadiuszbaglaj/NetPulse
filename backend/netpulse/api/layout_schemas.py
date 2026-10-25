@@ -211,6 +211,142 @@ class ChartConfig(Strict):
         return self
 
 
+# --- panele (od 0.27.0): liczba, paski, tabela, oś stanów -------------------------------
+
+# Wartości w wierszach kolekcji (api/panels.py) – to samo w panelu: lib/panels.ts
+COLLECTION_METRICS: dict[str, tuple[str, ...]] = {
+    "devices": ("up", "cpu_percent", "mem_used_percent", "poll_ms", "uptime_s"),
+    "ports": ("up", "in_bps", "out_bps", "speed_mbps"),
+    "disks": ("used_percent", "used_bytes", "free_bytes", "total_bytes"),
+    "wifi": ("clients", "rx_bps", "tx_bps"),
+    "containers": ("up", "cpu_percent", "mem_bytes"),
+    "clients": ("signal_dbm", "rx_rate_kbps", "tx_rate_kbps", "connected_s"),
+}
+COLLECTIONS_WITH_DEVICE = ("ports", "disks", "containers")  # wymagają urządzenia; wifi – opcjonalnie
+
+
+class Collection(Strict):
+    kind: Literal["devices", "ports", "disks", "wifi", "containers", "clients"]
+    device_id: int | None = Field(None, ge=1)
+
+    @model_validator(mode="after")
+    def _device(self) -> Collection:
+        if self.kind in COLLECTIONS_WITH_DEVICE and self.device_id is None:
+            raise ValueError("Wybierz urządzenie")
+        if self.kind in ("devices", "clients"):
+            self.device_id = None
+        return self
+
+
+def _title(v: str | None) -> str | None:
+    v = v.strip() if v else v
+    return v or None
+
+
+class StatConfig(Strict):
+    """Liczba z mini-wykresem: jedna metryka ze źródła wykresu, wartość ostatnia albo z zakresu, kolor z progów."""
+
+    title: str | None = Field(None, max_length=80)
+    source: Source
+    key: str = Field(max_length=32)
+    reduce: Literal["last", "avg", "max", "min"] = "last"
+    unit: Literal["bits", "bytes"] = "bits"
+    sparkline: bool = True
+    color: ColorIndex = 1  # kolor bazowy (poniżej pierwszego progu)
+    color_mode: Literal["value", "background"] = "value"
+    thresholds: list[Threshold] = Field([], max_length=4)
+    range_min: RangeMinutes | None = None
+    refresh_s: RefreshSeconds | None = None
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+    @model_validator(mode="after")
+    def _metric(self) -> StatConfig:
+        if self.key not in ALLOWED_METRICS[self.source.kind]:
+            raise ValueError(f"Metryka {self.key!r} nie jest dostępna dla źródła {self.source.kind!r}")
+        return self
+
+
+class BarGaugeConfig(Strict):
+    """Paski: jedna wartość dla każdego wiersza kolekcji (np. zajętość wszystkich dysków serwera)."""
+
+    title: str | None = Field(None, max_length=80)
+    collection: Collection
+    key: str = Field(max_length=32)
+    min: float = Field(0, ge=-1e15, le=1e15)
+    max: float | None = Field(None, gt=-1e15, le=1e15)  # puste = 100 dla %, inaczej największa wartość
+    unit: Literal["bits", "bytes"] = "bits"
+    color: ColorIndex = 1
+    thresholds: list[Threshold] = Field([], max_length=4)
+    orientation: Literal["horizontal", "vertical"] = "horizontal"
+    sort: Literal["none", "asc", "desc"] = "none"
+    limit: int = Field(12, ge=1, le=50)
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+    @model_validator(mode="after")
+    def _metric(self) -> BarGaugeConfig:
+        if self.key not in COLLECTION_METRICS[self.collection.kind]:
+            raise ValueError(f"Wartość {self.key!r} nie jest dostępna dla {self.collection.kind!r}")
+        if self.max is not None and self.max <= self.min:
+            raise ValueError("Maksimum musi być większe niż minimum")
+        return self
+
+
+class TableConfig(Strict):
+    """Tabela wierszy kolekcji z wybranymi kolumnami i sortowaniem."""
+
+    title: str | None = Field(None, max_length=80)
+    collection: Collection
+    columns: list[str] = Field(min_length=1, max_length=8)
+    sort_by: str | None = Field(None, max_length=32)  # puste = nazwa
+    sort_desc: bool = False
+    limit: int = Field(20, ge=1, le=100)
+    unit: Literal["bits", "bytes"] = "bits"
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+    @model_validator(mode="after")
+    def _columns(self) -> TableConfig:
+        allowed = COLLECTION_METRICS[self.collection.kind]
+        bad = [c for c in self.columns if c not in allowed]
+        if bad:
+            raise ValueError(f"Kolumna {bad[0]!r} nie jest dostępna dla {self.collection.kind!r}")
+        if len(set(self.columns)) != len(self.columns):
+            raise ValueError("Kolumny nie mogą się powtarzać")
+        if self.sort_by is not None and self.sort_by not in self.columns:
+            raise ValueError("Sortować można tylko po wybranej kolumnie")
+        return self
+
+
+class StateItemRef(Strict):
+    kind: Literal["device", "interface"]
+    id: int = Field(ge=1)
+    device_id: int | None = Field(None, ge=1)  # tylko dla edytora: urządzenie portu
+
+
+class StateTimelineConfig(Strict):
+    """Oś stanów: działa / nie działa w czasie dla urządzeń i portów. Pusta lista = wszystkie urządzenia."""
+
+    title: str | None = Field(None, max_length=80)
+    items: list[StateItemRef] = Field([], max_length=20)
+    range_min: RangeMinutes | None = None
+    refresh_s: RefreshSeconds | None = None
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+    @field_validator("items")
+    @classmethod
+    def _unique(cls, v: list[StateItemRef]) -> list[StateItemRef]:
+        seen = set()
+        out = []
+        for item in v:
+            if (item.kind, item.id) not in seen:
+                seen.add((item.kind, item.id))
+                out.append(item)
+        return out
+
+
 # --- widgety -------------------------------------------------------------------------
 
 WIDGET_ID = r"^[A-Za-z0-9_-]{1,40}$"
@@ -311,8 +447,47 @@ class WanSlaWidget(Strict):
     config: WanSlaConfig = WanSlaConfig()
 
 
+class StatWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["stat"]
+    w: GridWidth
+    config: StatConfig
+
+
+class BarGaugeWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["bargauge"]
+    w: GridWidth
+    config: BarGaugeConfig
+
+
+class TableWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["table"]
+    w: GridWidth
+    config: TableConfig
+
+
+class StateTimelineWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["state_timeline"]
+    w: GridWidth
+    config: StateTimelineConfig = StateTimelineConfig()
+
+
 Widget = Annotated[
-    SummaryWidget | ChartWidget | DevicesWidget | PoeWidget | ServerWidget | WanStatusWidget | WanChartWidget | WanSlaWidget,
+    SummaryWidget
+    | ChartWidget
+    | DevicesWidget
+    | PoeWidget
+    | ServerWidget
+    | WanStatusWidget
+    | WanChartWidget
+    | WanSlaWidget
+    | StatWidget
+    | BarGaugeWidget
+    | TableWidget
+    | StateTimelineWidget,
     Field(discriminator="type"),
 ]
 

@@ -87,6 +87,16 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
       return (v) => `${num(1)(v)} °C`;
     case "size":
       return formatBytes;
+    case "state":
+      return (v) => (v >= 0.5 ? "działa" : "nie działa");
+    case "duration":
+      return (v) => formatUptime(v);
+    case "dbm":
+      return (v) => `${num(0)(v)} dBm`;
+    case "linkrate":
+      return (v) => (v >= 1_000_000 ? `${num(2)(v / 1_000_000)} Gb/s` : `${num(0)(v / 1000)} Mb/s`);
+    case "mbps":
+      return (v) => (v >= 1000 ? `${num(1)(v / 1000)} Gb/s` : `${num(0)(v)} Mb/s`);
     default:
       return num(1);
   }

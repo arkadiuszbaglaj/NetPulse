@@ -150,6 +150,68 @@ export type WanChartWidgetModel = WidgetBase & {
   config: { device_id?: number | null; metric: WanMetric; range_min?: RangeMinutes | null; height: ChartHeight };
 };
 export type WanSlaWidgetModel = WidgetBase & { type: "wan_sla"; config: { device_id?: number | null; days: 1 | 7 | 30 } };
+
+// --- panele od 0.27.0 (schemat: backend/netpulse/api/layout_schemas.py) ---------------------
+export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "clients";
+/** Zestaw obiektów z bieżącymi wartościami (GET /api/collections/{kind}); porty, dyski i kontenery – jednego urządzenia. */
+export interface Collection {
+  kind: CollectionKind;
+  device_id?: number | null;
+}
+export type Reduce = "last" | "avg" | "max" | "min";
+export interface StatConfig {
+  title?: string | null;
+  source: Source;
+  key: string;
+  reduce: Reduce;
+  unit: ChartUnit;
+  sparkline: boolean;
+  color: ColorIndex;
+  color_mode: "value" | "background";
+  thresholds: Threshold[];
+  range_min?: RangeMinutes | null;
+  refresh_s?: RefreshSeconds | null;
+}
+export interface BarGaugeConfig {
+  title?: string | null;
+  collection: Collection;
+  key: string;
+  min: number;
+  max?: number | null;
+  unit: ChartUnit;
+  color: ColorIndex;
+  thresholds: Threshold[];
+  orientation: "horizontal" | "vertical";
+  sort: "none" | "asc" | "desc";
+  limit: number;
+}
+export interface TableConfig {
+  title?: string | null;
+  collection: Collection;
+  columns: string[];
+  sort_by?: string | null;
+  sort_desc: boolean;
+  limit: number;
+  unit: ChartUnit;
+}
+export interface StateItemRef {
+  kind: "device" | "interface";
+  id: number;
+  /** Tylko dla edytora: urządzenie portu */
+  device_id?: number | null;
+}
+export interface StateTimelineConfig {
+  title?: string | null;
+  /** Pusta lista = wszystkie urządzenia */
+  items: StateItemRef[];
+  range_min?: RangeMinutes | null;
+  refresh_s?: RefreshSeconds | null;
+}
+export type StatWidgetModel = WidgetBase & { type: "stat"; config: StatConfig };
+export type BarGaugeWidgetModel = WidgetBase & { type: "bargauge"; config: BarGaugeConfig };
+export type TableWidgetModel = WidgetBase & { type: "table"; config: TableConfig };
+export type StateTimelineWidgetModel = WidgetBase & { type: "state_timeline"; config: StateTimelineConfig };
+
 export type Widget =
   | SummaryWidgetModel
   | ChartWidgetModel
@@ -158,7 +220,11 @@ export type Widget =
   | ServerWidgetModel
   | WanStatusWidgetModel
   | WanChartWidgetModel
-  | WanSlaWidgetModel;
+  | WanSlaWidgetModel
+  | StatWidgetModel
+  | BarGaugeWidgetModel
+  | TableWidgetModel
+  | StateTimelineWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -174,7 +240,7 @@ export interface DashboardResponse {
 // --- metryki ---------------------------------------------------------------------------
 
 /** Klasa jednostki: metryki w jednym wykresie muszą należeć do tej samej klasy (wspólna oś Y). */
-export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size";
+export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size" | "state" | "duration" | "dbm" | "linkrate" | "mbps";
 
 export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> = {
   in_bps: { label: "metric.in_bps", unitClass: "rate" },
@@ -202,6 +268,19 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   container_mem_bytes: { label: "metric.container_mem_bytes", unitClass: "size" },
   guest_cpu_percent: { label: "metric.guest_cpu_percent", unitClass: "percent" },
   guest_mem_bytes: { label: "metric.guest_mem_bytes", unitClass: "size" },
+  // Wartości kolekcji (paski, tabela)
+  up: { label: "metric.up", unitClass: "state" },
+  uptime_s: { label: "metric.uptime_s", unitClass: "duration" },
+  speed_mbps: { label: "metric.speed_mbps", unitClass: "mbps" },
+  used_percent: { label: "metric.used_percent", unitClass: "percent" },
+  used_bytes: { label: "metric.used_bytes", unitClass: "size" },
+  free_bytes: { label: "metric.free_bytes", unitClass: "size" },
+  total_bytes: { label: "metric.total_bytes", unitClass: "size" },
+  mem_bytes: { label: "metric.mem_bytes", unitClass: "size" },
+  signal_dbm: { label: "metric.signal_dbm", unitClass: "dbm" },
+  rx_rate_kbps: { label: "metric.rx_rate_kbps", unitClass: "linkrate" },
+  tx_rate_kbps: { label: "metric.tx_rate_kbps", unitClass: "linkrate" },
+  connected_s: { label: "metric.connected_s", unitClass: "duration" },
 };
 
 /** Metryki dostępne dla źródła (zgodnie z endpointami metryk i schematem serwera). */
@@ -325,6 +404,44 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 8, config: { device_id: null, metric: "in_bps", range_min: null, height: "md" } };
     case "wan_sla":
       return { id, type, w: 12, config: { device_id: null, days: 7 } };
+    case "stat":
+      return {
+        id,
+        type,
+        w: 3,
+        config: { title: null, source: { kind: "wan" }, key: "in_bps", reduce: "last", unit: "bits", sparkline: true, color: 1, color_mode: "value", thresholds: [] },
+      };
+    case "bargauge":
+      return {
+        id,
+        type,
+        w: 6,
+        config: {
+          title: null,
+          collection: { kind: "devices" },
+          key: "cpu_percent",
+          min: 0,
+          max: null,
+          unit: "bits",
+          color: 1,
+          thresholds: [
+            { value: 70, color: 4 },
+            { value: 90, color: 5 },
+          ],
+          orientation: "horizontal",
+          sort: "none",
+          limit: 12,
+        },
+      };
+    case "table":
+      return {
+        id,
+        type,
+        w: 6,
+        config: { title: null, collection: { kind: "devices" }, columns: ["up", "cpu_percent", "mem_used_percent"], sort_by: null, sort_desc: false, limit: 20, unit: "bits" },
+      };
+    case "state_timeline":
+      return { id, type, w: 12, config: { title: null, items: [] } };
   }
 }
 

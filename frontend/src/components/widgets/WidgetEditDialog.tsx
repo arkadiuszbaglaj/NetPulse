@@ -21,6 +21,7 @@ import { RANGE_OPTIONS, type RangeMinutes } from "../../lib/refresh";
 import { Dialog } from "../Dialog";
 import { Button, Select } from "../ui";
 import { ChartEditor } from "./ChartEditor";
+import { BarGaugeForm, StatForm, StateTimelineForm, TableForm } from "./PanelEditors";
 import { KIND_LABEL } from "./DevicesWidget";
 
 const TILE_LABEL: Record<SummaryTile, TextKey> = {
@@ -268,5 +269,13 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
     case "wan_chart":
     case "wan_sla":
       return <WanForm initial={widget} isNew={isNew} onClose={onClose} onSave={onSave} />;
+    case "stat":
+      return <StatForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
+    case "bargauge":
+      return <BarGaugeForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
+    case "table":
+      return <TableForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
+    case "state_timeline":
+      return <StateTimelineForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
   }
 }

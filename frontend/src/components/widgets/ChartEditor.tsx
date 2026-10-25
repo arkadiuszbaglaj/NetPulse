@@ -91,7 +91,7 @@ const LEGEND_MODES: LegendMode[] = ["list", "table", "hidden"];
 const THRESHOLD_STYLES: ThresholdStyle[] = ["line", "area", "line_area", "off"];
 const MAX_THRESHOLDS = 4;
 
-function Checkbox({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function Checkbox({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label htmlFor={id} className="flex items-center gap-2 text-sm">
       <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-accent" />
@@ -100,7 +100,7 @@ function Checkbox({ id, label, checked, onChange }: { id: string; label: string;
   );
 }
 
-function ColorPicker({ label, value, onChange }: { label: string; value: ColorIndex | null | undefined; onChange: (c: ColorIndex) => void }) {
+export function ColorPicker({ label, value, onChange }: { label: string; value: ColorIndex | null | undefined; onChange: (c: ColorIndex) => void }) {
   return (
     <div role="group" aria-label={label} className="flex gap-1.5">
       {COLOR_INDEXES.map((c) => (
@@ -148,7 +148,7 @@ export const sourceComplete = (s: Source): boolean => {
   return true;
 };
 
-function SourcePicker({ prefix, source, error, onChange }: { prefix: string; source: Source; error?: string; onChange: (source: Source, resetSeries: boolean) => void }) {
+export function SourcePicker({ prefix, source, error, onChange }: { prefix: string; source: Source; error?: string; onChange: (source: Source, resetSeries: boolean) => void }) {
   const devices = useDevices();
   const modulesState = useModules().data;
   const [deviceId, setDeviceId] = useState<number | null>(deviceIdOf(source));

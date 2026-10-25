@@ -2,11 +2,15 @@
 import {
   IconArrowsExchange,
   IconBolt,
+  IconChartBar,
   IconChartLine,
   IconLayoutGrid,
   IconListDetails,
+  IconNumber,
   IconServer,
   IconShieldCheck,
+  IconTable,
+  IconTimeline,
   IconWorld,
   type Icon,
 } from "@tabler/icons-react";
@@ -16,6 +20,7 @@ import type { Widget, WidgetType } from "../../lib/layout";
 import { PublicModeContext } from "../../lib/publicMode";
 import { ChartWidget, chartTitle } from "./ChartWidget";
 import { DevicesWidget } from "./DevicesWidget";
+import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget, collectionTitle, statTitle, stateTimelineTitle } from "./PanelWidgets";
 import { PoeWidget } from "./PoeWidget";
 import { ServerWidget } from "./ServerWidget";
 import { SummaryWidget } from "./SummaryWidget";
@@ -25,6 +30,10 @@ import { WanStatusWidget } from "./WanStatusWidget";
 
 export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: TextKey; icon: Icon }[] = [
   { type: "chart", label: "widget.type.chart", description: "widget.type.chart.desc", icon: IconChartLine },
+  { type: "stat", label: "widget.type.stat", description: "widget.type.stat.desc", icon: IconNumber },
+  { type: "bargauge", label: "widget.type.bargauge", description: "widget.type.bargauge.desc", icon: IconChartBar },
+  { type: "table", label: "widget.type.table", description: "widget.type.table.desc", icon: IconTable },
+  { type: "state_timeline", label: "widget.type.state_timeline", description: "widget.type.state_timeline.desc", icon: IconTimeline },
   { type: "summary", label: "widget.type.summary", description: "widget.type.summary.desc", icon: IconLayoutGrid },
   { type: "devices", label: "widget.type.devices", description: "widget.type.devices.desc", icon: IconListDetails },
   { type: "poe", label: "widget.type.poe", description: "widget.type.poe.desc", icon: IconBolt },
@@ -52,6 +61,14 @@ export function widgetTitle(w: Widget): string {
       return t("widget.type.wan_chart");
     case "wan_sla":
       return t("widget.type.wan_sla");
+    case "stat":
+      return statTitle(w.config);
+    case "bargauge":
+      return w.config.title || collectionTitle(w.config.collection.kind, w.config.key);
+    case "table":
+      return w.config.title || collectionTitle(w.config.collection.kind);
+    case "state_timeline":
+      return stateTimelineTitle(w.config);
   }
 }
 
@@ -75,5 +92,13 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <WanChartWidget deviceId={widget.config.device_id} metric={widget.config.metric} rangeMin={widget.config.range_min} height={widget.config.height} />;
     case "wan_sla":
       return <WanSlaWidget deviceId={widget.config.device_id} days={widget.config.days} />;
+    case "stat":
+      return <StatWidget config={widget.config} />;
+    case "bargauge":
+      return <BarGaugeWidget config={widget.config} />;
+    case "table":
+      return <TableWidget config={widget.config} />;
+    case "state_timeline":
+      return <StateTimelineWidget config={widget.config} />;
   }
 }

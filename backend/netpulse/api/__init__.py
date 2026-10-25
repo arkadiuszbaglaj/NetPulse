@@ -32,6 +32,7 @@ from . import (
     metrics,
     modules_api,
     notifications,
+    panels,
     preferences,
     proxmox,
     public,
@@ -71,6 +72,7 @@ app.include_router(live.router)
 app.include_router(metrics.router)
 app.include_router(modules_api.router)
 app.include_router(notifications.router)
+app.include_router(panels.router)
 app.include_router(preferences.router)
 app.include_router(proxmox.router)
 app.include_router(public.router)

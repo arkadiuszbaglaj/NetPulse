@@ -12,6 +12,7 @@ import type {
   User,
 } from "../lib/api";
 import type { Agent } from "../lib/agents";
+import type { CollectionRow, StatesResponse } from "../lib/panels";
 import type { BackupsResponse } from "../lib/backups";
 import type { Modules } from "../lib/modules";
 import type { ProxmoxGuest, ProxmoxServer, ProxmoxStorage } from "../lib/proxmox";
@@ -297,6 +298,10 @@ interface MockState {
   /** Odpowiedź na wiadomość próbną kanału */
   channelTest: { ok: boolean; error: string | null };
   services: { id: string; state: string; detail: string | null }[];
+  /** Kolekcje paneli (GET /api/collections/{kind}) */
+  collections: Partial<Record<string, CollectionRow[]>>;
+  /** Stany w czasie (GET /api/states) */
+  states: StatesResponse;
   /** Łącza WAN (dual WAN): stan, historia, SLA i konfiguracja */
   wanStatus: WanStatus;
   wanHistory: WanHistory;
@@ -346,6 +351,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     server: null,
     channels: [],
     channelTest: { ok: true, error: null },
+    collections: {},
+    states: { start: "2026-10-25T11:00:00Z", end: "2026-10-25T12:00:00Z", bucket_s: 30, items: [] },
     services: [
       { id: "api", state: "ok", detail: "0.8.2" },
       { id: "database", state: "ok", detail: "timescaledb" },
@@ -623,6 +630,9 @@ export function mockApi(initial: Partial<MockState> = {}) {
         });
       }
       if (/^GET \/api\/devices\/\d+\/agent-metrics$/.test(key)) return json(200, state.traffic.points);
+      const collection = /^GET \/api\/collections\/(\w+)$/.exec(key);
+      if (collection) return json(200, { kind: collection[1], rows: state.collections[collection[1]] ?? [] });
+      if (key === "GET /api/states") return json(200, state.states);
       if (key === "GET /api/notification-channels") return json(200, state.channels);
       if (key === "POST /api/notification-channels") {
         const b = body as Partial<NotificationChannel> & { name: string; url?: string; secret?: string };

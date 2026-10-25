@@ -9,7 +9,7 @@ Decyzje użytkownika (2026-10-25): wszystkie funkcje wykresu w czasie, nowe pane
 | Etap | Wersja | Zakres |
 |------|--------|--------|
 | A ✅ | 0.26.0 | Wykres w czasie: wiele źródeł na jednym wykresie, druga oś Y, progi (linia / tło), legenda jako lista albo tabela z min / max / średnią / ostatnią, klik w legendzie ukrywa serię, serie piętrowane (stos), porównanie w czasie (ta sama seria godzinę, dzień albo tydzień wcześniej). Nowy edytor panelu: duże okno z podglądem na żywo. |
-| B | 0.27.0 | Nowe panele: liczba z mini-wykresem (kolor z progów), paski (bar gauge, np. zajętość wszystkich dysków), tabela (porty, klienci, dyski z sortowaniem), oś stanów (up/down portów i urządzeń w czasie). |
+| B ✅ | 0.27.0 | Nowe panele: liczba z mini-wykresem (kolor z progów), paski (bar gauge, np. zajętość wszystkich dysków), tabela (porty, klienci, dyski z sortowaniem), oś stanów (up/down portów i urządzeń w czasie). |
 | C | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
 
 Każdy etap to osobna wersja do sprawdzenia na serwerze.
@@ -47,3 +47,30 @@ więc zapisane pulpity działają bez zmian, a po pierwszym zapisie są już w n
   serii o innej jednostce niż oś lewa sam przenosi ją na prawą.
 - **Stos** dotyczy serii na tej samej osi (piętrowane osobno lewa i prawa).
 - **Legenda**: wartości liczone w panelu z punktów widocznego zakresu.
+
+## Etap B – nowe panele (0.27.0)
+
+| Widget | Dane | Ustawienia |
+|--------|------|------------|
+| `stat` – Liczba | źródło wykresu (`source` + `key`), te same ścieżki co wykres | wartość ostatnia / średnia / maks. / min. z zakresu, mini-wykres, kolor bazowy i progi (kolor liczby albo tła) |
+| `bargauge` – Paski | kolekcja (`collection` + `key`) | min / maks. (puste: 100 dla %, inaczej największa), układ poziomy / pionowy, kolejność, limit, progi |
+| `table` – Tabela | kolekcja + `columns` | sortowanie domyślne (klik w nagłówek zmienia je na pulpicie), limit wierszy |
+| `state_timeline` – Oś stanów | `GET /api/states` | urządzenia i porty (do 20), pusta lista = wszystkie urządzenia |
+
+**Kolekcje** (`GET /api/collections/{kind}`, `api/panels.py`): wiersz na obiekt z bieżącymi wartościami (ostatnie 5 min).
+
+| Kolekcja | Urządzenie | Wartości |
+|----------|------------|----------|
+| `devices` | – | `up`, `cpu_percent`, `mem_used_percent`, `poll_ms`, `uptime_s` |
+| `ports` | wymagane | `up`, `in_bps`, `out_bps`, `speed_mbps` |
+| `disks` | wymagane (serwer) | `used_percent`, `used_bytes`, `free_bytes`, `total_bytes` |
+| `wifi` | opcjonalne | `clients`, `rx_bps`, `tx_bps` |
+| `containers` | wymagane (agent) | `up`, `cpu_percent`, `mem_bytes` |
+| `clients` | – | `signal_dbm`, `rx_rate_kbps`, `tx_rate_kbps`, `connected_s` (bez MAC-ów: kluczem jest kolejność) |
+
+**Stany** (`GET /api/states?devices=1,2&interfaces=7&minutes=60`): kubełki jak w wykresach, `bool_and(reachable)` dla
+urządzeń i `bool_and(oper_up)` dla portów; kubełek bez próbek = „brak danych”, ale przerwa do 3 interwałów przejmuje
+stan sprzed niej (spóźniony odczyt). Surowe dane są trzymane 30 dni – dalej oś pokazuje „brak danych”.
+
+Pulpit publiczny: kolekcje tylko takie, jakie mają paski i tabele pulpitu (rodzaj + urządzenie), stany tylko dla
+dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`, `resolve()`).

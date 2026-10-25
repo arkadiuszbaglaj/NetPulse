@@ -151,7 +151,9 @@ Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Eta
 osie lewa/prawa, progi, legendę lista/tabela z min/maks/śr./ostatnią, stos. Stary format (`source`, `series`, `y_max`)
 zamienia `upgrade_chart` w `layout_schemas.py` (i `upgradeChartConfig` w panelu). Render: `components/charts/PanelChart.tsx`
 + `ChartLegend.tsx` + czyste funkcje `panelData.ts`; edytor: `components/widgets/ChartEditor.tsx`. Pulpit publiczny
-przepuszcza `offset` tylko taki, jaki ma zapytanie. Dalej: etap B (nowe panele), etap C (swobodna siatka).
+przepuszcza `offset` tylko taki, jaki ma zapytanie. Etap B ✅ (0.27.0): widgety `stat` (liczba z mini-wykresem), `bargauge`
+(paski), `table`, `state_timeline` (oś stanów); dane: `api/panels.py` (`/api/collections/{kind}`, `/api/states`), panel:
+`components/widgets/PanelWidgets.tsx` + `PanelEditors.tsx`, `lib/panels.ts`. Dalej: etap C (swobodna siatka).
 
 ## Do sprawdzenia później
 

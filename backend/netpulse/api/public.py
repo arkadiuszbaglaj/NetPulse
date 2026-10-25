@@ -27,7 +27,7 @@ from ..auth import hash_token, verify_password
 from ..db import Session
 from ..db.models import Dashboard
 from ..modules import get_modules
-from . import availability, controllers, dashboard, devices, metrics, servers, system, wan
+from . import availability, controllers, dashboard, devices, metrics, panels, servers, system, wan
 from .dashboards import _parse, public_options
 from .layout_schemas import AgentSource, DashboardLayout, PublicOptions, RangeMinutes, Source
 from .schemas import DeviceOut
@@ -216,12 +216,26 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         if days not in SLA_DAYS:
             raise HTTPException(403, "Niedozwolony okres")
         return await wan.sla(days)
+    if m := re.fullmatch(r"/api/collections/(\w+)", path):
+        device_id = _int(query.get("device_id"), 0) or None
+        for w in widgets:
+            if w.type in ("bargauge", "table") and w.config.collection.kind == m.group(1) and w.config.collection.device_id == device_id:
+                return await panels.collection(m.group(1), device_id)
+        raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
+    if path == "/api/states":
+        wanted = {("device", i) for i in panels._ids(query.get("devices"))} | {("interface", i) for i in panels._ids(query.get("interfaces"))}
+        for w in widgets:
+            if w.type == "state_timeline" and {(i.kind, i.id) for i in w.config.items} == wanted:
+                return await panels.states(query.get("devices"), query.get("interfaces"), minutes())
+        raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     offset = _int(query.get("offset"), 0)
-    for q in (q for w in widgets if w.type == "chart" for q in w.config.queries):
-        source = q.source
+    # Źródła wykresów: zapytania wykresów i panele „liczba” (te bez przesunięcia w czasie)
+    chart_queries = [(q.source, q.offset_min) for w in widgets if w.type == "chart" for q in w.config.queries]
+    chart_queries += [(w.config.source, 0) for w in widgets if w.type == "stat"]
+    for source, query_offset in chart_queries:
         chart_path, fixed = _chart_path(source)
         # Przesunięcie w czasie tylko takie, jakie ma zapytanie wykresu na tym pulpicie
-        if path != chart_path or any(query.get(k) != v for k, v in fixed.items()) or offset != q.offset_min:
+        if path != chart_path or any(query.get(k) != v for k, v in fixed.items()) or offset != query_offset:
             continue
         if source.kind == "pve_guest" and not mods.get("proxmox", True):
             break
