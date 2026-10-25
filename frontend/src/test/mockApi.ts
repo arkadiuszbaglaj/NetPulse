@@ -612,6 +612,34 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.layout = null;
         return json(204);
       }
+      const clientMatch = /^GET \/api\/clients\/([0-9a-f:]{17})(\/(metrics|presence|events))?$/.exec(key);
+      if (clientMatch) {
+        const c = state.clients.find((x) => x.mac === clientMatch[1]);
+        if (!c) return json(404, { detail: "Nie ma takiego klienta" });
+        const minuteAgo = new Date(Date.now() - 60_000).toISOString();
+        switch (clientMatch[3]) {
+          case "metrics":
+            return json(200, [{ time: minuteAgo, values: { signal_dbm: c.signal_dbm, rx_rate_kbps: c.rx_rate_kbps, tx_rate_kbps: c.tx_rate_kbps } }]);
+          case "presence":
+            return json(200, { interval_s: 30, expected: 1, buckets: [{ time: minuteAgo, samples: 1 }] });
+          case "events":
+            return json(200, [
+              { time: minuteAgo, kind: "roam", uplink_device_id: c.uplink_device_id, uplink_name: c.uplink_name, uplink_port: null, essid: c.essid, radio: c.radio, gap_s: null },
+            ]);
+          default:
+            return json(200, {
+              mac: c.mac,
+              name: c.name,
+              ip: c.ip,
+              is_wired: c.is_wired,
+              is_guest: c.is_guest,
+              online: true,
+              first_seen_at: "2026-10-01T10:00:00Z",
+              last_seen_at: c.updated_at,
+              current: c,
+            });
+        }
+      }
       if (key === "GET /api/availability") return json(200, state.devices.map((d) => ({ device_id: d.id, percent: state.availability.percent, samples: state.availability.samples })));
       if (/^GET \/api\/(devices|interfaces)\/\d+\/availability$/.test(key)) return json(200, state.availability);
       if (/^GET \/api\/interfaces\/\d+\/poe-metrics$/.test(key)) return json(200, [{ time: "2026-10-24T20:00:00Z", values: { power_w: 4.5 } }]);

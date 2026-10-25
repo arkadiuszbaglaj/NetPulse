@@ -1,7 +1,9 @@
 import { IconDeviceDesktop, IconNetwork, IconWifi } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { t, type TextKey } from "../i18n";
+import { clientUrl } from "../lib/clients";
 import { formatUptime } from "../lib/format";
 import { formatLinkRate, signalQuality, useClients, useControllers, type NetworkClient } from "../lib/unifi";
 
@@ -58,7 +60,9 @@ function ClientRow({ c }: { c: NetworkClient }) {
         <div className="flex items-center gap-2">
           <IconDeviceDesktop size={18} aria-hidden="true" className="shrink-0 text-text-2" />
           <div className="min-w-0">
-            <p className="truncate font-medium">{c.name ?? c.mac}</p>
+            <Link to={clientUrl(c.mac)} className="block truncate font-medium hover:text-accent hover:underline">
+              {c.name ?? c.mac}
+            </Link>
             {c.name && <p className="truncate text-xs text-muted">{c.mac}</p>}
           </div>
           {c.is_guest && <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-text-2">{t("clients.guest")}</span>}

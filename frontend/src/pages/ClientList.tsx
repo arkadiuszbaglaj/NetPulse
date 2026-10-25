@@ -1,6 +1,8 @@
 import { IconDeviceDesktop } from "@tabler/icons-react";
+import { Link } from "react-router";
 import { Card } from "../components/ui";
 import { t } from "../i18n";
+import { clientUrl } from "../lib/clients";
 import { formatUptime } from "../lib/format";
 import { useClients } from "../lib/unifi";
 import { Connection } from "./ClientsPage";
@@ -30,7 +32,9 @@ export function ClientList({ deviceId, port, title }: { deviceId: number; port?:
               <td className="px-4 py-2">
                 <span className="flex items-center gap-2">
                   <IconDeviceDesktop size={16} aria-hidden="true" className="shrink-0 text-text-2" />
-                  <span className="truncate font-medium">{c.name ?? c.mac}</span>
+                  <Link to={clientUrl(c.mac)} className="truncate font-medium hover:text-accent hover:underline">
+                    {c.name ?? c.mac}
+                  </Link>
                 </span>
               </td>
               <td className="px-4 py-2 text-text-2">{c.ip ?? "–"}</td>

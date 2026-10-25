@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from . import wan_links
@@ -16,9 +16,11 @@ from .collector import _write_with_retry
 from .config import settings
 from .db import Session
 from .db.models import (
+    ClientMetric,
     Controller,
     Device,
     Interface,
+    KnownClient,
     NetworkClient,
     PoeBudgetMetric,
     PoePortMetric,
@@ -74,6 +76,32 @@ def match_devices(devices: list[UnifiDevice], by_host: dict[str, int], by_iface_
                     matched[d.mac] = by_iface_mac[mac]
                     break
     return matched
+
+
+_HISTORY_FIELDS = ("is_wired", "signal_dbm", "tx_rate_kbps", "rx_rate_kbps", "uplink_device_id", "uplink_name", "uplink_port", "essid", "radio")
+_KNOWN_FIELDS = ("name", "ip", "is_wired", "is_guest", "essid", "uplink_device_id", "uplink_name")
+
+
+async def save_client_history(session, rows: list[dict], now: datetime) -> None:
+    """Historia klientów: próbka stanu na cykl (`client_metrics`) i znani klienci (`known_clients`)."""
+    await session.execute(
+        insert(ClientMetric)
+        .values([{"time": now, "mac": r["mac"], **{k: r[k] for k in _HISTORY_FIELDS}} for r in rows])
+        .on_conflict_do_nothing()  # ten sam klient widziany przez dwa kontrolery w tej samej chwili
+    )
+    # Jeden wiersz na MAC (dwa kontrolery mogą widzieć tego samego klienta)
+    known = {r["mac"]: {"mac": r["mac"], **{k: r[k] for k in _KNOWN_FIELDS}, "first_seen_at": now, "last_seen_at": now} for r in rows}
+    stmt = insert(KnownClient).values(list(known.values()))
+    # Nazwa i adres zostają z poprzedniego razu, gdy kontroler chwilowo ich nie podaje
+    keep = {"name", "ip"}
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["mac"],
+        set_={
+            **{k: func.coalesce(stmt.excluded[k], getattr(KnownClient, k)) if k in keep else stmt.excluded[k] for k in _KNOWN_FIELDS},
+            "last_seen_at": stmt.excluded.last_seen_at,
+        },
+    )
+    await session.execute(stmt)
 
 
 class UnifiCollector:
@@ -234,6 +262,7 @@ class UnifiCollector:
                     set_={k: stmt.excluded[k] for k in rows[0] if k not in ("controller_id", "mac")},
                 )
                 await session.execute(stmt)
+                await save_client_history(session, rows, now)
 
         await _write_with_retry(write)
         log.debug("%s: %d urządzeń, %d klientów", target.name, len(devices), len(clients))

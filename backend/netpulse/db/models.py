@@ -1,9 +1,9 @@
 """Modele bazy danych (SQLAlchemy 2).
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
-Kontrolery UniFi: controllers, network_clients, topology_links. Alerty: alert_rules, alerts. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
+Kontrolery UniFi: controllers, network_clients, known_clients, topology_links. Alerty: alert_rules, alerts. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
 Agenci serwerów Linux: agents. Łącza WAN routera (dual WAN / failover): wan_links. Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics,
-wifi_metrics, poe_port_metrics, poe_budget_metrics, system_metrics, disk_metrics, server_metrics, wan_link_metrics oraz ogólna
+wifi_metrics, poe_port_metrics, poe_budget_metrics, system_metrics, disk_metrics, server_metrics, wan_link_metrics, client_metrics oraz ogólna
 tabela metrics (nazwa + klucz + wartość) na to, co nie mieści się w stałych kolumnach.
 """
 
@@ -276,6 +276,42 @@ class NetworkClient(Base):
     uplink_port: Mapped[int | None] = mapped_column(Integer)
     connected_s: Mapped[int | None] = mapped_column(Integer)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class KnownClient(Base):
+    """Klient, którego kontroler kiedyś widział – zostaje po rozłączeniu (strona klienta, pierwsze i ostatnie widzenie)."""
+
+    __tablename__ = "known_clients"
+
+    mac: Mapped[str] = mapped_column(String(17), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(255))
+    ip: Mapped[str | None] = mapped_column(String(45))
+    is_wired: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_guest: Mapped[bool] = mapped_column(Boolean, default=False)
+    essid: Mapped[str | None] = mapped_column(String(64))
+    uplink_device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"))
+    uplink_name: Mapped[str | None] = mapped_column(String(128))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class ClientMetric(Base):
+    """Stan klienta w cyklu kolektora UniFi: sygnał, prędkość łącza i miejsce podłączenia (historia, przejścia między AP)."""
+
+    __tablename__ = "client_metrics"
+    __table_args__ = (Index("ix_client_metrics_mac_time", "mac", "time"),)
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    mac: Mapped[str] = mapped_column(String(17), primary_key=True)
+    is_wired: Mapped[bool] = mapped_column(Boolean, default=False)
+    signal_dbm: Mapped[int | None] = mapped_column(Integer)
+    tx_rate_kbps: Mapped[int | None] = mapped_column(Integer)
+    rx_rate_kbps: Mapped[int | None] = mapped_column(Integer)
+    uplink_device_id: Mapped[int | None] = mapped_column(Integer)  # bez klucza obcego – historia zostaje po usunięciu urządzenia
+    uplink_name: Mapped[str | None] = mapped_column(String(128))
+    uplink_port: Mapped[int | None] = mapped_column(Integer)
+    essid: Mapped[str | None] = mapped_column(String(64))
+    radio: Mapped[str | None] = mapped_column(String(8))
 
 
 class TopologyLink(Base):
@@ -570,4 +606,4 @@ class WanLinkMetric(Base):
     out_bps: Mapped[float | None] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics", "wan_link_metrics")
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics", "wan_link_metrics", "client_metrics")

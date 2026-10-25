@@ -33,6 +33,7 @@ import { BackupsPage } from "./pages/settings/BackupsPage";
 import { ModulesPage } from "./pages/settings/ModulesPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AccountPage } from "./pages/settings/AccountPage";
+import { ClientPage } from "./pages/ClientPage";
 import { ClientsPage } from "./pages/ClientsPage";
 import { ProxmoxPage } from "./pages/ProxmoxPage";
 import { ProxmoxSettingsPage } from "./pages/settings/ProxmoxSettingsPage";
@@ -105,6 +106,15 @@ export const modules: NavModule[] = [
     icon: IconDevicesPc,
     element: <ClientsPage />,
     module: "unifi",
+  },
+  {
+    id: "client",
+    path: "/clients/:mac",
+    label: "nav.client",
+    icon: IconDevicesPc,
+    element: <ClientPage />,
+    module: "unifi",
+    hidden: true,
   },
   {
     id: "proxmox",
