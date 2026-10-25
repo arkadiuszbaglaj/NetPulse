@@ -195,3 +195,22 @@ def test_controller_endpoints_require_login():
         assert c.get("/api/controllers").status_code == 401
         assert c.get("/api/clients").status_code == 401
         assert c.get("/api/devices/1/poe").status_code == 401
+
+
+def test_topology_joins_both_ends_of_each_cable(client):
+    assert client.get("/api/topology").json() == {"nodes": [], "edges": []}  # bez odczytu kontrolera mapa jest pusta
+    poll(FakeApi())
+    topo = client.get("/api/topology").json()
+    by_name = {n["name"]: n for n in topo["nodes"] if n["kind"] == "device"}
+    assert set(by_name) == {"USW", "U6+", "UCG"}
+    externals = [n for n in topo["nodes"] if n["kind"] == "external"]
+    assert len(externals) == 1  # modem na porcie WAN bramy, którego kontroler nie zna
+
+    def edge(x, y):
+        a, b = by_name[x]["id"], by_name[y]["id"]
+        (e,) = [e for e in topo["edges"] if {e["a"], e["b"]} == {a, b}]
+        return {e["a"]: e["a_port"], e["b"]: e["b_port"]}[a], {e["a"]: e["a_port"], e["b"]: e["b_port"]}[b]
+
+    assert edge("USW", "U6+") == (1, 1)  # AP na porcie 1 switcha, uplink AP to jego eth0
+    assert edge("USW", "UCG") == (8, 1)  # brama na porcie 8 switcha
+    assert len(topo["edges"]) == 3

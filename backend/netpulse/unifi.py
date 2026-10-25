@@ -9,6 +9,7 @@ tolerancyjne: brak pola daje None, a nie błąd.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,6 +34,14 @@ class PoePort:
 
 
 @dataclass(frozen=True)
+class LldpLink:
+    """Sąsiad widziany przez LLDP na porcie urządzenia."""
+
+    local_port_idx: int
+    remote_mac: str
+
+
+@dataclass(frozen=True)
 class UnifiDevice:
     type: str  # usw | uap | udm | ugw …
     name: str | None
@@ -43,6 +52,7 @@ class UnifiDevice:
     poe_used_w: float | None = None
     poe_max_w: float | None = None
     poe_ports: list[PoePort] = field(default_factory=list)
+    lldp: list[LldpLink] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -60,6 +70,9 @@ class UnifiClient:
     uplink_mac: str | None  # AP (WiFi) albo switch/router (kabel)
     uplink_port: int | None
     connected_s: int | None
+
+
+MAC_RE = re.compile(r"^[0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}$")
 
 
 def _float(v: Any) -> float | None:
@@ -100,6 +113,11 @@ def parse_devices(raw: dict) -> list[UnifiDevice]:
             for p in d.get("port_table", [])
             if p.get("port_poe") and "port_idx" in p
         ]
+        links = [
+            LldpLink(local_port_idx=int(x["local_port_idx"]), remote_mac=_str(x["chassis_id"]).lower())
+            for x in d.get("lldp_table", [])
+            if "local_port_idx" in x and _str(x.get("chassis_id")) and MAC_RE.match(x["chassis_id"].strip())
+        ]
         out.append(
             UnifiDevice(
                 type=str(d.get("type") or ""),
@@ -111,6 +129,7 @@ def parse_devices(raw: dict) -> list[UnifiDevice]:
                 poe_used_w=_float(d.get("total_used_power")),
                 poe_max_w=_float(d.get("total_max_power")),
                 poe_ports=ports,
+                lldp=links,
             )
         )
     return out

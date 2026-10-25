@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import insert
 from .collector import _write_with_retry
 from .config import settings
 from .db import Session
-from .db.models import Controller, Device, NetworkClient, PoeBudgetMetric, PoePortMetric
+from .db.models import Controller, Device, NetworkClient, PoeBudgetMetric, PoePortMetric, TopologyLink
 from .unifi import UnifiApi, UnifiClient, UnifiDevice, UnifiError
 
 log = logging.getLogger("netpulse.unifi")
@@ -135,6 +135,24 @@ class UnifiCollector:
                 )
                 if d.poe_ports and (d.poe_used_w is not None or d.poe_max_w is not None):
                     session.add(PoeBudgetMetric(time=now, device_id=dev_id, used_w=d.poe_used_w, max_w=d.poe_max_w))
+
+            # Topologia: zdjęcie stanu połączeń LLDP urządzeń, które znamy z SNMP
+            links = [
+                {
+                    "controller_id": target.id,
+                    "device_id": by_mac[d.mac],
+                    "local_port_idx": link.local_port_idx,
+                    "remote_mac": link.remote_mac,
+                    "local_mac": d.mac,
+                    "updated_at": now,
+                }
+                for d in devices
+                if d.mac in by_mac
+                for link in d.lldp
+            ]
+            await session.execute(delete(TopologyLink).where(TopologyLink.controller_id == target.id))
+            if links:
+                await session.execute(insert(TopologyLink).values(links).on_conflict_do_nothing())
 
             # Klienci: zdjęcie stanu – zniknięci z kontrolera znikają też u nas
             names = {d.mac: d.name for d in devices}

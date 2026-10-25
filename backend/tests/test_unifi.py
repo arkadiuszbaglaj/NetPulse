@@ -108,3 +108,14 @@ def test_api_connection_error_is_unifi_error():
             await api.close()
 
     asyncio.run(scenario())
+
+
+def test_parse_lldp_links():
+    devices = {d.type: d for d in parse_devices(load("unifi_devices.json"))}
+    sw = devices["usw"]
+    assert {(link.local_port_idx, link.remote_mac) for link in sw.lldp} == {
+        (1, devices["uap"].mac),
+        (8, devices["udm"].mac),
+    }
+    assert len(devices["udm"].lldp) == 2  # switch i nieznany sąsiad na porcie WAN
+    assert parse_devices({"data": [{"mac": "aa:bb:cc:00:00:01", "lldp_table": [{"chassis_id": "nie-mac", "local_port_idx": 1}]}]})[0].lldp == []

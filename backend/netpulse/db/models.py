@@ -1,7 +1,7 @@
 """Modele bazy danych (SQLAlchemy 2).
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
-Kontrolery UniFi: controllers, network_clients. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
+Kontrolery UniFi: controllers, network_clients, topology_links. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
 Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics, wifi_metrics,
 poe_port_metrics, poe_budget_metrics.
 """
@@ -270,6 +270,19 @@ class NetworkClient(Base):
     uplink_name: Mapped[str | None] = mapped_column(String(128))
     uplink_port: Mapped[int | None] = mapped_column(Integer)
     connected_s: Mapped[int | None] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class TopologyLink(Base):
+    """Połączenie z tabeli LLDP urządzenia: port lokalny → sąsiad (zdjęcie stanu z ostatniego odczytu)."""
+
+    __tablename__ = "topology_links"
+
+    controller_id: Mapped[int] = mapped_column(ForeignKey("controllers.id", ondelete="CASCADE"), primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    local_port_idx: Mapped[int] = mapped_column(Integer, primary_key=True)
+    remote_mac: Mapped[str] = mapped_column(String(17), primary_key=True)
+    local_mac: Mapped[str] = mapped_column(String(17))  # MAC urządzenia lokalnego (do rozpoznania sąsiada)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

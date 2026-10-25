@@ -25,6 +25,7 @@ from . import (
     live,
     metrics,
     preferences,
+    topology,
     updates,
 )
 from .security import check_origin
@@ -50,6 +51,7 @@ app.include_router(devices.router)
 app.include_router(live.router)
 app.include_router(metrics.router)
 app.include_router(preferences.router)
+app.include_router(topology.router)
 app.include_router(updates.router)
 
 
