@@ -304,6 +304,24 @@ class AlertRule(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class NotificationChannel(Base):
+    """Kanał powiadomień o alertach poza panelem (na razie webhook). Adres zawiera sekret, więc API go nie zwraca."""
+
+    __tablename__ = "notification_channels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    kind: Mapped[str] = mapped_column(String(16), default="webhook")
+    url: Mapped[str] = mapped_column(String(1024))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    min_severity: Mapped[str] = mapped_column(String(10), default="warning")  # info | warning | critical
+    notify_resolved: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_status: Mapped[str | None] = mapped_column(String(8))  # ok | error
+    last_error: Mapped[str | None] = mapped_column(Text)
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Alert(Base):
     """Zdarzenie alertu: wyzwolone → (potwierdzone) → zakończone. Historia zostaje po usunięciu reguły."""
 

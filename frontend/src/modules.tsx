@@ -11,6 +11,7 @@ import {
   IconHierarchy2,
   IconLayoutDashboard,
   IconRefresh,
+  IconSend,
   IconKey,
   IconServer2,
   IconSettings,
@@ -26,6 +27,7 @@ import { ClientsPage } from "./pages/ClientsPage";
 import { TopologyPage } from "./pages/TopologyPage";
 import { ControllersPage } from "./pages/settings/ControllersPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
+import { NotificationsPage } from "./pages/settings/NotificationsPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
 import { SystemPage } from "./pages/settings/SystemPage";
 import { UpdatePage } from "./pages/settings/UpdatePage";
@@ -104,6 +106,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.alertRules",
         icon: IconBell,
         element: <AlertRulesPage />,
+      },
+      {
+        path: "notifications",
+        label: "nav.settings.notifications",
+        icon: IconSend,
+        element: <NotificationsPage />,
       },
       {
         path: "refresh",

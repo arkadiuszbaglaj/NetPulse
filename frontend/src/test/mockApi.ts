@@ -13,6 +13,7 @@ import type {
 } from "../lib/api";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
+import type { NotificationChannel } from "../lib/notifications";
 import type { ServerStatus } from "../components/widgets/ServerDetails";
 import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
@@ -224,6 +225,9 @@ interface MockState {
   system: SystemInfo | null;
   /** Stan serwera Linux (odpowiedź /api/devices/{id}/server) */
   server: ServerStatus | null;
+  channels: NotificationChannel[];
+  /** Odpowiedź na wiadomość próbną kanału */
+  channelTest: { ok: boolean; error: string | null };
   services: { id: string; state: string; detail: string | null }[];
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
@@ -252,6 +256,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     topology: { nodes: [], edges: [] },
     system: null,
     server: null,
+    channels: [],
+    channelTest: { ok: true, error: null },
     services: [
       { id: "api", state: "ok", detail: "0.8.2" },
       { id: "database", state: "ok", detail: "timescaledb" },
@@ -364,6 +370,38 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
       if (key === "GET /api/topology") return json(200, state.topology);
       if (/^GET \/api\/devices\/\d+\/server$/.test(key)) return json(200, state.server);
+      if (key === "GET /api/notification-channels") return json(200, state.channels);
+      if (key === "POST /api/notification-channels") {
+        const b = body as { name: string; url: string; min_severity?: string; notify_resolved?: boolean };
+        const created: NotificationChannel = {
+          id: Math.max(0, ...state.channels.map((c) => c.id)) + 1,
+          name: b.name,
+          kind: "webhook",
+          url_hint: `${new URL(b.url).origin}/…`,
+          enabled: true,
+          min_severity: (b.min_severity ?? "warning") as NotificationChannel["min_severity"],
+          notify_resolved: b.notify_resolved ?? true,
+          last_status: null,
+          last_error: null,
+          last_sent_at: null,
+          created_at: "2026-10-25T10:00:00Z",
+        };
+        state.channels.push(created);
+        return json(201, created);
+      }
+      const channel = /^(PATCH|DELETE|POST) \/api\/notification-channels\/(\d+)(\/test)?$/.exec(key);
+      if (channel) {
+        const found = state.channels.find((c) => c.id === Number(channel[2]));
+        if (!found) return json(404, { detail: "Nie ma takiego kanału" });
+        if (channel[3]) return json(200, state.channelTest);
+        if (channel[1] === "DELETE") {
+          state.channels = state.channels.filter((c) => c !== found);
+          return json(204);
+        }
+        const { url: _url, ...fields } = body as Record<string, unknown>;
+        Object.assign(found, fields);
+        return json(200, found);
+      }
       if (key === "GET /api/system") return json(200, state.system);
       if (key === "GET /api/system/services") return json(200, state.services);
       if (key === "GET /api/system/metrics") return json(200, state.traffic.points);

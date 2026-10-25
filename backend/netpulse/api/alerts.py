@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 
-from ..alerts import DEVICE_METRICS, METRICS
+from ..alerts import METRICS, PER_DEVICE_METRICS
 from ..db import Session
 from ..db.models import Alert, AlertRule, Device
 from .security import CurrentUser, require_user
@@ -38,8 +38,8 @@ class RuleBase(BaseModel):
                 raise ValueError(f"Nieznana metryka; dostępne: {', '.join(METRICS)}")
             if self.op is None or self.threshold is None:
                 raise ValueError("Reguła metryki wymaga warunku (op) i progu (threshold)")
-            if self.metric not in DEVICE_METRICS and self.device_id is not None:
-                raise ValueError("Ruch WAN jest sumą po routerach – nie wybieraj urządzenia")
+            if self.metric not in PER_DEVICE_METRICS and self.device_id is not None:
+                raise ValueError("Ta metryka dotyczy całości (ruch WAN albo serwer NetPulse) – nie wybieraj urządzenia")
         else:
             self.metric = self.op = self.threshold = None
         return self
@@ -100,7 +100,7 @@ async def list_rules():
 async def rule_metrics():
     """Metryki, na których można oprzeć regułę: nazwa, opis, jednostka i czy dotyczy pojedynczego urządzenia."""
     return [
-        {"metric": m, "label": label, "unit": unit, "per_device": m in DEVICE_METRICS}
+        {"metric": m, "label": label, "unit": unit, "per_device": m in PER_DEVICE_METRICS}
         for m, (label, unit) in METRICS.items()
     ]
 

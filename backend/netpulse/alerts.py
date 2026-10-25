@@ -15,7 +15,17 @@ from sqlalchemy import func, select
 
 from .config import settings
 from .db import Session
-from .db.models import Alert, AlertRule, Device, DeviceMetric, Interface, InterfaceMetric
+from .db.models import (
+    Alert,
+    AlertRule,
+    Device,
+    DeviceMetric,
+    DiskMetric,
+    Interface,
+    InterfaceMetric,
+    SystemMetric,
+)
+from .notifications import AlertEvent, Notifier
 
 log = logging.getLogger("netpulse.alerts")
 
@@ -30,8 +40,23 @@ METRICS: dict[str, tuple[str, str]] = {
     "load1": ("Obciążenie (1 min)", ""),
     "wan_in_bps": ("Pobieranie WAN", "b/s"),
     "wan_out_bps": ("Wysyłanie WAN", "b/s"),
+    "disk_used_percent": ("Zajętość dysku (każda partycja serwera)", "%"),
+    "port_errors": ("Błędy na porcie (w jednym cyklu odczytu)", ""),
+    "system_cpu_percent": ("Serwer NetPulse: CPU", "%"),
+    "system_mem_used_percent": ("Serwer NetPulse: RAM", "%"),
+    "system_disk_used_percent": ("Serwer NetPulse: dysk", "%"),
 }
 DEVICE_METRICS = ("cpu_percent", "mem_used_percent", "load1")
+DISK_METRICS = ("disk_used_percent",)
+PORT_METRICS = ("port_errors",)
+# Metryki serwera, na którym działa NetPulse → kolumna w `system_metrics`
+SYSTEM_METRICS = {
+    "system_cpu_percent": "cpu_percent",
+    "system_mem_used_percent": "mem_used_percent",
+    "system_disk_used_percent": "disk_used_percent",
+}
+# Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer NetPulse) są globalne
+PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS
 
 DEFAULT_RULES = (
     dict(name="Urządzenie nie odpowiada", kind="device_offline", duration_s=120, severity="critical"),
@@ -65,6 +90,8 @@ def sustained(
 
 
 def format_value(metric: str, value: float) -> str:
+    if metric == "port_errors":
+        return f"{value:.0f}"
     unit = METRICS[metric][1]
     if unit == "b/s":
         for suffix, div in (("Gb/s", 1e9), ("Mb/s", 1e6), ("kb/s", 1e3)):
@@ -86,8 +113,9 @@ class Hit:
 
 
 class AlertEngine:
-    def __init__(self, now_fn=lambda: datetime.now(UTC)) -> None:
+    def __init__(self, now_fn=lambda: datetime.now(UTC), notifier: Notifier | None = None) -> None:
         self.now_fn = now_fn
+        self.notifier = notifier
 
     async def ensure_default_rules(self) -> None:
         """Przy pierwszym uruchomieniu (brak reguł i historii) dodaje reguły „offline” i „port down”."""
@@ -97,8 +125,16 @@ class AlertEngine:
             if not has_rules and not has_alerts:
                 session.add_all(AlertRule(**r) for r in DEFAULT_RULES)
 
-    async def evaluate(self) -> None:
+    async def evaluate(self) -> list[AlertEvent]:
+        """Ocenia reguły, zapisuje zmiany stanu alertów, rozsyła powiadomienia i zwraca zdarzenia tego cyklu."""
+        events = await self._evaluate()
+        if self.notifier is not None and events:
+            await self.notifier.send(events)
+        return events
+
+    async def _evaluate(self) -> list[AlertEvent]:
         now = self.now_fn()
+        events: list[AlertEvent] = []
         async with Session() as session, session.begin():
             rules = (await session.scalars(select(AlertRule).where(AlertRule.enabled))).all()
             devices = {d.id: d for d in (await session.scalars(select(Device).where(Device.enabled))).all()}
@@ -128,6 +164,12 @@ class AlertEngine:
                             )
                         )
                         log.info("ALERT: %s", hit.title)
+                        device = devices.get(hit.device_id) if hit.device_id is not None else None
+                        events.append(
+                            AlertEvent(
+                                "firing", rule.severity, hit.title, hit.message, device.name if device else None, hit.value, now
+                            )
+                        )
                     else:
                         alert.value = hit.value
                         alert.message = hit.message
@@ -140,6 +182,14 @@ class AlertEngine:
                     alert.state = "resolved"
                     alert.resolved_at = now
                     log.info("Alert zakończony: %s", alert.title)
+                    device = devices.get(alert.device_id) if alert.device_id is not None else None
+                    events.append(
+                        AlertEvent(
+                            "resolved", alert.severity, alert.title, None, device.name if device else None,
+                            alert.value, alert.started_at, now,
+                        )
+                    )
+        return events
 
     # --- rodzaje reguł ----------------------------------------------------------------
 
@@ -228,6 +278,13 @@ class AlertEngine:
                     )
             return hits
 
+        if metric in DISK_METRICS:
+            return await self._disk(session, rule, scope, since, now)
+        if metric in PORT_METRICS:
+            return await self._port_errors(session, rule, scope, since, now)
+        if metric in SYSTEM_METRICS:
+            return await self._system(session, rule, since, now)
+
         # WAN: suma po wszystkich interfejsach WAN włączonych routerów (w zakresie reguły)
         column = InterfaceMetric.in_bps if metric == "wan_in_bps" else InterfaceMetric.out_bps
         rows = (
@@ -248,6 +305,74 @@ class AlertEngine:
             v = series[-1][1]
             hits.append(Hit("wan", f"{label} {format_value(metric, v)}", self._detail(rule, metric), rule.device_id, v))
         return hits
+
+    async def _disk(self, session, rule: AlertRule, scope: list[Device], since: datetime, now: datetime) -> list[Hit]:
+        """Zajętość każdej partycji serwera osobno (alert na partycję), liczona z ostatnich próbek."""
+        metric, op, threshold = rule.metric, rule.op, float(rule.threshold)
+        rows = (
+            await session.execute(
+                select(DiskMetric.device_id, DiskMetric.mount, DiskMetric.time, DiskMetric.used_bytes, DiskMetric.total_bytes)
+                .where(DiskMetric.device_id.in_([d.id for d in scope] or [0]), DiskMetric.time >= since)
+                .order_by(DiskMetric.device_id, DiskMetric.mount, DiskMetric.time)
+            )
+        ).all()
+        samples: dict[tuple[int, str], list[tuple[datetime, float | None]]] = defaultdict(list)
+        for dev_id, mount, t, used, total in rows:
+            samples[(dev_id, mount)].append((t, 100.0 * used / total if total else None))
+        names = {d.id: d.name for d in scope}
+        hits = []
+        for (dev_id, mount), series in samples.items():
+            if sustained(series, now, rule.duration_s, op, threshold, float(settings.poll_interval)):
+                v = series[-1][1]
+                title = f"{names[dev_id]}: dysk {mount} zajęty w {format_value(metric, v)}"
+                hits.append(Hit(f"d{dev_id}:{mount}", title, self._detail(rule, metric), dev_id, v))
+        return hits
+
+    async def _port_errors(
+        self, session, rule: AlertRule, scope: list[Device], since: datetime, now: datetime
+    ) -> list[Hit]:
+        """Błędy wejścia i wyjścia na porcie w jednym cyklu odczytu (kolektor zapisuje przyrost)."""
+        metric, op, threshold = rule.metric, rule.op, float(rule.threshold)
+        rows = (
+            await session.execute(
+                select(InterfaceMetric.interface_id, InterfaceMetric.time, InterfaceMetric.in_errors, InterfaceMetric.out_errors)
+                .join(Interface, Interface.id == InterfaceMetric.interface_id)
+                .where(
+                    Interface.device_id.in_([d.id for d in scope] or [0]),
+                    Interface.hidden.is_(False),
+                    InterfaceMetric.time >= since,
+                )
+                .order_by(InterfaceMetric.interface_id, InterfaceMetric.time)
+            )
+        ).all()
+        samples: dict[int, list[tuple[datetime, float | None]]] = defaultdict(list)
+        for iface_id, t, err_in, err_out in rows:
+            both_missing = err_in is None and err_out is None  # pierwszy odczyt: nie ma jeszcze przyrostu
+            samples[iface_id].append((t, None if both_missing else float((err_in or 0) + (err_out or 0))))
+        if not samples:
+            return []
+        interfaces = {i.id: i for i in (await session.scalars(select(Interface).where(Interface.id.in_(list(samples))))).all()}
+        names = {d.id: d.name for d in scope}
+        hits = []
+        for iface_id, series in samples.items():
+            if sustained(series, now, rule.duration_s, op, threshold, float(settings.poll_interval)):
+                iface = interfaces[iface_id]
+                label = iface.alias or iface.label or iface.name
+                v = series[-1][1]
+                title = f"Błędy na porcie {label} ({names[iface.device_id]}): {format_value(metric, v)}"
+                hits.append(Hit(f"i{iface_id}", title, self._detail(rule, metric), iface.device_id, v))
+        return hits
+
+    async def _system(self, session, rule: AlertRule, since: datetime, now: datetime) -> list[Hit]:
+        """Serwer, na którym działa NetPulse (CPU, RAM, dysk): jeden alert na regułę."""
+        metric, op, threshold = rule.metric, rule.op, float(rule.threshold)
+        column = getattr(SystemMetric, SYSTEM_METRICS[metric])
+        rows = (await session.execute(select(SystemMetric.time, column).where(SystemMetric.time >= since).order_by(SystemMetric.time))).all()
+        series = [(t, v) for t, v in rows]
+        if sustained(series, now, rule.duration_s, op, threshold, float(settings.poll_interval)):
+            v = series[-1][1]
+            return [Hit("system", f"{METRICS[metric][0]} {format_value(metric, v)}", self._detail(rule, metric), None, v)]
+        return []
 
     @staticmethod
     def _detail(rule: AlertRule, metric: str) -> str:

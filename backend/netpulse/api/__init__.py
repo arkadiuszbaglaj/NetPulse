@@ -25,6 +25,7 @@ from . import (
     devices,
     live,
     metrics,
+    notifications,
     preferences,
     servers,
     system,
@@ -54,6 +55,7 @@ app.include_router(dashboards.router)
 app.include_router(devices.router)
 app.include_router(live.router)
 app.include_router(metrics.router)
+app.include_router(notifications.router)
 app.include_router(preferences.router)
 app.include_router(servers.router)
 app.include_router(system.router)
