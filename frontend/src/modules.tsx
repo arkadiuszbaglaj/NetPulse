@@ -5,6 +5,7 @@
 import {
   IconBell,
   IconBellRinging,
+  IconServerCog,
   IconDatabase,
   IconDevicesPc,
   IconDownload,
@@ -28,6 +29,8 @@ import { BackupsPage } from "./pages/settings/BackupsPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { ClientsPage } from "./pages/ClientsPage";
+import { ProxmoxPage } from "./pages/ProxmoxPage";
+import { ProxmoxSettingsPage } from "./pages/settings/ProxmoxSettingsPage";
 import { TopologyPage } from "./pages/TopologyPage";
 import { ControllersPage } from "./pages/settings/ControllersPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
@@ -73,6 +76,13 @@ export const modules: NavModule[] = [
     element: <ClientsPage />,
   },
   {
+    id: "proxmox",
+    path: "/proxmox",
+    label: "nav.proxmox",
+    icon: IconServerCog,
+    element: <ProxmoxPage />,
+  },
+  {
     id: "topology",
     path: "/topology",
     label: "nav.topology",
@@ -110,6 +120,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.controllers",
         icon: IconKey,
         element: <ControllersPage />,
+      },
+      {
+        path: "proxmox",
+        label: "nav.settings.proxmox",
+        icon: IconServerCog,
+        element: <ProxmoxSettingsPage />,
       },
       {
         path: "alert-rules",

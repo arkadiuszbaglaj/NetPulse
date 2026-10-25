@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { t } from "../../i18n";
 import { get } from "../../lib/api";
-import { formatBytes, formatUptime } from "../../lib/format";
+import { formatBytes, formatUptime, relativeTime } from "../../lib/format";
 import { useRefresh } from "../../lib/refresh";
 import { UsageBar } from "./ServerWidget";
 
@@ -35,6 +35,16 @@ export interface AgentInfo {
   smart: { device: string; model: string | null; passed: boolean | null; temp_c: number | null }[] | null;
 }
 
+/** Węzeł Proxmox (backend: api/servers.py ProxmoxInfo). */
+export interface ProxmoxNodeInfo {
+  version: string | null;
+  cluster: string | null;
+  guests_running: number;
+  guests_total: number;
+  backup_status: string | null;
+  backup_at: string | null;
+}
+
 export interface ServerStatus {
   sampled_at: string;
   cpu_percent: number | null;
@@ -45,6 +55,7 @@ export interface ServerStatus {
   processes: number | null;
   disks: ServerDisk[];
   agent?: AgentInfo | null;
+  proxmox?: ProxmoxNodeInfo | null;
 }
 
 /** Dyski pokazywane na karcie; kolejne zostają w „…i N więcej”, bo serwer z dużą liczbą woluminów rozdmuchałby pulpit. */
@@ -105,7 +116,22 @@ function AgentLines({ agent }: { agent: AgentInfo }) {
   );
 }
 
-/** CPU, RAM, swap i dyski serwera Linux (snmpd albo agent) – wnętrze karty urządzenia. */
+/** Węzeł Proxmox: maszyny na nim i wynik ostatniej kopii zapasowej (błąd na czerwono). */
+function ProxmoxLines({ info }: { info: ProxmoxNodeInfo }) {
+  const ok = info.backup_status === "OK" || info.backup_status?.startsWith("WARNINGS");
+  return (
+    <ul className="flex flex-col gap-0.5 text-xs" aria-label={t("pve.card.details")}>
+      <li className="text-text-2">{t("pve.card.guests", { running: info.guests_running, total: info.guests_total })}</li>
+      {info.backup_status && (
+        <li className={ok ? "text-text-2" : "font-medium text-danger"}>
+          {ok ? t("pve.card.backupOk", { when: relativeTime(info.backup_at) ?? "?" }) : t("pve.card.backupFailed", { error: info.backup_status })}
+        </li>
+      )}
+    </ul>
+  );
+}
+
+/** CPU, RAM, swap i dyski serwera Linux (snmpd, agent albo węzeł Proxmox) – wnętrze karty urządzenia. */
 export function ServerDetails({ deviceId }: { deviceId: number }) {
   const { data } = useServerStatus(deviceId);
   if (!data) return null;
@@ -126,6 +152,7 @@ export function ServerDetails({ deviceId }: { deviceId: number }) {
       ))}
       {disks.length > MAX_DISKS && <p className="text-xs text-text-2">{t("topo.more", { n: disks.length - MAX_DISKS })}</p>}
       {data.agent && <AgentLines agent={data.agent} />}
+      {data.proxmox && <ProxmoxLines info={data.proxmox} />}
       <p className="text-xs text-text-2">
         {[
           data.uptime_s != null ? `${t("server.uptime")}: ${formatUptime(data.uptime_s)}` : null,

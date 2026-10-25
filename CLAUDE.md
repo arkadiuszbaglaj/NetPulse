@@ -108,6 +108,13 @@ Od 0.15.0 community SNMP, klucze SNMPv3, klucz API kontrolera i adresy webhookó
 (tworzony sam) albo `NETPULSE_SECRET_KEY` w `.env`. Nowa kolumna z sekretem = `EncryptedText` + wpis w `SECRET_COLUMNS`.
 Opis: `docs/16-szyfrowanie-sekretow.md`.
 
+## Proxmox VE
+
+Od 0.17.0: Ustawienia → Proxmox (token API, rola PVEAuditor), strona Proxmox (VM/LXC, magazyny), węzły jako urządzenia
+`driver = "proxmox"` (karta, alerty, wykresy), alerty: maszyna zatrzymana, kopia vzdump z błędem, brak świeżej kopii.
+Kod: `backend/netpulse/proxmox.py`, `proxmox_collector.py`, `api/proxmox.py`; atrapa API do testów: `backend/tests/pve_fake.py`.
+Opis: `docs/17-proxmox.md`. **Testowane tylko na atrapie – czeka na prawdziwy serwer Proxmox.**
+
 ## Do sprawdzenia później
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
@@ -115,5 +122,7 @@ Opis: `docs/16-szyfrowanie-sekretow.md`.
 - **MikroTik na prawdziwym sprzęcie** – użytkownik podłączy routerboard do sieci. Wtedy: zrobić `snmpwalk`,
   zanonimizować (`backend/tools/walk2snmprec.py`), podmienić syntetyczną fixture i sprawdzić driver w panelu.
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
+- **Proxmox na prawdziwym sprzęcie** – użytkownik nie ma jeszcze Proxmoxa; integracja (0.17.0) testowana na atrapie API.
+  Przy pierwszym podłączeniu: token, `netpulse logs collector`, porównać pola z `pve_fake.py`.
 - **Wersja 0.9.0 na serwerze** – użytkownik jeszcze nie potwierdził `netpulse update` i działania: karta serwera
   NetPulse, serwery Linux przez SNMP, reguły alertów dla dysku i błędów portów, powiadomienia webhookiem.

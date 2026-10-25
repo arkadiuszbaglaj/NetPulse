@@ -13,6 +13,7 @@ import type {
 } from "../lib/api";
 import type { Agent } from "../lib/agents";
 import type { BackupsResponse } from "../lib/backups";
+import type { ProxmoxGuest, ProxmoxServer, ProxmoxStorage } from "../lib/proxmox";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
 import type { NotificationChannel } from "../lib/notifications";
@@ -206,6 +207,23 @@ export const AGENT: Agent = {
   hostname: "nas",
 };
 
+export const PVE_SERVER: ProxmoxServer = {
+  id: 1,
+  name: "Homelab",
+  host: "192.168.1.10",
+  port: 8006,
+  token_id: "netpulse@pve!monitor",
+  verify_tls: false,
+  enabled: true,
+  status: "up",
+  version: "8.2.4",
+  cluster_name: "homelab",
+  last_polled_at: new Date().toISOString(),
+  last_ok_at: new Date().toISOString(),
+  last_error: null,
+  created_at: "2026-10-25T10:00:00Z",
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -234,6 +252,9 @@ interface MockState {
   controllers: Controller[];
   agents: Agent[];
   backups: BackupsResponse;
+  pveServers: ProxmoxServer[];
+  pveGuests: ProxmoxGuest[];
+  pveStorages: ProxmoxStorage[];
   alerts: Alert[];
   rules: AlertRule[];
   clients: NetworkClient[];
@@ -269,6 +290,9 @@ export function mockApi(initial: Partial<MockState> = {}) {
     controllers: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },
+    pveServers: [],
+    pveGuests: [],
+    pveStorages: [],
     alerts: [],
     rules: [],
     clients: [],
@@ -363,6 +387,31 @@ export function mockApi(initial: Partial<MockState> = {}) {
         }
         Object.assign(rule, body);
         return json(200, rule);
+      }
+      if (key === "GET /api/proxmox/servers") return json(200, state.pveServers);
+      if (key === "GET /api/proxmox/guests") return json(200, state.pveGuests);
+      if (key === "GET /api/proxmox/storages") return json(200, state.pveStorages);
+      if (key === "POST /api/proxmox/probe" || /^POST \/api\/proxmox\/servers\/\d+\/probe$/.test(key)) {
+        return json(200, { version: "8.2.4", cluster: "homelab", nodes: 2, guests: 5, storages: 4 });
+      }
+      if (key === "POST /api/proxmox/servers") {
+        const b = body as Partial<ProxmoxServer> & { token_secret: string };
+        const { token_secret: _secret, ...fields } = b;
+        const created: ProxmoxServer = { ...PVE_SERVER, ...fields, id: state.pveServers.length + 1, status: "unknown", version: null, cluster_name: null } as ProxmoxServer;
+        state.pveServers.push(created);
+        return json(201, created);
+      }
+      const pve = /^(PATCH|DELETE) \/api\/proxmox\/servers\/(\d+)$/.exec(key);
+      if (pve) {
+        const s = state.pveServers.find((x) => x.id === Number(pve[2]));
+        if (!s) return json(404, { detail: "Nie ma takiego serwera Proxmox" });
+        if (pve[1] === "DELETE") {
+          state.pveServers = state.pveServers.filter((x) => x !== s);
+          return json(204);
+        }
+        const { token_secret: _secret, ...fields } = body as Record<string, unknown>;
+        Object.assign(s, fields);
+        return json(200, s);
       }
       if (key === "GET /api/backups") return json(200, state.backups);
       if (key === "POST /api/backups/upload") {
