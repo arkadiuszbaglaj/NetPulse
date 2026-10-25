@@ -7,7 +7,7 @@ import logging
 import random
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -95,13 +95,40 @@ class Collector:
 
     async def load_targets(self) -> list[DeviceTarget]:
         async with Session() as session:
-            devices = (await session.scalars(select(Device).where(Device.enabled))).all()
+            # Serwery z agentem same wysyłają dane (api/agents.py) – SNMP ich nie dotyczy
+            devices = (await session.scalars(select(Device).where(Device.enabled, Device.driver != "agent"))).all()
             return [
                 DeviceTarget(d.id, d.name, d.host, d.port, d.driver, credentials_for(d))
                 for d in devices
             ]
 
+    async def mark_silent_agents(self, now: datetime | None = None) -> list[int]:
+        """Agent, który przestał wysyłać raporty, oznacza serwer jako niedostępny (jak brak odpowiedzi SNMP)."""
+        now = now or datetime.now(UTC)
+        cutoff = now - timedelta(seconds=max(90, settings.poll_interval * 3))
+        ids: list[int] = []
+
+        async def write(session) -> None:
+            ids[:] = (
+                await session.scalars(
+                    update(Device)
+                    .where(Device.driver == "agent", Device.enabled, Device.status == "up", Device.last_ok_at < cutoff)
+                    .values(status="down", last_polled_at=now, last_error="Agent nie przysyła danych")
+                    .returning(Device.id)
+                )
+            ).all()
+            session.add_all(DeviceMetric(time=now, device_id=i, reachable=False) for i in ids)
+
+        await _write_with_retry(write)
+        for i in ids:
+            log.warning("Urządzenie %s: agent nie przysyła danych", i)
+        return ids
+
     async def poll_all(self) -> None:
+        try:
+            await self.mark_silent_agents()
+        except Exception:
+            log.exception("Błąd sprawdzania agentów")
         targets = await self.load_targets()
         active = {t.id for t in targets}
         for dev_id in [d for d in self._clients if d not in active]:

@@ -1,4 +1,5 @@
-"""Serwery Linux monitorowane przez SNMP: bieżący stan (CPU, RAM, swap, dyski) jednym zapytaniem."""
+"""Serwery Linux (SNMP albo agent): bieżący stan (CPU, RAM, swap, dyski, a z agenta też kontenery, usługi,
+temperatury i SMART) jednym zapytaniem."""
 
 from __future__ import annotations
 
@@ -9,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from ..db import Session
-from ..db.models import Device, DeviceMetric, DiskMetric, ServerMetric
+from ..db.models import Agent, Device, DeviceMetric, DiskMetric, ServerMetric
 from .security import require_user
 
 router = APIRouter(prefix="/api", tags=["serwery"], dependencies=[Depends(require_user)])
@@ -24,6 +25,21 @@ class DiskOut(BaseModel):
     used_percent: float
 
 
+class AgentInfo(BaseModel):
+    """Zdjęcie stanu z ostatniego raportu agenta (pola jak w api/agents.py: AgentReport)."""
+
+    agent_version: str | None = None
+    os: str | None = None
+    kernel: str | None = None
+    cpu_cores: int | None = None
+    load: list[float] = []
+    mem_total_bytes: int | None = None
+    temps: list[dict] = []
+    services: dict | None = None
+    containers: list[dict] | None = None
+    smart: list[dict] | None = None
+
+
 class ServerOut(BaseModel):
     sampled_at: datetime
     cpu_percent: float | None
@@ -33,6 +49,7 @@ class ServerOut(BaseModel):
     uptime_s: float | None
     processes: int | None
     disks: list[DiskOut]
+    agent: AgentInfo | None = None
 
 
 @router.get("/devices/{device_id}/server", response_model=ServerOut | None)
@@ -40,7 +57,8 @@ async def device_server(device_id: int):
     """Ostatnia próbka serwera albo null, gdy urządzenie nie odpowiada od ponad 5 minut (albo nie jest serwerem)."""
     since = datetime.now(UTC) - CURRENT_WINDOW
     async with Session() as session:
-        if await session.get(Device, device_id) is None:
+        device = await session.get(Device, device_id)
+        if device is None:
             raise HTTPException(404, "Nie ma takiego urządzenia")
         health = await session.scalar(
             select(DeviceMetric)
@@ -61,6 +79,9 @@ async def device_server(device_id: int):
                 .order_by(DiskMetric.mount, DiskMetric.time.desc())
             )
         ).all()
+        agent = None
+        if device.driver == "agent":
+            agent = await session.scalar(select(Agent).where(Agent.device_id == device_id))
     return ServerOut(
         sampled_at=health.time,
         cpu_percent=health.cpu_percent,
@@ -78,4 +99,5 @@ async def device_server(device_id: int):
             )
             for d in disk_rows
         ],
+        agent=AgentInfo.model_validate(agent.inventory) if agent and agent.inventory else None,
     )

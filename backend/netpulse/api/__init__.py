@@ -1,7 +1,7 @@
 """REST API NetPulse (FastAPI).
 
 Wszystko poza /api/health i /api/auth/{status,setup,login} wymaga zalogowania
-(ciasteczko sesji). Pierwsze konto administratora zakłada kreator: POST /api/auth/setup.
+(ciasteczko sesji). Wyjątek: agenci serwerów (/api/agent/v1/report) logują się tokenem. Pierwsze konto administratora zakłada kreator: POST /api/auth/setup.
 Dokumentacja interaktywna: http://<serwer>:8000/docs
 """
 
@@ -17,6 +17,7 @@ from .. import __version__
 from ..config import settings
 from ..db import engine, has_timescale
 from . import (
+    agents,
     alerts,
     auth_routes,
     controllers,
@@ -47,6 +48,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)], lifespan=lifespan)
+app.include_router(agents.admin_router)
+app.include_router(agents.push_router)
 app.include_router(alerts.router)
 app.include_router(auth_routes.router)
 app.include_router(controllers.router)

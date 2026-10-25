@@ -2,8 +2,9 @@
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
 Kontrolery UniFi: controllers, network_clients, topology_links. Alerty: alert_rules, alerts. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
-Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics, wifi_metrics,
-poe_port_metrics, poe_budget_metrics.
+Agenci serwerów Linux: agents. Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics,
+wifi_metrics, poe_port_metrics, poe_budget_metrics, system_metrics, disk_metrics, server_metrics oraz ogólna
+tabela metrics (nazwa + klucz + wartość) na to, co nie mieści się w stałych kolumnach.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -414,4 +416,36 @@ class PoeBudgetMetric(Base):
     max_w: Mapped[float | None] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics")
+class Agent(Base):
+    """Agent NetPulse na serwerze Linux: wysyła metryki do API (push) z tokenem. Jeden agent = jedno urządzenie
+    (`devices.driver = "agent"`), którego kolektor nie odpytuje przez SNMP. W bazie tylko skrót SHA-256 tokenu."""
+
+    __tablename__ = "agents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), unique=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_hint: Mapped[str] = mapped_column(String(8))  # ostatnie znaki tokenu – do rozpoznania w panelu
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_ip: Mapped[str | None] = mapped_column(String(64))
+    agent_version: Mapped[str | None] = mapped_column(String(32))
+    hostname: Mapped[str | None] = mapped_column(String(255))
+    # Zdjęcie stanu z ostatniego raportu: system, kontenery, usługi, temperatury, SMART (do panelu)
+    inventory: Mapped[dict | None] = mapped_column(JSONB)
+
+
+class Metric(Base):
+    """Ogólna metryka: nazwa (np. `container_up`), klucz (np. nazwa kontenera, "" gdy jedna wartość) i wartość."""
+
+    __tablename__ = "metrics"
+    __table_args__ = (Index("ix_metrics_device_name_time", "device_id", "name", "time"),)
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    key: Mapped[str] = mapped_column(String(255), primary_key=True, default="")
+    value: Mapped[float] = mapped_column(Float)
+
+
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics")

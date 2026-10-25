@@ -161,6 +161,8 @@ async def update_device(device_id: int, body: DeviceUpdate):
             raise HTTPException(422, f"Pole {field} nie może być puste")
     async with Session() as session, session.begin():
         device = await _get_device(session, device_id)
+        if device.driver == "agent" and set(changes) - {"name", "enabled"}:
+            raise HTTPException(409, "Serwer z agentem nie używa SNMP – zmienić można tylko nazwę i włączenie")
         if "host" in changes and await _host_taken(session, changes["host"], except_id=device_id):
             raise HTTPException(409, f"Urządzenie {changes['host']} już jest dodane")
         for field, value in changes.items():
@@ -190,6 +192,8 @@ async def probe_device(device_id: int):
     """Test SNMP zapisanego urządzenia (z zapisanymi danymi logowania)."""
     async with Session() as session:
         device = await _get_device(session, device_id)
+    if device.driver == "agent":
+        raise HTTPException(409, "Serwer z agentem nie używa SNMP – stan widać w Ustawienia → Agenci")
     return _probe_out(await _probe_or_422(device.host, device.port, credentials_for(device), device.driver))
 
 

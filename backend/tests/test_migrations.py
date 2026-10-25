@@ -37,11 +37,16 @@ async def drop_everything() -> None:
         await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
 
 
+# Tabele dodane migracjami po 0001 – baza z 0.9.0 ich nie miała
+AFTER_BASELINE = {"agents", "metrics"}
+
+
 async def legacy_schema() -> None:
-    """Baza jak z wersji ≤ 0.9.0: tabele z create_all, bez tabeli alembic_version."""
+    """Baza jak z wersji ≤ 0.9.0: tabele z create_all (bez nowszych), bez tabeli alembic_version."""
     await drop_everything()
+    tables = [t for t in Base.metadata.sorted_tables if t.name not in AFTER_BASELINE]
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
 
 
 def schema_diff(sync_conn) -> list:
