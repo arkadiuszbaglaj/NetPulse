@@ -157,7 +157,14 @@ class Backups:
         self.s.state_dir.mkdir(parents=True, exist_ok=True)
         tmp = self._status_file.with_suffix(".tmp")
         tmp.write_text(json.dumps(status, ensure_ascii=False), encoding="utf-8")
-        tmp.replace(self._status_file)
+        for attempt in range(20):
+            try:
+                tmp.replace(self._status_file)
+                return
+            except PermissionError:  # Windows: plik akurat czytany (na Linuksie podmiana jest atomowa)
+                if attempt == 19:
+                    raise
+                time.sleep(0.01)
 
     @property
     def busy(self) -> bool:
