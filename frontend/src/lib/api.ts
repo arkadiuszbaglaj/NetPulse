@@ -216,3 +216,12 @@ export interface UpdatesResponse {
   info: UpdateCheck | null;
   job: UpdateJob | null;
 }
+
+export type UpdateCheckInterval = 6 | 12 | 24 | 168;
+export const UPDATE_CHECK_INTERVALS: UpdateCheckInterval[] = [6, 12, 24, 168];
+
+/** Ustawienie instalacji: automatyczne sprawdzanie wydań (GET/PUT /api/updates/settings). */
+export interface UpdateSettings {
+  auto_check: boolean;
+  interval_h: UpdateCheckInterval;
+}

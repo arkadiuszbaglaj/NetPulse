@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { t } from "../../i18n";
 import type { Series } from "../../lib/api";
 import { formatRange } from "../../lib/format";
@@ -26,6 +26,10 @@ export interface ChartCardProps {
   height?: number;
   /** Treść błędu zamiast domyślnej (np. „źródło niedostępne”) */
   errorText?: string;
+  /** Przyciski po prawej stronie tytułu */
+  actions?: ReactNode;
+  /** Dodatkowa treść pod tytułem (np. bieżące wartości) */
+  children?: ReactNode;
 }
 
 /** Karta z wykresem: tytuł, stany ładowania, błędu i braku danych. */
@@ -43,13 +47,19 @@ export function ChartCard({
   yMax,
   height,
   errorText,
+  actions,
+  children,
 }: ChartCardProps) {
   const global = useRefresh();
   const range = rangeMinutes ?? global.rangeMinutes;
   const empty = !isLoading && !isError && (data?.points.length ?? 0) === 0;
   return (
     <Card className={`p-4 ${className}`}>
-      <h2 className="mb-2 truncate text-sm font-medium">{title}</h2>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="truncate text-sm font-medium">{title}</h2>
+        {actions}
+      </div>
+      {children}
       {isError && !data ? (
         <p role="alert" className="py-10 text-center text-sm text-danger">
           {errorText ?? t("chart.error")}

@@ -9,19 +9,27 @@ import {
   IconPlayerSkipForward,
   IconRefresh,
 } from "@tabler/icons-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "../../auth/AuthProvider";
 import { Dialog } from "../../components/Dialog";
-import { Button, Card, ErrorNote, PageHeader } from "../../components/ui";
+import { Button, Card, ErrorNote, PageHeader, Select, Toggle } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
-import { ApiError, get, post, type UpdateJob, type UpdatePhaseStatus, type UpdatesResponse } from "../../lib/api";
+import {
+  ApiError,
+  UPDATE_CHECK_INTERVALS,
+  post,
+  type UpdateCheckInterval,
+  type UpdateJob,
+  type UpdatePhaseStatus,
+  type UpdatesResponse,
+} from "../../lib/api";
 import { formatDateTime, relativeTime } from "../../lib/format";
 import { RELOAD_DELAY_MS, reloadPage } from "../../lib/reload";
+import { UPDATES_KEY, useSaveUpdateSettings, useUpdateSettings, useUpdates } from "../../lib/updatesApi";
 import { UpdateCliHint } from "./UpdateCliHint";
 
-const KEY = ["updates"] as const;
-const POLL_MS = 2000; // podczas aktualizacji pytamy często, niezależnie od globalnego interwału odświeżania
+const KEY = UPDATES_KEY;
 const VISIBLE_CHANGES = 10;
 
 const PHASE_LABEL: Record<string, TextKey> = {
@@ -158,13 +166,9 @@ export function UpdatePage() {
   const user = useUser();
   const [confirming, setConfirming] = useState(false);
 
-  const { data, isError } = useQuery({
-    queryKey: KEY,
-    queryFn: () => get<UpdatesResponse>("/api/updates"),
-    // Podczas aktualizacji odpytujemy często (także gdy API się restartuje); poza nią nie ma automatycznego odświeżania
-    refetchInterval: (query) => (query.state.data?.job?.state === "running" ? POLL_MS : false),
-    retry: false,
-  });
+  const { data, isError } = useUpdates();
+  const autoSettings = useUpdateSettings();
+  const saveSettings = useSaveUpdateSettings();
 
   const check = useMutation({
     mutationFn: () => post<UpdatesResponse>("/api/updates/check"),
@@ -290,6 +294,47 @@ export function UpdatePage() {
           </div>
         )}
       </Card>
+
+      {autoSettings.data && (
+        <Card className="mt-4 max-w-2xl p-5">
+          <h2 className="text-sm font-medium">{t("update.auto.title")}</h2>
+          <div className="mt-3 flex items-center justify-between gap-4">
+            <span className="text-sm">{t("update.auto.toggle")}</span>
+            <Toggle
+              label={t("update.auto.toggle")}
+              checked={autoSettings.data.auto_check}
+              disabled={!user.is_admin || saveSettings.isPending}
+              onChange={(auto_check) => saveSettings.mutate({ ...autoSettings.data, auto_check })}
+            />
+          </div>
+          {autoSettings.data.auto_check && (
+            <div className="mt-3 max-w-xs">
+              <Select
+                id="update-interval"
+                label={t("update.auto.interval")}
+                value={autoSettings.data.interval_h}
+                disabled={!user.is_admin || saveSettings.isPending}
+                onChange={(e) =>
+                  saveSettings.mutate({ ...autoSettings.data, interval_h: Number(e.target.value) as UpdateCheckInterval })
+                }
+              >
+                {UPDATE_CHECK_INTERVALS.map((h) => (
+                  <option key={h} value={h}>
+                    {t(`update.auto.every.${h}` as const)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
+          <p className="mt-3 text-xs text-muted">{t(autoSettings.data.auto_check ? "update.auto.hintOn" : "update.auto.hintOff")}</p>
+          {!user.is_admin && <p className="mt-1 text-xs text-muted">{t("update.adminOnly.settings")}</p>}
+          {saveSettings.error && (
+            <div className="mt-3">
+              <ErrorNote>{errorText(saveSettings.error)}</ErrorNote>
+            </div>
+          )}
+        </Card>
+      )}
 
       {job && job.state !== "idle" && (
         <div className="max-w-2xl">

@@ -6,9 +6,11 @@ uruchamiania zadania.
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 import sys
 import threading
+from datetime import UTC, datetime, timedelta
 from dataclasses import replace
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -208,3 +210,47 @@ def test_token_never_reaches_the_browser(client, monkeypatch, updater):
     configure(monkeypatch, updater[0])
     for response in (client.get("/api/updates"), client.post("/api/updates/check")):
         assert TOKEN not in response.text and "127.0.0.1" not in response.text
+
+
+# --- automatyczne sprawdzanie ------------------------------------------------------------------
+
+
+def run_auto(monkeypatch, cfg: updates.UpdateSettings, now: datetime | None = None) -> bool:
+    async def fake_settings():
+        return cfg
+
+    monkeypatch.setattr(updates, "load_settings", fake_settings)
+    return asyncio.run(updates.auto_check_once(now))
+
+
+def test_is_due():
+    now = datetime(2026, 10, 25, 12, 0, tzinfo=UTC)
+    assert updates._is_due(None, 24, now)
+    assert updates._is_due("nie-data", 24, now)
+    assert not updates._is_due((now - timedelta(hours=3)).isoformat(), 24, now)
+    assert updates._is_due((now - timedelta(hours=25)).isoformat(), 24, now)
+    assert updates._is_due((now - timedelta(hours=7)).isoformat().replace("+00:00", "Z"), 6, now)
+
+
+def test_auto_check_runs_when_never_checked_and_then_waits(client, monkeypatch, updater):
+    url, repo, _, _ = updater
+    configure(monkeypatch, url)
+    repo.commit("0.2.0", "Etap 6: nowa funkcja")
+    cfg = updates.UpdateSettings(auto_check=True, interval_h=24)
+    assert run_auto(monkeypatch, cfg) is True
+    assert client.get("/api/updates").json()["info"]["update_available"] is True
+    assert run_auto(monkeypatch, cfg) is False  # świeży wynik: za wcześnie na kolejne sprawdzenie
+    assert run_auto(monkeypatch, cfg, datetime.now(UTC) + timedelta(hours=25)) is True
+
+
+def test_auto_check_disabled_or_unconfigured_does_nothing(client, monkeypatch, updater):
+    configure(monkeypatch, updater[0])
+    assert run_auto(monkeypatch, updates.UpdateSettings(auto_check=False)) is False
+    assert client.get("/api/updates").json()["info"] is None
+    configure(monkeypatch, url="", token="")
+    assert run_auto(monkeypatch, updates.UpdateSettings(auto_check=True)) is False
+
+
+def test_auto_check_survives_unreachable_updater(monkeypatch):
+    configure(monkeypatch, "http://127.0.0.1:9")
+    assert run_auto(monkeypatch, updates.UpdateSettings(auto_check=True)) is False

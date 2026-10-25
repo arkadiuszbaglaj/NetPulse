@@ -7,6 +7,7 @@ import type {
   Series,
   UpdateCheck,
   UpdateJob,
+  UpdateSettings,
   UpdatesResponse,
   User,
 } from "../lib/api";
@@ -167,6 +168,8 @@ interface MockState {
   afterCheck?: UpdatesResponse;
   /** Odpowiedź na POST /api/updates/apply (domyślnie zadanie w toku) */
   afterApply?: UpdatesResponse;
+  /** Ustawienia automatycznego sprawdzania aktualizacji */
+  updateSettings: UpdateSettings;
   /** Zapisany układ pulpitu (null = domyślny) */
   layout: DashboardLayout | null;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
@@ -188,6 +191,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     probe: PROBE,
     admin: true,
     layout: null,
+    updateSettings: { auto_check: true, interval_h: 24 },
     updates: UPDATES,
     overrides: {},
     ...initial,
@@ -228,6 +232,12 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, label: "Port 1", alias: "AP U6+" }, { id: 12, label: "Port 2", alias: null }]);
       if (key === "GET /api/devices/1/wifi") return json(200, [{ id: 21, ssid: "Dom", radio: "ng" }]);
       if (/^GET \/api\/(interfaces|wifi|devices)\/\d+\/metrics$/.test(key)) return json(200, state.traffic.points);
+      if (key === "GET /api/updates/settings") return json(200, state.updateSettings);
+      if (key === "PUT /api/updates/settings") {
+        if (!state.admin) return json(403, { detail: "Wymagane uprawnienia administratora" });
+        state.updateSettings = body as UpdateSettings;
+        return json(200, state.updateSettings);
+      }
       if (key === "GET /api/updates") return json(200, state.updates);
       if (key === "POST /api/updates/check") {
         state.updates = state.afterCheck ?? state.updates;

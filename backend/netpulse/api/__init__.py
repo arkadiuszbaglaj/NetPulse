@@ -7,21 +7,35 @@ Dokumentacja interaktywna: http://<serwer>:8000/docs
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from sqlalchemy import text
 
 from .. import __version__
 from ..config import settings
 from ..db import engine, has_timescale
-from . import auth_routes, dashboard, dashboards, devices, metrics, preferences, updates
+from . import auth_routes, dashboard, dashboards, devices, live, metrics, preferences, updates
 from .security import check_origin
 from .web import mount_web
 
-app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)])
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Cykliczne sprawdzanie aktualizacji (jeśli włączone w ustawieniach), żeby panel mógł o nich przypomnieć
+    task = asyncio.create_task(updates.auto_check_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)], lifespan=lifespan)
 app.include_router(auth_routes.router)
 app.include_router(dashboard.router)
 app.include_router(dashboards.router)
 app.include_router(devices.router)
+app.include_router(live.router)
 app.include_router(metrics.router)
 app.include_router(preferences.router)
 app.include_router(updates.router)

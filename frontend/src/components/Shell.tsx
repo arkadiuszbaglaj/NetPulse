@@ -7,6 +7,7 @@ import { modules } from "../modules";
 import { RefreshControl } from "./RefreshControl";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
+import { UpdateBadge } from "./UpdateBadge";
 import { UserMenu } from "./UserMenu";
 import { Logo } from "./ui";
 
@@ -58,6 +59,7 @@ export function Shell() {
           <span className="text-base font-medium">{t("app.name")}</span>
         </div>
         <div className="flex items-center gap-1">
+          <UpdateBadge />
           <RefreshControl />
           <ThemeToggle />
           <UserMenu />

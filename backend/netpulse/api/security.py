@@ -9,6 +9,7 @@ from typing import Annotated
 from urllib.parse import urlsplit
 
 from fastapi import Depends, HTTPException, Request, Response
+from starlette.requests import HTTPConnection
 from sqlalchemy import delete
 
 from ..auth import hash_token, new_token
@@ -109,7 +110,7 @@ async def require_admin(user: CurrentUser) -> User:
 AdminUser = Annotated[User, Depends(require_admin)]
 
 
-def _allowed_hosts(request: Request) -> set[str]:
+def allowed_hosts(request: HTTPConnection) -> set[str]:
     hosts = {request.headers.get("host", "").lower()}
     if fwd := request.headers.get("x-forwarded-host"):
         hosts.add(fwd.split(",")[0].strip().lower())
@@ -120,19 +121,20 @@ def _allowed_hosts(request: Request) -> set[str]:
     return hosts
 
 
-async def check_origin(request: Request) -> None:
+async def check_origin(request: HTTPConnection) -> None:
     """CSRF: zmiany (POST/PATCH/DELETE) tylko z tej samej strony.
 
     Przeglądarka zawsze dodaje Origin do żądań między stronami, więc obca strona
     (np. inna aplikacja w homelabie na innym porcie) nie wyśle nic w naszym imieniu.
     Klienci spoza przeglądarki (curl, skrypty) Origin nie wysyłają.
     """
-    if request.method not in UNSAFE_METHODS:
+    # WebSocket (brak metody) sprawdza Origin sam przy łączeniu – patrz api/live.py
+    if getattr(request, "method", None) not in UNSAFE_METHODS:
         return
     origin = request.headers.get("origin") or request.headers.get("referer")
     if origin is None:
         return
-    if origin == "null" or urlsplit(origin).netloc.lower() not in _allowed_hosts(request):
+    if origin == "null" or urlsplit(origin).netloc.lower() not in allowed_hosts(request):
         raise HTTPException(403, "Żądanie z innej strony odrzucone (CSRF)")
 
 

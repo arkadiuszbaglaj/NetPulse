@@ -6,16 +6,24 @@ sprawdza wersje i instaluje je na polecenie; zlecić aktualizację może tylko a
 
 from __future__ import annotations
 
+import asyncio
+import logging
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.dialects.postgresql import insert
 
 from .. import __version__
 from ..config import settings
+from ..db import Session
+from ..db.models import AppSetting
 from .security import AdminUser, require_user
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/updates", tags=["aktualizacje"], dependencies=[Depends(require_user)])
 
@@ -192,3 +200,89 @@ async def apply_update(_: AdminUser):
     """Zleca instalację najnowszej wersji (kopia bazy, aktualizacja, test, ewentualne wycofanie)."""
     payload = await _forward("POST", "/update", STATUS_TIMEOUT, ok=(202,))
     return _out(UpdaterState(configured=True, reachable=True), payload)
+
+
+# --- automatyczne, cykliczne sprawdzanie -------------------------------------------------------
+
+SETTINGS_KEY = "updates"
+SCHEDULER_START_DELAY = 90.0  # usługa aktualizacji startuje razem z API – dajemy jej chwilę
+SCHEDULER_TICK = 600.0
+
+
+class UpdateSettings(BaseModel):
+    """Ustawienie instalacji: czy API samo sprawdza wydania i jak często (w godzinach)."""
+
+    auto_check: bool = True
+    interval_h: Literal[6, 12, 24, 168] = 24
+
+
+async def load_settings() -> UpdateSettings:
+    async with Session() as session:
+        row = await session.get(AppSetting, SETTINGS_KEY)
+    try:
+        return UpdateSettings.model_validate(row.value) if row else UpdateSettings()
+    except ValueError:
+        return UpdateSettings()  # nieaktualna zawartość = ustawienia domyślne
+
+
+@router.get("/settings", response_model=UpdateSettings)
+async def get_settings():
+    return await load_settings()
+
+
+@router.put("/settings", response_model=UpdateSettings)
+async def put_settings(body: UpdateSettings, _: AdminUser):
+    async with Session() as session, session.begin():
+        stmt = insert(AppSetting).values(key=SETTINGS_KEY, value=body.model_dump(mode="json"))
+        await session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=[AppSetting.key],
+                set_={"value": stmt.excluded.value, "updated_at": datetime.now(UTC)},
+            )
+        )
+    return body
+
+
+def _is_due(checked_at: str | None, interval_h: int, now: datetime) -> bool:
+    """Czy ostatnie sprawdzenie (ISO z usługi aktualizacji) jest starsze niż interwał albo go nie ma."""
+    if not checked_at:
+        return True
+    try:
+        last = datetime.fromisoformat(checked_at.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=UTC)
+    return now - last >= timedelta(hours=interval_h)
+
+
+async def auto_check_once(now: datetime | None = None) -> bool:
+    """Jeden obieg: gdy automatyczne sprawdzanie jest włączone i wynik się zestarzał, zleca sprawdzenie.
+    Zwraca True, jeśli sprawdzenie zostało wykonane. Wynik zapamiętuje usługa aktualizacji."""
+    cfg = await load_settings()
+    if not cfg.auto_check or not _configured():
+        return False
+    try:
+        code, payload = await _call("GET", "/status", STATUS_TIMEOUT)
+        if code != 200 or (payload.get("job") or {}).get("state") == "running":
+            return False
+        info = payload.get("info") or {}
+        if not _is_due(info.get("checked_at"), cfg.interval_h, now or datetime.now(UTC)):
+            return False
+        code, _ = await _call("POST", "/check", CHECK_TIMEOUT)
+    except _Unreachable:
+        return False
+    return code == 200
+
+
+async def auto_check_loop() -> None:
+    """Zadanie w tle uruchamiane razem z API; błędy nie mogą go zatrzymać."""
+    await asyncio.sleep(SCHEDULER_START_DELAY)
+    while True:
+        try:
+            await auto_check_once()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("Automatyczne sprawdzanie aktualizacji nie powiodło się")
+        await asyncio.sleep(SCHEDULER_TICK)
