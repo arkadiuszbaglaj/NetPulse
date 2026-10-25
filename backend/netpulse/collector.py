@@ -13,6 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DBAPIError
 
+from . import wan_links
 from .config import settings
 from .db import Session
 from .db.models import (
@@ -197,6 +198,7 @@ class Collector:
                 .values(status="down", last_polled_at=now, last_error=error[:2000])
             )
             session.add(DeviceMetric(time=now, device_id=target.id, reachable=False))
+            await wan_links.mark_unknown(session, target.id, now)
 
         await _write_with_retry(write)
 
@@ -264,6 +266,8 @@ class Collector:
             )
 
             if result.interfaces:
+                # Port ustawiony jako łącze WAN (np. LAN 4 jako WAN 2) liczy się jak WAN: ruch WAN, „Na żywo”, alerty
+                wan_ports = await wan_links.configured(session, dev_id)
                 rows = [
                     {
                         "device_id": dev_id,
@@ -271,10 +275,10 @@ class Collector:
                         "name": i.name[:128],
                         "descr": (i.descr or "")[:255] or None,
                         "alias": (i.alias or "")[:255] or None,
-                        "label": i.label[:128],
+                        "label": (i.label if i.role == "wan" or i.if_index not in wan_ports else wan_ports[i.if_index])[:128],
                         "if_type": i.if_type,
                         "mac": i.mac,
-                        "role": i.role,
+                        "role": "wan" if i.if_index in wan_ports else i.role,
                         "hidden": i.hidden,
                         "admin_up": i.admin_up,
                         "oper_status": i.oper_status,
@@ -293,6 +297,7 @@ class Collector:
                     InterfaceMetric(time=now, interface_id=ids[idx], **values)
                     for idx, values in if_rates.items()
                 )
+                await wan_links.record(session, dev_id, now, result, if_rates, ids)
 
             if result.wifi:
                 rows = [

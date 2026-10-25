@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 
+from . import wan_links
 from .collector import _write_with_retry
 from .config import settings
 from .db import Session
@@ -176,6 +177,9 @@ class UnifiCollector:
                 )
                 if d.poe_ports and (d.poe_used_w is not None or d.poe_max_w is not None):
                     session.add(PoeBudgetMetric(time=now, device_id=dev_id, used_w=d.poe_used_w, max_w=d.poe_max_w))
+                # Brama: który port WAN działa i którym idzie ruch – kolektor SNMP użyje tego w następnym cyklu
+                if d.wans:
+                    await wan_links.apply_controller(session, dev_id, d.wans, now)
 
             # Topologia: zdjęcie stanu połączeń LLDP urządzeń, które znamy z SNMP
             links = [

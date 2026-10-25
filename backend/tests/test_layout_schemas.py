@@ -186,3 +186,24 @@ def test_eight_series_colors():
         ChartConfig.model_validate({"source": {"kind": "wan"}, "series": [{"key": "in_bps", "color": color}]})
     with pytest.raises(ValidationError):
         ChartConfig.model_validate({"source": {"kind": "wan"}, "series": [{"key": "in_bps", "color": 0}]})
+
+
+def test_wan_widgets():
+    parsed = DashboardLayout.model_validate(
+        layout(
+            {"id": "a", "type": "wan_status", "w": 4},
+            {"id": "b", "type": "wan_chart", "w": 8, "config": {"metric": "out_bps", "range_min": 1440, "device_id": 1}},
+            {"id": "c", "type": "wan_sla", "w": 12, "config": {"days": 30}},
+        )
+    )
+    assert parsed.widgets[0].config.device_id is None
+    assert (parsed.widgets[1].config.metric, parsed.widgets[1].config.height) == ("out_bps", "md")
+    assert parsed.widgets[2].config.days == 30
+    assert DashboardLayout.model_validate(layout({"id": "c", "type": "wan_sla", "w": 6})).widgets[0].config.days == 7
+    for bad in (
+        {"id": "c", "type": "wan_sla", "w": 6, "config": {"days": 5}},
+        {"id": "b", "type": "wan_chart", "w": 6, "config": {"metric": "clients"}},
+        {"id": "a", "type": "wan_status", "w": 6, "config": {"cos": 1}},
+    ):
+        with pytest.raises(ValidationError):
+            DashboardLayout.model_validate(layout(bad))

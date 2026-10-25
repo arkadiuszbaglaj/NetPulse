@@ -155,6 +155,22 @@ class PoeConfig(Strict):
     device_id: int | None = Field(None, ge=1)  # puste = wszystkie switche z danymi PoE
 
 
+class WanStatusConfig(Strict):
+    device_id: int | None = Field(None, ge=1)  # router; puste = łącza WAN wszystkich routerów
+
+
+class WanChartConfig(Strict):
+    device_id: int | None = Field(None, ge=1)
+    metric: Literal["in_bps", "out_bps"] = "in_bps"  # pobieranie albo wysyłanie aktywnego łącza
+    range_min: RangeMinutes | None = None  # puste = zakres globalny
+    height: Literal["sm", "md", "lg"] = "md"
+
+
+class WanSlaConfig(Strict):
+    device_id: int | None = Field(None, ge=1)
+    days: Literal[1, 7, 30] = 7
+
+
 class SummaryWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["summary"]
@@ -190,8 +206,30 @@ class ServerWidget(Strict):
     config: ServerConfig = ServerConfig()
 
 
+class WanStatusWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["wan_status"]
+    w: GridWidth
+    config: WanStatusConfig = WanStatusConfig()
+
+
+class WanChartWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["wan_chart"]
+    w: GridWidth
+    config: WanChartConfig = WanChartConfig()
+
+
+class WanSlaWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["wan_sla"]
+    w: GridWidth
+    config: WanSlaConfig = WanSlaConfig()
+
+
 Widget = Annotated[
-    SummaryWidget | ChartWidget | DevicesWidget | PoeWidget | ServerWidget, Field(discriminator="type")
+    SummaryWidget | ChartWidget | DevicesWidget | PoeWidget | ServerWidget | WanStatusWidget | WanChartWidget | WanSlaWidget,
+    Field(discriminator="type"),
 ]
 
 

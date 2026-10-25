@@ -43,6 +43,15 @@ class LldpLink:
 
 
 @dataclass(frozen=True)
+class WanPort:
+    """Port WAN bramy według kontrolera: nazwa interfejsu (jak `ifName` z SNMP), czy działa i czy idzie nim ruch."""
+
+    ifname: str
+    up: bool | None
+    active: bool
+
+
+@dataclass(frozen=True)
 class UnifiDevice:
     type: str  # usw | uap | udm | ugw …
     name: str | None
@@ -55,6 +64,7 @@ class UnifiDevice:
     poe_ports: list[PoePort] = field(default_factory=list)
     lldp: list[LldpLink] = field(default_factory=list)
     macs: tuple[str, ...] = ()  # wszystkie adresy MAC interfejsów urządzenia (ethernet_table)
+    wans: tuple[WanPort, ...] = ()  # tylko bramy: porty WAN i który jest uplinkiem (dual WAN / failover)
 
 
 @dataclass(frozen=True)
@@ -74,6 +84,9 @@ class UnifiClient:
     connected_s: int | None
 
 
+GATEWAY_TYPES = ("udm", "ugw", "uxg", "ucg")
+WAN_KEY_RE = re.compile(r"^wan\d*$")
+IFNAME_RE = re.compile(r"^[a-z][\w.\-]*\d$")
 MAC_RE = re.compile(r"^[0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}$")
 IPV4_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
 
@@ -92,6 +105,47 @@ def _int(v: Any) -> int | None:
 
 def _str(v: Any) -> str | None:
     return v.strip() or None if isinstance(v, str) else None
+
+
+def _port_ifname(p: dict) -> str | None:
+    """Nazwa interfejsu portu bramy; starsze odpowiedzi jej nie mają – wtedy port N to ethN-1 (jak na UCG/UDM)."""
+    name = _str(p.get("ifname"))
+    if name:
+        return name
+    idx = _int(p.get("port_idx"))
+    return f"eth{idx - 1}" if idx else None
+
+
+def parse_wans(d: dict) -> tuple[WanPort, ...]:
+    """Porty WAN bramy z `stat/device`: `port_table` (is_uplink, network_name wan/wan2), `wan1`/`wan2` (up – też
+    sprawdzenie internetu) i `uplink` (interfejs, którym idzie teraz ruch). Brak pól = pusta krotka."""
+    if str(d.get("type") or "") not in GATEWAY_TYPES:
+        return ()
+    ports: dict[str, dict] = {}
+    for p in d.get("port_table", []):
+        if not isinstance(p, dict):
+            continue
+        network = (_str(p.get("network_name")) or "").lower()
+        if not (p.get("is_uplink") or network.startswith("wan")):
+            continue
+        name = _port_ifname(p)
+        if name:
+            ports[name] = {"up": bool(p["up"]) if "up" in p else None, "active": bool(p.get("is_uplink"))}
+    for key in sorted(k for k in d if WAN_KEY_RE.match(k)):
+        w = d[key]
+        name = _str(w.get("ifname")) if isinstance(w, dict) else None
+        if not name or w.get("enable") is False:
+            continue
+        entry = ports.setdefault(name, {"up": None, "active": False})
+        if "up" in w:
+            entry["up"] = bool(w["up"])
+    uplink = d.get("uplink") if isinstance(d.get("uplink"), dict) else {}
+    current = _str(uplink.get("ifname")) or _str(uplink.get("name"))
+    if current and (current in ports or IFNAME_RE.match(current)):
+        ports.setdefault(current, {"up": bool(uplink["up"]) if "up" in uplink else None, "active": True})
+        for name, entry in ports.items():
+            entry["active"] = name == current
+    return tuple(WanPort(name, e["up"], e["active"]) for name, e in sorted(ports.items()))
 
 
 def parse_devices(raw: dict) -> list[UnifiDevice]:
@@ -143,6 +197,7 @@ def parse_devices(raw: dict) -> list[UnifiDevice]:
                         | {mac.lower()}
                     )
                 ),
+                wans=parse_wans(d),
             )
         )
     return out

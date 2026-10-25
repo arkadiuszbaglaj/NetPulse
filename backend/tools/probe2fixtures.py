@@ -20,8 +20,10 @@ DEVICE_KEYS = (
 PORT_KEYS = (
     "port_idx", "name", "up", "enable", "speed", "full_duplex", "is_uplink", "port_poe", "poe_caps", "poe_mode",
     "poe_enable", "poe_good", "poe_class", "poe_power", "poe_voltage", "poe_current", "rx_bytes", "tx_bytes",
-    "rx_bytes-r", "tx_bytes-r", "rx_errors", "tx_errors", "rx_dropped", "tx_dropped",
+    "rx_bytes-r", "tx_bytes-r", "rx_errors", "tx_errors", "rx_dropped", "tx_dropped", "ifname", "network_name",
 )  # fmt: skip
+# Łącza WAN bramy (dual WAN): bez adresów IP, DNS-ów i bramy operatora
+WAN_KEYS = ("ifname", "name", "up", "enable", "type", "port_idx")
 LLDP_KEYS = ("chassis_id", "local_port_idx", "local_port_name", "port_id", "mgmt_ips")
 STA_KEYS = (
     "mac", "name", "hostname", "ip", "is_wired", "is_guest", "essid", "radio", "channel", "signal", "rssi", "noise",
@@ -48,6 +50,9 @@ def main() -> int:
         item["port_table"] = [pick(p, PORT_KEYS) for p in d.get("port_table", [])]
         if "ethernet_table" in d:
             item["ethernet_table"] = [pick(e, ("mac",)) for e in d["ethernet_table"]]
+        for key in [k for k in d if k == "uplink" or (k.startswith("wan") and k[3:].isdigit())]:
+            if isinstance(d[key], dict):
+                item[key] = pick(d[key], WAN_KEYS)
         if "lldp_table" in d:
             item["lldp_table"] = [pick(x, LLDP_KEYS) for x in d["lldp_table"]]
         devices.append(item)

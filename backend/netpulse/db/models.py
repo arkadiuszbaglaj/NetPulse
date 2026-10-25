@@ -2,8 +2,8 @@
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
 Kontrolery UniFi: controllers, network_clients, topology_links. Alerty: alert_rules, alerts. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
-Agenci serwerów Linux: agents. Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics,
-wifi_metrics, poe_port_metrics, poe_budget_metrics, system_metrics, disk_metrics, server_metrics oraz ogólna
+Agenci serwerów Linux: agents. Łącza WAN routera (dual WAN / failover): wan_links. Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics,
+wifi_metrics, poe_port_metrics, poe_budget_metrics, system_metrics, disk_metrics, server_metrics, wan_link_metrics oraz ogólna
 tabela metrics (nazwa + klucz + wartość) na to, co nie mieści się w stałych kolumnach.
 """
 
@@ -532,4 +532,42 @@ class Metric(Base):
     value: Mapped[float] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics")
+class WanLink(Base):
+    """Łącze WAN routera: port (interfejs) z nazwą i kolejnością (1 = WAN 1, 2 = WAN 2 …) oraz bieżący stan.
+
+    Stan liczy kolektor SNMP co cykl (wan.py); kolektor UniFi dopisuje, co o łączu wie kontroler (`ctrl_*`)."""
+
+    __tablename__ = "wan_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    interface_id: Mapped[int] = mapped_column(ForeignKey("interfaces.id", ondelete="CASCADE"), unique=True)
+    position: Mapped[int] = mapped_column(Integer, default=1)
+    name: Mapped[str] = mapped_column(String(64))
+    # Stan z ostatniego cyklu: active (ruch idzie tym łączem) | standby (sprawne, bez ruchu) | down | unknown
+    state: Mapped[str] = mapped_column(String(10), default="unknown")
+    state_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str | None] = mapped_column(String(10))  # controller | traffic – skąd wiadomo, które łącze jest aktywne
+    # Co mówi kontroler UniFi (None = nie wie albo moduł wyłączony); ważne, gdy ctrl_at jest świeże
+    ctrl_up: Mapped[bool | None] = mapped_column(Boolean)
+    ctrl_active: Mapped[bool | None] = mapped_column(Boolean)
+    ctrl_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WanLinkMetric(Base):
+    """Stan łącza WAN w cyklu kolektora: sprawne (`up`), w użyciu (`active`) i ruch – podstawa wykresu i SLA."""
+
+    __tablename__ = "wan_link_metrics"
+    __table_args__ = (Index("ix_wan_link_metrics_link_time", "wan_link_id", "time"),)
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    wan_link_id: Mapped[int] = mapped_column(ForeignKey("wan_links.id", ondelete="CASCADE"), primary_key=True)
+    up: Mapped[bool] = mapped_column(Boolean)
+    active: Mapped[bool] = mapped_column(Boolean)
+    in_bps: Mapped[float | None] = mapped_column(Float)
+    out_bps: Mapped[float | None] = mapped_column(Float)
+
+
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics", "wan_link_metrics")
