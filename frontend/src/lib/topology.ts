@@ -34,6 +34,31 @@ export function useTopology() {
   });
 }
 
+/** Czy węzeł zewnętrzny to „Internet”: łączy się wyłącznie z bramą (router), więc jest za jej portem WAN. */
+export function isInternetNode(node: TopologyNode, nodes: TopologyNode[], edges: TopologyEdge[]): boolean {
+  if (node.kind !== "external") return false;
+  const links = edges.filter((e) => e.a === node.id || e.b === node.id);
+  if (links.length === 0) return false;
+  return links.every((e) => {
+    const other = nodes.find((n) => n.id === (e.a === node.id ? e.b : e.a));
+    return other?.kind === "device" && other.device_kind === "gateway";
+  });
+}
+
+export interface PortGroup<T> {
+  port: number | null;
+  items: T[];
+}
+
+/** Klienci po kablu pogrupowani według portu (np. komputer z maszynami wirtualnymi na jednym kablu), porty rosnąco. */
+export function groupByPort<T extends { uplink_port: number | null }>(clients: T[]): PortGroup<T>[] {
+  const groups = new Map<number | null, T[]>();
+  for (const c of clients) groups.set(c.uplink_port, [...(groups.get(c.uplink_port) ?? []), c]);
+  return [...groups.entries()]
+    .map(([port, items]) => ({ port, items }))
+    .sort((a, b) => (a.port ?? Infinity) - (b.port ?? Infinity));
+}
+
 export const NODE_W = 200;
 export const NODE_H = 132;
 const GAP_X = 32;

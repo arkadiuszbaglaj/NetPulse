@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { NODE_H, NODE_W, layoutTopology, pickRoot, type Topology, type TopologyNode } from "../lib/topology";
+import { NODE_H, NODE_W, groupByPort, isInternetNode, layoutTopology, pickRoot, type Topology, type TopologyNode } from "../lib/topology";
 import type { NetworkClient } from "../lib/unifi";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
@@ -87,7 +87,8 @@ describe("strona Mapa sieci", () => {
     renderApp("/topology");
     expect(await screen.findByRole("heading", { name: "USW" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "UCG" })).toBeInTheDocument();
-    expect(screen.getByText("Nieznane urządzenie")).toBeInTheDocument();
+    expect(screen.getByText("Internet (WAN)")).toBeInTheDocument(); // sąsiad bramy za jej portem WAN
+    expect(screen.queryByText("Nieznane urządzenie")).not.toBeInTheDocument();
     expect(await screen.findByText("port 7: Telewizor")).toBeInTheDocument();
 
     const links = screen.getByRole("region", { name: "Połączenia" });
@@ -111,5 +112,51 @@ describe("strona Mapa sieci", () => {
     mockApi();
     renderApp("/topology");
     expect((await screen.findAllByRole("link", { name: "Mapa sieci" })).length).toBeGreaterThan(0);
+  });
+});
+
+describe("Internet i grupowanie klientów na porcie", () => {
+  it("węzeł zewnętrzny za bramą to Internet, za switchem to nieznane urządzenie", () => {
+    const xsw = node("xbb", "02:00:aa:aa:aa:aa", null, "external");
+    const edges = [...TOPO.edges, { a: "d2", a_port: 3, b: "xbb", b_port: null }];
+    const nodes = [...TOPO.nodes, xsw];
+    expect(isInternetNode(nodes.find((n) => n.id === "xaa")!, nodes, edges)).toBe(true);
+    expect(isInternetNode(xsw, nodes, edges)).toBe(false);
+    expect(isInternetNode(nodes[0], nodes, edges)).toBe(false); // urządzenie NetPulse nigdy
+    expect(isInternetNode(node("xzz", "02:00:00:00:00:01", null, "external"), nodes, edges)).toBe(false); // bez kabla
+  });
+
+  it("grupuje klientów po porcie, porty rosnąco", () => {
+    const groups = groupByPort([{ uplink_port: 7 }, { uplink_port: 3 }, { uplink_port: 3 }, { uplink_port: null }]);
+    expect(groups.map((g) => [g.port, g.items.length])).toEqual([
+      [3, 2],
+      [7, 1],
+      [null, 1],
+    ]);
+  });
+
+  it("karta zwija kilku klientów na jednym porcie w jedną linię z odmianą", async () => {
+    const on = (mac: string, name: string, port: number): NetworkClient => ({ ...CLIENT, mac, name, uplink_port: port, uplink_device_id: 1 });
+    mockApi({
+      topology: TOPO,
+      clients: [
+        on("02:00:00:00:00:01", "PC", 3),
+        on("02:00:00:00:00:02", "VM", 3),
+        on("02:00:00:00:00:03", "netpulse", 3),
+        ...[1, 2, 3, 4, 5].map((i) => on(`02:00:00:00:01:0${i}`, `x${i}`, 4)),
+        on("02:00:00:00:02:01", "Drukarka", 2),
+      ],
+    });
+    renderApp("/topology");
+    expect(await screen.findByText("port 3: 3 urządzenia")).toBeInTheDocument();
+    expect(screen.getByText("port 4: 5 urządzeń")).toBeInTheDocument();
+    expect(screen.getByText("port 2: Drukarka")).toBeInTheDocument();
+    expect(screen.getByText("port 3: 3 urządzenia")).toHaveAttribute("title", "PC, VM, netpulse");
+  });
+
+  it("w mapie widać podpis Internet (WAN)", async () => {
+    mockApi({ topology: TOPO });
+    renderApp("/topology");
+    expect(await screen.findByText("Internet (WAN)")).toBeInTheDocument();
   });
 });

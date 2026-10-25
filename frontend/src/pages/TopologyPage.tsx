@@ -2,7 +2,16 @@ import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconRouter, IconWorld 
 import { useMemo } from "react";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { t, type TextKey } from "../i18n";
-import { NODE_H, NODE_W, layoutTopology, useTopology, type TopologyEdge, type TopologyNode } from "../lib/topology";
+import {
+  NODE_H,
+  NODE_W,
+  groupByPort,
+  isInternetNode,
+  layoutTopology,
+  useTopology,
+  type TopologyEdge,
+  type TopologyNode,
+} from "../lib/topology";
 import { useClients, type NetworkClient } from "../lib/unifi";
 
 const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint } as const;
@@ -24,13 +33,19 @@ function clientName(c: NetworkClient): string {
   return c.name ?? c.ip ?? c.mac;
 }
 
-function NodeCard({ node, clients }: { node: TopologyNode; clients: NetworkClient[] }) {
+/** „2–4 urządzenia”, ale „5 urządzeń” – polska odmiana. */
+function devicesLabel(n: number): string {
+  const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20);
+  return t(few ? "topo.devices.few" : "topo.devices.many", { n });
+}
+
+function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: NetworkClient[]; internet: boolean }) {
   if (node.kind === "external") {
     return (
       <Card className="flex h-full flex-col justify-center gap-1 border-dashed p-3">
         <div className="flex items-center gap-2 text-sm font-medium">
           <IconWorld size={18} aria-hidden="true" className="shrink-0 text-text-2" />
-          {t("topo.external")}
+          {internet ? t("topo.internet") : t("topo.external")}
         </div>
         <p className="truncate font-mono text-xs text-text-2">{node.name}</p>
       </Card>
@@ -38,7 +53,7 @@ function NodeCard({ node, clients }: { node: TopologyNode; clients: NetworkClien
   }
   const Icon = KIND_ICON[node.device_kind as keyof typeof KIND_ICON] ?? IconDeviceDesktop;
   const status = node.status && node.status in STATUS_DOT ? node.status : "unknown";
-  const wired = clients.filter((c) => c.is_wired).sort((a, b) => (a.uplink_port ?? 0) - (b.uplink_port ?? 0));
+  const wired = groupByPort(clients.filter((c) => c.is_wired));
   const wifi = clients.filter((c) => !c.is_wired);
   return (
     <Card className="flex h-full flex-col gap-1.5 overflow-hidden p-3">
@@ -56,10 +71,10 @@ function NodeCard({ node, clients }: { node: TopologyNode; clients: NetworkClien
         {[t(KIND_LABEL[node.device_kind ?? "other"] ?? "dash.kind.other"), node.model].filter(Boolean).join(" · ")}
       </p>
       {wifi.length > 0 && <p className="text-xs">{t("topo.wifi", { n: wifi.length })}</p>}
-      {wired.slice(0, MAX_LISTED).map((c) => (
-        <p key={c.mac} className="truncate text-xs text-text-2">
-          {c.uplink_port != null ? `${t("clients.port", { n: c.uplink_port })}: ` : ""}
-          {clientName(c)}
+      {wired.slice(0, MAX_LISTED).map((g) => (
+        <p key={g.port ?? "none"} className="truncate text-xs text-text-2" title={g.items.map(clientName).join(", ")}>
+          {g.port != null ? `${t("clients.port", { n: g.port })}: ` : ""}
+          {g.items.length > 1 ? devicesLabel(g.items.length) : clientName(g.items[0])}
         </p>
       ))}
       {wired.length > MAX_LISTED && <p className="text-xs text-text-2">{t("topo.more", { n: wired.length - MAX_LISTED })}</p>}
@@ -135,7 +150,7 @@ export function TopologyPage() {
                 return (
                   p && (
                     <div key={n.id} className="absolute" style={{ left: p.x, top: p.y, width: NODE_W, height: NODE_H }}>
-                      <NodeCard node={n} clients={clientsOf(n)} />
+                      <NodeCard node={n} clients={clientsOf(n)} internet={isInternetNode(n, nodes, edges)} />
                     </div>
                   )
                 );
