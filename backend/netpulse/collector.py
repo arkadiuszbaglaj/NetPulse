@@ -316,6 +316,7 @@ async def _write_with_retry(write, attempts: int = 5) -> None:
 
 async def run() -> None:
     from .db import init_db
+    from .unifi_collector import UnifiCollector
 
     await init_db()
-    await Collector().run_forever()
+    await asyncio.gather(Collector().run_forever(), UnifiCollector().run_forever())

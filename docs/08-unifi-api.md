@@ -28,3 +28,31 @@ UNIFI_API_KEY='wklej-klucz' python3 unifi_probe.py 192.168.1.1
 
 Wersja aplikacji UniFi Network (Settings → System → About) też się przyda: API integracji zmienia się
 między wersjami.
+
+## Wyniki rozpoznania (UniFi Network 10.6.109)
+
+Klucz API działa z obydwoma adresami; wszystko odpowiada kodem 200.
+
+| Adres | Co daje | Czego brakuje |
+|-------|---------|---------------|
+| `/proxy/network/integration/v1/…` (API integracji, oficjalne) | wersja aplikacji, urządzenia, stan portów, **PoE tylko jako włączone/stan**, lista klientów (nazwa, IP, MAC, port nadrzędny) | moc PoE w watach, sygnał WiFi, SSID, port klienta |
+| `/proxy/network/api/s/default/stat/device` (starsze, nieoficjalne) | **moc, napięcie i prąd PoE na porcie**, budżet PoE switcha, ruch i błędy na portach, tabela LLDP | stabilny kontrakt producenta |
+| `/proxy/network/api/s/default/stat/sta` (starsze, nieoficjalne) | klienci: nazwa/hostname, IP, **sygnał (dBm)**, SSID, radio, prędkości łącza, AP albo **switch i port** (np. telewizor na porcie 7), czas połączenia | – |
+
+Decyzja: dane bierzemy ze starszego API (`stat/device`, `stat/sta`), bo tylko ono ma to, po co jest etap 6.
+Integracji używamy do sprawdzenia połączenia i wersji. Starsze API nie jest kontraktem producenta,
+więc parsery (`backend/netpulse/unifi.py`) są tolerancyjne (brak pola = brak wartości, nie błąd),
+a test na zanonimizowanych odpowiedziach (`backend/tests/fixtures/unifi_*.json`, powstałych
+z `backend/tools/probe2fixtures.py`) wykryje zmianę formatu po aktualizacji UniFi.
+
+Urządzenie z kontrolera łączymy z urządzeniem NetPulse (SNMP) po adresie IP, a port PoE z portem
+`0/N` switcha. LLDP z tej samej odpowiedzi posłuży w etapie 7 (mapa sieci).
+
+## Stan prac
+
+- **6a ✅** rozpoznanie.
+- **6b ✅ (backend)** kontrolery UniFi (tabela `controllers`, klucz API w bazie jak community SNMP, nigdy nie wraca w API),
+  kolektor (`unifi_collector.py`, uruchamiany razem z kolektorem SNMP), tabele `poe_port_metrics`, `poe_budget_metrics`,
+  `network_clients` (nowe tabele powstają same przy `netpulse update`), API: `/api/controllers` (CRUD i test połączenia),
+  `/api/clients?kind=wifi|wired`, `/api/devices/{id}/poe`.
+- **6c** panel: Ustawienia → Kontrolery UniFi (dodawanie z testem), strona Klienci, PoE przy portach switcha, widgety.

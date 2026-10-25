@@ -1,8 +1,9 @@
 """Modele bazy danych (SQLAlchemy 2).
 
 Tabele konfiguracyjne: devices, interfaces, wifi_networks.
-Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
-Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics, wifi_metrics.
+Kontrolery UniFi: controllers, network_clients. Konta: users, auth_sessions. Ustawienia konta: dashboards (układ pulpitu), user_preferences.
+Tabele metryk (TimescaleDB hypertables): interface_metrics, device_metrics, wifi_metrics,
+poe_port_metrics, poe_budget_metrics.
 """
 
 from __future__ import annotations
@@ -227,4 +228,76 @@ class WifiMetric(Base):
     tx_bps: Mapped[float | None] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics")
+class Controller(Base):
+    """Kontroler UniFi Network (API z kluczem): PoE na portach i klienci sieci, których SNMP nie podaje."""
+
+    __tablename__ = "controllers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    host: Mapped[str] = mapped_column(String(255), unique=True)
+    port: Mapped[int] = mapped_column(Integer, default=443)
+    api_key: Mapped[str] = mapped_column(String(255))
+    site: Mapped[str] = mapped_column(String(64), default="default")
+    verify_tls: Mapped[bool] = mapped_column(Boolean, default=False)  # kontrolery mają zwykle certyfikat samopodpisany
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    app_version: Mapped[str | None] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16), default="unknown")  # up | down | unknown
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NetworkClient(Base):
+    """Klient sieci (WiFi albo po kablu) widziany przez kontroler; zdjęcie stanu z ostatniego odczytu."""
+
+    __tablename__ = "network_clients"
+
+    controller_id: Mapped[int] = mapped_column(ForeignKey("controllers.id", ondelete="CASCADE"), primary_key=True)
+    mac: Mapped[str] = mapped_column(String(17), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(255))
+    ip: Mapped[str | None] = mapped_column(String(45))
+    is_wired: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_guest: Mapped[bool] = mapped_column(Boolean, default=False)
+    essid: Mapped[str | None] = mapped_column(String(64))
+    radio: Mapped[str | None] = mapped_column(String(8))
+    signal_dbm: Mapped[int | None] = mapped_column(Integer)
+    tx_rate_kbps: Mapped[int | None] = mapped_column(Integer)
+    rx_rate_kbps: Mapped[int | None] = mapped_column(Integer)
+    # Urządzenie NetPulse (AP albo switch), do którego klient jest podłączony, i jego port
+    uplink_device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
+    uplink_name: Mapped[str | None] = mapped_column(String(128))
+    uplink_port: Mapped[int | None] = mapped_column(Integer)
+    connected_s: Mapped[int | None] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PoePortMetric(Base):
+    """PoE na porcie switcha (moc w W). Tylko porty z PoE; port_idx jak w kontrolerze (1, 2, …)."""
+
+    __tablename__ = "poe_port_metrics"
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    port_idx: Mapped[int] = mapped_column(Integer, primary_key=True)
+    power_w: Mapped[float | None] = mapped_column(Float)
+    voltage_v: Mapped[float | None] = mapped_column(Float)
+    current_ma: Mapped[float | None] = mapped_column(Float)
+    poe_mode: Mapped[str | None] = mapped_column(String(16))  # auto | off | passthrough …
+    poe_class: Mapped[str | None] = mapped_column(String(16))
+    delivering: Mapped[bool | None] = mapped_column(Boolean)
+
+
+class PoeBudgetMetric(Base):
+    """Zużycie i limit mocy PoE całego switcha."""
+
+    __tablename__ = "poe_budget_metrics"
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    used_w: Mapped[float | None] = mapped_column(Float)
+    max_w: Mapped[float | None] = mapped_column(Float)
+
+
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics")

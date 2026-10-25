@@ -16,7 +16,17 @@ from sqlalchemy import text
 from .. import __version__
 from ..config import settings
 from ..db import engine, has_timescale
-from . import auth_routes, dashboard, dashboards, devices, live, metrics, preferences, updates
+from . import (
+    auth_routes,
+    controllers,
+    dashboard,
+    dashboards,
+    devices,
+    live,
+    metrics,
+    preferences,
+    updates,
+)
 from .security import check_origin
 from .web import mount_web
 
@@ -33,6 +43,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)], lifespan=lifespan)
 app.include_router(auth_routes.router)
+app.include_router(controllers.router)
 app.include_router(dashboard.router)
 app.include_router(dashboards.router)
 app.include_router(devices.router)
