@@ -21,7 +21,15 @@ from sqlalchemy import delete, func, select  # noqa: E402
 from netpulse.api import app  # noqa: E402
 from netpulse.api.security import login_limiter  # noqa: E402
 from netpulse.db import Session, engine, init_db  # noqa: E402
-from netpulse.db.models import Controller, Device, Interface, NetworkClient, PoeBudgetMetric, PoePortMetric, User  # noqa: E402
+from netpulse.db.models import (  # noqa: E402
+    Controller,
+    Device,
+    Interface,
+    NetworkClient,
+    PoeBudgetMetric,
+    PoePortMetric,
+    User,
+)
 from netpulse.unifi import UnifiError, parse_clients, parse_devices  # noqa: E402
 from netpulse.unifi_collector import UnifiCollector  # noqa: E402
 
