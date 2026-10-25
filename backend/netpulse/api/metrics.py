@@ -22,24 +22,26 @@ def _bucket_seconds(minutes: int) -> int:
     return max(30, (minutes * 60) // 300)
 
 
-async def _series(model, id_col, obj_id: int, columns: list[str], minutes: int) -> list[Point]:
+async def _series(model, id_col, obj_id: int | None, columns: list[str], minutes: int) -> list[Point]:
+    """Szereg czasowy; `id_col=None` dla tabel bez klucza obiektu (np. stan serwera)."""
     since = datetime.now(UTC) - timedelta(minutes=minutes)
     async with Session() as session:
         async with engine.connect() as conn:
             timescale = await has_timescale(conn)
         cols = [getattr(model, c) for c in columns]
+        where = [model.time >= since] + ([id_col == obj_id] if id_col is not None else [])
         if timescale:
             bucket = func.time_bucket(text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), model.time)
             stmt = (
                 select(bucket.label("bucket"), *[func.avg(c).label(c.key) for c in cols])
-                .where(id_col == obj_id, model.time >= since)
+                .where(*where)
                 .group_by("bucket")
                 .order_by("bucket")
             )
         else:
             stmt = (
                 select(model.time.label("bucket"), *cols)
-                .where(id_col == obj_id, model.time >= since)
+                .where(*where)
                 .order_by(model.time)
             )
         rows = (await session.execute(stmt)).all()

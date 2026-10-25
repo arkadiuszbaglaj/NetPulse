@@ -40,6 +40,8 @@ class Settings:
     # Token: z pliku we wspólnym wolumenie (tworzy go usługa aktualizacji) albo wprost ze zmiennej
     updater_token: str = _env("UPDATER_TOKEN", "")
     updater_token_file: str = _env("UPDATER_TOKEN_FILE", "")
+    # Dysk, którego zajętość pokazuje stan serwera (w kontenerze „/” to dysk z danymi Dockera)
+    system_disk_path: str = _env("SYSTEM_DISK_PATH", "/")
     # Bez puli połączeń (testy, jednorazowe polecenia CLI)
     db_nullpool: bool = _env("DB_NULLPOOL", "0") == "1"
 

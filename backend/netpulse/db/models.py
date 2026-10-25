@@ -341,6 +341,27 @@ class PoePortMetric(Base):
     delivering: Mapped[bool | None] = mapped_column(Boolean)
 
 
+class SystemMetric(Base):
+    """Stan serwera, na którym działa NetPulse (jedna próbka na cykl kolektora)."""
+
+    __tablename__ = "system_metrics"
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    cpu_percent: Mapped[float | None] = mapped_column(Float)
+    load1: Mapped[float | None] = mapped_column(Float)
+    load5: Mapped[float | None] = mapped_column(Float)
+    load15: Mapped[float | None] = mapped_column(Float)
+    mem_used_percent: Mapped[float | None] = mapped_column(Float)
+    mem_total_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    swap_used_percent: Mapped[float | None] = mapped_column(Float)
+    disk_used_percent: Mapped[float | None] = mapped_column(Float)
+    disk_free_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    disk_total_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    uptime_s: Mapped[float | None] = mapped_column(Float)
+    temp_c: Mapped[float | None] = mapped_column(Float)
+    db_size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+
+
 class PoeBudgetMetric(Base):
     """Zużycie i limit mocy PoE całego switcha."""
 
@@ -352,4 +373,4 @@ class PoeBudgetMetric(Base):
     max_w: Mapped[float | None] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics")
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics")

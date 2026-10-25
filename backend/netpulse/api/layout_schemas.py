@@ -48,8 +48,13 @@ class WifiNetworkSource(Strict):
     device_id: int | None = Field(None, ge=1)  # tylko dla edytora: z którego urządzenia wybrano sieć
 
 
+class ServerSource(Strict):
+    kind: Literal["server"]  # serwer, na którym działa NetPulse
+
+
 Source = Annotated[
-    WanSource | WifiTotalSource | InterfaceSource | DeviceSource | WifiNetworkSource, Field(discriminator="kind")
+    WanSource | WifiTotalSource | InterfaceSource | DeviceSource | WifiNetworkSource | ServerSource,
+    Field(discriminator="kind"),
 ]
 
 # Metryki dostępne dla źródła (klucze z odpowiedzi endpointów metryk)
@@ -59,6 +64,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "device": ("cpu_percent", "mem_used_percent", "load1", "poll_ms"),
     "wifi_total": ("clients",),
     "wifi_network": ("clients", "rx_bps", "tx_bps"),
+    "server": ("cpu_percent", "mem_used_percent", "swap_used_percent", "disk_used_percent", "load1", "temp_c", "db_size_bytes"),
 }
 
 

@@ -187,7 +187,7 @@ function describe(rule: AlertRule, metrics: RuleMetric[]): string {
   return t("rules.sum.metric", {
     metric: meta?.label ?? rule.metric ?? "?",
     op: rule.op === "<" ? "<" : ">",
-    value: formatThreshold(rule.metric, rule.threshold, meta?.unit ?? ""),
+    value: formatThreshold(rule.threshold, meta?.unit ?? ""),
     duration: durationLabel(rule.duration_s),
   });
 }

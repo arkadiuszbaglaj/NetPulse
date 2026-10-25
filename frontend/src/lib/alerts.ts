@@ -133,7 +133,7 @@ export function thresholdFromDisplay(metric: string | null, shown: number): numb
   return metric?.startsWith("wan_") ? shown * 1_000_000 : shown;
 }
 
-export function formatThreshold(metric: string | null, raw: number | null, unit: string): string {
+export function formatThreshold(raw: number | null, unit: string): string {
   if (raw == null) return "";
   if (unit === "b/s") return formatBps(raw);
   return `${new Intl.NumberFormat("pl", { maximumFractionDigits: 2 }).format(raw)}${unit}`;

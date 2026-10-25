@@ -323,9 +323,10 @@ async def _write_with_retry(write, attempts: int = 5) -> None:
 async def run() -> None:
     from .alerts import AlertEngine
     from .db import init_db
+    from .sysinfo import SystemCollector
     from .unifi_collector import UnifiCollector
 
     await init_db()
     engine = AlertEngine()
     await engine.ensure_default_rules()
-    await asyncio.gather(Collector(alert_engine=engine).run_forever(), UnifiCollector().run_forever())
+    await asyncio.gather(Collector(alert_engine=engine).run_forever(), UnifiCollector().run_forever(), SystemCollector().run_forever())
