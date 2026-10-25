@@ -6,6 +6,7 @@ Akcje (jedyny parametr z żądania to nazwa kopii, sprawdzana wyrażeniem regula
   POST /update   uruchamia aktualizację w osobnym kontenerze (409, gdy już trwa)
   GET  /backups  lista kopii bazy i stan przywracania;  POST /backups  nowa kopia
   GET  /backups/<nazwa>/file  pobranie;  DELETE /backups/<nazwa>;  POST /backups/<nazwa>/restore
+  POST /backups/upload  wgranie kopii (surowy plik .sql.gz w treści, wymagany Content-Length)
 Wszystko poza /health wymaga nagłówka `Authorization: Bearer <NETPULSE_UPDATER_TOKEN>`.
 Bez skonfigurowanego tokenu usługa odrzuca każde żądanie (aktualizacja z panelu wyłączona).
 """
@@ -94,6 +95,7 @@ class UpdaterApp:
         self.is_running = is_running
         self.checker = checker
         self.backups = backups or Backups(settings)
+        self.max_upload_bytes = int(os.environ.get("NETPULSE_MAX_UPLOAD_MB", "4096")) * 1024 * 1024
         self._lock = threading.Lock()
 
     # --- widok zadania ------------------------------------------------------------
@@ -274,8 +276,41 @@ def make_handler(app: UpdaterApp) -> type[BaseHTTPRequestHandler]:
             if not self._file():
                 self._reply("GET")
 
+        def _send_json(self, code: int, payload: dict[str, Any]) -> None:
+            body = json.dumps(payload, ensure_ascii=False).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _upload(self) -> bool:
+            """POST /backups/upload – treść żądania to plik kopii, zapisywany strumieniem."""
+            if self.path.split("?", 1)[0].rstrip("/") != "/backups/upload":
+                return False
+            denied = app.authorized(self.headers.get("Authorization"))
+            length = int(self.headers.get("Content-Length") or 0)
+            if denied:
+                self.close_connection = True  # treści nie czytamy
+                self._send_json(*denied)
+                return True
+            if length <= 0 or length > app.max_upload_bytes:
+                self.close_connection = True
+                limit = app.max_upload_bytes // (1024 * 1024)
+                self._send_json(413 if length else 411, {"error": f"Plik musi mieć rozmiar (Content-Length) i najwyżej {limit} MB."})
+                return True
+            try:
+                backup = app.backups.upload(self.rfile, length)
+            except BackupError as exc:
+                self.close_connection = True
+                self._send_json(409 if "trwa" in str(exc).lower() else 400, {"error": str(exc)})
+                return True
+            self._send_json(201, {"backup": backup, **app.backups_view()})
+            return True
+
         def do_POST(self) -> None:  # noqa: N802
-            self._reply("POST")
+            if not self._upload():
+                self._reply("POST")
 
         def do_DELETE(self) -> None:  # noqa: N802
             self._reply("DELETE")

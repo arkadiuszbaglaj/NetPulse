@@ -256,6 +256,12 @@ jobs:
           curl -fsS -b cookies.txt -o backup.sql.gz "$API/api/backups/$NAME/download"
           gzip -t backup.sql.gz
           zcat backup.sql.gz | grep -q "CREATE TABLE public.devices"
+          # wgranie pobranej kopii z „komputera” – serwer nadaje nazwę i sprawdza plik
+          UP=$(curl -fsS -b cookies.txt -H 'Content-Type: application/gzip' --data-binary @backup.sql.gz "$API/api/backups/upload")
+          echo "$UP" | tee -a backups.log
+          test "$(json 'd["backups"][0]["kind"]' <<<"$UP")" = upload
+          echo "to nie jest kopia" | gzip > zly.sql.gz
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b cookies.txt -H 'Content-Type: application/gzip' --data-binary @zly.sql.gz "$API/api/backups/upload")" = 400
           # zmiana po kopii – po przywróceniu ma zniknąć
           api -X POST -d '{"name":"Po kopii","kind":"device_offline"}' $API/api/alert-rules >/dev/null
           api $API/api/alert-rules | grep -q "Po kopii"

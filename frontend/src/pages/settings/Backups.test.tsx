@@ -19,6 +19,30 @@ describe("Ustawienia → Kopia zapasowa", () => {
     expect(link).toHaveAttribute("href", "/api/backups/netpulse-manual-20261025-120000.sql.gz/download");
   });
 
+  it("wgrywa kopię z komputera jako surowy plik", async () => {
+    const { calls } = mockApi();
+    renderApp("/settings/backups");
+    const user = userEvent.setup();
+    await screen.findByText("Nie ma jeszcze żadnej kopii");
+    const file = new File(["gz"], "netpulse-manual-20261020-080000.sql.gz", { type: "application/gzip" });
+    await user.upload(screen.getByLabelText("Wgraj kopię z komputera"), file);
+    expect(await screen.findByText(/Kopia wgrana i sprawdzona/)).toBeInTheDocument();
+    expect(screen.getByText(/wgrana z komputera · 1 MB/)).toBeInTheDocument();
+    const call = calls.find((c) => c.path === "/api/backups/upload");
+    expect(call?.method).toBe("POST");
+    expect(call?.body).toBe(file);
+  });
+
+  it("odrzuca plik, który nie jest .gz, bez wysyłania", async () => {
+    const { calls } = mockApi();
+    renderApp("/settings/backups");
+    const user = userEvent.setup({ applyAccept: false });
+    await screen.findByText("Nie ma jeszcze żadnej kopii");
+    await user.upload(screen.getByLabelText("Wgraj kopię z komputera"), new File(["x"], "zdjecie.jpg", { type: "image/jpeg" }));
+    expect(await screen.findByText(/Wybierz plik kopii NetPulse z rozszerzeniem .sql.gz/)).toBeInTheDocument();
+    expect(calls.some((c) => c.path === "/api/backups/upload")).toBe(false);
+  });
+
   it("przywrócenie wymaga potwierdzenia i pokazuje ekran oczekiwania", async () => {
     const { state, calls } = mockApi({ backups: { backups: [OLD], restore: { state: "idle" } } });
     renderApp("/settings/backups");

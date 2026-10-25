@@ -10,7 +10,7 @@ import re
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -20,14 +20,14 @@ from .updates import _configured, _forward, _token
 
 router = APIRouter(prefix="/api/backups", tags=["kopie zapasowe"], dependencies=[Depends(require_admin)])
 
-NAME_RE = re.compile(r"^netpulse-(?:(?:manual|prerestore)-)?\d{8}-\d{6}\.sql\.gz$")
+NAME_RE = re.compile(r"^netpulse-(?:(?:manual|prerestore|upload)-)?\d{8}-\d{6}\.sql\.gz$")
 LIST_TIMEOUT = 15.0
 DUMP_TIMEOUT = 1800.0  # duża historia metryk = długi pg_dump
 
 
 class BackupOut(BaseModel):
     name: str
-    kind: str  # update | manual | prerestore
+    kind: str  # update | manual | prerestore | upload
     size_bytes: int
     created_at: str
 
@@ -66,6 +66,35 @@ async def list_backups():
 async def create_backup():
     """Nowa kopia bazy teraz (może potrwać przy dużej historii metryk)."""
     return _out(await _forward("POST", "/backups", DUMP_TIMEOUT, ok=(201,)))
+
+
+@router.post("/upload", response_model=BackupsOut, status_code=201)
+async def upload_backup(request: Request):
+    """Wgranie kopii z komputera: treść żądania to plik .sql.gz (bez multipart), przekazywany strumieniem do updatera.
+
+    Updater nadaje nazwę, sprawdza, że to cały zrzut pg_dump, i zapisuje go obok innych kopii (do przywrócenia)."""
+    length = request.headers.get("content-length")
+    if not length or not length.isdigit() or int(length) == 0:
+        raise HTTPException(411, "Brak rozmiaru pliku (Content-Length)")
+    if not _configured():
+        raise HTTPException(503, "Usługa aktualizacji (kopie bazy) jest wyłączona albo jeszcze nie wystartowała")
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(DUMP_TIMEOUT, connect=10.0)) as client:
+            r = await client.post(
+                f"{settings.updater_url.rstrip('/')}/backups/upload",
+                content=request.stream(),
+                headers={"Authorization": f"Bearer {_token()}", "Content-Length": length, "Content-Type": "application/gzip"},
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status") from exc
+    try:
+        payload = r.json()
+    except ValueError:
+        payload = {}
+    if r.status_code != 201:
+        message = payload.get("error") or "Nie udało się wgrać kopii"
+        raise HTTPException(r.status_code if r.status_code in (400, 409, 411, 413) else 502, message)
+    return _out(payload)
 
 
 @router.delete("/{name}", response_model=BackupsOut)

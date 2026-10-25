@@ -1,8 +1,8 @@
 /** Kopie zapasowe bazy (API: backend/netpulse/api/backups.py, wykonuje je usługa updater). */
 import { useQuery } from "@tanstack/react-query";
-import { get } from "./api";
+import { ApiError, get, messageFromDetail } from "./api";
 
-export type BackupKind = "update" | "manual" | "prerestore";
+export type BackupKind = "update" | "manual" | "prerestore" | "upload";
 
 export interface Backup {
   name: string;
@@ -33,6 +33,26 @@ export function useBackups() {
 }
 
 export const downloadUrl = (name: string) => `/api/backups/${encodeURIComponent(name)}/download`;
+
+/** Wgranie kopii z komputera: surowy plik w treści żądania (bez multipart), serwer nadaje mu nazwę. */
+export async function uploadBackup(file: File): Promise<BackupsResponse> {
+  const res = await fetch("/api/backups/upload", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/gzip" },
+    body: file,
+  });
+  if (!res.ok) {
+    let detail: unknown;
+    try {
+      detail = (await res.json()).detail;
+    } catch {
+      /* odpowiedź bez JSON-a */
+    }
+    throw new ApiError(res.status, messageFromDetail(detail, res.statusText || `HTTP ${res.status}`));
+  }
+  return (await res.json()) as BackupsResponse;
+}
 
 /** Czy API odpowiada (w trakcie przywracania jest zatrzymane). */
 export async function apiHealthy(): Promise<boolean> {

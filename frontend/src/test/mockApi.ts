@@ -306,7 +306,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
   const impl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const path = String(input);
     const method = init?.method ?? "GET";
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    // Treść JSON; plik (np. wgrywana kopia) zostaje jak jest
+    const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
     calls.push({ method, path, body });
     // Klucz bez parametrów zapytania; pełna ścieżka zostaje w `calls`
     const key = `${method} ${path.split("?")[0]}`;
@@ -364,6 +365,11 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, rule);
       }
       if (key === "GET /api/backups") return json(200, state.backups);
+      if (key === "POST /api/backups/upload") {
+        const created = { name: "netpulse-upload-20261025-130000.sql.gz", kind: "upload" as const, size_bytes: 1_000_000, created_at: "2026-10-25T13:00:00+02:00" };
+        state.backups = { ...state.backups, backups: [created, ...state.backups.backups] };
+        return json(201, state.backups);
+      }
       if (key === "POST /api/backups") {
         const created = { name: "netpulse-manual-20261025-120000.sql.gz", kind: "manual" as const, size_bytes: 2_500_000, created_at: "2026-10-25T12:00:00+02:00" };
         state.backups = { ...state.backups, backups: [created, ...state.backups.backups] };

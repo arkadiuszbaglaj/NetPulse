@@ -1,17 +1,27 @@
-import { IconDatabaseExport, IconDownload, IconRestore, IconTrash } from "@tabler/icons-react";
+import { IconDatabaseExport, IconDownload, IconRestore, IconTrash, IconUpload } from "@tabler/icons-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { Button, Card, ErrorNote, PageHeader, SuccessNote } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
 import { ApiError, del, post } from "../../lib/api";
-import { apiHealthy, BACKUPS_KEY, downloadUrl, useBackups, type Backup, type BackupKind, type BackupsResponse } from "../../lib/backups";
+import {
+  apiHealthy,
+  BACKUPS_KEY,
+  downloadUrl,
+  uploadBackup,
+  useBackups,
+  type Backup,
+  type BackupKind,
+  type BackupsResponse,
+} from "../../lib/backups";
 import { formatBytes } from "../../lib/format";
 
 const KIND_LABEL: Record<BackupKind, TextKey> = {
   manual: "backups.kind.manual",
   update: "backups.kind.update",
   prerestore: "backups.kind.prerestore",
+  upload: "backups.kind.upload",
 };
 const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : t("auth.error.generic"));
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
@@ -78,13 +88,42 @@ export function BackupsPage() {
     },
   });
 
+  const fileInput = useRef<HTMLInputElement>(null);
+  const upload = useMutation({
+    mutationFn: (file: File) => {
+      if (!file.name.endsWith(".gz")) throw new ApiError(400, t("backups.upload.notGz"));
+      return uploadBackup(file);
+    },
+    onSuccess: refresh,
+  });
+
   const list = data?.backups ?? [];
   const running = restoring || data?.restore.state === "running";
+  const busy = create.isPending || upload.isPending || running || !data;
 
   return (
     <>
       <PageHeader title={t("settings.backups.title")}>
-        <Button variant="primary" disabled={create.isPending || running || !data} onClick={() => create.mutate()}>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".gz,application/gzip"
+          className="hidden"
+          aria-label={t("backups.upload")}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = ""; // ten sam plik można wybrać ponownie
+            if (file) {
+              create.reset();
+              upload.mutate(file);
+            }
+          }}
+        />
+        <Button disabled={busy} onClick={() => fileInput.current?.click()}>
+          <IconUpload size={18} aria-hidden="true" />
+          {upload.isPending ? t("backups.uploading") : t("backups.upload")}
+        </Button>
+        <Button variant="primary" disabled={busy} onClick={() => { upload.reset(); create.mutate(); }}>
           <IconDatabaseExport size={18} aria-hidden="true" />
           {create.isPending ? t("backups.creating") : t("backups.create")}
         </Button>
@@ -102,6 +141,9 @@ export function BackupsPage() {
         <div className="flex flex-col gap-4">
           {data && <RestoreResult data={data} />}
           {create.isSuccess && <SuccessNote>{t("backups.created")}</SuccessNote>}
+          {upload.isPending && <p role="status" className="text-sm text-text-2">{t("backups.uploading.hint")}</p>}
+          {upload.isSuccess && <SuccessNote>{t("backups.uploaded")}</SuccessNote>}
+          {upload.isError && <ErrorNote>{errorMessage(upload.error)}</ErrorNote>}
           {create.isError && <ErrorNote>{errorMessage(create.error)}</ErrorNote>}
           {isError && <ErrorNote>{errorMessage(error)}</ErrorNote>}
           {!isLoading && data && list.length === 0 && (

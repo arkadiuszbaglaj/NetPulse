@@ -220,3 +220,77 @@ def test_update_job_prunes_only_update_backups(settings):
     bk.prune(settings, "update")
     names = [b["name"] for b in list_backups(settings)]
     assert "netpulse-manual-20260101-000000.sql.gz" in names and len(names) == 4
+
+
+def _dump_gz(text: str = "--\n-- PostgreSQL database dump\n--\nCREATE TABLE public.devices ();\n") -> bytes:
+    return gzip.compress(text.encode())
+
+
+def test_upload_saves_checked_copy_under_own_name(settings):
+    import io
+
+    b = make(settings, FakeDb())
+    data = _dump_gz()
+    created = b.upload(io.BytesIO(data), len(data), free_mb=lambda: 100_000)
+    assert created["kind"] == "upload" and kind_of(created["name"]) == "upload"
+    assert (settings.backups_dir / created["name"]).read_bytes() == data
+    assert [p.name for p in settings.backups_dir.iterdir()] == [created["name"]]  # bez plików tymczasowych
+
+
+@pytest.mark.parametrize(
+    "data, cut, message",
+    [
+        (b"to nie gzip", 0, "poprawnym archiwum"),
+        (gzip.compress(b"jakis inny plik"), 0, "nie jest kopia NetPulse"),
+        (_dump_gz("-- PostgreSQL database dump\n" + "x" * 200_000), 40, "poprawnym archiwum"),  # ucięty
+    ],
+)
+def test_upload_rejects_bad_files_and_leaves_nothing(settings, data, cut, message):
+    import io
+
+    b = make(settings, FakeDb())
+    body = data[:-cut] if cut else data
+    with pytest.raises(BackupError) as err:
+        b.upload(io.BytesIO(body), len(body), free_mb=lambda: 100_000)
+    assert message in str(err.value)
+    assert list(settings.backups_dir.iterdir()) == []
+
+
+def test_upload_interrupted_or_no_space(settings):
+    import io
+
+    b = make(settings, FakeDb())
+    data = _dump_gz()
+    with pytest.raises(BackupError, match="przerwane"):
+        b.upload(io.BytesIO(data), len(data) + 100, free_mb=lambda: 100_000)
+    with pytest.raises(BackupError, match="Za mało miejsca"):
+        b.upload(io.BytesIO(data), len(data), free_mb=lambda: 10)
+    assert list(settings.backups_dir.iterdir()) == []
+
+
+def test_http_upload(settings):
+    db = FakeDb()
+    app = UpdaterApp(settings, launcher=lambda s: None, is_running=lambda s: False, backups=make(settings, db))
+    app.backups.upload = lambda stream, length, **kw: Backups.upload(app.backups, stream, length, free_mb=lambda: 100_000)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_address[1]}/backups/upload"
+    data = _dump_gz()
+    try:
+        req = urllib.request.Request(base, data=data, method="POST", headers={"Authorization": f"Bearer {TOKEN}"})
+        with urllib.request.urlopen(req, timeout=5) as res:
+            payload = json.loads(res.read())
+        assert res.status == 201 and payload["backup"]["kind"] == "upload" and payload["backups"][0]["kind"] == "upload"
+        with pytest.raises(urllib.error.HTTPError) as no_auth:
+            urllib.request.urlopen(urllib.request.Request(base, data=data, method="POST"), timeout=5)
+        assert no_auth.value.code == 401
+        bad = urllib.request.Request(base, data=b"zle", method="POST", headers={"Authorization": f"Bearer {TOKEN}"})
+        with pytest.raises(urllib.error.HTTPError) as rejected:
+            urllib.request.urlopen(bad, timeout=5)
+        assert rejected.value.code == 400
+        app.max_upload_bytes = 10
+        with pytest.raises(urllib.error.HTTPError) as too_big:
+            urllib.request.urlopen(urllib.request.Request(base, data=data, method="POST", headers={"Authorization": f"Bearer {TOKEN}"}), timeout=5)
+        assert too_big.value.code == 413
+    finally:
+        server.shutdown()

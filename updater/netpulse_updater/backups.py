@@ -5,6 +5,7 @@ skąd kopia pochodzi (to jedyne, co z żądania trafia do poleceń – sprawdzan
   netpulse-20261025-101500.sql.gz           przed aktualizacją (zadanie aktualizacji, zostają 3)
   netpulse-manual-20261025-101500.sql.gz    z panelu albo `netpulse backup` (zostaje 10)
   netpulse-prerestore-20261025-101500.sql.gz  automatycznie przed przywróceniem (zostają 3)
+  netpulse-upload-20261025-101500.sql.gz    wgrana z komputera przez panel (zostaje 5)
 
 Przywracanie: kopia bezpieczeństwa → zatrzymanie API i kolektora → nowa, pusta baza → wczytanie kopii
 (procedura TimescaleDB pre/post restore) → start usług (kolektor migruje schemat starszej kopii) → test API.
@@ -27,8 +28,11 @@ from typing import Any
 
 from .config import Settings
 
-NAME_RE = re.compile(r"^netpulse-(?:(manual|prerestore)-)?(\d{8}-\d{6})\.sql\.gz$")
-KEEP = {"update": 3, "manual": 10, "prerestore": 3}
+NAME_RE = re.compile(r"^netpulse-(?:(manual|prerestore|upload)-)?(\d{8}-\d{6})\.sql\.gz$")
+KEEP = {"update": 3, "manual": 10, "prerestore": 3, "upload": 5}
+# Nagłówek każdego zrzutu pg_dump w formacie tekstowym
+DUMP_MARKER = b"PostgreSQL database dump"
+CHUNK = 1024 * 256
 HEALTH_PY = "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
 DUMP_TIMEOUT_S = 1800
 
@@ -194,6 +198,42 @@ class Backups:
         prune(self.s, kind)
         return next(b for b in list_backups(self.s) if b["name"] == target.name)
 
+    def upload(self, stream, length: int, free_mb: Callable[[], int] | None = None, min_free_mb: int = 500) -> dict[str, Any]:
+        """Zapisuje wgraną kopię (`length` bajtów ze `stream`) pod nową nazwą i sprawdza, że to cały zrzut pg_dump.
+
+        Nazwę nadajemy sami (nazwa pliku od użytkownika nigdzie nie trafia). Plik niepełny, nie-gzip albo nie-zrzut
+        PostgreSQL jest odrzucany i usuwany."""
+        if self.busy:
+            raise BackupError("Trwa przywracanie kopii bazy.")
+        if length <= 0:
+            raise BackupError("Pusty plik.")
+        d = self.s.backups_dir
+        d.mkdir(parents=True, exist_ok=True)
+        free = (free_mb or (lambda: shutil.disk_usage(d).free // (1024 * 1024)))()
+        if free - length // (1024 * 1024) < min_free_mb:
+            raise BackupError(f"Za mało miejsca na dysku serwera: wolne {free} MB, plik ma {length // (1024 * 1024)} MB.")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        target = d / f"netpulse-upload-{stamp}.sql.gz"
+        tmp = d / f".upload-{stamp}.part"
+        try:
+            remaining = length
+            with tmp.open("wb") as out:
+                while remaining > 0:
+                    chunk = stream.read(min(CHUNK, remaining))
+                    if not chunk:
+                        raise BackupError("Przesyłanie zostało przerwane – plik jest niepełny.")
+                    out.write(chunk)
+                    remaining -= len(chunk)
+            tmp.chmod(0o600)
+            check_dump(tmp)
+            if target.exists():
+                raise BackupError("Kopia o tej nazwie już istnieje – spróbuj ponownie za sekundę.")
+            tmp.replace(target)
+        finally:
+            tmp.unlink(missing_ok=True)
+        prune(self.s, "upload")
+        return next(b for b in list_backups(self.s) if b["name"] == target.name)
+
     def delete(self, name: str) -> None:
         path_of(self.s, name).unlink()
 
@@ -268,6 +308,19 @@ class Backups:
                 return
             self.sleep(3)
         raise BackupError("Kopia została wczytana, ale API nie odpowiada. Sprawdź: netpulse logs")
+
+
+def check_dump(path: Path) -> None:
+    """Cały plik musi się rozpakować (wyłapuje niepełne pliki), a początek musi być zrzutem pg_dump."""
+    try:
+        with gzip.open(path, "rb") as f:
+            head = f.read(4096)
+            if DUMP_MARKER not in head:
+                raise BackupError("To nie jest kopia NetPulse (brak nagłówka zrzutu PostgreSQL).")
+            while f.read(CHUNK):
+                pass
+    except (OSError, EOFError) as exc:  # gzip.BadGzipFile dziedziczy z OSError
+        raise BackupError(f"Plik nie jest poprawnym archiwum .sql.gz: {exc}") from exc
 
 
 def _now() -> str:

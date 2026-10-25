@@ -98,7 +98,7 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 
 ## Kopie zapasowe
 
-Od 0.14.0: Ustawienia → Kopia zapasowa (utworzenie, pobranie, przywrócenie z kopią bezpieczeństwa) i `netpulse backup`;
+Od 0.14.0: Ustawienia → Kopia zapasowa (utworzenie, pobranie, wgranie z komputera od 0.16.0, przywrócenie z kopią bezpieczeństwa) i `netpulse backup`;
 `netpulse update` robi kopię przed zmianą kodu. Wykonuje je updater (`updater/netpulse_updater/backups.py`), opis: `docs/15-kopia-zapasowa.md`.
 
 ## Szyfrowanie sekretów

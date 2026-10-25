@@ -7,6 +7,9 @@ i historię metryk. To `pg_dump` w formacie tekstowym, spakowany gzipem.
 
 - **Utwórz kopię teraz**: nowa kopia na serwerze. Przy dużej historii metryk może to potrwać kilka minut.
 - **Pobierz**: plik `.sql.gz` na komputer. Warto trzymać choć jedną kopię poza serwerem.
+- **Wgraj kopię z komputera** (od 0.16.0): wybierasz pobrany wcześniej plik `.sql.gz`, serwer zapisuje go pod
+  własną nazwą („wgrana z komputera”) i sprawdza, że to cały, nieucięty zrzut bazy NetPulse. Potem wystarczy
+  kliknąć **Przywróć** przy tej kopii. Limit rozmiaru: 4 GB (zmiana: `NETPULSE_MAX_UPLOAD_MB` w `deploy/.env`).
 - **Przywróć**: baza wraca do stanu z kopii. Kolejno:
   1. NetPulse robi kopię bezpieczeństwa obecnego stanu („przed przywróceniem”), więc da się to cofnąć;
   2. zatrzymuje API i kolektor (panel jest niedostępny przez około minutę i odświeży się sam);
@@ -36,12 +39,15 @@ Katalog `backups` instalacji, domyślnie `/opt/netpulse/backups`, pliki z prawam
 | `netpulse-RRRRMMDD-GGMMSS.sql.gz` | przed aktualizacją | 3 ostatnie |
 | `netpulse-manual-RRRRMMDD-GGMMSS.sql.gz` | panel albo `netpulse backup` | 10 ostatnich |
 | `netpulse-prerestore-RRRRMMDD-GGMMSS.sql.gz` | automatycznie przed przywróceniem | 3 ostatnie |
+| `netpulse-upload-RRRRMMDD-GGMMSS.sql.gz` | wgrana z komputera przez panel | 5 ostatnich |
 
-## Przeniesienie na nowy serwer (ręcznie)
+## Przeniesienie na nowy serwer
 
-Przywracanie w panelu działa na kopiach, które są już w katalogu `backups`. Żeby przenieść NetPulse:
-zainstaluj go na nowym serwerze (`install.sh`), skopiuj pobrany plik do `/opt/netpulse/backups/` (nazwa jak
-w tabeli, np. `netpulse-manual-20261025-120000.sql.gz`) i przywróć go w panelu.
+Zainstaluj NetPulse na nowym serwerze (`install.sh`), załóż konto w kreatorze, a potem w Ustawienia → Kopia
+zapasowa **wgraj kopię z komputera** i ją **przywróć**. Po przywróceniu logujesz się kontem z kopii.
+
+Bez panelu: skopiuj plik do `/opt/netpulse/backups/` (nazwa jak w tabeli wyżej, np.
+`netpulse-manual-20261025-120000.sql.gz`, prawa 600) – pojawi się na liście kopii.
 
 **Klucz szyfrowania (od 0.15.0).** Sekrety w bazie (community SNMP, klucze SNMPv3, klucz API UniFi, adresy
 webhooków) są zaszyfrowane kluczem tej instalacji. Kopia bazy zawiera je zaszyfrowane, więc na nowym serwerze
