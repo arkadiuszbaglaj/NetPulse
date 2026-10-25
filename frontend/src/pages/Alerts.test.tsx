@@ -68,7 +68,7 @@ describe("dzwonek", () => {
   });
 
   it("gaśnie po potwierdzeniu alertu, choć alert dalej jest aktywny", async () => {
-    mockApi({ alerts: [ALERT, RESOLVED] });
+    mockApi({ alerts: [{ ...ALERT }, RESOLVED] }); // kopia: potwierdzenie zmienia obiekt w atrapie
     renderApp("/alerts");
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Potwierdź" }));
