@@ -13,6 +13,7 @@ import type {
 } from "../lib/api";
 import type { Agent } from "../lib/agents";
 import type { BackupsResponse } from "../lib/backups";
+import type { Modules } from "../lib/modules";
 import type { ProxmoxGuest, ProxmoxServer, ProxmoxStorage } from "../lib/proxmox";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
@@ -252,6 +253,7 @@ interface MockState {
   controllers: Controller[];
   agents: Agent[];
   backups: BackupsResponse;
+  modules: Modules;
   pveServers: ProxmoxServer[];
   pveGuests: ProxmoxGuest[];
   pveStorages: ProxmoxStorage[];
@@ -290,6 +292,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     controllers: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },
+    modules: { proxmox: true, unifi: true, agents: true, backups: true },
     pveServers: [],
     pveGuests: [],
     pveStorages: [],
@@ -387,6 +390,11 @@ export function mockApi(initial: Partial<MockState> = {}) {
         }
         Object.assign(rule, body);
         return json(200, rule);
+      }
+      if (key === "GET /api/modules") return json(200, state.modules);
+      if (key === "PUT /api/modules") {
+        state.modules = { ...state.modules, ...(body as Partial<Modules>) };
+        return json(200, state.modules);
       }
       if (key === "GET /api/proxmox/servers") return json(200, state.pveServers);
       if (key === "GET /api/proxmox/guests") return json(200, state.pveGuests);

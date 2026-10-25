@@ -211,11 +211,17 @@ jobs:
         run: |
           API=http://127.0.0.1:8000
           api() { curl -fsS -b cookies.txt -H 'Content-Type: application/json' "$@"; }
+          # świeża instalacja: integracje są wyłączone, dopóki nie włączy się ich w Ustawienia → Moduły
+          MODS=$(api $API/api/modules)
+          echo "$MODS" | tee agent.log
+          test "$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d['agents'], d['proxmox'], d['backups'])" "$MODS")" = "False False True"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b cookies.txt -H 'Content-Type: application/json' -d '{"name":"x"}' $API/api/agents)" = 409
+          api -X PUT -d '{"agents":true}' $API/api/modules
           OUT=$(api -X POST -d '{"name":"Runner CI"}' $API/api/agents)
           TOKEN=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['token'])" "$OUT")
           DEV=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['agent']['device_id'])" "$OUT")
           # polecenie jak w panelu (Ustawienia → Agenci)
-          curl -fsSL $API/agent/install.sh | sudo bash -s -- --url $API --token "$TOKEN" 2>&1 | tee agent.log
+          curl -fsSL $API/agent/install.sh | sudo bash -s -- --url $API --token "$TOKEN" 2>&1 | tee -a agent.log
           systemctl is-active netpulse-agent
           SERVER=null
           for i in $(seq 1 30); do

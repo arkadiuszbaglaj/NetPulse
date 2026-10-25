@@ -115,6 +115,13 @@ Od 0.17.0: Ustawienia → Proxmox (token API, rola PVEAuditor), strona Proxmox (
 Kod: `backend/netpulse/proxmox.py`, `proxmox_collector.py`, `api/proxmox.py`; atrapa API do testów: `backend/tests/pve_fake.py`.
 Opis: `docs/17-proxmox.md`. **Testowane tylko na atrapie – czeka na prawdziwy serwer Proxmox.**
 
+## Moduły
+
+Od 0.18.0: Ustawienia → Moduły (Proxmox, UniFi, agenci, kopia zapasowa z panelu). Wyłączony moduł znika z panelu, kolektor
+go pomija, jego urządzenia i reguły alertów są pomijane; dane zostają. Nowa instalacja startuje z wyłączonymi integracjami.
+Backend: `netpulse/modules.py` (`require_module`, `hidden_drivers`), panel: pole `module` w rejestrze `frontend/src/modules.tsx`.
+Nowa integracja = nowy moduł. Opis: `docs/18-moduly.md`.
+
 ## Do sprawdzenia później
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej

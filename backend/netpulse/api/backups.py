@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..config import settings
+from ..modules import require_module
 from .security import require_admin
 from .updates import _configured, _forward, _token
 
@@ -62,13 +63,13 @@ async def list_backups():
     return _out(await _forward("GET", "/backups", LIST_TIMEOUT, ok=(200,)))
 
 
-@router.post("", response_model=BackupsOut, status_code=201)
+@router.post("", response_model=BackupsOut, status_code=201, dependencies=[Depends(require_module("backups"))])
 async def create_backup():
     """Nowa kopia bazy teraz (może potrwać przy dużej historii metryk)."""
     return _out(await _forward("POST", "/backups", DUMP_TIMEOUT, ok=(201,)))
 
 
-@router.post("/upload", response_model=BackupsOut, status_code=201)
+@router.post("/upload", response_model=BackupsOut, status_code=201, dependencies=[Depends(require_module("backups"))])
 async def upload_backup(request: Request):
     """Wgranie kopii z komputera: treść żądania to plik .sql.gz (bez multipart), przekazywany strumieniem do updatera.
 
@@ -102,7 +103,7 @@ async def delete_backup(name: str):
     return _out(await _forward("DELETE", f"/backups/{_name(name)}", LIST_TIMEOUT, ok=(200,)))
 
 
-@router.post("/{name}/restore", response_model=BackupsOut, status_code=202)
+@router.post("/{name}/restore", response_model=BackupsOut, status_code=202, dependencies=[Depends(require_module("backups"))])
 async def restore_backup(name: str):
     """Przywraca bazę z kopii. Przed tym powstaje kopia bezpieczeństwa; API zniknie na ok. minutę."""
     return _out(await _forward("POST", f"/backups/{_name(name)}/restore", DUMP_TIMEOUT, ok=(202,)))

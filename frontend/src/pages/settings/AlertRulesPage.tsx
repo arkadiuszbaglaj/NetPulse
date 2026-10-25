@@ -22,6 +22,7 @@ import {
   type RulePayload,
   type Severity,
 } from "../../lib/alerts";
+import { isOn, ruleModule, useModules } from "../../lib/modules";
 import { useDevices } from "../../lib/queries";
 
 const KIND_LABEL: Record<RuleKind, TextKey> = {
@@ -63,8 +64,12 @@ interface FormValues {
   match: string;
 }
 
-function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleMetric[]; onClose: () => void }) {
+function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; metrics: RuleMetric[]; onClose: () => void }) {
   const devices = useDevices();
+  // Rodzaje i metryki wyłączonych modułów znikają z formularza (zostaje to, co ma edytowana reguła)
+  const mods = useModules().data;
+  const metrics = allMetrics.filter((m) => isOn(mods, ruleModule("metric", m.metric)) || m.metric === rule?.metric);
+  const kinds = RULE_KINDS.filter((k) => isOn(mods, ruleModule(k)) || k === rule?.kind);
   const save = useSaveRule();
   const first = metrics[0]?.metric ?? "cpu_percent";
   const [values, setValues] = useState<FormValues>({
@@ -128,7 +133,7 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
       <div className="flex flex-col gap-4">
         <Field id="rule-name" label={t("rules.name")} value={values.name} error={errors.name} maxLength={128} onChange={(e) => set("name", e.target.value)} />
         <Select id="rule-kind" label={t("rules.kind")} value={values.kind} onChange={(e) => set("kind", e.target.value as RuleKind)}>
-          {RULE_KINDS.map((k) => (
+          {kinds.map((k) => (
             <option key={k} value={k}>
               {t(KIND_LABEL[k])}
             </option>

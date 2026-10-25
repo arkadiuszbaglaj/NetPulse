@@ -14,6 +14,7 @@ from sqlalchemy import delete, select
 
 from ..db import Session
 from ..db.models import Device, ProxmoxGuest, ProxmoxNode, ProxmoxServer, ProxmoxStorage
+from ..modules import require_module
 from ..proxmox import ProxmoxApi, ProxmoxError
 from .schemas import _check_host
 from .security import AdminUser, require_user
@@ -165,13 +166,13 @@ async def list_servers():
         return (await session.scalars(select(ProxmoxServer).order_by(ProxmoxServer.id))).all()
 
 
-@router.post("/probe", response_model=ServerProbe)
+@router.post("/probe", response_model=ServerProbe, dependencies=[Depends(require_module("proxmox"))])
 async def probe_target(body: ServerTarget, _: AdminUser):
     """Test połączenia i tokenu bez zapisu – do formularza „Dodaj serwer Proxmox”."""
     return await _probe(body)
 
 
-@router.post("/servers", response_model=ServerOut, status_code=201)
+@router.post("/servers", response_model=ServerOut, status_code=201, dependencies=[Depends(require_module("proxmox"))])
 async def create_server(body: ServerCreate, _: AdminUser, probe: bool = Query(True, description="najpierw sprawdź połączenie")):
     async with Session() as session:
         if await _host_taken(session, body.host):

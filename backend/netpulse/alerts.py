@@ -29,6 +29,7 @@ from .db.models import (
     Metric,
     SystemMetric,
 )
+from .modules import hidden_drivers, read_modules
 from .notifications import AlertEvent, Notifier
 
 log = logging.getLogger("netpulse.alerts")
@@ -104,6 +105,18 @@ DEFAULT_RULE_SETS = (
     ),
 )
 DEFAULTS_KEY = "alert_defaults"
+
+
+# Reguły zależne od modułu: rodzaj albo metryka → moduł (Ustawienia → Moduły)
+KIND_MODULE = {
+    "container_stopped": "agents", "service_failed": "agents", "smart_failed": "agents",
+    "guest_stopped": "proxmox", "backup_failed": "proxmox",
+}  # fmt: skip
+METRIC_MODULE = {"temp_c": "agents", "smart_reallocated": "agents", "backup_age_h": "proxmox"}
+
+
+def rule_module(rule) -> str | None:
+    return KIND_MODULE.get(rule.kind) or (METRIC_MODULE.get(rule.metric) if rule.kind == "metric" else None)
 
 
 def subject_key(prefix: str, key: str) -> str:
@@ -205,8 +218,11 @@ class AlertEngine:
         now = self.now_fn()
         events: list[AlertEvent] = []
         async with Session() as session, session.begin():
-            rules = (await session.scalars(select(AlertRule).where(AlertRule.enabled))).all()
-            devices = {d.id: d for d in (await session.scalars(select(Device).where(Device.enabled))).all()}
+            # Wyłączony moduł: jego reguły nie działają (ich alerty się kończą), a urządzenia są pomijane
+            mods = await read_modules(session)
+            rules = [r for r in (await session.scalars(select(AlertRule).where(AlertRule.enabled))).all() if mods.get(rule_module(r), True)]
+            hidden = hidden_drivers(mods)
+            devices = {d.id: d for d in (await session.scalars(select(Device).where(Device.enabled))).all() if d.driver not in hidden}
             firing = (await session.scalars(select(Alert).where(Alert.state == "firing"))).all()
             by_key = {(a.rule_id, a.subject): a for a in firing}
             active_rules = {r.id for r in rules}

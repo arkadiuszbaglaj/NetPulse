@@ -32,6 +32,7 @@ from .db.models import (
     ProxmoxServer,
     ProxmoxStorage,
 )
+from .modules import is_enabled
 from .proxmox import ProxmoxApi, ProxmoxError, PveSnapshot, PveTask
 
 log = logging.getLogger("netpulse.proxmox")
@@ -92,6 +93,8 @@ class ProxmoxCollector:
         return [ServerTarget(s.id, s.name, s.host, s.port, s.token_id, s.token_secret or "", s.verify_tls) for s in rows]
 
     async def poll_all(self) -> None:
+        if not await is_enabled("proxmox"):
+            return  # moduł wyłączony (Ustawienia → Moduły)
         targets = await self.load_targets()
         if targets:
             await asyncio.gather(*(self.poll_one(t) for t in targets))

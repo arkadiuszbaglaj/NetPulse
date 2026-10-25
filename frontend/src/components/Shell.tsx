@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { t } from "../i18n";
-import { modules } from "../modules";
+import { useVisibleModules } from "../modules";
 import { AlertBell } from "./AlertBell";
 import { RefreshControl } from "./RefreshControl";
 import { Sidebar } from "./Sidebar";
@@ -25,6 +25,8 @@ function readCollapsed(): boolean {
 /** Układ aplikacji: pasek górny (konto, motyw), menu po lewej, treść. */
 export function Shell() {
   const { status } = useAuth();
+  // Trasy tylko dla włączonych modułów – adres wyłączonego modułu przekierowuje na pulpit
+  const visible = useVisibleModules();
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawer, setDrawer] = useState(false);
 
@@ -90,7 +92,7 @@ export function Shell() {
 
         <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <Routes>
-            {modules.flatMap((m) => {
+            {visible.flatMap((m) => {
               if (m.children) {
                 return [
                   <Route key={m.id} path={m.path} element={<Navigate to={`${m.path}/${m.children[0].path}`} replace />} />,

@@ -26,6 +26,7 @@ from .db.models import (
     WifiNetwork,
 )
 from .drivers import PollResult, poll_device
+from .modules import ensure_modules, is_enabled
 from .rates import CounterTracker
 from .snmp import SnmpClient, SnmpCredentials, SnmpError
 
@@ -126,7 +127,8 @@ class Collector:
 
     async def poll_all(self) -> None:
         try:
-            await self.mark_silent_agents()
+            if await is_enabled("agents"):
+                await self.mark_silent_agents()
         except Exception:
             log.exception("Błąd sprawdzania agentów")
         targets = await self.load_targets()
@@ -380,6 +382,7 @@ async def run() -> None:
     from .unifi_collector import UnifiCollector
 
     await init_db()
+    await ensure_modules()
     engine = AlertEngine(notifier=Notifier())
     await engine.ensure_default_rules()
     await asyncio.gather(Collector(alert_engine=engine).run_forever(), UnifiCollector().run_forever(), SystemCollector().run_forever(), ProxmoxCollector().run_forever())

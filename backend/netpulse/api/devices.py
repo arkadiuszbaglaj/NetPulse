@@ -11,6 +11,7 @@ from ..collector import credentials_for
 from ..db import Session
 from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
 from ..drivers import PollResult
+from ..modules import hidden_drivers, read_modules
 from ..probe import probe as snmp_probe
 from ..snmp import SnmpCredentials, SnmpError
 from .schemas import (
@@ -102,8 +103,10 @@ async def _host_taken(session, host: str, except_id: int | None = None) -> bool:
 
 @router.get("/devices", response_model=list[DeviceOut])
 async def list_devices():
+    """Urządzenia bez tych, które należą do wyłączonych modułów (węzły Proxmox, serwery z agentem)."""
     async with Session() as session:
-        return (await session.scalars(select(Device).order_by(Device.id))).all()
+        hidden = hidden_drivers(await read_modules(session))
+        return (await session.scalars(select(Device).where(Device.driver.not_in(hidden or ("",))).order_by(Device.id))).all()
 
 
 @router.post("/probe", response_model=ProbeOut)

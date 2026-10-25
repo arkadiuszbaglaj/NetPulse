@@ -11,6 +11,7 @@ from sqlalchemy import func, select, text
 from ..config import settings
 from ..db import Session
 from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
+from ..modules import hidden_drivers, read_modules
 from .metrics import MinutesQuery, _bucket_seconds
 from .schemas import Point
 from .security import require_user
@@ -51,8 +52,9 @@ class SeriesOut(BaseModel):
 async def summary():
     since = datetime.now(UTC) - CURRENT_WINDOW
     async with Session() as session:
+        visible = Device.driver.not_in(hidden_drivers(await read_modules(session)) or ("",))
         by_status = dict(
-            (await session.execute(select(Device.status, func.count()).where(Device.enabled).group_by(Device.status))).all()
+            (await session.execute(select(Device.status, func.count()).where(Device.enabled, visible).group_by(Device.status))).all()
         )
         last_poll = await session.scalar(select(func.max(Device.last_polled_at)).where(Device.enabled))
 

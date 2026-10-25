@@ -15,6 +15,7 @@ import {
   IconRefresh,
   IconSend,
   IconKey,
+  IconPuzzle,
   IconServer2,
   IconSettings,
   IconTerminal2,
@@ -23,9 +24,11 @@ import {
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
+import { isOn, useModules, type ModuleId, type Modules } from "./lib/modules";
 import { AgentsPage } from "./pages/settings/AgentsPage";
 import { AlertRulesPage } from "./pages/settings/AlertRulesPage";
 import { BackupsPage } from "./pages/settings/BackupsPage";
+import { ModulesPage } from "./pages/settings/ModulesPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { ClientsPage } from "./pages/ClientsPage";
@@ -46,6 +49,8 @@ export interface NavChild {
   label: TextKey;
   icon: Icon;
   element: ReactNode;
+  /** Podstrona modułu z Ustawienia → Moduły – znika, gdy moduł jest wyłączony */
+  module?: ModuleId;
 }
 
 export interface NavModule {
@@ -58,6 +63,8 @@ export interface NavModule {
   element?: ReactNode;
   /** Moduł z podstronami; wejście na `path` przekierowuje do pierwszej. */
   children?: NavChild[];
+  /** Pozycja należy do modułu z Ustawienia → Moduły – znika, gdy moduł jest wyłączony */
+  module?: ModuleId;
 }
 
 export const modules: NavModule[] = [
@@ -74,6 +81,7 @@ export const modules: NavModule[] = [
     label: "nav.clients",
     icon: IconDevicesPc,
     element: <ClientsPage />,
+    module: "unifi",
   },
   {
     id: "proxmox",
@@ -81,6 +89,7 @@ export const modules: NavModule[] = [
     label: "nav.proxmox",
     icon: IconServerCog,
     element: <ProxmoxPage />,
+    module: "proxmox",
   },
   {
     id: "topology",
@@ -88,6 +97,7 @@ export const modules: NavModule[] = [
     label: "nav.topology",
     icon: IconHierarchy2,
     element: <TopologyPage />,
+    module: "unifi",
   },
   {
     id: "alerts",
@@ -114,18 +124,21 @@ export const modules: NavModule[] = [
         label: "nav.settings.agents",
         icon: IconTerminal2,
         element: <AgentsPage />,
+        module: "agents",
       },
       {
         path: "controllers",
         label: "nav.settings.controllers",
         icon: IconKey,
         element: <ControllersPage />,
+        module: "unifi",
       },
       {
         path: "proxmox",
         label: "nav.settings.proxmox",
         icon: IconServerCog,
         element: <ProxmoxSettingsPage />,
+        module: "proxmox",
       },
       {
         path: "alert-rules",
@@ -156,6 +169,13 @@ export const modules: NavModule[] = [
         label: "nav.settings.backups",
         icon: IconDatabase,
         element: <BackupsPage />,
+        module: "backups",
+      },
+      {
+        path: "modules",
+        label: "nav.settings.modules",
+        icon: IconPuzzle,
+        element: <ModulesPage />,
       },
       {
         path: "update",
@@ -166,3 +186,14 @@ export const modules: NavModule[] = [
     ],
   },
 ];
+
+/** Rejestr bez pozycji wyłączonych modułów (menu i trasy). */
+export function visibleModules(mods: Modules | undefined): NavModule[] {
+  return modules
+    .filter((m) => isOn(mods, m.module))
+    .map((m) => (m.children ? { ...m, children: m.children.filter((c) => isOn(mods, c.module)) } : m));
+}
+
+export function useVisibleModules(): NavModule[] {
+  return visibleModules(useModules().data);
+}

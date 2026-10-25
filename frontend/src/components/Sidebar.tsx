@@ -1,7 +1,7 @@
 import { IconChevronsLeft, IconChevronsRight } from "@tabler/icons-react";
 import { NavLink, useLocation } from "react-router";
 import { t } from "../i18n";
-import { modules } from "../modules";
+import { useVisibleModules } from "../modules";
 
 const linkBase = "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors";
 const linkIdle = "text-text-2 hover:bg-surface-2 hover:text-text";
@@ -19,6 +19,7 @@ interface SidebarProps {
 export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const { pathname } = useLocation();
   const CollapseIcon = collapsed ? IconChevronsRight : IconChevronsLeft;
+  const modules = useVisibleModules();
 
   return (
     <nav aria-label={t("nav.main")} className="flex h-full flex-col gap-1 p-3">

@@ -26,6 +26,7 @@ import {
   type SummaryTile,
   type Widget,
 } from "../../lib/layout";
+import { isOn, sourceModule, useModules } from "../../lib/modules";
 import { useDevices } from "../../lib/queries";
 import { formatRange } from "../../lib/format";
 import { RANGE_OPTIONS, REFRESH_OPTIONS, type RangeMinutes, type RefreshSeconds } from "../../lib/refresh";
@@ -114,6 +115,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
   );
   const [errors, setErrors] = useState<{ source?: string; metrics?: string; ymax?: string }>({});
   const devices = useDevices();
+  const modulesState = useModules().data;
   const [deviceId, setDeviceId] = useState<number | null>(deviceIdOf(initial.source));
 
   const needsDevice = cfg.source.kind === "interface" || cfg.source.kind === "wifi_network";
@@ -203,7 +205,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
         <Field id="ce-title" label={t("ce.field.title")} hint={t("ce.field.title.hint")} value={cfg.title ?? ""} maxLength={80} onChange={(e) => set({ title: e.target.value })} />
 
         <Select id="ce-source" label={t("ce.source")} value={cfg.source.kind} error={errors.source} onChange={(e) => changeKind(e.target.value as SourceKind)}>
-          {SOURCE_KINDS.map((k) => (
+          {SOURCE_KINDS.filter((k) => isOn(modulesState, sourceModule(k)) || k === cfg.source.kind).map((k) => (
             <option key={k} value={k}>
               {t(SOURCE_LABEL[k])}
             </option>

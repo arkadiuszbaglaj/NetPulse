@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from ..db import Session
 from ..db.models import Controller, Device, Interface, NetworkClient, PoeBudgetMetric, PoePortMetric
+from ..modules import require_module
 from ..unifi import UnifiApi, UnifiError
 from .schemas import _check_host
 from .security import require_user
@@ -155,13 +156,13 @@ async def list_controllers():
         return (await session.scalars(select(Controller).order_by(Controller.id))).all()
 
 
-@router.post("/controllers/probe", response_model=ControllerProbe)
+@router.post("/controllers/probe", response_model=ControllerProbe, dependencies=[Depends(require_module("unifi"))])
 async def probe_controller(body: ControllerTarget):
     """Test połączenia i klucza API bez zapisu – do formularza „Dodaj kontroler”."""
     return await _probe(body)
 
 
-@router.post("/controllers", response_model=ControllerOut, status_code=201)
+@router.post("/controllers", response_model=ControllerOut, status_code=201, dependencies=[Depends(require_module("unifi"))])
 async def create_controller(body: ControllerCreate, probe: bool = Query(True, description="najpierw sprawdź połączenie")):
     async with Session() as session:
         if await _host_taken(session, body.host):

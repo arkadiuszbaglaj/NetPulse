@@ -25,6 +25,7 @@ from ..auth import hash_token, new_token
 from ..config import settings
 from ..db import Session
 from ..db.models import Agent, Device, DeviceMetric, DiskMetric, Metric, ServerMetric
+from ..modules import is_enabled, require_module
 from .security import client_ip, require_admin
 
 AGENT_DIR = Path(__file__).resolve().parent.parent / "agent"
@@ -90,7 +91,7 @@ async def list_agents():
     return [_out(a, d) for a, d in rows]
 
 
-@admin_router.post("", response_model=AgentToken, status_code=201)
+@admin_router.post("", response_model=AgentToken, status_code=201, dependencies=[Depends(require_module("agents"))])
 async def create_agent(body: AgentCreate):
     """Nowy serwer z agentem. Token jest pokazywany tylko raz (w bazie zostaje skrót)."""
     token, token_hash, hint = _new_token()
@@ -286,8 +287,9 @@ async def agent_report(report: AgentReport, request: Request, authorization: Ann
         agent.last_ip = client_ip(request)[:64]
         agent.agent_version = report.agent_version
         agent.hostname = report.hostname
-        if not device.enabled:
-            return ack  # wyłączone w panelu: agent żyje, ale danych nie zbieramy
+        if not device.enabled or not await is_enabled("agents"):
+            ack.accepted = False
+            return ack  # wyłączone w panelu (urządzenie albo moduł): agent żyje, ale danych nie zbieramy
 
         agent.inventory = inventory(report)
         device.status, device.last_error = "up", None

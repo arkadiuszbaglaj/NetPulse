@@ -27,6 +27,7 @@ from . import (
     devices,
     live,
     metrics,
+    modules_api,
     notifications,
     preferences,
     proxmox,
@@ -61,6 +62,7 @@ app.include_router(dashboards.router)
 app.include_router(devices.router)
 app.include_router(live.router)
 app.include_router(metrics.router)
+app.include_router(modules_api.router)
 app.include_router(notifications.router)
 app.include_router(preferences.router)
 app.include_router(proxmox.router)

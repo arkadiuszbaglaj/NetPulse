@@ -23,6 +23,7 @@ from .db.models import (
     PoePortMetric,
     TopologyLink,
 )
+from .modules import is_enabled
 from .unifi import UnifiApi, UnifiClient, UnifiDevice, UnifiError
 
 log = logging.getLogger("netpulse.unifi")
@@ -94,6 +95,8 @@ class UnifiCollector:
         return [ControllerTarget(c.id, c.name, c.host, c.port, c.api_key, c.site, c.verify_tls) for c in rows]
 
     async def poll_all(self) -> None:
+        if not await is_enabled("unifi"):
+            return  # moduł wyłączony (Ustawienia → Moduły)
         targets = await self.load_targets()
         if targets:
             await asyncio.gather(*(self.poll_one(t) for t in targets))
