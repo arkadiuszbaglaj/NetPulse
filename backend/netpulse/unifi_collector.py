@@ -14,7 +14,15 @@ from sqlalchemy.dialects.postgresql import insert
 from .collector import _write_with_retry
 from .config import settings
 from .db import Session
-from .db.models import Controller, Device, Interface, NetworkClient, PoeBudgetMetric, PoePortMetric, TopologyLink
+from .db.models import (
+    Controller,
+    Device,
+    Interface,
+    NetworkClient,
+    PoeBudgetMetric,
+    PoePortMetric,
+    TopologyLink,
+)
 from .unifi import UnifiApi, UnifiClient, UnifiDevice, UnifiError
 
 log = logging.getLogger("netpulse.unifi")
