@@ -303,6 +303,8 @@ class AlertRule(Base):
     duration_s: Mapped[int] = mapped_column(Integer, default=0)  # warunek musi trwać co najmniej tyle
     severity: Mapped[str] = mapped_column(String(10), default="warning")  # info | warning | critical
     device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)  # None = wszystkie
+    # Reguły z agenta: nazwa kontenera, usługi albo dysku (wzorzec z * i ?); None = wszystkie
+    match: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 
-from ..alerts import METRICS, PER_DEVICE_METRICS
+from ..alerts import AGENT_STATES, MATCHABLE_METRICS, METRICS, PER_DEVICE_METRICS
 from ..db import Session
 from ..db.models import Alert, AlertRule, Device
 from .security import CurrentUser, require_user
@@ -17,7 +17,7 @@ from .security import CurrentUser, require_user
 router = APIRouter(prefix="/api", tags=["alerty"], dependencies=[Depends(require_user)])
 
 Severity = Literal["info", "warning", "critical"]
-Kind = Literal["device_offline", "port_down", "metric"]
+Kind = Literal["device_offline", "port_down", "metric", "container_stopped", "service_failed", "smart_failed"]
 
 
 class RuleBase(BaseModel):
@@ -30,9 +30,12 @@ class RuleBase(BaseModel):
     duration_s: int = Field(0, ge=0, le=86400)
     severity: Severity = "warning"
     device_id: int | None = None
+    # Nazwa kontenera, usługi, dysku albo czujnika (wzorzec z * i ?) – tylko reguły z agenta
+    match: str | None = Field(None, max_length=255)
 
     @model_validator(mode="after")
     def _consistent(self):
+        self.match = (self.match or "").strip() or None
         if self.kind == "metric":
             if self.metric not in METRICS:
                 raise ValueError(f"Nieznana metryka; dostępne: {', '.join(METRICS)}")
@@ -40,8 +43,12 @@ class RuleBase(BaseModel):
                 raise ValueError("Reguła metryki wymaga warunku (op) i progu (threshold)")
             if self.metric not in PER_DEVICE_METRICS and self.device_id is not None:
                 raise ValueError("Ta metryka dotyczy całości (ruch WAN albo serwer NetPulse) – nie wybieraj urządzenia")
+            if self.metric not in MATCHABLE_METRICS:
+                self.match = None
         else:
             self.metric = self.op = self.threshold = None
+            if self.kind not in AGENT_STATES:
+                self.match = None
         return self
 
 
@@ -100,7 +107,7 @@ async def list_rules():
 async def rule_metrics():
     """Metryki, na których można oprzeć regułę: nazwa, opis, jednostka i czy dotyczy pojedynczego urządzenia."""
     return [
-        {"metric": m, "label": label, "unit": unit, "per_device": m in PER_DEVICE_METRICS}
+        {"metric": m, "label": label, "unit": unit, "per_device": m in PER_DEVICE_METRICS, "matchable": m in MATCHABLE_METRICS}
         for m, (label, unit) in METRICS.items()
     ]
 

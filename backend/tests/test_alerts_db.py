@@ -24,6 +24,7 @@ from netpulse.db import Session, engine, init_db  # noqa: E402
 from netpulse.db.models import (  # noqa: E402
     Alert,
     AlertRule,
+    AppSetting,
     Device,
     DeviceMetric,
     Interface,
@@ -50,6 +51,7 @@ async def _reset():
     async with Session() as s, s.begin():
         await s.execute(delete(Alert))
         await s.execute(delete(AlertRule))
+        await s.execute(delete(AppSetting).where(AppSetting.key == "alert_defaults"))
         await s.execute(delete(Device))
         await s.execute(delete(User))
 
@@ -213,7 +215,25 @@ def test_default_rules_created_once(client):
         await AlertEngine().ensure_default_rules()
 
     run(go)
-    assert [r["kind"] for r in client.get("/api/alert-rules").json()] == ["device_offline", "port_down"]
+    kinds = [r["kind"] for r in client.get("/api/alert-rules").json()]
+    assert kinds == ["device_offline", "port_down", "container_stopped", "service_failed", "smart_failed", "metric"]
+
+
+def test_default_rules_for_existing_install_and_deleted_rules_stay_deleted(client):
+    """Instalacja z 0.11 (ma reguły, brak znacznika) dostaje tylko nowe reguły z agenta, raz."""
+    add_rule(name="moja", kind="device_offline", duration_s=60)
+
+    async def go():
+        await AlertEngine().ensure_default_rules()
+
+    run(go)
+    rules = client.get("/api/alert-rules").json()
+    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 5
+    temp = next(r for r in rules if r["metric"] == "temp_c")
+    assert temp["threshold"] == 85 and temp["op"] == ">"
+    assert client.delete(f"/api/alert-rules/{rules[1]['id']}").status_code == 204
+    run(go)
+    assert len(client.get("/api/alert-rules").json()) == 4
 
 
 def test_rules_api_validation(client):

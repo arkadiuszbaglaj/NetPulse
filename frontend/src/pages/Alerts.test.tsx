@@ -39,6 +39,7 @@ const RULE: AlertRule = {
   duration_s: 600,
   severity: "warning",
   device_id: null,
+  match: null,
   created_at: "2026-10-25T10:00:00Z",
 };
 
@@ -135,6 +136,35 @@ describe("Ustawienia → Reguły alertów", () => {
 
     await waitFor(() => expect(state.rules).toHaveLength(1));
     expect(state.rules[0]).toMatchObject({ name: "Duży ruch", kind: "metric", metric: "wan_in_bps", op: ">", threshold: 800_000_000, device_id: null });
+  });
+
+  it("reguła z agenta: kontener o wybranej nazwie, bez progu", async () => {
+    const { state } = mockApi();
+    renderApp("/settings/alert-rules");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Dodaj regułę" }));
+    const form = await screen.findByRole("dialog", { name: "Nowa reguła" });
+    await user.type(within(form).getByLabelText("Nazwa"), "Nextcloud");
+    await user.selectOptions(within(form).getByLabelText("Rodzaj reguły"), "container_stopped");
+    expect(within(form).queryByLabelText(/Próg/)).not.toBeInTheDocument();
+    await user.type(within(form).getByLabelText("Tylko o nazwie (opcjonalnie)"), "nextcloud*");
+    await user.click(within(form).getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() => expect(state.rules).toHaveLength(1));
+    expect(state.rules[0]).toMatchObject({ kind: "container_stopped", match: "nextcloud*", metric: null, threshold: null });
+    expect(await screen.findByText(/Kontener Docker zatrzymany \(agent\) \(nextcloud\*\), 5 min/)).toBeInTheDocument();
+  });
+
+  it("filtr nazwy tylko dla metryk z agenta", async () => {
+    mockApi();
+    renderApp("/settings/alert-rules");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Dodaj regułę" }));
+    const form = await screen.findByRole("dialog", { name: "Nowa reguła" });
+    await user.selectOptions(within(form).getByLabelText("Metryka"), "cpu_percent");
+    expect(within(form).queryByLabelText("Tylko o nazwie (opcjonalnie)")).not.toBeInTheDocument();
+    await user.selectOptions(within(form).getByLabelText("Metryka"), "temp_c");
+    expect(within(form).getByLabelText("Tylko o nazwie (opcjonalnie)")).toBeInTheDocument();
   });
 
   it("usuwa regułę po potwierdzeniu", async () => {

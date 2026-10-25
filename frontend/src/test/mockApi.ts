@@ -341,6 +341,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, [
           { metric: "cpu_percent", label: "CPU", unit: "%", per_device: true },
           { metric: "wan_in_bps", label: "Pobieranie WAN", unit: "b/s", per_device: false },
+          { metric: "temp_c", label: "Temperatura (każdy czujnik serwera z agentem)", unit: "°C", per_device: true, matchable: true },
         ]);
       }
       if (key === "POST /api/alert-rules") {

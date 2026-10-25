@@ -6,10 +6,12 @@ usuniętych albo wyłączonych reguł są kończone przy najbliższej ocenie."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from fnmatch import fnmatchcase
 
 from sqlalchemy import func, select
 
@@ -18,11 +20,13 @@ from .db import Session
 from .db.models import (
     Alert,
     AlertRule,
+    AppSetting,
     Device,
     DeviceMetric,
     DiskMetric,
     Interface,
     InterfaceMetric,
+    Metric,
     SystemMetric,
 )
 from .notifications import AlertEvent, Notifier
@@ -30,7 +34,9 @@ from .notifications import AlertEvent, Notifier
 log = logging.getLogger("netpulse.alerts")
 
 SEVERITIES = ("info", "warning", "critical")
-KINDS = ("device_offline", "port_down", "metric")
+# Rodzaje z agenta serwera (ogólna tabela `metrics`): stan kontenera, usługi systemd i SMART dysku
+AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed")
+KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS)
 OPS = (">", "<")
 
 # Metryki reguł typu „metric”: nazwa → (opis, jednostka). Pierwsze trzy są per urządzenie, WAN to suma po routerach.
@@ -45,6 +51,8 @@ METRICS: dict[str, tuple[str, str]] = {
     "system_cpu_percent": ("Serwer NetPulse: CPU", "%"),
     "system_mem_used_percent": ("Serwer NetPulse: RAM", "%"),
     "system_disk_used_percent": ("Serwer NetPulse: dysk", "%"),
+    "temp_c": ("Temperatura (każdy czujnik serwera z agentem)", "°C"),
+    "smart_reallocated": ("SMART: realokowane sektory (każdy dysk serwera z agentem)", ""),
 }
 DEVICE_METRICS = ("cpu_percent", "mem_used_percent", "load1")
 DISK_METRICS = ("disk_used_percent",)
@@ -55,13 +63,50 @@ SYSTEM_METRICS = {
     "system_mem_used_percent": "mem_used_percent",
     "system_disk_used_percent": "disk_used_percent",
 }
+# Metryki z agenta: nazwa reguły → nazwa w tabeli `metrics` (jeden alert na klucz, np. czujnik albo dysk)
+AGENT_METRICS = {"temp_c": "temp_c", "smart_reallocated": "smart_reallocated"}
 # Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer NetPulse) są globalne
-PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS
+PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS + tuple(AGENT_METRICS)
+# Reguły, które można zawęzić wzorcem nazwy (pole `match`)
+MATCHABLE_METRICS = tuple(AGENT_METRICS)
 
-DEFAULT_RULES = (
-    dict(name="Urządzenie nie odpowiada", kind="device_offline", duration_s=120, severity="critical"),
-    dict(name="Port przeszedł w stan down", kind="port_down", duration_s=0, severity="warning"),
+# Rodzaj reguły z agenta → (metryka w `metrics`, co jest podmiotem, opis stanu w tytule alertu)
+AGENT_STATES = {
+    "container_stopped": ("container_up", "kontener", "zatrzymany"),
+    "service_failed": ("service_up", "usługa", "nie działa"),
+    "smart_failed": ("smart_ok", "dysk", "zgłasza błąd SMART"),
+}
+
+# Reguły domyślne w kolejnych wersjach. Instalacja dostaje każdy zestaw raz (znacznik w app_settings),
+# więc reguła usunięta przez użytkownika nie wraca po restarcie.
+DEFAULT_RULE_SETS = (
+    (
+        dict(name="Urządzenie nie odpowiada", kind="device_offline", duration_s=120, severity="critical"),
+        dict(name="Port przeszedł w stan down", kind="port_down", duration_s=0, severity="warning"),
+    ),
+    (
+        dict(name="Kontener zatrzymany", kind="container_stopped", duration_s=60, severity="warning"),
+        dict(name="Usługa systemd nie działa", kind="service_failed", duration_s=60, severity="warning"),
+        dict(name="SMART: dysk zgłasza błąd", kind="smart_failed", duration_s=0, severity="critical"),
+        dict(name="Wysoka temperatura", kind="metric", metric="temp_c", op=">", threshold=85.0, duration_s=300, severity="warning"),
+    ),
 )
+DEFAULTS_KEY = "alert_defaults"
+
+
+def subject_key(prefix: str, key: str) -> str:
+    """Podmiot alertu ma najwyżej 64 znaki; długie nazwy (kontenery, punkty montowania) skracamy skrótem."""
+    full = f"{prefix}:{key}"
+    return full if len(full) <= 64 else f"{prefix}:#{hashlib.sha1(key.encode()).hexdigest()[:16]}"
+
+
+def matches(pattern: str | None, name: str) -> bool:
+    """Filtr nazwy z reguły: pusty = wszystko, `*` i `?` jak w powłoce, bez rozróżniania wielkości liter.
+    Usługę można podać bez `.service`."""
+    if not pattern:
+        return True
+    name, pattern = name.lower(), pattern.strip().lower()
+    return fnmatchcase(name, pattern) or fnmatchcase(name.removesuffix(".service"), pattern)
 
 
 def breaches(op: str, value: float | None, threshold: float) -> bool:
@@ -90,7 +135,7 @@ def sustained(
 
 
 def format_value(metric: str, value: float) -> str:
-    if metric == "port_errors":
+    if metric in ("port_errors", "smart_reallocated"):
         return f"{value:.0f}"
     unit = METRICS[metric][1]
     if unit == "b/s":
@@ -118,12 +163,24 @@ class AlertEngine:
         self.notifier = notifier
 
     async def ensure_default_rules(self) -> None:
-        """Przy pierwszym uruchomieniu (brak reguł i historii) dodaje reguły „offline” i „port down”."""
+        """Dodaje zestawy reguł domyślnych, których ta instalacja jeszcze nie dostała.
+
+        Nowa instalacja dostaje wszystkie. Instalacja sprzed znacznika (≤ 0.11) miała już pierwszy zestaw,
+        o ile cokolwiek było skonfigurowane (reguły albo historia) – wtedy dochodzą tylko nowsze."""
         async with Session() as session, session.begin():
-            has_rules = await session.scalar(select(func.count()).select_from(AlertRule))
-            has_alerts = await session.scalar(select(func.count()).select_from(Alert))
-            if not has_rules and not has_alerts:
-                session.add_all(AlertRule(**r) for r in DEFAULT_RULES)
+            marker = await session.get(AppSetting, DEFAULTS_KEY, with_for_update=True)
+            if marker is not None:
+                applied = int(marker.value.get("sets", 0))
+            else:
+                has_rules = await session.scalar(select(func.count()).select_from(AlertRule))
+                has_alerts = await session.scalar(select(func.count()).select_from(Alert))
+                applied = 1 if (has_rules or has_alerts) else 0
+                marker = AppSetting(key=DEFAULTS_KEY, value={})
+                session.add(marker)
+            for rule_set in DEFAULT_RULE_SETS[applied:]:
+                session.add_all(AlertRule(**r) for r in rule_set)
+            marker.value = {"sets": len(DEFAULT_RULE_SETS)}
+            marker.updated_at = datetime.now(UTC)
 
     async def evaluate(self) -> list[AlertEvent]:
         """Ocenia reguły, zapisuje zmiany stanu alertów, rozsyła powiadomienia i zwraca zdarzenia tego cyklu."""
@@ -199,6 +256,8 @@ class AlertEngine:
             return self._offline(rule, scope, now)
         if rule.kind == "port_down":
             return await self._port_down(session, rule, scope, now)
+        if rule.kind in AGENT_STATES:
+            return await self._agent_state(session, rule, scope, now)
         if rule.kind == "metric" and rule.metric in METRICS and rule.op in OPS and rule.threshold is not None:
             return await self._metric(session, rule, scope, now)
         return []
@@ -284,6 +343,8 @@ class AlertEngine:
             return await self._port_errors(session, rule, scope, since, now)
         if metric in SYSTEM_METRICS:
             return await self._system(session, rule, since, now)
+        if metric in AGENT_METRICS:
+            return await self._agent_metric(session, rule, scope, since, now)
 
         # WAN: suma po wszystkich interfejsach WAN włączonych routerów (w zakresie reguły)
         column = InterfaceMetric.in_bps if metric == "wan_in_bps" else InterfaceMetric.out_bps
@@ -325,7 +386,7 @@ class AlertEngine:
             if sustained(series, now, rule.duration_s, op, threshold, float(settings.poll_interval)):
                 v = series[-1][1]
                 title = f"{names[dev_id]}: dysk {mount} zajęty w {format_value(metric, v)}"
-                hits.append(Hit(f"d{dev_id}:{mount}", title, self._detail(rule, metric), dev_id, v))
+                hits.append(Hit(subject_key(f"d{dev_id}", mount), title, self._detail(rule, metric), dev_id, v))
         return hits
 
     async def _port_errors(
@@ -373,6 +434,65 @@ class AlertEngine:
             v = series[-1][1]
             return [Hit("system", f"{METRICS[metric][0]} {format_value(metric, v)}", self._detail(rule, metric), None, v)]
         return []
+
+    async def _series(
+        self, session, name: str, scope: list[Device], since: datetime, pattern: str | None
+    ) -> dict[tuple[int, str], list[tuple[datetime, float | None]]]:
+        """Próbki z ogólnej tabeli `metrics` (od najstarszej) na urządzenie i klucz, po filtrze nazwy."""
+        rows = (
+            await session.execute(
+                select(Metric.device_id, Metric.key, Metric.time, Metric.value)
+                .where(Metric.name == name, Metric.device_id.in_([d.id for d in scope] or [0]), Metric.time >= since)
+                .order_by(Metric.device_id, Metric.key, Metric.time)
+            )
+        ).all()
+        samples: dict[tuple[int, str], list[tuple[datetime, float | None]]] = defaultdict(list)
+        for dev_id, key, t, v in rows:
+            if matches(pattern, key):
+                samples[(dev_id, key)].append((t, v))
+        return samples
+
+    async def _agent_metric(self, session, rule: AlertRule, scope: list[Device], since: datetime, now: datetime) -> list[Hit]:
+        """Próg na metryce z agenta (temperatura czujnika, realokowane sektory dysku) – alert na klucz."""
+        metric, op, threshold = rule.metric, rule.op, float(rule.threshold)
+        names = {d.id: d.name for d in scope}
+        hits = []
+        for (dev_id, key), series in (await self._series(session, AGENT_METRICS[metric], scope, since, rule.match)).items():
+            if sustained(series, now, rule.duration_s, op, threshold, float(settings.poll_interval)):
+                v = series[-1][1]
+                what = "temperatura" if metric == "temp_c" else "realokowane sektory"
+                title = f"{names[dev_id]}: {what} {key} {format_value(metric, v)}"
+                hits.append(Hit(subject_key(f"d{dev_id}:{metric}", key), title, self._detail(rule, metric), dev_id, v))
+        return hits
+
+    async def _agent_state(self, session, rule: AlertRule, scope: list[Device], now: datetime) -> list[Hit]:
+        """Kontener zatrzymany, usługa nie działa, SMART zgłasza błąd (wartość 0 w `metrics`) przez `duration_s`.
+
+        Kontener bez filtru nazwy alarmuje tylko, jeśli przed chwilą działał: kontenery zatrzymane od dawna
+        (np. jednorazowe zadania) nie dają alarmu. Z filtrem nazwy – zawsze, bo o ten kontener chodzi."""
+        name, what, state = AGENT_STATES[rule.kind]
+        interval = float(settings.poll_interval)
+        since = now - timedelta(seconds=rule.duration_s + interval * 3)
+        already = {
+            a.subject for a in (await session.scalars(select(Alert).where(Alert.rule_id == rule.id, Alert.state == "firing"))).all()
+        }
+        names = {d.id: d.name for d in scope}
+        hits = []
+        for (dev_id, key), series in (await self._series(session, name, scope, since, rule.match)).items():
+            if not sustained(series, now, rule.duration_s, "<", 1.0, interval):
+                continue
+            subject = subject_key(f"d{dev_id}:{rule.kind[0]}", key)
+            if rule.kind == "container_stopped" and not rule.match and subject not in already:
+                if not any(v is not None and v >= 1 for _t, v in series):
+                    continue
+            label = key.removesuffix(".service") if rule.kind == "service_failed" else key
+            hits.append(Hit(subject, f"{names[dev_id]}: {what} {label} {state}", self._state_detail(rule), dev_id, None))
+        return hits
+
+    @staticmethod
+    def _state_detail(rule: AlertRule) -> str:
+        span = f" od {rule.duration_s // 60} min" if rule.duration_s >= 60 else ""
+        return f"Stan z agenta NetPulse{span}" + (f" (filtr: {rule.match})" if rule.match else "")
 
     @staticmethod
     def _detail(rule: AlertRule, metric: str) -> str:

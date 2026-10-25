@@ -99,8 +99,25 @@ więc karta serwera, wykresy i alerty działają jak dla SNMP. Reszta idzie do o
 Zdjęcie bieżącego stanu (lista kontenerów, usług, czujników, SMART) jest w `agents.inventory` i trafia do panelu
 przez `GET /api/devices/{id}/server` (pole `agent`).
 
+## Alerty (od 0.12.0)
+
+W Ustawienia → Reguły alertów są rodzaje reguł na danych z agenta:
+
+| Rodzaj | Kiedy alarmuje | Reguła domyślna |
+|--------|----------------|-----------------|
+| Kontener Docker zatrzymany | kontener, który działał, zatrzymał się na dłużej niż „warunek musi trwać”. Z filtrem nazwy także kontener, który w ogóle nie wystartował | tak, 1 min, ostrzeżenie |
+| Usługa systemd nie działa | usługa w stanie `failed` albo obserwowana (`SERVICES`) i nieaktywna | tak, 1 min, ostrzeżenie |
+| SMART: dysk zgłasza błąd | `smartctl` zwraca „FAILED” | tak, od razu, krytyczny |
+| Próg metryki → Temperatura | czujnik powyżej progu | tak, > 85°C przez 5 min, ostrzeżenie |
+| Próg metryki → SMART: realokowane sektory | liczba sektorów powyżej progu | nie |
+
+Pole **„Tylko o nazwie”** zawęża regułę do kontenera, usługi, dysku albo czujnika; `*` zastępuje dowolny ciąg,
+np. `nextcloud*`, `smbd`, `nvme*`, `coretemp*`. Wielkość liter nie ma znaczenia, usługę można podać bez `.service`.
+
+Reguły domyślne dochodzą raz (znacznik `alert_defaults` w `app_settings`): usunięta reguła nie wraca po restarcie.
+Instalacja z wersji ≤ 0.11 dostaje przy aktualizacji tylko nowe reguły z agenta.
+
 ## Co dalej (backlog)
 
-- Reguły alertów na ogólnych metrykach: „kontener zatrzymany”, „usługa failed”, „SMART: błąd”, „temperatura > X”.
 - Wykresy z tabeli `metrics` (rdzenie, sieć, dyski, kontenery) i szczegóły serwera na osobnej stronie.
 - Informacja w panelu, że agent ma starszą wersję niż NetPulse.

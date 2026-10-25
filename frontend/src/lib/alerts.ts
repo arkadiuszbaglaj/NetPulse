@@ -6,8 +6,10 @@ import { useRefresh } from "./refresh";
 
 export type Severity = "info" | "warning" | "critical";
 export const SEVERITIES: Severity[] = ["critical", "warning", "info"];
-export type RuleKind = "device_offline" | "port_down" | "metric";
-export const RULE_KINDS: RuleKind[] = ["device_offline", "port_down", "metric"];
+export type RuleKind = "device_offline" | "port_down" | "metric" | "container_stopped" | "service_failed" | "smart_failed";
+/** Rodzaje z agenta serwera: stan kontenera, usługi i SMART (bez progu, z opcjonalnym filtrem nazwy). */
+export const AGENT_KINDS: RuleKind[] = ["container_stopped", "service_failed", "smart_failed"];
+export const RULE_KINDS: RuleKind[] = ["device_offline", "port_down", "metric", ...AGENT_KINDS];
 
 export interface Alert {
   id: number;
@@ -44,6 +46,8 @@ export interface AlertRule {
   duration_s: number;
   severity: Severity;
   device_id: number | null;
+  /** Filtr nazwy kontenera, usługi, dysku albo czujnika (wzorzec z * i ?) */
+  match: string | null;
   created_at: string;
 }
 
@@ -54,6 +58,8 @@ export interface RuleMetric {
   label: string;
   unit: string;
   per_device: boolean;
+  /** Czy regułę można zawęzić filtrem nazwy (metryki z agenta) */
+  matchable?: boolean;
 }
 
 export const ALERTS_KEY = ["alerts"] as const;

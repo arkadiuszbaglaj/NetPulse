@@ -5,6 +5,7 @@ import { Button, Card, ErrorNote, Field, PageHeader, Select, Toggle } from "../.
 import { t, type TextKey } from "../../i18n";
 import { ApiError } from "../../lib/api";
 import {
+  AGENT_KINDS,
   RULE_KINDS,
   SEVERITIES,
   formatDuration,
@@ -27,6 +28,14 @@ const KIND_LABEL: Record<RuleKind, TextKey> = {
   device_offline: "rules.kind.device_offline",
   port_down: "rules.kind.port_down",
   metric: "rules.kind.metric",
+  container_stopped: "rules.kind.container_stopped",
+  service_failed: "rules.kind.service_failed",
+  smart_failed: "rules.kind.smart_failed",
+};
+const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
+  container_stopped: "rules.match.hint.container",
+  service_failed: "rules.match.hint.service",
+  smart_failed: "rules.match.hint.smart",
 };
 const SEVERITY_LABEL: Record<Severity, TextKey> = {
   critical: "alerts.severity.critical",
@@ -47,6 +56,7 @@ interface FormValues {
   duration_s: number;
   severity: Severity;
   device_id: string;
+  match: string;
 }
 
 function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleMetric[]; onClose: () => void }) {
@@ -62,6 +72,7 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
     duration_s: rule?.duration_s ?? 300,
     severity: rule?.severity ?? "warning",
     device_id: rule?.device_id != null ? String(rule.device_id) : "",
+    match: rule?.match ?? "",
   });
   const [errors, setErrors] = useState<{ name?: string; threshold?: string }>({});
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
@@ -72,6 +83,8 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
   const isMetric = values.kind === "metric";
   const perDevice = !isMetric || meta?.per_device !== false; // WAN to suma po routerach – bez wyboru urządzenia
   const unitHint = meta ? (meta.unit === "b/s" ? "Mb/s" : meta.unit || "") : "";
+  const agentKind = AGENT_KINDS.includes(values.kind);
+  const matchable = agentKind || (isMetric && meta?.matchable === true);
 
   function submit() {
     const found: typeof errors = {};
@@ -90,6 +103,7 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
       duration_s: values.kind === "port_down" ? 0 : values.duration_s,
       severity: values.severity,
       device_id: perDevice && values.device_id ? Number(values.device_id) : null,
+      match: matchable && values.match.trim() ? values.match.trim() : null,
     };
     save.mutate({ id: rule?.id, rule: payload }, { onSuccess: onClose });
   }
@@ -143,6 +157,21 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
           </>
         )}
 
+        {agentKind && <p className="text-xs text-text-2">{t("rules.agent.hint")}</p>}
+        {matchable && (
+          <Field
+            id="rule-match"
+            label={t("rules.match")}
+            value={values.match}
+            maxLength={255}
+            placeholder={t("rules.match.placeholder")}
+            hint={t(MATCH_HINT[values.kind] ?? "rules.match.hint.sensor")}
+            autoCapitalize="none"
+            spellCheck={false}
+            onChange={(e) => set("match", e.target.value)}
+          />
+        )}
+
         {values.kind !== "port_down" ? (
           <Select id="rule-duration" label={t("rules.duration")} value={values.duration_s} onChange={(e) => set("duration_s", Number(e.target.value))}>
             {DURATIONS.map((s) => (
@@ -183,13 +212,15 @@ function RuleForm({ rule, metrics, onClose }: { rule?: AlertRule; metrics: RuleM
 function describe(rule: AlertRule, metrics: RuleMetric[]): string {
   if (rule.kind === "device_offline") return t("rules.sum.offline", { after: durationLabel(rule.duration_s) });
   if (rule.kind === "port_down") return t("rules.sum.portdown");
+  const only = rule.match ? ` (${rule.match})` : "";
+  if (AGENT_KINDS.includes(rule.kind)) return `${t(KIND_LABEL[rule.kind])}${only}, ${durationLabel(rule.duration_s)}`;
   const meta = metrics.find((m) => m.metric === rule.metric);
   return t("rules.sum.metric", {
     metric: meta?.label ?? rule.metric ?? "?",
     op: rule.op === "<" ? "<" : ">",
     value: formatThreshold(rule.threshold, meta?.unit ?? ""),
     duration: durationLabel(rule.duration_s),
-  });
+  }) + only;
 }
 
 /** Ustawienia → Reguły alertów: lista z włączaniem, edycją i usuwaniem. */
