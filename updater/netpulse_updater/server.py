@@ -44,13 +44,19 @@ def launch_job(s: Settings) -> None:
     Dzięki temu wymiana samej usługi aktualizacji (docker compose up) nie przerywa zadania."""
     image = os.environ.get("NETPULSE_UPDATER_IMAGE", "")
     if not image:
-        r = subprocess.run(
-            ["docker", "inspect", "-f", "{{.Image}}", os.environ.get("HOSTNAME", "")],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        image = r.stdout.strip()
+        # Nazwa obrazu (netpulse-updater:local), a nie jego skrót: po przebudowie albo sprzątaniu stary skrót
+        # może już nie istnieć („No such image: sha256:…”), a nazwa zawsze wskazuje aktualny obraz
+        for field in ("{{.Config.Image}}", "{{.Image}}"):
+            r = subprocess.run(
+                ["docker", "inspect", "-f", field, os.environ.get("HOSTNAME", "")],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            image = r.stdout.strip()
+            if image and subprocess.run(["docker", "image", "inspect", image], capture_output=True, timeout=15).returncode == 0:
+                break
+            image = ""
     if not image:
         raise RuntimeError("Nie udało się ustalić obrazu usługi aktualizacji.")
     d = str(s.install_dir)
