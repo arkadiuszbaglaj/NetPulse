@@ -5,8 +5,16 @@ import { get, type Series, type SeriesPoint } from "../../lib/api";
 import type { ChartConfig, Source } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 
+/** Powyżej 7 dni API liczy wykres z agregatów godzinowych: kubełki to pełne godziny (backend/netpulse/aggregates.py). */
+const RAW_MAX_MINUTES = 7 * 24 * 60;
+const LONG_BUCKETS_H = [1, 2, 3, 6, 12, 24, 48];
+
 /** Ten sam rozmiar kubełka co w API: ~300 punktów, nie mniej niż 30 s. */
-export const bucketSeconds = (minutes: number) => Math.max(30, Math.floor((minutes * 60) / 300));
+export function bucketSeconds(minutes: number): number {
+  const raw = Math.floor((minutes * 60) / 300);
+  if (minutes <= RAW_MAX_MINUTES) return Math.max(30, raw);
+  return (LONG_BUCKETS_H.find((h) => h * 3600 >= raw) ?? LONG_BUCKETS_H[LONG_BUCKETS_H.length - 1]) * 3600;
+}
 
 export function sourcePath(source: Source, minutes: number): string {
   switch (source.kind) {

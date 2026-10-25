@@ -19,7 +19,7 @@ interface SidebarProps {
 export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const { pathname } = useLocation();
   const CollapseIcon = collapsed ? IconChevronsRight : IconChevronsLeft;
-  const modules = useVisibleModules();
+  const modules = useVisibleModules().filter((m) => !m.hidden);
 
   return (
     <nav aria-label={t("nav.main")} className="flex h-full flex-col gap-1 p-3">

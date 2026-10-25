@@ -92,11 +92,12 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
   }
 }
 
-/** Etykieta zakresu czasu: 15 → „15 min”, 60 → „1 godz.”, 1440 → „24 godz.”, 10080 → „7 dni”. */
+/** Etykieta zakresu czasu: 15 → „15 min”, 60 → „1 godz.”, 1440 → „24 godz.”, 10080 → „7 dni”, 525600 → „1 rok”. */
 export function formatRange(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   if (minutes < 1440) return `${minutes / 60} godz.`;
   if (minutes === 1440) return "24 godz.";
+  if (minutes >= 525600) return "1 rok";
   return `${minutes / 1440} dni`;
 }
 

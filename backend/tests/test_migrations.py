@@ -14,6 +14,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import func, inspect, select, text
 
+from netpulse import aggregates
 from netpulse.db import SchemaMismatchError, Session, engine, init_db
 from netpulse.db.migrate import alembic_config, current_revision, head_revision, include_object
 from netpulse.db.models import Base, Device
@@ -33,6 +34,7 @@ def run(coro_fn):
 
 async def drop_everything() -> None:
     async with engine.begin() as conn:
+        await aggregates.drop_all(conn)  # agregaty zależą od hypertables
         await conn.run_sync(Base.metadata.drop_all)
         await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
 

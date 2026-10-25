@@ -113,6 +113,8 @@ describe("formatBps i formatRange", () => {
     expect(formatRange(360)).toBe("6 godz.");
     expect(formatRange(1440)).toBe("24 godz.");
     expect(formatRange(10080)).toBe("7 dni");
+    expect(formatRange(43200)).toBe("30 dni");
+    expect(formatRange(525600)).toBe("1 rok");
   });
 });
 

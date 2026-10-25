@@ -196,6 +196,17 @@ class InterfaceOut(BaseModel):
     out_bps: float | None = None
 
 
+class InterfaceDetailOut(InterfaceOut):
+    """Port z urządzeniem, do którego należy (strona szczegółów portu)."""
+
+    device_id: int
+    device_name: str
+    device_kind: str
+    last_seen_at: datetime | None
+    # Numer portu PoE w kontrolerze UniFi (switch UniFi nazywa porty 0/1…0/8); None = port bez PoE z kontrolera
+    poe_port_idx: int | None = None
+
+
 class WifiOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

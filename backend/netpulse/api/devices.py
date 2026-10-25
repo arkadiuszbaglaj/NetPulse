@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,6 +19,7 @@ from .schemas import (
     DeviceCreate,
     DeviceOut,
     DeviceUpdate,
+    InterfaceDetailOut,
     InterfaceOut,
     ProbeInterface,
     ProbeOut,
@@ -29,6 +31,9 @@ from .schemas import (
 from .security import require_user
 
 router = APIRouter(prefix="/api", tags=["urządzenia"], dependencies=[Depends(require_user)])
+
+# Porty switcha UniFi w SNMP: ifName 0/1…0/8 – ten sam numer co port PoE w kontrolerze
+_UNIFI_PORT = re.compile(r"^0/(\d+)$")
 
 # Pola SNMP, które przy SNMPv3 nie mają community i odwrotnie
 _V3_FIELDS = ("v3_username", "v3_auth_protocol", "v3_auth_key", "v3_priv_protocol", "v3_priv_key", "v3_context")
@@ -231,6 +236,44 @@ async def device_interfaces(device_id: int, include_hidden: bool = False):
         if i.id in last:
             item.in_bps, item.out_bps = last[i.id].in_bps, last[i.id].out_bps
         out.append(item)
+    return out
+
+
+def poe_port_idx(interface_name: str) -> int | None:
+    """Numer portu PoE z kontrolera dla interfejsu z SNMP (np. „0/5” → 5); None, gdy nazwa tego nie mówi."""
+    m = _UNIFI_PORT.match(interface_name)
+    return int(m.group(1)) if m else None
+
+
+@router.get("/interfaces/{interface_id}", response_model=InterfaceDetailOut)
+async def get_interface(interface_id: int):
+    """Jeden port z urządzeniem i bieżącym ruchem (strona szczegółów portu)."""
+    async with Session() as session:
+        iface = await session.get(Interface, interface_id)
+        if iface is None:
+            raise HTTPException(404, "Nie ma takiego portu")
+        device = await _get_device(session, iface.device_id)
+        since = datetime.now(UTC) - timedelta(minutes=5)
+        last = (
+            await session.execute(
+                select(InterfaceMetric.in_bps, InterfaceMetric.out_bps)
+                .where(InterfaceMetric.interface_id == interface_id, InterfaceMetric.time >= since)
+                .order_by(InterfaceMetric.time.desc())
+                .limit(1)
+            )
+        ).first()
+    out = InterfaceDetailOut.model_validate(
+        {
+            **InterfaceOut.model_validate(iface).model_dump(),
+            "device_id": device.id,
+            "device_name": device.name,
+            "device_kind": device.kind,
+            "last_seen_at": iface.last_seen_at,
+            "poe_port_idx": poe_port_idx(iface.name),
+        }
+    )
+    if last:
+        out.in_bps, out.out_bps = last.in_bps, last.out_bps
     return out
 
 

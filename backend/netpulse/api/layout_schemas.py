@@ -12,7 +12,7 @@ SCHEMA_VERSION = 1
 MAX_WIDGETS = 40
 
 GridWidth = Literal[3, 4, 6, 8, 12]  # szerokość w kolumnach siatki 12-kolumnowej
-RangeMinutes = Literal[15, 60, 360, 1440, 10080]
+RangeMinutes = Literal[15, 60, 360, 1440, 10080, 43200, 525600]  # do 1 roku (agregaty godzinowe)
 RefreshSeconds = Literal[0, 5, 10, 30, 60, 300]
 
 

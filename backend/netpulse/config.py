@@ -23,6 +23,8 @@ class Settings:
     snmp_retries: int = int(_env("SNMP_RETRIES", "1"))
     # Ile dni trzymać surowe metryki (TimescaleDB retention policy)
     retention_days: int = int(_env("RETENTION_DAYS", "30"))
+    # Ile dni trzymać agregaty godzinowe (wykresy z całego roku i dostępność; aggregates.py)
+    aggregate_retention_days: int = int(_env("AGGREGATE_RETENTION_DAYS", "730"))
     api_host: str = _env("API_HOST", "0.0.0.0")
     api_port: int = int(_env("API_PORT", "8000"))
     log_level: str = _env("LOG_LEVEL", "INFO")

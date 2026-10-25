@@ -207,3 +207,10 @@ def test_wan_widgets():
     ):
         with pytest.raises(ValidationError):
             DashboardLayout.model_validate(layout(bad))
+
+
+def test_long_ranges_from_hourly_aggregates():
+    for minutes in (43200, 525600):
+        parsed = DashboardLayout.model_validate(layout(chart(config={"range_min": minutes})))
+        assert parsed.widgets[0].config.range_min == minutes
+        assert RefreshPrefs.model_validate({"interval_s": 60, "range_min": minutes}).range_min == minutes

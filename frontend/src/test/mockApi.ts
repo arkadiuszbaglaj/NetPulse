@@ -23,6 +23,7 @@ import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
 import type { WanHistory, WanLink, WanSla, WanStatus } from "../lib/wan";
+import type { Availability, InterfaceDetail } from "../lib/details";
 
 export const USER: User = {
   id: 1,
@@ -226,6 +227,29 @@ export const PVE_SERVER: ProxmoxServer = {
   created_at: "2026-10-25T10:00:00Z",
 };
 
+export const AVAILABILITY: Availability = { days: 30, percent: 99.5, samples: 1000, down_s: 150, daily: [] };
+
+export const PORT: InterfaceDetail = {
+  id: 11,
+  if_index: 1,
+  name: "0/1",
+  label: "Port 1",
+  alias: "AP U6+",
+  role: "port",
+  hidden: false,
+  mac: null,
+  admin_up: true,
+  oper_status: "up",
+  speed_mbps: 1000,
+  in_bps: 12_000_000,
+  out_bps: 3_000_000,
+  device_id: 1,
+  device_name: "UCG Ultra",
+  device_kind: "switch",
+  last_seen_at: new Date().toISOString(),
+  poe_port_idx: 1,
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -276,6 +300,10 @@ interface MockState {
   wanHistory: WanHistory;
   wanSla: WanSla;
   wanLinks: WanLink[];
+  /** Dostępność (ta sama odpowiedź dla każdego okresu, urządzenia i portu) */
+  availability: Availability;
+  /** Port z GET /api/interfaces/{id} */
+  port: InterfaceDetail;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -324,6 +352,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     wanSla: { days: 7, start: "2026-10-18T12:00:00Z", end: "2026-10-25T12:00:00Z", links: [] },
     wanLinks: [],
     updates: UPDATES,
+    availability: AVAILABILITY,
+    port: PORT,
     overrides: {},
     ...initial,
   };
@@ -582,6 +612,11 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.layout = null;
         return json(204);
       }
+      if (key === "GET /api/availability") return json(200, state.devices.map((d) => ({ device_id: d.id, percent: state.availability.percent, samples: state.availability.samples })));
+      if (/^GET \/api\/(devices|interfaces)\/\d+\/availability$/.test(key)) return json(200, state.availability);
+      if (/^GET \/api\/interfaces\/\d+\/poe-metrics$/.test(key)) return json(200, [{ time: "2026-10-24T20:00:00Z", values: { power_w: 4.5 } }]);
+      const iface = /^GET \/api\/interfaces\/(\d+)$/.exec(key);
+      if (iface) return Number(iface[1]) === state.port.id ? json(200, state.port) : json(404, { detail: "Nie ma takiego portu" });
       if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, name: "eth0", label: "Port 1", alias: "AP U6+" }, { id: 12, name: "eth1", label: "Port 2", alias: null }]);
       if (key === "GET /api/devices/1/wifi") return json(200, [{ id: 21, ssid: "Dom", radio: "ng" }]);
       if (/^GET \/api\/(interfaces|wifi|devices)\/\d+\/metrics$/.test(key)) return json(200, state.traffic.points);

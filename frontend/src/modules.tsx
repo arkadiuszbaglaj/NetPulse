@@ -15,6 +15,7 @@ import {
   IconRefresh,
   IconSend,
   IconKey,
+  IconPlug,
   IconPuzzle,
   IconServer2,
   IconSettings,
@@ -44,6 +45,8 @@ import { SystemPage } from "./pages/settings/SystemPage";
 import { UpdatePage } from "./pages/settings/UpdatePage";
 import { WanLinksPage } from "./pages/settings/WanLinksPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DevicePage } from "./pages/DevicePage";
+import { PortPage } from "./pages/PortPage";
 
 export interface NavChild {
   /** Ścieżka względem rodzica, np. "account" → /settings/account */
@@ -67,6 +70,8 @@ export interface NavModule {
   children?: NavChild[];
   /** Pozycja należy do modułu z Ustawienia → Moduły – znika, gdy moduł jest wyłączony */
   module?: ModuleId;
+  /** Sama trasa bez pozycji w menu (np. szczegóły urządzenia otwierane z karty) */
+  hidden?: boolean;
 }
 
 export const modules: NavModule[] = [
@@ -76,6 +81,22 @@ export const modules: NavModule[] = [
     label: "nav.dashboard",
     icon: IconLayoutDashboard,
     element: <DashboardPage />,
+  },
+  {
+    id: "device",
+    path: "/devices/:deviceId",
+    label: "nav.device",
+    icon: IconServer2,
+    element: <DevicePage />,
+    hidden: true,
+  },
+  {
+    id: "port",
+    path: "/devices/:deviceId/ports/:interfaceId",
+    label: "nav.port",
+    icon: IconPlug,
+    element: <PortPage />,
+    hidden: true,
   },
   {
     id: "clients",

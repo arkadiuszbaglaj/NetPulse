@@ -25,7 +25,7 @@ const QUALITY_STYLE = {
   weak: "text-danger",
 } as const;
 
-function Connection({ c }: { c: NetworkClient }) {
+export function Connection({ c }: { c: NetworkClient }) {
   if (c.is_wired) {
     return (
       <span className="inline-flex items-center gap-1.5">

@@ -8,11 +8,11 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { Dialog } from "../components/Dialog";
+import { RangePicker } from "../components/RangePicker";
 import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
 import { WidgetEditDialog } from "../components/widgets/WidgetEditDialog";
 import { Button, Card, ErrorNote, PageHeader } from "../components/ui";
 import { t } from "../i18n";
-import { formatRange } from "../lib/format";
 import {
   GRID_WIDTHS,
   MAX_WIDGETS,
@@ -31,7 +31,6 @@ import {
 } from "../lib/layout";
 import { useDashboardLayout, useResetLayout, useSaveLayout } from "../lib/layoutApi";
 import { useDashboardSummary, useDevices } from "../lib/queries";
-import { RANGE_OPTIONS, useRefresh } from "../lib/refresh";
 
 // Pełne nazwy klas, żeby Tailwind je znalazł (od `lg` układ 12-kolumnowy, niżej jedna kolumna)
 const COL_SPAN: Record<GridWidth, string> = {
@@ -41,27 +40,6 @@ const COL_SPAN: Record<GridWidth, string> = {
   8: "lg:col-span-8",
   12: "lg:col-span-12",
 };
-
-function RangePicker() {
-  const { rangeMinutes, setRangeMinutes } = useRefresh();
-  return (
-    <div role="group" aria-label={t("dash.range")} className="inline-flex rounded-lg border border-border bg-surface p-0.5">
-      {RANGE_OPTIONS.map((m) => (
-        <button
-          key={m}
-          type="button"
-          aria-pressed={m === rangeMinutes}
-          onClick={() => setRangeMinutes(m)}
-          className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-            m === rangeMinutes ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:text-text"
-          }`}
-        >
-          {formatRange(m)}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function IconButton({ label, onClick, disabled, danger, children }: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: React.ReactNode }) {
   return (

@@ -10,8 +10,8 @@ export const REFRESH_OPTIONS = [0, 5, 10, 30, 60, 300] as const;
 export type RefreshSeconds = (typeof REFRESH_OPTIONS)[number];
 export const DEFAULT_REFRESH: RefreshSeconds = 30;
 
-/** Dostępne zakresy czasu wykresów w minutach. */
-export const RANGE_OPTIONS = [15, 60, 360, 1440, 10080] as const;
+/** Dostępne zakresy czasu wykresów w minutach (30 dni i rok – z agregatów godzinowych w bazie). */
+export const RANGE_OPTIONS = [15, 60, 360, 1440, 10080, 43200, 525600] as const;
 export type RangeMinutes = (typeof RANGE_OPTIONS)[number];
 export const DEFAULT_RANGE: RangeMinutes = 60;
 

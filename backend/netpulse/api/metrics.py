@@ -6,8 +6,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, text
+from sqlalchemy import column, func, select, table, text
 
+from .. import aggregates
 from ..db import Session, engine, has_timescale
 from ..db.models import (
     Device,
@@ -15,31 +16,58 @@ from ..db.models import (
     Interface,
     InterfaceMetric,
     Metric,
+    PoePortMetric,
     ProxmoxNode,
     WifiMetric,
     WifiNetwork,
 )
+from .devices import poe_port_idx
 from .schemas import Point
 from .security import require_user
 
 router = APIRouter(prefix="/api", tags=["metryki"], dependencies=[Depends(require_user)])
 
-MinutesQuery = Query(60, ge=5, le=60 * 24 * 30, description="zakres wstecz w minutach")
+# Do roku wstecz: powyżej 7 dni dane idą z agregatów godzinowych (aggregates.py)
+MinutesQuery = Query(60, ge=5, le=60 * 24 * 366, description="zakres wstecz w minutach")
 
 
 def _bucket_seconds(minutes: int) -> int:
-    """Rozmiar kubełka tak, żeby wykres miał ~300 punktów, nie mniej niż 30 s."""
-    return max(30, (minutes * 60) // 300)
+    """Rozmiar kubełka tak, żeby wykres miał ~300 punktów, nie mniej niż 30 s (długie zakresy: pełne godziny)."""
+    return aggregates.bucket_seconds(minutes)
 
 
-async def _series(model, id_col, obj_id: int | None, columns: list[str], minutes: int) -> list[Point]:
+async def _aggregate_series(agg: aggregates.Aggregate, obj_id: int, columns: list[str], minutes: int) -> list[Point]:
+    """Szereg z agregatu godzinowego, przeliczony na większe kubełki (długie zakresy wykresów)."""
+    since = datetime.now(UTC) - timedelta(minutes=minutes)
+    view = table(agg.view, column("bucket"), column(agg.key), *[column(c) for c in columns])
+    bucket = func.date_bin(
+        text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), view.c.bucket, text("TIMESTAMPTZ '2000-01-01 00:00:00+00'")
+    ).label("b")
+    stmt = (
+        select(bucket, *[func.avg(view.c[c]).label(c) for c in columns])
+        .where(view.c[agg.key] == obj_id, view.c.bucket >= since)
+        .group_by("b")
+        .order_by("b")
+    )
+    async with Session() as session:
+        rows = (await session.execute(stmt)).all()
+    return [
+        Point(time=r[0], values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
+        for r in rows
+    ]
+
+
+async def _series(model, id_col, obj_id: int | None, columns: list[str], minutes: int, extra_where: tuple = ()) -> list[Point]:
     """Szereg czasowy; `id_col=None` dla tabel bez klucza obiektu (np. stan serwera)."""
     since = datetime.now(UTC) - timedelta(minutes=minutes)
+    async with engine.connect() as conn:
+        timescale = await has_timescale(conn)
+    agg = aggregates.BY_SOURCE.get(model.__tablename__)
+    if agg is not None and obj_id is not None and aggregates.use_aggregate(minutes, timescale):
+        return await _aggregate_series(agg, obj_id, columns, minutes)
     async with Session() as session:
-        async with engine.connect() as conn:
-            timescale = await has_timescale(conn)
         cols = [getattr(model, c) for c in columns]
-        where = [model.time >= since] + ([id_col == obj_id] if id_col is not None else [])
+        where = [model.time >= since, *extra_where] + ([id_col == obj_id] if id_col is not None else [])
         if timescale:
             bucket = func.time_bucket(text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), model.time)
             stmt = (
@@ -88,6 +116,26 @@ async def interface_metrics(interface_id: int, minutes: int = MinutesQuery):
         interface_id,
         ["in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards"],
         minutes,
+    )
+
+
+@router.get("/interfaces/{interface_id}/poe-metrics", response_model=list[Point])
+async def interface_poe_metrics(interface_id: int, minutes: int = MinutesQuery):
+    """Moc PoE na porcie w czasie (dane z kontrolera UniFi); pusto dla portów bez PoE."""
+    async with Session() as session:
+        iface = await session.get(Interface, interface_id)
+        if iface is None:
+            raise HTTPException(404, "Nie ma takiego obiektu: port")
+    port_idx = poe_port_idx(iface.name)
+    if port_idx is None:
+        return []
+    return await _series(
+        PoePortMetric,
+        PoePortMetric.device_id,
+        iface.device_id,
+        ["power_w"],
+        minutes,
+        extra_where=(PoePortMetric.port_idx == port_idx,),
     )
 
 

@@ -8,7 +8,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from .. import crypto
+from .. import aggregates, crypto
 from ..config import settings
 from . import migrate
 from .models import HYPERTABLES, Base
@@ -71,7 +71,7 @@ async def encrypt_existing(conn) -> int:
 
 
 async def init_db(retention_days: int | None = None) -> bool:
-    """Migruje schemat do najnowszej wersji i zakłada hypertables (idempotentnie).
+    """Migruje schemat do najnowszej wersji, zakłada hypertables i agregaty godzinowe (idempotentnie).
 
     Zwraca True, jeśli TimescaleDB jest aktywne."""
     retention_days = retention_days or settings.retention_days
@@ -114,6 +114,8 @@ async def init_db(retention_days: int | None = None) -> bool:
                     ),
                     {"t": table, "d": retention_days},
                 )
+    if timescale:
+        await aggregates.ensure(engine, retention_days, settings.aggregate_retention_days)
     log.info("Schemat bazy gotowy (TimescaleDB: %s)", "tak" if timescale else "nie")
     return timescale
 
