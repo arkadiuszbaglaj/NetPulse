@@ -559,6 +559,7 @@ export const pl = {
   "settings.notifications.title": "Powiadomienia",
   "notif.intro": "Alerty mogą trafiać także poza panel: NetPulse wysyła wiadomość na adres webhooka (Telegram, Discord, Slack, Home Assistant albo własny skrypt), gdy alert się pojawia i gdy się kończy.",
   "notif.add": "Dodaj webhook",
+  "notif.enabled": "Włączony",
   "notif.loadError": "Nie udało się pobrać listy powiadomień.",
   "notif.empty.title": "Nie dodano jeszcze powiadomień",
   "notif.empty.body": "Dodaj webhook, żeby dostawać alerty na telefon, nawet gdy panel jest zamknięty. Adres wygenerujesz w wybranej usłudze (np. w Discordzie: ustawienia kanału, Integracje, Webhooki).",

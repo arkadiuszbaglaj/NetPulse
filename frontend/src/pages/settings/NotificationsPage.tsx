@@ -3,17 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { Button, Card, ErrorNote, Field, PageHeader, Select, SuccessNote, Toggle } from "../../components/ui";
-import { t, type TextKey } from "../../i18n";
+import { t } from "../../i18n";
 import { ApiError, del, patch, post } from "../../lib/api";
 import { SEVERITIES, type Severity } from "../../lib/alerts";
 import { relativeTime } from "../../lib/format";
 import { CHANNELS_KEY, isValidWebhookUrl, useChannels, type ChannelTestResult, type NotificationChannel } from "../../lib/notifications";
 
-const SEVERITY_LABEL: Record<Severity, TextKey> = {
-  critical: "alerts.severity.critical",
-  warning: "alerts.severity.warning",
-  info: "alerts.severity.info",
-};
 const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : t("auth.error.generic"));
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
 
@@ -136,7 +131,7 @@ function ChannelRow({ channel, onEdit, onDelete }: { channel: NotificationChanne
         )}
         {channel.last_status === "error" && <span className="rounded-md bg-danger-soft px-2 py-0.5 text-xs text-danger">{t("notif.status.error")}</span>}
         <div className="flex items-center gap-1">
-          <Toggle checked={channel.enabled} disabled={toggle.isPending} label={`${t("devices.enabled")}: ${channel.name}`} onChange={(v) => toggle.mutate(v)} />
+          <Toggle checked={channel.enabled} disabled={toggle.isPending} label={`${t("notif.enabled")}: ${channel.name}`} onChange={(v) => toggle.mutate(v)} />
           <button type="button" className={iconButton} aria-label={`${t("notif.test")} ${channel.name}`} title={t("notif.test")} disabled={test.isPending} onClick={() => test.mutate()}>
             <IconSend size={18} aria-hidden="true" />
           </button>
