@@ -42,12 +42,12 @@ function devicesLabel(n: number): string {
 function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: NetworkClient[]; internet: boolean }) {
   if (node.kind === "external") {
     return (
-      <Card className="flex h-full flex-col justify-center gap-1 border-dashed p-3">
-        <div className="flex items-center gap-2 text-sm font-medium">
+      <Card className="flex h-full flex-col items-center justify-center gap-1 border-dashed p-3 text-center">
+        <div className="flex items-center justify-center gap-2 text-sm font-medium">
           <IconWorld size={18} aria-hidden="true" className="shrink-0 text-text-2" />
           {internet ? t("topo.internet") : t("topo.external")}
         </div>
-        {!internet && <p className="truncate font-mono text-xs text-text-2">{node.name}</p>}
+        {!internet && <p className="w-full truncate font-mono text-xs text-text-2">{node.name}</p>}
       </Card>
     );
   }
@@ -56,10 +56,10 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
   const wired = groupByPort(clients.filter((c) => c.is_wired));
   const wifi = clients.filter((c) => !c.is_wired);
   return (
-    <Card className="flex h-full flex-col gap-1.5 overflow-hidden p-3">
-      <div className="flex items-center gap-2">
+    <Card className="flex h-full flex-col items-center gap-1.5 overflow-hidden p-3 text-center">
+      <div className="flex w-full items-center justify-center gap-2">
         <Icon size={20} aria-hidden="true" className="shrink-0 text-text-2" />
-        <h3 className="min-w-0 flex-1 truncate text-sm font-medium">{node.name}</h3>
+        <h3 className="min-w-0 truncate text-sm font-medium">{node.name}</h3>
         <span
           role="img"
           aria-label={t(STATUS_LABEL[status])}
@@ -67,17 +67,17 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
           className={`size-2.5 shrink-0 rounded-full ${STATUS_DOT[status]}`}
         />
       </div>
-      <p className="truncate text-xs text-text-2">
+      <p className="w-full truncate text-xs text-text-2">
         {[t(KIND_LABEL[node.device_kind ?? "other"] ?? "dash.kind.other"), node.model].filter(Boolean).join(" · ")}
       </p>
-      {wifi.length > 0 && <p className="text-xs">{t("topo.wifi", { n: wifi.length })}</p>}
+      {wifi.length > 0 && <p className="w-full truncate text-xs">{t("topo.wifi", { n: wifi.length })}</p>}
       {wired.slice(0, MAX_LISTED).map((g) => (
-        <p key={g.port ?? "none"} className="truncate text-xs text-text-2" title={g.items.map(clientName).join(", ")}>
+        <p key={g.port ?? "none"} className="w-full truncate text-xs text-text-2" title={g.items.map(clientName).join(", ")}>
           {g.port != null ? `${t("clients.port", { n: g.port })}: ` : ""}
           {g.items.length > 1 ? devicesLabel(g.items.length) : clientName(g.items[0])}
         </p>
       ))}
-      {wired.length > MAX_LISTED && <p className="text-xs text-text-2">{t("topo.more", { n: wired.length - MAX_LISTED })}</p>}
+      {wired.length > MAX_LISTED && <p className="w-full text-xs text-text-2">{t("topo.more", { n: wired.length - MAX_LISTED })}</p>}
     </Card>
   );
 }
