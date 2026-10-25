@@ -33,8 +33,13 @@ export function useSaveUpdateSettings() {
 }
 
 /** Wersja, o której przypomina plakietka (null = nic do pokazania). */
+/** Numer wersji tylko wtedy, gdy różni się od zainstalowanego (nowe zmiany mogą mieć ten sam numer). */
+export function newerVersion(latest: string | null | undefined, installed: string | null | undefined): string | null {
+  return latest && latest !== installed ? latest : null;
+}
+
 export function availableUpdate(data: UpdatesResponse | undefined): { id: string; version: string | null } | null {
   const info = data?.info;
   if (!data?.updater.reachable || !info?.update_available || info.diverged) return null;
-  return { id: info.latest.commit ?? info.latest.version ?? "?", version: info.latest.version ?? null };
+  return { id: info.latest.commit ?? info.latest.version ?? "?", version: newerVersion(info.latest.version, data.installed_version) };
 }

@@ -26,7 +26,7 @@ import {
 } from "../../lib/api";
 import { formatDateTime, relativeTime } from "../../lib/format";
 import { RELOAD_DELAY_MS, reloadPage } from "../../lib/reload";
-import { UPDATES_KEY, useSaveUpdateSettings, useUpdateSettings, useUpdates } from "../../lib/updatesApi";
+import { UPDATES_KEY, newerVersion, useSaveUpdateSettings, useUpdateSettings, useUpdates } from "../../lib/updatesApi";
 import { UpdateCliHint } from "./UpdateCliHint";
 
 const KEY = UPDATES_KEY;
@@ -205,7 +205,7 @@ export function UpdatePage() {
   const canUse = updater?.configured && updater.reachable;
   const restarting = running && isError; // API chwilowo nie odpowiada, bo się restartuje
   const checked = info?.checked_at ? relativeTime(info.checked_at) : null;
-  const latest = info?.latest.version;
+  const latest = newerVersion(info?.latest.version, data?.installed_version);
 
   return (
     <>

@@ -187,7 +187,7 @@ export const pl = {
   "update.neverChecked": "Jeszcze nie sprawdzano, czy jest nowa wersja.",
   "update.upToDate": "Masz najnowszą wersję",
   "update.available": "Dostępna nowa wersja: {version}",
-  "update.availableNoVersion": "Dostępna jest nowa wersja",
+  "update.availableNoVersion": "Dostępne są nowe zmiany (numer wersji bez zmian)",
   "update.changes": "Co nowego",
   "update.moreChanges": "i {count} więcej",
   "update.diverged": "Ta instalacja ma lokalne zmiany, których nie ma w źródle aktualizacji, więc nie można jej zaktualizować automatycznie. Zaktualizuj ręcznie poleceniem netpulse update.",
