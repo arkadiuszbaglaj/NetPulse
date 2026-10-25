@@ -20,7 +20,7 @@ from netpulse.sysinfo import (
 )
 
 STAT = "cpu  100 0 100 700 100 0 0 0 0 0\ncpu0 50 0 50 350 50 0 0 0 0 0\n"
-STAT_LATER = "cpu  200 0 200 1000 200 0 0 0 0 0\n"
+STAT_LATER = "cpu  200 0 200 900 200 0 0 0 0 0\n"
 MEMINFO = """MemTotal:       16000000 kB
 MemFree:         1000000 kB
 MemAvailable:    4000000 kB
