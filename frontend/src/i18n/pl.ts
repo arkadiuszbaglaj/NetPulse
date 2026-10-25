@@ -504,6 +504,21 @@ export const pl = {
   "server.free": "wolne {free} z {total}",
   "server.noData": "Brak próbek stanu serwera. Pojawią się po pierwszym cyklu kolektora.",
   "server.error": "Nie udało się pobrać stanu serwera.",
+
+  "password.rules": "Wymagania dla hasła",
+  "password.rule.length": "Co najmniej 8 znaków (wymagane)",
+  "password.rule.recommended": "Zalecane: 12 znaków lub więcej",
+  "password.rule.lower": "Mała litera",
+  "password.rule.upper": "Wielka litera",
+  "password.rule.digit": "Cyfra",
+  "password.rule.special": "Znak specjalny",
+  "password.rule.ok": "spełnione",
+  "password.rule.missing": "niespełnione",
+  "password.strength.none": "Wpisz hasło",
+  "password.strength.weak": "Słabe",
+  "password.strength.fair": "Średnie",
+  "password.strength.good": "Dobre",
+  "password.strength.strong": "Silne",
 } as const;
 
 export type TextKey = keyof typeof pl;

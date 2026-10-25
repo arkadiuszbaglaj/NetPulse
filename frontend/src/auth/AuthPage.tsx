@@ -4,8 +4,9 @@ import { Button, Card, ErrorNote, Field, Logo } from "../components/ui";
 import { t } from "../i18n";
 import { ApiError, post, type User } from "../lib/api";
 import { AUTH_KEY } from "./AuthProvider";
+import { PasswordRequirements } from "../components/PasswordRequirements";
+import { MIN_PASSWORD } from "../lib/password";
 
-const MIN_PASSWORD = 8;
 
 /** Ekran logowania albo kreatora pierwszego konta (gdy w bazie nie ma jeszcze użytkowników). */
 export function AuthPage({ mode }: { mode: "login" | "setup" }) {
@@ -66,10 +67,11 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
             type="password"
             autoComplete={setup ? "new-password" : "current-password"}
             required
-            hint={setup ? t("auth.password.hint") : undefined}
+            aria-describedby={setup ? "password-rules" : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {setup && <PasswordRequirements id="password-rules" password={password} />}
           {setup && (
             <Field
               id="repeat"

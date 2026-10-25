@@ -5,8 +5,9 @@ import { Button, Card, ErrorNote, Field, PageHeader, SuccessNote } from "../../c
 import { t } from "../../i18n";
 import { ApiError, post } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
+import { PasswordRequirements } from "../../components/PasswordRequirements";
+import { MIN_PASSWORD } from "../../lib/password";
 
-const MIN_PASSWORD = 8;
 
 function PasswordForm() {
   const [current, setCurrent] = useState("");
@@ -56,10 +57,11 @@ function PasswordForm() {
           label={t("account.password.new")}
           type="password"
           autoComplete="new-password"
-          hint={t("auth.password.hint")}
+          aria-describedby="new-password-rules"
           value={next}
           onChange={(e) => setNext(e.target.value)}
         />
+        <PasswordRequirements id="new-password-rules" password={next} />
         <Field
           id="repeat-new"
           label={t("account.password.repeat")}
