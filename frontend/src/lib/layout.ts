@@ -53,7 +53,8 @@ interface WidgetBase {
 export type SummaryWidgetModel = WidgetBase & { type: "summary"; config: { tiles: SummaryTile[] } };
 export type ChartWidgetModel = WidgetBase & { type: "chart"; config: ChartConfig };
 export type DevicesWidgetModel = WidgetBase & { type: "devices"; config: { kinds?: DeviceKind[] | null } };
-export type Widget = SummaryWidgetModel | ChartWidgetModel | DevicesWidgetModel;
+export type PoeWidgetModel = WidgetBase & { type: "poe"; config: { device_id?: number | null } };
+export type Widget = SummaryWidgetModel | ChartWidgetModel | DevicesWidgetModel | PoeWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -155,6 +156,8 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 6, config: newChartConfig() };
     case "devices":
       return { id, type, w: 12, config: { kinds: null } };
+    case "poe":
+      return { id, type, w: 12, config: { device_id: null } };
   }
 }
 

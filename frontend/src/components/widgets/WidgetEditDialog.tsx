@@ -388,6 +388,38 @@ function DevicesForm({ initial, onSave, onClose }: { initial: DeviceKind[] | nul
   );
 }
 
+function PoeForm({ initial, onSave, onClose }: { initial: number | null | undefined; onSave: (deviceId: number | null) => void; onClose: () => void }) {
+  const devices = useDevices();
+  const [deviceId, setDeviceId] = useState<number | null>(initial ?? null);
+  const switches = (devices.data ?? []).filter((d: Device) => d.kind === "switch");
+  return (
+    <Dialog
+      title={t("widget.type.poe")}
+      size="sm"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" onClick={() => onSave(deviceId)}>
+            {t("common.save")}
+          </Button>
+        </>
+      }
+    >
+      <Select id="poe-device" label={t("widget.poe.device")} value={deviceId ?? ""} onChange={(e) => setDeviceId(e.target.value ? Number(e.target.value) : null)}>
+        <option value="">{t("widget.poe.all")}</option>
+        {switches.map((d: Device) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+      </Select>
+    </Dialog>
+  );
+}
+
 /** Okno edycji odpowiednie dla typu widgetu. `isNew` zmienia tylko tytuł okna wykresu. */
 export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { widget: Widget; isNew?: boolean; onSave: (w: Widget) => void; onClose: () => void }) {
   switch (widget.type) {
@@ -397,5 +429,7 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
       return <SummaryForm initial={widget.config.tiles} onClose={onClose} onSave={(tiles) => onSave({ ...widget, config: { tiles } })} />;
     case "devices":
       return <DevicesForm initial={widget.config.kinds} onClose={onClose} onSave={(kinds) => onSave({ ...widget, config: { kinds } })} />;
+    case "poe":
+      return <PoeForm initial={widget.config.device_id} onClose={onClose} onSave={(device_id) => onSave({ ...widget, config: { device_id } })} />;
   }
 }

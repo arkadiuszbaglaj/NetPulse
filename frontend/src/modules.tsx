@@ -3,9 +3,11 @@
  * Nowa sekcja (Alerty, Topologia, Klienci WiFi…) to jeden wpis tutaj.
  */
 import {
+  IconDevicesPc,
   IconDownload,
   IconLayoutDashboard,
   IconRefresh,
+  IconKey,
   IconServer2,
   IconSettings,
   IconUserCircle,
@@ -14,6 +16,8 @@ import {
 import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { AccountPage } from "./pages/settings/AccountPage";
+import { ClientsPage } from "./pages/ClientsPage";
+import { ControllersPage } from "./pages/settings/ControllersPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
 import { UpdatePage } from "./pages/settings/UpdatePage";
@@ -48,6 +52,13 @@ export const modules: NavModule[] = [
     element: <DashboardPage />,
   },
   {
+    id: "clients",
+    path: "/clients",
+    label: "nav.clients",
+    icon: IconDevicesPc,
+    element: <ClientsPage />,
+  },
+  {
     id: "settings",
     path: "/settings",
     label: "nav.settings",
@@ -59,6 +70,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.devices",
         icon: IconServer2,
         element: <DevicesPage />,
+      },
+      {
+        path: "controllers",
+        label: "nav.settings.controllers",
+        icon: IconKey,
+        element: <ControllersPage />,
       },
       {
         path: "refresh",

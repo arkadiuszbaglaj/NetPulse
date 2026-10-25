@@ -118,6 +118,10 @@ class DevicesConfig(Strict):
     kinds: list[Literal["gateway", "switch", "ap", "other"]] | None = Field(None, max_length=4)  # puste = wszystkie
 
 
+class PoeConfig(Strict):
+    device_id: int | None = Field(None, ge=1)  # puste = wszystkie switche z danymi PoE
+
+
 class SummaryWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["summary"]
@@ -139,7 +143,14 @@ class DevicesWidget(Strict):
     config: DevicesConfig = DevicesConfig()
 
 
-Widget = Annotated[SummaryWidget | ChartWidget | DevicesWidget, Field(discriminator="type")]
+class PoeWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["poe"]
+    w: GridWidth
+    config: PoeConfig = PoeConfig()
+
+
+Widget = Annotated[SummaryWidget | ChartWidget | DevicesWidget | PoeWidget, Field(discriminator="type")]
 
 
 class DashboardLayout(Strict):

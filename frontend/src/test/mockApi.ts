@@ -12,6 +12,7 @@ import type {
   User,
 } from "../lib/api";
 import type { DashboardLayout } from "../lib/layout";
+import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
 
 export const USER: User = {
   id: 1,
@@ -147,6 +148,43 @@ export const RUNNING_JOB: UpdateJob = {
   log: ["== prepare", "Wolne miejsce: 20000 MB", "== build", "Step 1/8 : FROM node"],
 };
 
+export const CONTROLLER: Controller = {
+  id: 1,
+  name: "UniFi",
+  host: "192.168.1.1",
+  port: 443,
+  site: "default",
+  verify_tls: false,
+  enabled: true,
+  app_version: "10.6.109",
+  status: "up",
+  last_polled_at: new Date().toISOString(),
+  last_ok_at: new Date().toISOString(),
+  last_error: null,
+  created_at: "2026-10-25T00:00:00Z",
+};
+
+export const CLIENTS: NetworkClient[] = [
+  {
+    mac: "02:00:00:00:00:01", name: "Telefon Ani", ip: "192.168.1.50", is_wired: false, is_guest: false, essid: "Dom", radio: "na",
+    signal_dbm: -52, tx_rate_kbps: 866000, rx_rate_kbps: 720000, uplink_device_id: 3, uplink_name: "U6+", uplink_port: null,
+    connected_s: 7200, updated_at: "2026-10-25T10:00:00Z",
+  },
+  {
+    mac: "02:00:00:00:00:02", name: "Telewizor", ip: "192.168.1.60", is_wired: true, is_guest: false, essid: null, radio: null,
+    signal_dbm: null, tx_rate_kbps: null, rx_rate_kbps: null, uplink_device_id: 2, uplink_name: "USW", uplink_port: 7,
+    connected_s: 90000, updated_at: "2026-10-25T10:00:00Z",
+  },
+];
+
+export const POE: PoeInfo = {
+  budget: { used_w: 3.9, max_w: 52 },
+  ports: [
+    { port_idx: 1, label: "AP U6+", power_w: 3.9, voltage_v: 53.3, current_ma: 73, mode: "auto", poe_class: "Class 3", delivering: true },
+    { port_idx: 2, label: null, power_w: 0, voltage_v: null, current_ma: null, mode: "off", poe_class: null, delivering: false },
+  ],
+};
+
 export interface Call {
   method: string;
   path: string;
@@ -172,6 +210,9 @@ interface MockState {
   updateSettings: UpdateSettings;
   /** Zapisany układ pulpitu (null = domyślny) */
   layout: DashboardLayout | null;
+  controllers: Controller[];
+  clients: NetworkClient[];
+  poe: PoeInfo;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -191,6 +232,9 @@ export function mockApi(initial: Partial<MockState> = {}) {
     probe: PROBE,
     admin: true,
     layout: null,
+    controllers: [],
+    clients: [],
+    poe: { budget: null, ports: [] },
     updateSettings: { auto_check: true, interval_h: 24 },
     updates: UPDATES,
     overrides: {},
@@ -220,6 +264,34 @@ export function mockApi(initial: Partial<MockState> = {}) {
 
     // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
     if (state.authenticated) {
+      if (key === "GET /api/controllers") return json(200, state.controllers);
+      if (key === "POST /api/controllers/probe") {
+        const b = body as { api_key: string };
+        return b.api_key === "zly-klucz-api" ? json(422, { detail: "Kontroler odrzucił klucz API" }) : json(200, { app_version: "10.6.109", devices: 3, clients: 9 });
+      }
+      if (key === "POST /api/controllers") {
+        const b = body as Partial<Controller> & { host: string; name: string };
+        const created: Controller = { ...CONTROLLER, id: state.controllers.length + 1, name: b.name, host: b.host, port: b.port ?? 443, site: b.site ?? "default" };
+        state.controllers.push(created);
+        return json(201, created);
+      }
+      const ctrl = /^(PATCH|DELETE) \/api\/controllers\/(\d+)$/.exec(key);
+      if (ctrl) {
+        const c = state.controllers.find((x) => x.id === Number(ctrl[2]));
+        if (!c) return json(404, { detail: "Nie ma takiego kontrolera" });
+        if (ctrl[1] === "DELETE") {
+          state.controllers = state.controllers.filter((x) => x !== c);
+          return json(204);
+        }
+        const { api_key: _k, ...fields } = body as Record<string, unknown>;
+        Object.assign(c, fields);
+        return json(200, c);
+      }
+      if (key === "GET /api/clients") {
+        const kind = new URL(path, "http://x").searchParams.get("kind");
+        return json(200, state.clients.filter((c) => !kind || c.is_wired === (kind === "wired")));
+      }
+      if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
       if (key === "GET /api/dashboards/default") return json(200, { layout: state.layout, updated_at: null });
       if (key === "PUT /api/dashboards/default") {
         state.layout = body as DashboardLayout;
