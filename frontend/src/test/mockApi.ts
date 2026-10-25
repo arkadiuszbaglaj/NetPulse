@@ -221,6 +221,7 @@ interface MockState {
   topology: Topology;
   /** Ostatnia próbka stanu serwera (null = kolektor jeszcze jej nie zapisał) */
   system: SystemInfo | null;
+  services: { id: string; state: string; detail: string | null }[];
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -247,6 +248,13 @@ export function mockApi(initial: Partial<MockState> = {}) {
     poe: { budget: null, ports: [] },
     topology: { nodes: [], edges: [] },
     system: null,
+    services: [
+      { id: "api", state: "ok", detail: "0.8.2" },
+      { id: "database", state: "ok", detail: "timescaledb" },
+      { id: "collector", state: "ok", detail: null },
+      { id: "unifi", state: "off", detail: "not_configured" },
+      { id: "updater", state: "ok", detail: null },
+    ],
     updateSettings: { auto_check: true, interval_h: 24 },
     updates: UPDATES,
     overrides: {},
@@ -352,6 +360,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
       if (key === "GET /api/topology") return json(200, state.topology);
       if (key === "GET /api/system") return json(200, state.system);
+      if (key === "GET /api/system/services") return json(200, state.services);
       if (key === "GET /api/system/metrics") return json(200, state.traffic.points);
       if (key === "GET /api/dashboards/default") return json(200, { layout: state.layout, updated_at: null });
       if (key === "PUT /api/dashboards/default") {

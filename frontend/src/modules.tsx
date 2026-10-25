@@ -7,6 +7,7 @@ import {
   IconBellRinging,
   IconDevicesPc,
   IconDownload,
+  IconHeartbeat,
   IconHierarchy2,
   IconLayoutDashboard,
   IconRefresh,
@@ -26,6 +27,7 @@ import { TopologyPage } from "./pages/TopologyPage";
 import { ControllersPage } from "./pages/settings/ControllersPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
+import { SystemPage } from "./pages/settings/SystemPage";
 import { UpdatePage } from "./pages/settings/UpdatePage";
 import { DashboardPage } from "./pages/DashboardPage";
 
@@ -108,6 +110,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.refresh",
         icon: IconRefresh,
         element: <RefreshPage />,
+      },
+      {
+        path: "system",
+        label: "nav.settings.system",
+        icon: IconHeartbeat,
+        element: <SystemPage />,
       },
       {
         path: "update",

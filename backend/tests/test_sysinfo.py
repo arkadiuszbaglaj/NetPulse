@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from netpulse.api.system import fresh
 from netpulse.sysinfo import (
     SystemReader,
     cpu_percent,
@@ -53,6 +55,14 @@ def test_load_and_uptime_parsers():
     assert parse_loadavg("") is None and parse_loadavg("a b c") is None
     assert parse_uptime("12345.67 54321.00\n") == 12345.67
     assert parse_uptime("") is None
+
+
+def test_collector_freshness_allows_three_cycles():
+    now = datetime(2026, 10, 25, 12, 0, tzinfo=UTC)
+    assert fresh(now - timedelta(seconds=30), now, 30)
+    assert fresh(now - timedelta(seconds=100), now, 30)  # do 3 cykli i 10 s zapasu
+    assert not fresh(now - timedelta(seconds=101), now, 30)
+    assert not fresh(None, now, 30)
 
 
 def test_temperature_takes_hottest_valid_zone(tmp_path: Path):
@@ -156,3 +166,32 @@ if os.environ.get("NETPULSE_TEST_DB") == "1":
         with TestClient(app) as c:
             assert c.get("/api/system").status_code == 401
             assert c.get("/api/system/metrics").status_code == 401
+
+    def services(client) -> dict[str, dict]:
+        r = client.get("/api/system/services")
+        assert r.status_code == 200
+        return {x["id"]: x for x in r.json()}
+
+    def test_services_without_data(client):
+        svc = services(client)
+        assert list(svc) == ["api", "database", "collector", "unifi", "updater"]
+        assert svc["api"]["state"] == "ok" and svc["api"]["detail"]  # wersja
+        assert svc["database"]["state"] == "ok"
+        assert svc["collector"] == {"id": "collector", "state": "warn", "detail": "no_data"}
+        assert svc["unifi"]["state"] == "off" and svc["updater"]["state"] == "off"
+
+    def test_services_collector_fresh_and_stale(client, tmp_path):
+        sample(tmp_path)
+        assert services(client)["collector"]["state"] == "ok"
+
+        async def age():
+            async with Session() as s, s.begin():
+                await s.execute(delete(SystemMetric))
+                s.add(SystemMetric(time=datetime.now(UTC) - timedelta(hours=1), cpu_percent=1.0))
+
+        run(age)
+        assert services(client)["collector"] == {"id": "collector", "state": "down", "detail": "stale"}
+
+    def test_services_require_login():
+        with TestClient(app) as c:
+            assert c.get("/api/system/services").status_code == 401
