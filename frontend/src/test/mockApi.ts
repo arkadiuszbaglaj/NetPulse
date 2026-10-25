@@ -208,6 +208,7 @@ export const AGENT: Agent = {
   last_seen_at: new Date().toISOString(),
   last_ip: "192.168.1.30",
   agent_version: "0.11.0",
+  outdated: false,
   hostname: "nas",
 };
 

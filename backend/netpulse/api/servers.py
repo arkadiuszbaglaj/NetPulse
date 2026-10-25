@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from .. import __version__
 from ..db import Session
 from ..db.models import (
     Agent,
@@ -20,6 +21,7 @@ from ..db.models import (
     ProxmoxServer,
     ServerMetric,
 )
+from .agents import agent_outdated
 from .security import require_user
 
 router = APIRouter(prefix="/api", tags=["serwery"], dependencies=[Depends(require_user)])
@@ -43,10 +45,14 @@ class AgentInfo(BaseModel):
     cpu_cores: int | None = None
     load: list[float] = []
     mem_total_bytes: int | None = None
+    disk_io: list[dict] = []  # bieżący odczyt i zapis dysków (B/s), od 0.24.0
+    net: list[dict] = []  # bieżący ruch interfejsów (b/s), od 0.24.0
     temps: list[dict] = []
     services: dict | None = None
     containers: list[dict] | None = None
     smart: list[dict] | None = None
+    outdated: bool = False  # agent starszy niż NetPulse – do zaktualizowania na serwerze
+    server_version: str = __version__
 
 
 class ProxmoxInfo(BaseModel):
@@ -136,6 +142,10 @@ async def device_server(device_id: int):
             )
             for d in disk_rows
         ],
-        agent=AgentInfo.model_validate(agent.inventory) if agent and agent.inventory else None,
+        agent=(
+            AgentInfo.model_validate(agent.inventory | {"agent_version": agent.agent_version, "outdated": agent_outdated(agent.agent_version)})
+            if agent and agent.inventory
+            else None
+        ),
         proxmox=pve,
     )

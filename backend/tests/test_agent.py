@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from netpulse.agent import netpulse_agent as agent
-from netpulse.api.agents import AgentReport, inventory, metric_rows
+from netpulse.api.agents import AgentReport, agent_outdated, inventory, metric_rows
 
 AGENT_FILE = Path(agent.__file__)
 
@@ -205,7 +205,17 @@ def test_metric_rows_and_inventory():
     inv = inventory(report)
     assert inv["cpu_cores"] == 2
     assert inv["containers"][0]["name"] == "web"
-    assert "disk_io" not in inv
+    assert inv["disk_io"] == [{"device": "sda", "read_bps": 100.0, "write_bps": None}]
+    assert inv["net"][0]["iface"] == "eth0"
+
+
+def test_agent_outdated(monkeypatch):
+    monkeypatch.setattr("netpulse.api.agents.__version__", "0.24.0")
+    assert agent_outdated("0.11.0") and agent_outdated("0.23.9")
+    assert not agent_outdated("0.24.0") and not agent_outdated("0.25.0") and not agent_outdated("1.0.0")
+    assert agent_outdated("0.9.0")  # liczby, nie tekst: 0.9 < 0.24
+    # Agent z repozytorium albo bez numeru – nie wiadomo, nie ostrzegamy
+    assert not agent_outdated("dev") and not agent_outdated(None) and not agent_outdated("")
 
 
 def test_report_limits():

@@ -22,6 +22,15 @@ export interface AgentContainer {
   mem_bytes: number | null;
 }
 
+export interface AgentSmart {
+  device: string;
+  model: string | null;
+  passed: boolean | null;
+  temp_c: number | null;
+  power_on_hours?: number | null;
+  reallocated?: number | null;
+}
+
 export interface AgentInfo {
   agent_version: string | null;
   os: string | null;
@@ -29,10 +38,16 @@ export interface AgentInfo {
   cpu_cores: number | null;
   load: number[];
   mem_total_bytes: number | null;
+  /** Bieżący ruch dysków (B/s) i interfejsów (b/s); agenci sprzed 0.24.0 ich nie przysyłają. */
+  disk_io?: { device: string; read_bps: number | null; write_bps: number | null }[];
+  net?: { iface: string; rx_bps: number | null; tx_bps: number | null }[];
   temps: { sensor: string; celsius: number }[];
   services: { running: number; failed: number; items: { name: string; active: string; sub: string | null }[] } | null;
   containers: AgentContainer[] | null;
-  smart: { device: string; model: string | null; passed: boolean | null; temp_c: number | null }[] | null;
+  smart: AgentSmart[] | null;
+  /** Agent starszy niż NetPulse (server_version) – do zaktualizowania na serwerze. */
+  outdated?: boolean;
+  server_version?: string;
 }
 
 /** Węzeł Proxmox (backend: api/servers.py ProxmoxInfo). */
@@ -77,7 +92,7 @@ function names(list: string[], max = 3): string {
 
 /** Kontenery, usługi, temperatura i SMART – tylko z agenta (SNMP tego nie podaje). Problemy na czerwono. */
 function AgentLines({ agent }: { agent: AgentInfo }) {
-  const lines: { key: string; text: string; problem?: boolean }[] = [];
+  const lines: { key: string; text: string; problem?: boolean; warn?: boolean }[] = [];
   if (agent.containers?.length) {
     const running = agent.containers.filter((c) => c.state === "running");
     const stopped = agent.containers.filter((c) => c.state !== "running").map((c) => c.name);
@@ -104,11 +119,12 @@ function AgentLines({ agent }: { agent: AgentInfo }) {
         : { key: "smart", text: t("agent.smart.ok", { n: agent.smart.length }) },
     );
   }
+  if (agent.outdated) lines.push({ key: "outdated", text: t("agent.outdated", { version: agent.agent_version ?? "?" }), warn: true });
   if (!lines.length) return null;
   return (
     <ul className="flex flex-col gap-0.5 text-xs" aria-label={t("agent.details")}>
       {lines.map((l) => (
-        <li key={l.key} className={l.problem ? "font-medium text-danger" : "text-text-2"}>
+        <li key={l.key} className={l.problem ? "font-medium text-danger" : l.warn ? "text-warning" : "text-text-2"}>
           {l.text}
         </li>
       ))}

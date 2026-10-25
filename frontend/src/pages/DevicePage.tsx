@@ -221,7 +221,12 @@ export function DevicePage() {
 
         {d.kind === "server" && d.status !== "down" && (
           <Card className="p-4">
-            <h2 className="mb-3 text-sm font-medium">{t("device.server")}</h2>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-medium">{t("device.server")}</h2>
+              <Link to={`/devices/${id}/server`} className="text-sm text-accent hover:underline">
+                {t("srv.all")}
+              </Link>
+            </div>
             <ServerDetails deviceId={id} />
           </Card>
         )}

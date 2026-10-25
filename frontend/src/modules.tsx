@@ -50,6 +50,7 @@ import { WanLinksPage } from "./pages/settings/WanLinksPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DevicePage } from "./pages/DevicePage";
 import { PortPage } from "./pages/PortPage";
+import { ServerPage } from "./pages/ServerPage";
 import { SetupPage } from "./pages/SetupPage";
 
 export interface NavChild {
@@ -108,6 +109,14 @@ export const modules: NavModule[] = [
     label: "nav.device",
     icon: IconServer2,
     element: <DevicePage />,
+    hidden: true,
+  },
+  {
+    id: "server",
+    path: "/devices/:deviceId/server",
+    label: "nav.server",
+    icon: IconServer2,
+    element: <ServerPage />,
     hidden: true,
   },
   {

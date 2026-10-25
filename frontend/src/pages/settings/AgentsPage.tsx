@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { Button, Card, ErrorNote, Field, PageHeader } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
-import { AGENTS_KEY, installCommand, uninstallCommand, useAgents, type Agent, type AgentToken } from "../../lib/agents";
+import { AGENTS_KEY, installCommand, uninstallCommand, updateCommand, useAgents, type Agent, type AgentToken } from "../../lib/agents";
 import { ApiError, del, post } from "../../lib/api";
 import { relativeTime } from "../../lib/format";
 
@@ -124,6 +124,11 @@ function AgentRow({ agent, onToken, onDelete }: { agent: Agent; onToken: () => v
         <p className="truncate text-sm font-medium">{agent.name}</p>
         <p className="truncate text-xs text-text-2">{details.join(" · ")}</p>
       </div>
+      {agent.outdated && (
+        <span className="rounded-md bg-warning-soft px-2 py-0.5 text-xs text-warning" title={t("agents.outdated.hint")}>
+          {t("agents.outdated")}
+        </span>
+      )}
       {agent.enabled ? (
         <span className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`}>{t(STATUS_LABEL[status])}</span>
       ) : (
@@ -170,6 +175,7 @@ export function AgentsPage() {
     },
   });
   const list = data ?? [];
+  const outdated = list.filter((a) => a.outdated);
 
   return (
     <>
@@ -206,6 +212,13 @@ export function AgentsPage() {
               />
             ))}
           </ul>
+        </Card>
+      )}
+      {outdated.length > 0 && (
+        <Card className="mt-3 p-4">
+          <h2 className="text-sm font-medium">{t("agents.update.title", { names: outdated.map((a) => a.name).join(", ") })}</h2>
+          <p className="mb-3 mt-1 max-w-prose text-sm text-text-2">{t("agents.update.body")}</p>
+          <Command label={t("agents.update.command")} command={updateCommand(window.location.origin)} />
         </Card>
       )}
 

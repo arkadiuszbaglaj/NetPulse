@@ -120,9 +120,12 @@ def test_agent_report_flow(client):
     assert server["agent"]["services"]["failed"] == 1
     assert server["agent"]["cpu_cores"] == 2
     assert server["agent"]["temps"][0]["celsius"] == 48.0
+    assert server["agent"]["net"] == [{"iface": "eth0", "rx_bps": 1000.0, "tx_bps": 2000.0}]
+    assert server["agent"]["agent_version"] == "0.11.0" and server["agent"]["outdated"] is True
 
     listed = client.get("/api/agents").json()
     assert listed[0]["hostname"] == "nas-test" and listed[0]["agent_version"] == "0.11.0"
+    assert listed[0]["outdated"] is True
     assert listed[0]["last_ip"]
 
     async def counts():

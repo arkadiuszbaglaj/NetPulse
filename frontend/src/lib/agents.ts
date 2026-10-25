@@ -14,6 +14,8 @@ export interface Agent {
   last_seen_at: string | null;
   last_ip: string | null;
   agent_version: string | null;
+  /** Agent starszy niż NetPulse – trzeba go zaktualizować na serwerze. */
+  outdated: boolean;
   hostname: string | null;
 }
 
@@ -33,6 +35,11 @@ export function useAgents() {
 /** Polecenie do wklejenia na monitorowanym serwerze. Adres NetPulse = adres, pod którym działa panel. */
 export function installCommand(origin: string, token: string): string {
   return `curl -fsSL ${origin}/agent/install.sh | sudo bash -s -- --url ${origin} --token ${token}`;
+}
+
+/** Aktualizacja agenta: adres i token zostają z /etc/netpulse-agent.conf. */
+export function updateCommand(origin: string): string {
+  return `curl -fsSL ${origin}/agent/install.sh | sudo bash -s -- --url ${origin}`;
 }
 
 export function uninstallCommand(origin: string): string {

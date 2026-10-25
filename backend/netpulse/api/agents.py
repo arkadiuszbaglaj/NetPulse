@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -32,6 +33,16 @@ AGENT_DIR = Path(__file__).resolve().parent.parent / "agent"
 TOKEN_PREFIX = "npa_"
 # Raport częściej niż co tyle sekund to błąd konfiguracji albo nadużycie – odrzucamy
 MIN_REPORT_GAP = timedelta(seconds=5)
+_VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+def agent_outdated(version: str | None) -> bool:
+    """Agent pobrany ze starszej wersji NetPulse (agent dostaje numer wersji serwera przy instalacji).
+    Agent uruchomiony z repozytorium („dev”) albo z nieznanym numerem nie jest oznaczany."""
+    mine, theirs = _VERSION.match(__version__), _VERSION.match(version or "")
+    if mine is None or theirs is None:
+        return False
+    return tuple(map(int, theirs.groups())) < tuple(map(int, mine.groups()))
 
 admin_router = APIRouter(prefix="/api/agents", tags=["agenci"], dependencies=[Depends(require_admin)])
 push_router = APIRouter(tags=["agenci"])
@@ -55,6 +66,7 @@ class AgentOut(BaseModel):
     last_seen_at: datetime | None
     last_ip: str | None
     agent_version: str | None
+    outdated: bool
     hostname: str | None
 
 
@@ -75,6 +87,7 @@ def _out(agent: Agent, device: Device) -> AgentOut:
         last_seen_at=agent.last_seen_at,
         last_ip=agent.last_ip,
         agent_version=agent.agent_version,
+        outdated=agent_outdated(agent.agent_version),
         hostname=agent.hostname,
     )
 
@@ -257,10 +270,10 @@ def metric_rows(report: AgentReport, device_id: int, now: datetime) -> list[dict
 
 
 def inventory(report: AgentReport) -> dict:
-    """Zdjęcie stanu do panelu (lista kontenerów, usług, temperatury, SMART) – bez historii."""
+    """Zdjęcie stanu do panelu (kontenery, usługi, temperatury, SMART, bieżący ruch dysków i sieci) – bez historii."""
     return report.model_dump(
         mode="json",
-        include={"agent_version", "os", "kernel", "load", "mem_total_bytes", "temps", "services", "containers", "smart"},
+        include={"agent_version", "os", "kernel", "load", "mem_total_bytes", "disk_io", "net", "temps", "services", "containers", "smart"},
     ) | {"cpu_cores": len(report.cpu_cores) or None}
 
 

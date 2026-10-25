@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ServerStatus } from "../../components/widgets/ServerDetails";
-import { installCommand, uninstallCommand } from "../../lib/agents";
+import type { AgentInfo, ServerStatus } from "../../components/widgets/ServerDetails";
+import { installCommand, uninstallCommand, updateCommand } from "../../lib/agents";
 import { AGENT, DEVICE, mockApi } from "../../test/mockApi";
 import { renderApp } from "../../test/renderApp";
 
@@ -117,5 +117,92 @@ describe("karta serwera z agentem", () => {
     renderApp();
     const list = await screen.findByRole("list", { name: "Stan z agenta" });
     expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Usługi: 12 działa, bez błędów"]);
+  });
+
+  it("agent starszy niż NetPulse: ostrzeżenie na karcie", async () => {
+    mockApi({
+      devices: [AGENT_DEVICE],
+      server: status({ ...base, temps: [], services: null, containers: null, smart: null, outdated: true, server_version: "0.24.0" }),
+    });
+    renderApp();
+    const list = await screen.findByRole("list", { name: "Stan z agenta" });
+    expect(within(list).getByText("Agent 0.11.0 jest starszy niż NetPulse – zaktualizuj go")).toHaveClass("text-warning");
+  });
+});
+
+describe("strona szczegółów serwera", () => {
+  const status = (agent: AgentInfo | null): ServerStatus => ({
+    sampled_at: "2026-10-25T10:00:00Z",
+    cpu_percent: 20,
+    mem_used_percent: 40,
+    swap_used_percent: null,
+    load1: 0.2,
+    uptime_s: 3600,
+    processes: 120,
+    disks: [
+      { mount: "/", total_bytes: 100e9, used_bytes: 30e9, used_percent: 30 },
+      { mount: "/mnt/data", total_bytes: 4e12, used_bytes: 3.6e12, used_percent: 90 },
+    ],
+    agent,
+  });
+  const agent: AgentInfo = {
+    agent_version: "0.11.0",
+    os: "Ubuntu 24.04",
+    kernel: "6.8.0-45-generic",
+    cpu_cores: 4,
+    load: [0.2, 0.15, 0.1],
+    mem_total_bytes: 8e9,
+    disk_io: [{ device: "sda", read_bps: 2_000_000, write_bps: 0 }],
+    net: [{ iface: "eth0", rx_bps: 8_000_000, tx_bps: 1_000_000 }],
+    temps: [{ sensor: "coretemp/Core 0", celsius: 47.6 }, { sensor: "nvme/Composite", celsius: 90 }],
+    services: { running: 25, failed: 1, items: [{ name: "nginx.service", active: "active", sub: "running" }, { name: "backup.service", active: "failed", sub: "failed" }] },
+    containers: [
+      { name: "nextcloud", image: "nextcloud:29", state: "running", status: "Up 2 days", cpu_percent: 1.5, mem_bytes: 5e8 },
+      { name: "old-app", image: "x", state: "exited", status: "Exited (1)", cpu_percent: null, mem_bytes: null },
+    ],
+    smart: [{ device: "sda", model: "WDC WD40", passed: true, temp_c: 33, power_on_hours: 12000, reallocated: 0 }],
+    outdated: true,
+    server_version: "0.24.0",
+  };
+
+  it("strona urządzenia prowadzi do pełnych szczegółów: dyski, kontenery, usługi, sieć, temperatury", async () => {
+    mockApi({ devices: [AGENT_DEVICE], server: status(agent) });
+    renderApp("/devices/7");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("link", { name: "Wszystkie szczegóły serwera" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "NAS · szczegóły serwera" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/devices/7/server");
+    expect(screen.getByText("Ubuntu 24.04")).toBeInTheDocument();
+    expect(screen.getByText("0,20 / 0,15 / 0,10")).toBeInTheDocument();
+    // Systemy plików: wszystkie, nie tylko 4 jak na karcie
+    expect(screen.getByRole("meter", { name: "/mnt/data" })).toHaveAttribute("aria-valuenow", "90");
+    expect(screen.getByText("Dyski (1)")).toBeInTheDocument();
+    expect(screen.getByText("WDC WD40")).toBeInTheDocument();
+    expect(screen.getByText("Kontenery Docker (1 z 2 działa)")).toBeInTheDocument();
+    // Zatrzymany kontener i usługa z błędem na górze tabel
+    const containers = screen.getByText("Kontenery Docker (1 z 2 działa)").closest("div")!;
+    expect(within(containers).getAllByRole("row")[1]).toHaveTextContent("old-app");
+    const services = screen.getByText("Usługi systemd").closest("div")!;
+    expect(within(services).getAllByRole("row")[1]).toHaveTextContent("backup");
+    expect(screen.getByText("eth0")).toBeInTheDocument();
+    expect(screen.getByText("90°C")).toHaveClass("text-danger");
+    // Agent starszy niż NetPulse: polecenie aktualizacji
+    const note = screen.getByText("Agent 0.11.0 jest starszy niż NetPulse 0.24.0").closest("div")!;
+    expect(within(note).getByText(updateCommand(window.location.origin))).toBeInTheDocument();
+  });
+
+  it("serwer bez świeżych danych: komunikat", async () => {
+    mockApi({ devices: [AGENT_DEVICE], server: null });
+    renderApp("/devices/7/server");
+    expect(await screen.findByText("Serwer nie przysłał danych w ostatnich 5 minutach.")).toBeInTheDocument();
+  });
+
+  it("Ustawienia → Agenci: plakietka i polecenie aktualizacji dla starszych agentów", async () => {
+    mockApi({ agents: [{ ...AGENT, outdated: true }, { ...AGENT, id: 2, device_id: 8, name: "Backup", agent_version: "0.24.0" }] });
+    renderApp("/settings/agents");
+    expect(await screen.findAllByText("do aktualizacji")).toHaveLength(1);
+    expect(screen.getByText("Agenci do aktualizacji: NAS")).toBeInTheDocument();
+    expect(screen.getByLabelText("Polecenie aktualizacji")).toHaveTextContent(updateCommand(window.location.origin));
   });
 });

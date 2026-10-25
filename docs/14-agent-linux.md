@@ -132,7 +132,33 @@ Pulpit → Edytuj pulpit → Dodaj widget → Wykres → **Źródło danych**: �
 Lista interfejsów, dysków, czujników i kontenerów pochodzi z raportów agenta z ostatniej godziny
 (`GET /api/devices/{id}/agent-keys`), dane wykresu z `GET /api/devices/{id}/agent-metrics?source=…&key=…`.
 
-## Co dalej (backlog)
+## Strona szczegółów serwera (od 0.24.0)
 
-- Szczegóły serwera na osobnej stronie (wszystkie kontenery, usługi, dyski naraz).
-- Informacja w panelu, że agent ma starszą wersję niż NetPulse.
+Strona urządzenia → **Wszystkie szczegóły serwera** (`/devices/<id>/server`) pokazuje wszystko z ostatniego raportu
+w jednym widoku: system (OS, jądro, rdzenie, RAM, obciążenie 1/5/15 min, procesy, wersja agenta), wszystkie systemy
+plików, dyski fizyczne (SMART, temperatura, godziny pracy, realokowane sektory, bieżący odczyt i zapis), wszystkie
+kontenery Docker (zatrzymane na górze), usługi systemd (z błędem i obserwowane z `SERVICES`), ruch interfejsów
+i temperatury czujników. Serwer przez SNMP pokazuje tu system i systemy plików.
+
+Bieżący ruch dysków i interfejsów (`disk_io`, `net` w `agents.inventory`) przysyła każdy agent od 0.13.0; panel
+pokaże go po pierwszym raporcie po aktualizacji NetPulse do 0.24.0.
+
+## Agent starszy niż NetPulse (od 0.24.0)
+
+Agent dostaje numer wersji NetPulse przy instalacji (`VERSION` podmieniane przy pobraniu z `/agent/netpulse-agent.py`).
+Jeśli jest niższy niż wersja NetPulse (`agent_outdated()` w `api/agents.py`, pole `outdated` w `/api/agents`
+i w `agent` z `/api/devices/{id}/server`), panel pokazuje:
+
+- w Ustawienia → Agenci plakietkę „do aktualizacji” i polecenie aktualizacji,
+- na karcie serwera linijkę „Agent … jest starszy niż NetPulse”,
+- na stronie szczegółów serwera ramkę z poleceniem.
+
+Polecenie (adres i token zostają z `/etc/netpulse-agent.conf`):
+
+```bash
+curl -fsSL http://ADRES-NETPULSE:8000/agent/install.sh | sudo bash -s -- --url http://ADRES-NETPULSE:8000
+```
+
+Agent uruchomiony z repozytorium (`dev`) nie jest oznaczany. Numer rośnie przy każdym wydaniu NetPulse, więc
+ostrzeżenie pojawia się po każdej aktualizacji, także gdy kod agenta się nie zmienił – to celowe (jedna zasada:
+agent w tej samej wersji co panel).
