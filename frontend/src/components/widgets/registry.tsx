@@ -28,7 +28,7 @@ export function widgetTitle(w: Widget): string {
 export function WidgetView({ widget }: { widget: Widget }) {
   switch (widget.type) {
     case "chart":
-      return <ChartWidget config={widget.config} />;
+      return <ChartWidget config={widget.config} allowLive />;
     case "summary":
       return <SummaryWidget tiles={widget.config.tiles} />;
     case "devices":

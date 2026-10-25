@@ -281,6 +281,8 @@ export const pl = {
   "widget.devices.filter": "Pokaż tylko typy (nic nie zaznaczone = wszystkie)",
   "widget.done": "Gotowe",
 
+  "live.toggle": "Na żywo",
+  "live.lost": "Połączenie „Na żywo” zostało przerwane, wykres wrócił do zwykłego odświeżania.",
   "chart.sourceGone": "Źródło wykresu jest niedostępne (usunięto urządzenie, port albo sieć WiFi).",
 
   "dash.edit": "Edytuj pulpit",
