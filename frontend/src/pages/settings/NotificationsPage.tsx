@@ -7,41 +7,144 @@ import { t } from "../../i18n";
 import { ApiError, del, patch, post } from "../../lib/api";
 import { SEVERITIES, type Severity } from "../../lib/alerts";
 import { relativeTime } from "../../lib/format";
-import { CHANNELS_KEY, isValidWebhookUrl, useChannels, type ChannelTestResult, type NotificationChannel } from "../../lib/notifications";
+import {
+  CHANNEL_KINDS,
+  CHANNELS_KEY,
+  isValidEmail,
+  isValidNtfyUrl,
+  isValidWebhookUrl,
+  parseRecipients,
+  useChannels,
+  type ChannelKind,
+  type ChannelTestResult,
+  type EmailConfig,
+  type NotificationChannel,
+} from "../../lib/notifications";
 
 const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : t("auth.error.generic"));
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
+const SECURITY_PORT: Record<EmailConfig["security"], string> = { starttls: "587", ssl: "465", none: "25" };
 
 interface FormValues {
+  kind: ChannelKind;
   name: string;
   url: string;
+  secret: string;
+  clearSecret: boolean;
+  host: string;
+  port: string;
+  security: EmailConfig["security"];
+  username: string;
+  sender: string;
+  recipients: string;
   min_severity: Severity;
   notify_resolved: boolean;
+  quiet: boolean;
+  quiet_from: string;
+  quiet_to: string;
+  quiet_critical: boolean;
 }
 
-function ChannelForm({ channel, onClose }: { channel?: NotificationChannel; onClose: () => void }) {
-  const qc = useQueryClient();
-  const editing = channel !== undefined;
-  const [values, setValues] = useState<FormValues>({
+type Errors = Partial<Record<"name" | "url" | "host" | "port" | "sender" | "recipients" | "quiet", string>>;
+
+function initialValues(channel?: NotificationChannel): FormValues {
+  const email = channel?.email;
+  return {
+    kind: channel?.kind ?? "webhook",
     name: channel?.name ?? "",
     url: "",
+    secret: "",
+    clearSecret: false,
+    host: email?.host ?? "",
+    port: String(email?.port ?? 587),
+    security: email?.security ?? "starttls",
+    username: email?.username ?? "",
+    sender: email?.sender ?? "",
+    recipients: email?.recipients.join(", ") ?? "",
     min_severity: channel?.min_severity ?? "warning",
     notify_resolved: channel?.notify_resolved ?? true,
-  });
-  const [errors, setErrors] = useState<{ name?: string; url?: string }>({});
+    quiet: Boolean(channel?.quiet_from && channel?.quiet_to),
+    quiet_from: channel?.quiet_from ?? "22:00",
+    quiet_to: channel?.quiet_to ?? "07:00",
+    quiet_critical: channel?.quiet_critical ?? true,
+  };
+}
+
+function validate(v: FormValues, editing: boolean): Errors {
+  const found: Errors = {};
+  if (!v.name.trim()) found.name = t("notif.err.name");
+  const url = v.url.trim();
+  if (v.kind === "webhook" && (!editing || url !== "") && !isValidWebhookUrl(url)) found.url = t("notif.err.url");
+  if (v.kind === "ntfy" && (!editing || url !== "") && !isValidNtfyUrl(url)) found.url = t("notif.err.ntfy");
+  if (v.kind === "email") {
+    if (!v.host.trim()) found.host = t("notif.err.host");
+    const port = Number(v.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) found.port = t("notif.err.port");
+    if (v.sender.trim() && !isValidEmail(v.sender)) found.sender = t("notif.err.email");
+    const recipients = parseRecipients(v.recipients);
+    if (!recipients.length || !recipients.every(isValidEmail)) found.recipients = t("notif.err.recipients");
+  }
+  if (v.quiet && (!v.quiet_from || !v.quiet_to || v.quiet_from === v.quiet_to)) found.quiet = t("notif.err.quiet");
+  return found;
+}
+
+function requestBody(v: FormValues, editing: boolean): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    name: v.name.trim(),
+    min_severity: v.min_severity,
+    notify_resolved: v.notify_resolved,
+    quiet_from: v.quiet ? v.quiet_from : null,
+    quiet_to: v.quiet ? v.quiet_to : null,
+    quiet_critical: v.quiet_critical,
+  };
+  if (!editing) body.kind = v.kind;
+  // Puste pole sekretu przy edycji = bez zmiany zapisanego adresu, tokenu albo hasła
+  const url = v.url.trim();
+  if (v.kind !== "email" && url) body.url = url;
+  if (v.kind !== "webhook") {
+    if (v.secret) body.secret = v.secret;
+    else if (editing && v.clearSecret) body.secret = "";
+  }
+  if (v.kind === "email") {
+    body.email = {
+      host: v.host.trim(),
+      port: Number(v.port),
+      security: v.security,
+      username: v.username.trim() || null,
+      sender: v.sender.trim() || null,
+      recipients: parseRecipients(v.recipients),
+    };
+  }
+  return body;
+}
+
+function Checkbox({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label htmlFor={id} className="flex items-start gap-2 text-sm">
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 size-4 accent-accent" />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+const secretInput = { type: "password", autoComplete: "off", spellCheck: false, autoCapitalize: "none" } as const;
+
+function ChannelForm({ channel, timezone, onClose }: { channel?: NotificationChannel; timezone: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const editing = channel !== undefined;
+  const [values, setValues] = useState<FormValues>(() => initialValues(channel));
+  const [errors, setErrors] = useState<Errors>({});
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
-    setErrors((e) => ({ ...e, [key]: undefined }));
+    setErrors((e) => ({ ...e, [key]: undefined, ...(key.startsWith("quiet") ? { quiet: undefined } : {}) }));
   };
 
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: values.name.trim(), min_severity: values.min_severity, notify_resolved: values.notify_resolved };
-      const url = values.url.trim();
-      // Pusty adres przy edycji = bez zmiany zapisanego adresu
+      const body = requestBody(values, editing);
       return channel
-        ? patch<NotificationChannel>(`/api/notification-channels/${channel.id}`, { ...body, ...(url ? { url } : {}) })
-        : post<NotificationChannel>("/api/notification-channels", { ...body, url });
+        ? patch<NotificationChannel>(`/api/notification-channels/${channel.id}`, body)
+        : post<NotificationChannel>("/api/notification-channels", body);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: CHANNELS_KEY });
@@ -50,14 +153,13 @@ function ChannelForm({ channel, onClose }: { channel?: NotificationChannel; onCl
   });
 
   function submit() {
-    const found: typeof errors = {};
-    if (!values.name.trim()) found.name = t("notif.err.name");
-    const url = values.url.trim();
-    if ((!editing || url !== "") && !isValidWebhookUrl(url)) found.url = t("notif.err.url");
+    const found = validate(values, editing);
     setErrors(found);
     if (Object.keys(found).length === 0) save.mutate();
   }
 
+  const kind = values.kind;
+  const keepHint = editing ? t("notif.secret.keep") : undefined;
   return (
     <Dialog
       title={editing ? t("notif.form.edit", { name: channel.name }) : t("notif.form.add")}
@@ -72,19 +174,91 @@ function ChannelForm({ channel, onClose }: { channel?: NotificationChannel; onCl
       }
     >
       <div className="flex flex-col gap-4">
-        <Field id="notif-name" label={t("devform.name")} value={values.name} error={errors.name} maxLength={128} placeholder="Telegram" onChange={(e) => set("name", e.target.value)} />
+        {!editing && (
+          <Select id="notif-kind" label={t("notif.kind")} value={kind} onChange={(e) => set("kind", e.target.value as ChannelKind)}>
+            {CHANNEL_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {t(`notif.kind.${k}` as const)}
+              </option>
+            ))}
+          </Select>
+        )}
+        <p className="-mt-2 text-xs text-text-2">{t(`notif.kind.${kind}.hint` as const)}</p>
         <Field
-          id="notif-url"
-          label={t("notif.url")}
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          autoCapitalize="none"
-          value={values.url}
-          error={errors.url}
-          hint={editing ? t("notif.url.keep") : t("notif.url.hint")}
-          onChange={(e) => set("url", e.target.value)}
+          id="notif-name"
+          label={t("devform.name")}
+          value={values.name}
+          error={errors.name}
+          maxLength={128}
+          placeholder={kind === "email" ? "E-mail" : kind === "ntfy" ? "ntfy" : "Telegram"}
+          onChange={(e) => set("name", e.target.value)}
         />
+
+        {kind === "webhook" && (
+          <Field
+            id="notif-url"
+            label={t("notif.url")}
+            {...secretInput}
+            value={values.url}
+            error={errors.url}
+            hint={editing ? t("notif.url.keep") : t("notif.url.hint")}
+            onChange={(e) => set("url", e.target.value)}
+          />
+        )}
+
+        {kind === "ntfy" && (
+          <>
+            <Field
+              id="notif-url"
+              label={t("notif.ntfy.url")}
+              {...secretInput}
+              placeholder="https://ntfy.sh/moj-temat"
+              value={values.url}
+              error={errors.url}
+              hint={editing ? t("notif.url.keep") : t("notif.ntfy.url.hint")}
+              onChange={(e) => set("url", e.target.value)}
+            />
+            <Field
+              id="notif-secret"
+              label={t("notif.ntfy.token")}
+              {...secretInput}
+              value={values.secret}
+              hint={keepHint ?? t("notif.ntfy.token.hint")}
+              onChange={(e) => set("secret", e.target.value)}
+            />
+          </>
+        )}
+
+        {kind === "email" && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <Field id="notif-host" label={t("notif.smtp.host")} placeholder="smtp.gmail.com" value={values.host} error={errors.host} onChange={(e) => set("host", e.target.value)} />
+              <Field id="notif-port" label={t("notif.smtp.port")} inputMode="numeric" value={values.port} error={errors.port} onChange={(e) => set("port", e.target.value)} />
+            </div>
+            <Select
+              id="notif-security"
+              label={t("notif.smtp.security")}
+              value={values.security}
+              onChange={(e) => {
+                const security = e.target.value as EmailConfig["security"];
+                // Port domyślny dla trybu, o ile użytkownik nie wpisał własnego
+                setValues((v) => ({ ...v, security, port: Object.values(SECURITY_PORT).includes(v.port) ? SECURITY_PORT[security] : v.port }));
+              }}
+            >
+              <option value="starttls">{t("notif.smtp.starttls")}</option>
+              <option value="ssl">{t("notif.smtp.ssl")}</option>
+              <option value="none">{t("notif.smtp.none")}</option>
+            </Select>
+            <Field id="notif-username" label={t("notif.smtp.username")} autoComplete="off" value={values.username} onChange={(e) => set("username", e.target.value)} />
+            <Field id="notif-secret" label={t("notif.smtp.password")} {...secretInput} value={values.secret} hint={keepHint ?? t("notif.smtp.password.hint")} onChange={(e) => set("secret", e.target.value)} />
+            <Field id="notif-sender" label={t("notif.smtp.sender")} value={values.sender} error={errors.sender} hint={t("notif.smtp.sender.hint")} onChange={(e) => set("sender", e.target.value)} />
+            <Field id="notif-recipients" label={t("notif.smtp.recipients")} value={values.recipients} error={errors.recipients} hint={t("notif.smtp.recipients.hint")} onChange={(e) => set("recipients", e.target.value)} />
+          </>
+        )}
+        {editing && kind !== "webhook" && channel.has_secret && (
+          <Checkbox id="notif-clear-secret" label={t(kind === "email" ? "notif.smtp.clear" : "notif.ntfy.clear")} checked={values.clearSecret} onChange={(v) => set("clearSecret", v)} />
+        )}
+
         <Select id="notif-severity" label={t("notif.severity")} value={values.min_severity} onChange={(e) => set("min_severity", e.target.value as Severity)}>
           {[...SEVERITIES].reverse().map((s) => (
             <option key={s} value={s}>
@@ -92,10 +266,23 @@ function ChannelForm({ channel, onClose }: { channel?: NotificationChannel; onCl
             </option>
           ))}
         </Select>
-        <label htmlFor="notif-resolved" className="flex items-start gap-2 text-sm">
-          <input id="notif-resolved" type="checkbox" checked={values.notify_resolved} onChange={(e) => set("notify_resolved", e.target.checked)} className="mt-0.5 size-4 accent-accent" />
-          <span>{t("notif.resolved")}</span>
-        </label>
+        <Checkbox id="notif-resolved" label={t("notif.resolved")} checked={values.notify_resolved} onChange={(v) => set("notify_resolved", v)} />
+
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-border p-3">
+          <legend className="px-1 text-sm font-medium">{t("notif.quiet")}</legend>
+          <Checkbox id="notif-quiet" label={t("notif.quiet.on")} checked={values.quiet} onChange={(v) => set("quiet", v)} />
+          {values.quiet && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field id="notif-quiet-from" label={t("notif.quiet.from")} type="time" value={values.quiet_from} onChange={(e) => set("quiet_from", e.target.value)} />
+                <Field id="notif-quiet-to" label={t("notif.quiet.to")} type="time" value={values.quiet_to} onChange={(e) => set("quiet_to", e.target.value)} />
+              </div>
+              <Checkbox id="notif-quiet-critical" label={t("notif.quiet.critical")} checked={values.quiet_critical} onChange={(v) => set("quiet_critical", v)} />
+              <p className="text-xs text-text-2">{t("notif.quiet.hint", { tz: timezone })}</p>
+            </>
+          )}
+          {errors.quiet && <p className="text-xs text-danger">{errors.quiet}</p>}
+        </fieldset>
         {save.isError && <ErrorNote>{errorMessage(save.error)}</ErrorNote>}
       </div>
     </Dialog>
@@ -120,10 +307,22 @@ function ChannelRow({ channel, onEdit, onDelete }: { channel: NotificationChanne
         <div className="min-w-0 flex-1 basis-56">
           <p className="truncate text-sm font-medium">{channel.name}</p>
           <p className="truncate text-xs text-text-2">
-            {channel.url_hint} · {t(`notif.row.from.${channel.min_severity}` as const)}
-            {channel.notify_resolved ? ` · ${t("notif.row.resolved")}` : ""}
+            {[
+              channel.kind !== "webhook" ? t(`notif.kind.${channel.kind}` as const) : null,
+              channel.url_hint,
+              t(`notif.row.from.${channel.min_severity}` as const),
+              channel.notify_resolved ? t("notif.row.resolved") : null,
+              channel.quiet_from && channel.quiet_to ? t("notif.row.quiet", { from: channel.quiet_from, to: channel.quiet_to }) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
+        {channel.quiet_pending > 0 && (
+          <span className="rounded-md bg-warning-soft px-2 py-0.5 text-xs text-warning" title={t("notif.pending.hint")}>
+            {t("notif.pending", { n: channel.quiet_pending })}
+          </span>
+        )}
         {channel.last_status === "ok" && (
           <span className="rounded-md bg-success-soft px-2 py-0.5 text-xs text-success" title={sent ?? undefined}>
             {t("notif.status.ok")}
@@ -151,7 +350,7 @@ function ChannelRow({ channel, onEdit, onDelete }: { channel: NotificationChanne
   );
 }
 
-/** Ustawienia → Powiadomienia: webhook, który dostaje alerty także wtedy, gdy panel nie jest otwarty. */
+/** Ustawienia → Powiadomienia: webhook, ntfy albo e-mail – alerty także wtedy, gdy panel nie jest otwarty. */
 export function NotificationsPage() {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useChannels();
@@ -165,6 +364,7 @@ export function NotificationsPage() {
     },
   });
   const list = data ?? [];
+  const timezone = list[0]?.timezone ?? t("notif.quiet.tzUnknown");
 
   return (
     <>
@@ -201,7 +401,7 @@ export function NotificationsPage() {
         </Card>
       )}
 
-      {form && <ChannelForm channel={form.channel} onClose={() => setForm(null)} />}
+      {form && <ChannelForm channel={form.channel} timezone={timezone} onClose={() => setForm(null)} />}
       {toDelete && (
         <Dialog
           size="sm"

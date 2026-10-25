@@ -356,17 +356,26 @@ class AlertRule(Base):
 
 
 class NotificationChannel(Base):
-    """Kanał powiadomień o alertach poza panelem (na razie webhook). Adres zawiera sekret, więc API go nie zwraca."""
+    """Kanał powiadomień o alertach poza panelem: webhook, ntfy albo e-mail (SMTP).
+    Adres, token ntfy i hasło SMTP to sekrety, więc API ich nie zwraca."""
 
     __tablename__ = "notification_channels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(128))
-    kind: Mapped[str] = mapped_column(String(16), default="webhook")
-    url: Mapped[str] = mapped_column(EncryptedText)  # zaszyfrowany – crypto.py
+    kind: Mapped[str] = mapped_column(String(16), default="webhook")  # webhook | ntfy | email
+    url: Mapped[str | None] = mapped_column(EncryptedText)  # webhook i ntfy (adres tematu); zaszyfrowany – crypto.py
+    secret: Mapped[str | None] = mapped_column(EncryptedText)  # token ntfy albo hasło SMTP
+    config: Mapped[dict] = mapped_column(JSONB, default=dict)  # e-mail: host, port, security, username, sender, recipients
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     min_severity: Mapped[str] = mapped_column(String(10), default="warning")  # info | warning | critical
     notify_resolved: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Ciche godziny („22:00”–„07:00”, strefa TZ serwera): przechodzą tylko krytyczne (quiet_critical), reszta
+    # czeka w quiet_backlog i po ciszy przychodzi jedną wiadomością zbiorczą
+    quiet_from: Mapped[str | None] = mapped_column(String(5))
+    quiet_to: Mapped[str | None] = mapped_column(String(5))
+    quiet_critical: Mapped[bool] = mapped_column(Boolean, default=True)
+    quiet_backlog: Mapped[list | None] = mapped_column(JSONB)
     last_status: Mapped[str | None] = mapped_column(String(8))  # ok | error
     last_error: Mapped[str | None] = mapped_column(Text)
     last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -392,6 +401,8 @@ class Alert(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     acked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     acked_by: Mapped[str | None] = mapped_column(String(64))
+    # Bez powiadomienia, bo urządzenie wyżej w topologii też nie odpowiada (jedna wiadomość o przyczynie)
+    muted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class DiskMetric(Base):

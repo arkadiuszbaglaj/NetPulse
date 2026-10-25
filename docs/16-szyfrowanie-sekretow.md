@@ -6,7 +6,7 @@ NetPulse przechowuje w bazie dane, które dają dostęp do innych urządzeń i u
 |--------|---------|
 | `devices` | `community` (SNMP v1/v2c), `v3_auth_key`, `v3_priv_key` (SNMPv3) |
 | `controllers` | `api_key` (klucz API UniFi Network) |
-| `notification_channels` | `url` (adres webhooka zawiera sekret) |
+| `notification_channels` | `url` (adres webhooka albo tematu ntfy), `secret` (token ntfy, hasło SMTP; od 0.25.0) |
 
 Od wersji 0.15.0 te wartości są w bazie zaszyfrowane. Kopia bazy, zrzut `pg_dump` albo podgląd tabel nie
 pokazują ich jawnym tekstem. API ich nie zwraca (tak było już wcześniej).

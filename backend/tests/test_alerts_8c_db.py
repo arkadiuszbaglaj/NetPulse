@@ -27,15 +27,17 @@ from netpulse.db import Session, engine, init_db  # noqa: E402
 from netpulse.db.models import (  # noqa: E402
     Alert,
     AlertRule,
+    Controller,
     Device,
     DiskMetric,
     Interface,
     InterfaceMetric,
     NotificationChannel,
     SystemMetric,
+    TopologyLink,
     User,
 )
-from netpulse.notifications import Notifier  # noqa: E402
+from netpulse.notifications import Notifier, local_tz  # noqa: E402
 
 ADMIN = {"username": "admin", "password": "haslo-testowe-1"}
 NOW = datetime.now(UTC).replace(microsecond=0)
@@ -59,6 +61,7 @@ async def _reset():
         await s.execute(delete(NotificationChannel))
         await s.execute(delete(SystemMetric))
         await s.execute(delete(Device))
+        await s.execute(delete(Controller))
         await s.execute(delete(User))
 
 
@@ -186,6 +189,7 @@ class Hook:
     def __init__(self, status: int = 200) -> None:
         self.received: list[dict] = []
         self.paths: list[str] = []
+        self.headers: list[dict] = []
         hook = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -193,6 +197,7 @@ class Hook:
                 body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
                 hook.received.append(json.loads(body))
                 hook.paths.append(self.path)
+                hook.headers.append({k.lower(): v for k, v in self.headers.items()})
                 self.send_response(status)
                 self.end_headers()
 
@@ -301,3 +306,88 @@ def test_disabled_channel_gets_nothing(client, hook):
 async def _alert_count() -> int:
     async with Session() as s:
         return len((await s.scalars(select(Alert))).all())
+
+
+# --- 0.25.0: grupowanie po topologii, ciche godziny, ntfy i e-mail -------------------------------
+
+
+def test_switch_down_sends_one_message_for_devices_behind(client, hook):
+    client.post("/api/notification-channels", json={"name": "Hook", "url": hook.url})
+    down = dict(status="down", last_ok_at=NOW - timedelta(seconds=300), last_error="timeout")
+    router = add_device("UCG", "10.9.0.1", kind="router", status="up")
+    switch = add_device("USW", "10.9.0.2", kind="switch", **down)
+    ap = add_device("U6+", "10.9.0.3", kind="ap", **down)
+    add_rule(name="offline", kind="device_offline", duration_s=120, severity="critical")
+
+    async def topology():
+        async with Session() as s, s.begin():
+            c = Controller(name="UniFi", host="10.9.0.1", api_key="k")
+            s.add(c)
+            await s.flush()
+            mac = {router: "aa:00:00:00:00:01", switch: "aa:00:00:00:00:02", ap: "aa:00:00:00:00:03"}
+            for dev, port, remote in ((router, 1, switch), (switch, 8, router), (switch, 1, ap), (ap, 1, switch)):
+                s.add(TopologyLink(controller_id=c.id, device_id=dev, local_port_idx=port, local_mac=mac[dev], remote_mac=mac[remote], updated_at=NOW))
+
+    run(topology)
+    evaluate(Notifier())
+    (msg,) = hook.received  # jedna wiadomość o przyczynie
+    assert msg["device"] == "USW" and "Za nim nie odpowiada też: U6+" in msg["text"]
+    assert {a["title"] for a in alerts(client, "firing")} == {"USW nie odpowiada", "U6+ nie odpowiada"}  # w panelu oba
+
+    async def switch_back():
+        async with Session() as s, s.begin():
+            (await s.get(Device, switch)).status = "up"
+
+    run(switch_back)
+    evaluate(Notifier(), now=NOW + timedelta(seconds=30))
+    # Switch wrócił, AP dalej nie odpowiada: teraz osobne powiadomienie o AP
+    assert sorted((m["event"], m["device"]) for m in hook.received[1:]) == [("firing", "U6+"), ("resolved", "USW")]
+
+
+def test_quiet_hours_hold_warning_until_morning(client, hook):
+    local = NOW.astimezone(local_tz())
+    window = {"quiet_from": (local - timedelta(hours=1)).strftime("%H:%M"), "quiet_to": (local + timedelta(hours=1)).strftime("%H:%M")}
+    cid = client.post("/api/notification-channels", json={"name": "Hook", "url": hook.url, **window}).json()["id"]
+    add_device(status="down", last_ok_at=NOW - timedelta(seconds=300))
+    add_rule(name="offline", kind="device_offline", duration_s=0, severity="warning")
+    evaluate(Notifier(now_fn=lambda: NOW))
+    assert hook.received == []
+    (ch,) = client.get("/api/notification-channels").json()
+    assert ch["quiet_pending"] == 1 and ch["quiet_from"] == window["quiet_from"] and ch["timezone"]
+
+    later = NOW + timedelta(hours=3)
+    evaluate(Notifier(now_fn=lambda: later), now=later)
+    (msg,) = hook.received
+    assert msg["event"] == "quiet_summary" and "SRV nie odpowiada" in msg["text"]
+    assert client.get("/api/notification-channels").json()[0]["quiet_pending"] == 0
+    assert client.patch(f"/api/notification-channels/{cid}", json={"quiet_from": "7:00"}).status_code == 422
+
+
+def test_ntfy_and_email_channels_api(client, hook):
+    base = hook.url.split("/hook/")[0]
+    ntfy = client.post("/api/notification-channels", json={"name": "ntfy", "kind": "ntfy", "url": f"{base}/netpulse-dom", "secret": "tk_tajny"})
+    assert ntfy.status_code == 201, ntfy.text
+    body = ntfy.json()
+    assert body["kind"] == "ntfy" and body["has_secret"] and "tk_tajny" not in json.dumps(body)
+    res = client.post(f"/api/notification-channels/{body['id']}/test").json()
+    assert res == {"ok": True, "error": None}
+    assert hook.paths[0] == "/" and hook.received[0]["topic"] == "netpulse-dom" and hook.received[0]["priority"] == 3
+    assert hook.headers[0]["authorization"] == "Bearer tk_tajny"
+    assert client.patch(f"/api/notification-channels/{body['id']}", json={"secret": ""}).json()["has_secret"] is False
+    assert client.patch(f"/api/notification-channels/{body['id']}", json={"url": f"{base}/"}).status_code == 422
+
+    smtp = {"host": "smtp.example.com", "port": 465, "security": "ssl", "username": "ja@example.com", "recipients": ["dom@example.com"]}
+    mail = client.post("/api/notification-channels", json={"name": "Mail", "kind": "email", "email": smtp, "secret": "haslo-smtp"}).json()
+    assert mail["url_hint"] == "smtp.example.com:465" and mail["email"]["recipients"] == ["dom@example.com"] and mail["has_secret"]
+    assert "haslo-smtp" not in json.dumps(mail)
+    changed = client.patch(f"/api/notification-channels/{mail['id']}", json={"email": {**smtp, "port": 587, "security": "starttls"}}).json()
+    assert changed["url_hint"] == "smtp.example.com:587" and changed["has_secret"]  # hasło zostaje
+    webhook = client.post("/api/notification-channels", json={"name": "W", "url": hook.url}).json()
+    assert client.patch(f"/api/notification-channels/{webhook['id']}", json={"email": smtp}).status_code == 422
+    assert client.patch(f"/api/notification-channels/{webhook['id']}", json={"secret": "x"}).status_code == 422
+
+    async def stored():
+        async with Session() as s:
+            return (await s.get(NotificationChannel, mail["id"])).secret
+
+    assert run(stored) == "haslo-smtp"

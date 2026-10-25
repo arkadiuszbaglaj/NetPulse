@@ -219,8 +219,8 @@ kolejność rekomendowana jest na końcu.
 
 **Alerty i powiadomienia**
 
-- **Kanały powiadomień:** e-mail, webhook, Telegram/ntfy. Alerty są dziś tylko w panelu.
-- **Ciche godziny i grupowanie** (awaria switcha nie powinna dać dwudziestu wiadomości).
+- ✅ (0.9.0 webhook, 0.25.0 ntfy i e-mail) **Kanały powiadomień:** e-mail, webhook, Telegram/ntfy. Opis: `docs/21-powiadomienia.md`.
+- ✅ (0.25.0) **Ciche godziny i grupowanie** (awaria switcha nie powinna dać dwudziestu wiadomości).
 - **Nowy klient w sieci** (nieznany MAC) i „spadek liczby klientów WiFi do zera” jako typy alertów.
 
 **Panel i obsługa**

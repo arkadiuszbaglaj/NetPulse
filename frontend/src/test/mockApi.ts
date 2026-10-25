@@ -625,15 +625,23 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (/^GET \/api\/devices\/\d+\/agent-metrics$/.test(key)) return json(200, state.traffic.points);
       if (key === "GET /api/notification-channels") return json(200, state.channels);
       if (key === "POST /api/notification-channels") {
-        const b = body as { name: string; url: string; min_severity?: string; notify_resolved?: boolean };
+        const b = body as Partial<NotificationChannel> & { name: string; url?: string; secret?: string };
+        const kind = b.kind ?? "webhook";
         const created: NotificationChannel = {
           id: Math.max(0, ...state.channels.map((c) => c.id)) + 1,
           name: b.name,
-          kind: "webhook",
-          url_hint: `${new URL(b.url).origin}/…`,
+          kind,
+          url_hint: kind === "email" && b.email ? `${b.email.host}:${b.email.port}` : `${new URL(b.url ?? "http://x").origin}/…`,
+          has_secret: Boolean(b.secret),
+          email: b.email ?? null,
           enabled: true,
           min_severity: (b.min_severity ?? "warning") as NotificationChannel["min_severity"],
           notify_resolved: b.notify_resolved ?? true,
+          quiet_from: b.quiet_from ?? null,
+          quiet_to: b.quiet_to ?? null,
+          quiet_critical: b.quiet_critical ?? true,
+          quiet_pending: 0,
+          timezone: "Europe/Warsaw",
           last_status: null,
           last_error: null,
           last_sent_at: null,
@@ -651,7 +659,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
           state.channels = state.channels.filter((c) => c !== found);
           return json(204);
         }
-        const { url: _url, ...fields } = body as Record<string, unknown>;
+        const { url: _url, secret, ...fields } = body as Record<string, unknown>;
+        if (secret !== undefined) found.has_secret = Boolean(secret);
         Object.assign(found, fields);
         return json(200, found);
       }

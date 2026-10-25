@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from collections import defaultdict
-from dataclasses import dataclass
+from collections import defaultdict, deque
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatchcase
 
@@ -28,6 +28,7 @@ from .db.models import (
     InterfaceMetric,
     Metric,
     SystemMetric,
+    TopologyLink,
 )
 from .modules import hidden_drivers, read_modules
 from .notifications import AlertEvent, Notifier
@@ -171,6 +172,38 @@ def format_value(metric: str, value: float) -> str:
     return f"{value:.1f}{unit}".replace(".", ",")
 
 
+def upstream_parents(devices: dict[int, Device], links: list[TopologyLink]) -> dict[int, int]:
+    """Rodzic każdego urządzenia na drodze do routera (z tablic LLDP, jak mapa sieci). Bez routera na mapie – pusto."""
+    mac_to_device = {link.local_mac: link.device_id for link in links}
+    adjacent: dict[int, set[int]] = defaultdict(set)
+    for link in links:
+        remote = mac_to_device.get(link.remote_mac)
+        if remote is not None and remote != link.device_id and remote in devices and link.device_id in devices:
+            adjacent[link.device_id].add(remote)
+            adjacent[remote].add(link.device_id)
+    roots = sorted(d for d in adjacent if devices[d].kind == "router")
+    parent: dict[int, int] = {}
+    seen, queue = set(roots), deque(roots)
+    while queue:
+        current = queue.popleft()
+        for neighbour in sorted(adjacent[current]):
+            if neighbour not in seen:
+                seen.add(neighbour)
+                parent[neighbour] = current
+                queue.append(neighbour)
+    return parent
+
+
+def down_root(device_id: int, parent: dict[int, int], devices: dict[int, Device]) -> int | None:
+    """Najwyższe niedziałające urządzenie nad `device_id` (przyczyna), albo None, gdy droga do routera działa."""
+    root, current = None, parent.get(device_id)
+    while current is not None:
+        if devices[current].status == "down":
+            root = current
+        current = parent.get(current)
+    return root
+
+
 @dataclass
 class Hit:
     """Podmiot, dla którego warunek reguły jest teraz spełniony."""
@@ -210,8 +243,8 @@ class AlertEngine:
     async def evaluate(self) -> list[AlertEvent]:
         """Ocenia reguły, zapisuje zmiany stanu alertów, rozsyła powiadomienia i zwraca zdarzenia tego cyklu."""
         events = await self._evaluate()
-        if self.notifier is not None and events:
-            await self.notifier.send(events)
+        if self.notifier is not None:
+            await self.notifier.send(events)  # także bez zdarzeń: po cichych godzinach idą zaległości
         return events
 
     async def _evaluate(self) -> list[AlertEvent]:
@@ -227,12 +260,22 @@ class AlertEngine:
             by_key = {(a.rule_id, a.subject): a for a in firing}
             active_rules = {r.id for r in rules}
 
+            # Grupowanie: urządzenie za niedziałającym urządzeniem (np. AP za switchem) nie dostaje osobnego
+            # powiadomienia – wymieniamy je w wiadomości o przyczynie. Alert w panelu powstaje normalnie.
+            links = list((await session.scalars(select(TopologyLink))).all())
+            parent = upstream_parents(devices, links)
+            behind: dict[int, list[str]] = defaultdict(list)
+            offline_event: dict[int, int] = {}  # urządzenie → indeks jego zdarzenia „nie odpowiada” w `events`
+
             seen: set[tuple[int | None, str]] = set()
             for rule in rules:
                 for hit in await self._hits(session, rule, devices, now):
                     key = (rule.id, hit.subject)
                     seen.add(key)
                     alert = by_key.get(key)
+                    offline = rule.kind == "device_offline" and hit.device_id is not None
+                    root = down_root(hit.device_id, parent, devices) if offline else None
+                    device = devices.get(hit.device_id) if hit.device_id is not None else None
                     if alert is None:
                         session.add(
                             Alert(
@@ -246,27 +289,49 @@ class AlertEngine:
                                 value=hit.value,
                                 peak=hit.value,
                                 started_at=now,
+                                muted=root is not None,
                             )
                         )
                         log.info("ALERT: %s", hit.title)
-                        device = devices.get(hit.device_id) if hit.device_id is not None else None
+                        if root is not None:
+                            behind[root].append(device.name if device else hit.title)
+                            continue
+                        if offline:
+                            offline_event[hit.device_id] = len(events)
                         events.append(
                             AlertEvent(
                                 "firing", rule.severity, hit.title, hit.message, device.name if device else None, hit.value, now
                             )
                         )
                     else:
+                        if alert.muted and root is None:
+                            # Przyczyna wróciła, a to urządzenie dalej nie odpowiada – teraz już osobne powiadomienie
+                            alert.muted = False
+                            events.append(
+                                AlertEvent(
+                                    "firing", alert.severity, hit.title, hit.message, device.name if device else None,
+                                    hit.value, alert.started_at,
+                                )
+                            )
                         alert.value = hit.value
                         alert.message = hit.message
                         if hit.value is not None:
                             peaks = [p for p in (alert.peak, hit.value) if p is not None]
                             alert.peak = max(peaks) if rule.op != "<" else min(peaks)
 
+            for root, names in behind.items():
+                if root in offline_event:
+                    i = offline_event[root]
+                    extra = f"Za nim nie odpowiada też: {', '.join(sorted(names))}"
+                    events[i] = replace(events[i], message=f"{events[i].message}\n{extra}" if events[i].message else extra)
+
             for key, alert in by_key.items():
                 if key not in seen or alert.rule_id not in active_rules:
                     alert.state = "resolved"
                     alert.resolved_at = now
                     log.info("Alert zakończony: %s", alert.title)
+                    if alert.muted:
+                        continue  # nie było powiadomienia o początku, więc nie ma i o końcu
                     device = devices.get(alert.device_id) if alert.device_id is not None else None
                     events.append(
                         AlertEvent(
