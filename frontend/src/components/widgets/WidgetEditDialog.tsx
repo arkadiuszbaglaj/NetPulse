@@ -24,8 +24,13 @@ import {
   type Source,
   type SourceKind,
   type SummaryTile,
+  type WanChartWidgetModel,
+  type WanMetric,
+  type WanSlaWidgetModel,
+  type WanStatusWidgetModel,
   type Widget,
 } from "../../lib/layout";
+import { SLA_DAYS, type SlaDays } from "../../lib/wan";
 import { isOn, sourceModule, useModules } from "../../lib/modules";
 import { useDevices } from "../../lib/queries";
 import { formatRange } from "../../lib/format";
@@ -511,6 +516,90 @@ function ServerInfo({ isNew, onSave, onClose }: { isNew: boolean; onSave: () => 
   );
 }
 
+// --- łącza WAN ----------------------------------------------------------------------------------
+
+type WanWidget = WanStatusWidgetModel | WanChartWidgetModel | WanSlaWidgetModel;
+
+/** Widgety WAN: router (puste = wszystkie), dla wykresu metryka, zakres i wysokość, dla SLA okres. */
+function WanForm({ initial, isNew, onSave, onClose }: { initial: WanWidget; isNew: boolean; onSave: (w: Widget) => void; onClose: () => void }) {
+  const devices = useDevices();
+  const [widget, setWidget] = useState<WanWidget>(initial);
+  const routers = (devices.data ?? []).filter((d: Device) => d.kind === "gateway");
+  type WanPatch = Partial<WanChartWidgetModel["config"]> | Partial<WanSlaWidgetModel["config"]>;
+  const setConfig = (patch: WanPatch) => setWidget((w) => ({ ...w, config: { ...w.config, ...patch } }) as WanWidget);
+  return (
+    <Dialog
+      title={t(`widget.type.${widget.type}` as TextKey)}
+      size="sm"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" onClick={() => onSave(widget)}>
+            {t(isNew ? "widget.add.title" : "common.save")}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-text-2">{t("widget.wan.info")}</p>
+        <Select
+          id="wan-device"
+          label={t("widget.wan.device")}
+          value={widget.config.device_id ?? ""}
+          onChange={(e) => setConfig({ device_id: e.target.value ? Number(e.target.value) : null })}
+        >
+          <option value="">{t("widget.wan.all")}</option>
+          {routers.map((d: Device) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </Select>
+        {widget.type === "wan_chart" && (
+          <>
+            <Select id="wan-metric" label={t("widget.wan.metric")} value={widget.config.metric} onChange={(e) => setConfig({ metric: e.target.value as WanMetric })}>
+              <option value="in_bps">{t("chart.traffic.in")}</option>
+              <option value="out_bps">{t("chart.traffic.out")}</option>
+            </Select>
+            <Select
+              id="wan-range"
+              label={t("ce.range")}
+              value={widget.config.range_min ?? ""}
+              onChange={(e) => setConfig({ range_min: e.target.value ? (Number(e.target.value) as RangeMinutes) : null })}
+            >
+              <option value="">{t("ce.range.global")}</option>
+              {RANGE_OPTIONS.map((m) => (
+                <option key={m} value={m}>
+                  {formatRange(m)}
+                </option>
+              ))}
+            </Select>
+            <Select id="wan-height" label={t("ce.height")} value={widget.config.height} onChange={(e) => setConfig({ height: e.target.value as ChartHeight })}>
+              {HEIGHTS.map((h) => (
+                <option key={h} value={h}>
+                  {t(`ce.height.${h}` as TextKey)}
+                </option>
+              ))}
+            </Select>
+          </>
+        )}
+        {widget.type === "wan_sla" && (
+          <Select id="wan-days" label={t("wan.sla.period")} value={widget.config.days} onChange={(e) => setConfig({ days: Number(e.target.value) as SlaDays })}>
+            {SLA_DAYS.map((d) => (
+              <option key={d} value={d}>
+                {t(`wan.sla.days.${d}` as TextKey)}
+              </option>
+            ))}
+          </Select>
+        )}
+      </div>
+    </Dialog>
+  );
+}
+
 /** Okno edycji odpowiednie dla typu widgetu. `isNew` zmienia tylko tytuł okna wykresu. */
 export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { widget: Widget; isNew?: boolean; onSave: (w: Widget) => void; onClose: () => void }) {
   switch (widget.type) {
@@ -524,5 +613,9 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
       return <ServerInfo isNew={isNew} onClose={onClose} onSave={() => onSave(widget)} />;
     case "poe":
       return <PoeForm initial={widget.config.device_id} onClose={onClose} onSave={(device_id) => onSave({ ...widget, config: { device_id } })} />;
+    case "wan_status":
+    case "wan_chart":
+    case "wan_sla":
+      return <WanForm initial={widget} isNew={isNew} onClose={onClose} onSave={onSave} />;
   }
 }

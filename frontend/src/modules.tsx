@@ -20,6 +20,7 @@ import {
   IconSettings,
   IconTerminal2,
   IconUserCircle,
+  IconWorld,
   type Icon,
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
@@ -41,6 +42,7 @@ import { NotificationsPage } from "./pages/settings/NotificationsPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
 import { SystemPage } from "./pages/settings/SystemPage";
 import { UpdatePage } from "./pages/settings/UpdatePage";
+import { WanLinksPage } from "./pages/settings/WanLinksPage";
 import { DashboardPage } from "./pages/DashboardPage";
 
 export interface NavChild {
@@ -118,6 +120,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.devices",
         icon: IconServer2,
         element: <DevicesPage />,
+      },
+      {
+        path: "wan",
+        label: "nav.settings.wan",
+        icon: IconWorld,
+        element: <WanLinksPage />,
       },
       {
         path: "agents",

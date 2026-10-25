@@ -22,6 +22,7 @@ import type { ServerStatus } from "../components/widgets/ServerDetails";
 import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
+import type { WanHistory, WanLink, WanSla, WanStatus } from "../lib/wan";
 
 export const USER: User = {
   id: 1,
@@ -270,6 +271,11 @@ interface MockState {
   /** Odpowiedź na wiadomość próbną kanału */
   channelTest: { ok: boolean; error: string | null };
   services: { id: string; state: string; detail: string | null }[];
+  /** Łącza WAN (dual WAN): stan, historia, SLA i konfiguracja */
+  wanStatus: WanStatus;
+  wanHistory: WanHistory;
+  wanSla: WanSla;
+  wanLinks: WanLink[];
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -313,6 +319,10 @@ export function mockApi(initial: Partial<MockState> = {}) {
       { id: "updater", state: "ok", detail: null },
     ],
     updateSettings: { auto_check: true, interval_h: 24 },
+    wanStatus: { links: [], active_ids: [] },
+    wanHistory: { interval_s: 30, links: [], points: [], segments: [], switches: [] },
+    wanSla: { days: 7, start: "2026-10-18T12:00:00Z", end: "2026-10-25T12:00:00Z", links: [] },
+    wanLinks: [],
     updates: UPDATES,
     overrides: {},
     ...initial,
@@ -539,6 +549,27 @@ export function mockApi(initial: Partial<MockState> = {}) {
         Object.assign(found, fields);
         return json(200, found);
       }
+      if (key === "GET /api/wan/status") return json(200, state.wanStatus);
+      if (key === "GET /api/wan/history") return json(200, state.wanHistory);
+      if (key === "GET /api/wan/sla") {
+        const days = Number(new URL(path, "http://x").searchParams.get("days") ?? 1);
+        return json(200, { ...state.wanSla, days });
+      }
+      if (key === "GET /api/wan/links") return json(200, state.wanLinks);
+      if (key === "PUT /api/wan/links") {
+        if (!state.admin) return json(403, { detail: "Wymagane uprawnienia administratora" });
+        const items = (body as { links: { interface_id: number; name: string }[] }).links;
+        state.wanLinks = items.map((x, i) => {
+          const known = state.wanLinks.find((l) => l.interface_id === x.interface_id);
+          return {
+            ...(known ?? { id: 100 + i, device_id: 1, device_name: "UCG Ultra", interface_name: `if${x.interface_id}`, interface_label: `Port ${x.interface_id}`, speed_mbps: 1000, state: "unknown", state_since: null, source: null, in_bps: null, out_bps: null, sampled_at: null }),
+            interface_id: x.interface_id,
+            name: x.name,
+            position: i + 1,
+          } as WanLink;
+        });
+        return json(200, state.wanLinks);
+      }
       if (key === "GET /api/system") return json(200, state.system);
       if (key === "GET /api/system/services") return json(200, state.services);
       if (key === "GET /api/system/metrics") return json(200, state.traffic.points);
@@ -551,7 +582,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.layout = null;
         return json(204);
       }
-      if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, label: "Port 1", alias: "AP U6+" }, { id: 12, label: "Port 2", alias: null }]);
+      if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, name: "eth0", label: "Port 1", alias: "AP U6+" }, { id: 12, name: "eth1", label: "Port 2", alias: null }]);
       if (key === "GET /api/devices/1/wifi") return json(200, [{ id: 21, ssid: "Dom", radio: "ng" }]);
       if (/^GET \/api\/(interfaces|wifi|devices)\/\d+\/metrics$/.test(key)) return json(200, state.traffic.points);
       if (key === "GET /api/updates/settings") return json(200, state.updateSettings);

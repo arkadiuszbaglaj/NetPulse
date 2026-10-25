@@ -52,6 +52,11 @@ Pulpit składa się z **widgetów**. Widget to `{ typ, konfiguracja }` zapisana 
 | `device-chart`    | CPU, RAM, load urządzenia                            |
 | `wifi-chart`      | klienci i ruch sieci WiFi                            |
 | `port-table`      | tabela portów ze statusem i prędkością               |
+| `wan_status`      | Aktywny WAN: porty WAN routera, które działa, którym idzie ruch (0.19.0) |
+| `wan_chart`       | Aktywne łącze WAN: linia każdego WAN-u i pasy stanu, moment przełączenia (0.19.0) |
+| `wan_sla`         | SLA łączy WAN: dostępność w %, liczba i czas przerw za 24 godz./7/30 dni (0.19.0) |
+
+Widgety WAN opisuje `docs/19-dual-wan.md`.
 
 Personalizacja wykresu (per widget): tytuł, źródło danych (urządzenie, port, metryka),
 zakres czasu, typ (linia, obszar, słupki), kolory serii, jednostki (bit/s lub B/s),

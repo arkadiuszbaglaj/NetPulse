@@ -122,6 +122,15 @@ go pomija, jego urządzenia i reguły alertów są pomijane; dane zostają. Nowa
 Backend: `netpulse/modules.py` (`require_module`, `hidden_drivers`), panel: pole `module` w rejestrze `frontend/src/modules.tsx`.
 Nowa integracja = nowy moduł. Opis: `docs/18-moduly.md`.
 
+## Dual WAN (failover)
+
+Od 0.19.0: łącza WAN routera (`wan_links`, historia w hypertable `wan_link_metrics`, migracja 0006). Port z rolą `wan`
+w driverze zostaje sam WAN 1; kolejne porty ustawia się w Ustawienia → Łącza WAN (port dostaje rolę `wan`, więc wlicza się
+do ruchu WAN, „Na żywo” i alertów). „Aktywne” = informacja z kontrolera UniFi (`wan1`/`wan2`, `uplink`, `is_uplink`),
+bez kontrolera – link (`ifOperStatus`) i ruch. Logika: `backend/netpulse/wan.py` (czysta), zapis: `wan_links.py`,
+API: `api/wan.py` (`/api/wan/status|history|sla|links`), widgety `wan_status`, `wan_chart`, `wan_sla`.
+Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
+
 ## Do sprawdzenia później
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
@@ -131,5 +140,8 @@ Nowa integracja = nowy moduł. Opis: `docs/18-moduly.md`.
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
 - **Proxmox na prawdziwym sprzęcie** – użytkownik nie ma jeszcze Proxmoxa; integracja (0.17.0) testowana na atrapie API.
   Przy pierwszym podłączeniu: token, `netpulse logs collector`, porównać pola z `pve_fake.py`.
+- **Dual WAN na prawdziwym sprzęcie** – po podłączeniu drugiego łącza: ustawić WAN 2 w panelu, wyciągnąć kabel WAN 1
+  i sprawdzić przełączenie w widgetach. Pobrać `unifi_probe.py` i sprawdzić, czy `stat/device` bramy ma `wan1`/`wan2`/`uplink`
+  z `ifname` (parser zakłada port N = ethN-1, gdy go brak); zanonimizowany zrzut (`probe2fixtures.py`) podmienić w fixtures.
 - **Wersja 0.9.0 na serwerze** – użytkownik jeszcze nie potwierdził `netpulse update` i działania: karta serwera
   NetPulse, serwery Linux przez SNMP, reguły alertów dla dysku i błędów portów, powiadomienia webhookiem.

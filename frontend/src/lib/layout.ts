@@ -65,7 +65,23 @@ export type ChartWidgetModel = WidgetBase & { type: "chart"; config: ChartConfig
 export type DevicesWidgetModel = WidgetBase & { type: "devices"; config: { kinds?: DeviceKind[] | null } };
 export type PoeWidgetModel = WidgetBase & { type: "poe"; config: { device_id?: number | null } };
 export type ServerWidgetModel = WidgetBase & { type: "server"; config: Record<string, never> };
-export type Widget = SummaryWidgetModel | ChartWidgetModel | DevicesWidgetModel | PoeWidgetModel | ServerWidgetModel;
+/** Łącza WAN (dual WAN): `device_id` – router, puste = wszystkie routery. */
+export type WanMetric = "in_bps" | "out_bps";
+export type WanStatusWidgetModel = WidgetBase & { type: "wan_status"; config: { device_id?: number | null } };
+export type WanChartWidgetModel = WidgetBase & {
+  type: "wan_chart";
+  config: { device_id?: number | null; metric: WanMetric; range_min?: RangeMinutes | null; height: ChartHeight };
+};
+export type WanSlaWidgetModel = WidgetBase & { type: "wan_sla"; config: { device_id?: number | null; days: 1 | 7 | 30 } };
+export type Widget =
+  | SummaryWidgetModel
+  | ChartWidgetModel
+  | DevicesWidgetModel
+  | PoeWidgetModel
+  | ServerWidgetModel
+  | WanStatusWidgetModel
+  | WanChartWidgetModel
+  | WanSlaWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -216,6 +232,12 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 12, config: { device_id: null } };
     case "server":
       return { id, type, w: 4, config: {} };
+    case "wan_status":
+      return { id, type, w: 4, config: { device_id: null } };
+    case "wan_chart":
+      return { id, type, w: 8, config: { device_id: null, metric: "in_bps", range_min: null, height: "md" } };
+    case "wan_sla":
+      return { id, type, w: 12, config: { device_id: null, days: 7 } };
   }
 }
 
