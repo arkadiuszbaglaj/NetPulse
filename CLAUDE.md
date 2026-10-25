@@ -100,3 +100,6 @@ Przed pierwszą zmianą kolumn wprowadzić migracje (Alembic), żeby aktualizacj
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik na prawdziwym sprzęcie** – użytkownik podłączy routerboard do sieci. Wtedy: zrobić `snmpwalk`,
   zanonimizować (`backend/tools/walk2snmprec.py`), podmienić syntetyczną fixture i sprawdzić driver w panelu.
+- **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
+- **Wersja 0.9.0 na serwerze** – użytkownik jeszcze nie potwierdził `netpulse update` i działania: karta serwera
+  NetPulse, serwery Linux przez SNMP, reguły alertów dla dysku i błędów portów, powiadomienia webhookiem.
