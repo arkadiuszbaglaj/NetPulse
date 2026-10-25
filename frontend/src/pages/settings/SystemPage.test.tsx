@@ -6,7 +6,8 @@ describe("Ustawienia → System", () => {
   it("pokazuje stan usług z opisami", async () => {
     mockApi();
     renderApp("/settings/system");
-    const list = await screen.findByRole("region", { name: "Usługi" });
+    await screen.findByText("API i panel"); // lista usług doczytana
+    const list = screen.getByRole("region", { name: "Usługi" });
     expect(within(list).getByText("API i panel")).toBeInTheDocument();
     expect(within(list).getByText("wersja 0.8.2")).toBeInTheDocument();
     expect(within(list).getByText("PostgreSQL z TimescaleDB")).toBeInTheDocument();
@@ -25,7 +26,8 @@ describe("Ustawienia → System", () => {
       ],
     });
     renderApp("/settings/system");
-    const list = await screen.findByRole("region", { name: "Usługi" });
+    await screen.findByText("API i panel"); // lista usług doczytana
+    const list = screen.getByRole("region", { name: "Usługi" });
     expect(within(list).getAllByText("nie działa")).toHaveLength(3);
     expect(within(list).getByText(/dawno nie zapisywał danych/)).toBeInTheDocument();
     expect(within(list).getByText("Kontroler odrzucił klucz API")).toBeInTheDocument();
