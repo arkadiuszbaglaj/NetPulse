@@ -552,6 +552,8 @@ export const pl = {
 
   "dash.kind.server": "Serwer",
   "devform.driver.linux": "Serwer Linux (snmpd)",
+  "devform.driver.mikrotik": "MikroTik RouterOS",
+  "devform.driver.omada": "TP-Link Omada / JetStream",
   "devform.linuxHint": "Na serwerze musi działać snmpd (apt install snmpd) z włączonym odczytem dla adresu NetPulse. Gotowa konfiguracja: docs/10-serwer-linux-snmp.md. Sterownik „Automatyczny” rozpozna serwer sam.",
   "server.processes": "procesów: {n}",
 

@@ -15,8 +15,8 @@ switchy i access pointów, zebrany w jednym panelu (wykresy, statusy portów, to
 | Producent        | Status       | Źródła danych                          |
 |------------------|--------------|----------------------------------------|
 | Ubiquiti UniFi   | etap 1       | SNMP (IF-MIB) + UniFi Network API      |
-| MikroTik         | planowane    | SNMP (IF-MIB, MIKROTIK-MIB) + RouterOS API |
-| TP-Link Omada    | planowane    | SNMP (IF-MIB) + Omada Controller API   |
+| MikroTik         | SNMP (driver na zrzutach syntetycznych) | SNMP (IF-MIB, MIKROTIK-MIB, HOST-RESOURCES); RouterOS API planowane |
+| TP-Link Omada    | SNMP (driver na zrzutach syntetycznych) | SNMP (IF-MIB); Omada Controller API planowane |
 | Inne             | później      | generyczny driver SNMP (IF-MIB)        |
 
 Sprzęt testowy (etap 1): UniFi Cloud Gateway Ultra, USW Lite 8 PoE, U6+.

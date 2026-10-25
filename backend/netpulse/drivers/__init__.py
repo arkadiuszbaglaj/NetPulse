@@ -15,12 +15,16 @@ from .base import (
 )
 from .generic import GenericDriver, read_system
 from .linux import LinuxDriver
+from .mikrotik import MikrotikDriver
+from .omada import OmadaDriver
 from .unifi import UnifiDriver
 
 DRIVERS: dict[str, type[GenericDriver]] = {
     GenericDriver.name: GenericDriver,
     UnifiDriver.name: UnifiDriver,
     LinuxDriver.name: LinuxDriver,
+    MikrotikDriver.name: MikrotikDriver,
+    OmadaDriver.name: OmadaDriver,
 }
 
 
@@ -50,6 +54,8 @@ __all__ = [
     "GenericDriver",
     "InterfaceSample",
     "LinuxDriver",
+    "MikrotikDriver",
+    "OmadaDriver",
     "PollResult",
     "ServerSample",
     "SystemInfo",

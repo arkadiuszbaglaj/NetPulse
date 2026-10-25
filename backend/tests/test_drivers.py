@@ -6,7 +6,15 @@ import asyncio
 
 from conftest import FIXTURES
 
-from netpulse.drivers import GenericDriver, LinuxDriver, UnifiDriver, detect_driver, poll_device
+from netpulse.drivers import (
+    GenericDriver,
+    LinuxDriver,
+    MikrotikDriver,
+    OmadaDriver,
+    UnifiDriver,
+    detect_driver,
+    poll_device,
+)
 from netpulse.drivers.base import SystemInfo
 from netpulse.drivers.linux import is_real_mount, parse_kernel
 from netpulse.snmp.snmprec import SnmprecClient
@@ -123,3 +131,79 @@ def test_linux_driver_detection_and_helpers():
 def test_forced_linux_driver_on_any_snmpd():
     r = poll("ucg-ultra", driver="linux")  # wymuszenie w formularzu urządzenia
     assert r.driver == "linux" and r.system.kind == "server"
+
+
+def poll_with(name: str, **overrides):
+    """Zrzut z podmienionymi wartościami (np. nazwa płyty, komentarz portu) – inne modele bez nowych plików."""
+    client = SnmprecClient.from_file(FIXTURES / f"{name}.snmprec")
+    for oid, value in overrides.items():
+        client.set(oid, value)
+    return asyncio.run(poll_device(client))
+
+
+MT_BOARD = "1.3.6.1.4.1.14988.1.1.7.8.0"
+IF_ALIAS = "1.3.6.1.2.1.31.1.1.1.18"
+
+
+def test_mikrotik_router():
+    r = poll("mikrotik-hex")
+    assert r.driver == MikrotikDriver.name
+    s = r.system
+    assert (s.kind, s.vendor, s.model, s.firmware, s.name) == ("gateway", "MikroTik", "RB750Gr3", "7.15.3", "hex")
+    assert r.health.cpu_percent == 25.0  # średnia z czterech rdzeni
+    assert r.health.mem_total_kb == 262144 and r.health.mem_used_percent == 38.1
+
+
+def test_mikrotik_interfaces_wan_lan_and_virtual():
+    r = poll("mikrotik-hex")
+    ifs = by_name(r)
+    assert [i.name for i in r.interfaces if i.role == "wan"] == ["ether1"]  # PPPoE nie liczy się drugi raz
+    assert (ifs["ether1"].role, ifs["ether1"].label) == ("wan", "WAN")
+    assert (ifs["ether2"].role, ifs["ether2"].label, ifs["ether2"].alias) == ("lan", "NAS", "NAS")  # komentarz jako nazwa
+    assert (ifs["ether3"].role, ifs["ether3"].label) == ("lan", "ether3")
+    assert {"bridge", "pppoe-out1"} <= {i.name for i in r.interfaces if i.hidden}
+    assert {i.name for i in r.visible_interfaces()} == {f"ether{n}" for n in range(1, 6)}
+
+
+def test_mikrotik_wan_marked_by_comment_and_board_decides_kind():
+    r = poll_with("mikrotik-hex", **{f"{IF_ALIAS}.3": b"Internet LTE"})
+    ifs = by_name(r)
+    assert ifs["ether3"].role == "wan" and ifs["ether3"].label == "Internet LTE"
+    assert r.system.kind == "gateway"
+
+    switch = poll_with("mikrotik-hex", **{MT_BOARD: b"CRS326-24G-2S+RM"})
+    assert switch.system.kind == "switch" and by_name(switch)["ether2"].role == "port"
+    assert not [i for i in switch.interfaces if i.role == "wan"]  # switch nie ma WAN
+
+    assert poll_with("mikrotik-hex", **{MT_BOARD: b"cAP ac"}).system.kind == "ap"
+
+
+def test_tplink_jetstream_switch():
+    r = poll("tplink-jetstream")
+    assert r.driver == OmadaDriver.name
+    assert (r.system.kind, r.system.vendor, r.system.model) == ("switch", "TP-Link", "SG2008P")
+    ports = [i for i in r.visible_interfaces() if i.role == "port"]
+    assert [p.label for p in ports] == [f"Port {n}" for n in range(1, 10)]
+    ifs = by_name(r)
+    assert ifs["gi1/0/1"].alias == "AP salon" and ifs["gi1/0/5"].speed_mbps == 100
+    assert ifs["gi1/0/2"].oper_status == "down"
+    assert ifs["vlan1"].hidden and ifs["lag1"].label == "LAG 1" and not ifs["lag1"].hidden
+
+
+def test_tplink_access_point_and_detection():
+    ap = poll_with("tplink-jetstream", **{"1.3.6.1.2.1.1.1.0": b"EAP245 AC1750 Ceiling Mount Dual-Band Wi-Fi Access Point"})
+    assert ap.system.kind == "ap" and ap.system.model == "EAP245"
+
+    omada = SystemInfo(descr="Omada Controller managed device")
+    assert detect_driver(omada) is OmadaDriver
+    assert detect_driver(SystemInfo(object_id="1.3.6.1.4.1.11863.5.45")) is OmadaDriver
+    assert detect_driver(SystemInfo(object_id="1.3.6.1.4.1.14988.1", descr="RouterOS hEX")) is MikrotikDriver
+    assert detect_driver(SystemInfo(descr="RouterOS CHR")) is MikrotikDriver
+    assert detect_driver(SystemInfo(descr="Cisco IOS Software")) is GenericDriver
+    assert detect_driver(SystemInfo(descr="Linux srv 6.1.0", object_id="1.3.6.1.4.1.8072.3.2.10")) is LinuxDriver
+
+
+def test_forced_driver_on_generic_data_does_not_crash():
+    for driver in ("mikrotik", "omada"):
+        r = poll("ucg-ultra", driver=driver)  # wymuszony sterownik na obcym urządzeniu: bez wyjątku, tylko ubogie dane
+        assert r.driver == driver and r.interfaces
