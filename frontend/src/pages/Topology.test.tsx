@@ -89,6 +89,7 @@ describe("strona Mapa sieci", () => {
     expect(screen.getByRole("heading", { name: "UCG" })).toBeInTheDocument();
     expect(screen.getByText("Internet (WAN)")).toBeInTheDocument(); // sąsiad bramy za jej portem WAN
     expect(screen.queryByText("Nieznane urządzenie")).not.toBeInTheDocument();
+    expect(screen.queryByText("02:00:ff:33:66:69")).not.toBeInTheDocument(); // bez adresu MAC modemu
     expect(await screen.findByText("port 7: Telewizor")).toBeInTheDocument();
 
     const links = screen.getByRole("region", { name: "Połączenia" });

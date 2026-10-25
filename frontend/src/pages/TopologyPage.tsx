@@ -47,7 +47,7 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
           <IconWorld size={18} aria-hidden="true" className="shrink-0 text-text-2" />
           {internet ? t("topo.internet") : t("topo.external")}
         </div>
-        <p className="truncate font-mono text-xs text-text-2">{node.name}</p>
+        {!internet && <p className="truncate font-mono text-xs text-text-2">{node.name}</p>}
       </Card>
     );
   }
