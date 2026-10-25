@@ -37,8 +37,9 @@ async def drop_everything() -> None:
         await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
 
 
-# Tabele dodane migracjami po 0001 – baza z 0.9.0 ich nie miała
+# Tabele i kolumny dodane migracjami po 0001 – baza z 0.9.0 ich nie miała
 AFTER_BASELINE = {"agents", "metrics"}
+COLUMNS_AFTER_BASELINE = {"alert_rules": ["match"]}
 
 
 async def legacy_schema() -> None:
@@ -47,6 +48,9 @@ async def legacy_schema() -> None:
     tables = [t for t in Base.metadata.sorted_tables if t.name not in AFTER_BASELINE]
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
+        for table, columns in COLUMNS_AFTER_BASELINE.items():
+            for column in columns:
+                await conn.execute(text(f'ALTER TABLE {table} DROP COLUMN "{column}"'))
 
 
 def schema_diff(sync_conn) -> list:
