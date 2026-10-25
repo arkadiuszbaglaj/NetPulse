@@ -93,7 +93,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
 
 class SeriesConfig(Strict):
     key: str = Field(max_length=32)
-    color: Literal[1, 2, 3, 4] | None = None  # numer koloru z palety motywu; puste = kolejny
+    color: Literal[1, 2, 3, 4, 5, 6, 7, 8] | None = None  # numer koloru z palety motywu (--chart-1…8); puste = kolejny
     label: str | None = Field(None, max_length=40)
 
 

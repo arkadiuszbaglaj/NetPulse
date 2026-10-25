@@ -8,6 +8,7 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 import type { SeriesPoint } from "../../lib/api";
+import { autoColor, type ColorIndex } from "../../lib/layout";
 import { useTheme } from "../../lib/theme";
 import { toChartRows } from "./chartData";
 
@@ -17,8 +18,8 @@ export interface ChartSeries {
   /** Klucz wartości w `points[].values` */
   key: string;
   name: string;
-  /** Numer koloru z palety motywu (--chart-1…4); domyślnie kolejny */
-  color?: 1 | 2 | 3 | 4;
+  /** Numer koloru z palety motywu (--chart-1…8); domyślnie kolejny */
+  color?: ColorIndex;
   area?: boolean;
 }
 
@@ -111,7 +112,7 @@ export default function TimeSeriesChart({
           splitLine: { lineStyle: { color: grid } },
         },
         series: series.map((s, i) => {
-          const color = css(`--chart-${s.color ?? ((i % 4) + 1)}`);
+          const color = css(`--chart-${s.color ?? autoColor(i)}`);
           const data = toChartRows(points, s.key, intervalS);
           if (kind === "bar") {
             return { name: s.name, type: "bar", barMaxWidth: 14, itemStyle: { color }, data };

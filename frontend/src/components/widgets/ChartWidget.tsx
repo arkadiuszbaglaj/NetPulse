@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import { ApiError } from "../../lib/api";
 import { formatBps, metricFormatter } from "../../lib/format";
 import { useLiveWan } from "../../lib/live";
-import { METRICS, unitClassOf, type ChartConfig, type SeriesConfig, type Source } from "../../lib/layout";
+import { METRICS, autoColor, unitClassOf, type ChartConfig, type SeriesConfig, type Source } from "../../lib/layout";
 import { ChartCard } from "../charts/ChartCard";
 import type { ChartSeries } from "../charts/TimeSeriesChart";
 import { defaultTitle, useChartSeries } from "./chartSource";
@@ -26,7 +26,7 @@ export function chartSeriesOf(config: ChartConfig): ChartSeries[] {
   return config.series.map((s, i) => ({
     key: s.key,
     name: seriesName(config.source, s),
-    color: ((s.color ?? ((i % 4) + 1)) as 1 | 2 | 3 | 4),
+    color: s.color ?? autoColor(i),
   }));
 }
 

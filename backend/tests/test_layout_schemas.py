@@ -114,7 +114,7 @@ def test_rejects_duplicate_series_and_unknown_fields():
         {"config": {"unit": "megabits"}},
         {"config": {"height": "xl"}},
         {"config": {"series": []}},
-        {"config": {"series": [{"key": "in_bps", "color": 5}]}},
+        {"config": {"series": [{"key": "in_bps", "color": 9}]}},
         {"config": {"source": {"kind": "interface"}}},  # brak id
         {"config": {"source": {"kind": "interface", "id": 0}}},
         {"config": {"source": {"kind": "nieznane"}}},
@@ -179,3 +179,10 @@ def test_agent_source_needs_key_except_cpu():
     assert cpu.source.key == ""
     with pytest.raises(ValidationError):  # metryka innego źródła z agenta
         ChartConfig.model_validate({"source": {"kind": "agent_net", "id": 2, "key": "eth0"}, "series": [{"key": "temp_c"}]})
+
+
+def test_eight_series_colors():
+    for color in range(1, 9):
+        ChartConfig.model_validate({"source": {"kind": "wan"}, "series": [{"key": "in_bps", "color": color}]})
+    with pytest.raises(ValidationError):
+        ChartConfig.model_validate({"source": {"kind": "wan"}, "series": [{"key": "in_bps", "color": 0}]})

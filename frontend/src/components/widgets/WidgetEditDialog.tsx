@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { t, type TextKey } from "../../i18n";
 import { get, type Device } from "../../lib/api";
 import {
+  COLOR_INDEXES,
   DEVICE_KINDS,
   METRICS,
   isAgentSource,
@@ -19,7 +20,6 @@ import {
   type ChartHeight,
   type ChartKind,
   type ChartUnit,
-  type ColorIndex,
   type DeviceKind,
   type Source,
   type SourceKind,
@@ -78,7 +78,7 @@ const TILE_LABEL: Record<SummaryTile, TextKey> = {
 };
 const KIND_OPTIONS: ChartKind[] = ["area", "line", "bar"];
 const HEIGHTS: ChartHeight[] = ["sm", "md", "lg"];
-const COLORS: ColorIndex[] = [1, 2, 3, 4];
+const COLORS = COLOR_INDEXES;
 
 function Checkbox({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -301,6 +301,7 @@ function ChartForm({ initial, onSave, onClose, isNew }: { initial: ChartConfig; 
                         key={c}
                         type="button"
                         aria-label={t("ce.colorN", { n: c })}
+                        title={t(`ce.colorName.${c}` as TextKey)}
                         aria-pressed={selected.color === c}
                         onClick={() => set({ series: cfg.series.map((s) => (s.key === key ? { ...s, color: c } : s)) })}
                         style={{ backgroundColor: `var(--chart-${c})` }}

@@ -12,7 +12,11 @@ export const MAX_WIDGETS = 40;
 export type ChartKind = "line" | "area" | "bar";
 export type ChartUnit = "bits" | "bytes";
 export type ChartHeight = "sm" | "md" | "lg";
-export type ColorIndex = 1 | 2 | 3 | 4;
+/** Numer koloru z palety motywu (--chart-1…8 w index.css; ta sama lista w layout_schemas.py). */
+export type ColorIndex = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export const COLOR_INDEXES: ColorIndex[] = [1, 2, 3, 4, 5, 6, 7, 8];
+/** Kolor kolejnej serii bez wybranego koloru. */
+export const autoColor = (i: number): ColorIndex => ((i % COLOR_INDEXES.length) + 1) as ColorIndex;
 export type DeviceKind = "gateway" | "switch" | "ap" | "server" | "other";
 export type SummaryTile = "devices" | "wan_down" | "wan_up" | "wifi_clients";
 export const SUMMARY_TILES: SummaryTile[] = ["devices", "wan_down", "wan_up", "wifi_clients"];
@@ -175,7 +179,7 @@ export function toggleMetric(series: SeriesConfig[], key: string, enabled: boole
   const cls = unitClassOf(key);
   const kept = series.filter((s) => unitClassOf(s.key) === cls);
   const used = new Set(kept.map((s) => s.color));
-  const color = ([1, 2, 3, 4] as ColorIndex[]).find((c) => !used.has(c)) ?? 1;
+  const color = COLOR_INDEXES.find((c) => !used.has(c)) ?? 1;
   return [...kept, { key, color }];
 }
 
