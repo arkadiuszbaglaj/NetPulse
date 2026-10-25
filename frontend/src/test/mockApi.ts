@@ -24,6 +24,7 @@ import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
 import type { WanHistory, WanLink, WanSla, WanStatus } from "../lib/wan";
 import type { Availability, InterfaceDetail } from "../lib/details";
+import type { DashboardFull, PublicDashboard, PublicPayload } from "../lib/dashboards";
 
 export const USER: User = {
   id: 1,
@@ -304,6 +305,11 @@ interface MockState {
   availability: Availability;
   /** Port z GET /api/interfaces/{id} */
   port: InterfaceDetail;
+  /** Zapisane pulpity (Ustawienia → Dashboardy) */
+  dashboards: DashboardFull[];
+  /** Pulpit publiczny pod /p/<token> (null = link nieaktywny) i jego PIN */
+  publicDashboard: PublicDashboard | null;
+  publicPin: string | null;
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
 }
@@ -354,6 +360,9 @@ export function mockApi(initial: Partial<MockState> = {}) {
     updates: UPDATES,
     availability: AVAILABILITY,
     port: PORT,
+    dashboards: [],
+    publicDashboard: null,
+    publicPin: null,
     overrides: {},
     ...initial,
   };
@@ -370,7 +379,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     version: "0.2.0",
   });
 
-  const impl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const impl = async (input: RequestInfo | URL, init?: RequestInit, publicCall = false): Promise<Response> => {
     const path = String(input);
     const method = init?.method ?? "GET";
     // Treść JSON; plik (np. wgrywana kopia) zostaje jak jest
@@ -383,6 +392,72 @@ export function mockApi(initial: Partial<MockState> = {}) {
     if (override) return json(override.status, override.body);
 
     // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
+    // Pulpit publiczny: bez logowania; dane widgetów przez /data?path=… (z PIN-em – z kluczem dostępu)
+    const pub = /^(GET|POST) \/api\/public\/dashboards\/([^/]+)(\/data|\/unlock)?$/.exec(key);
+    if (pub) {
+      const d = state.publicDashboard;
+      if (!d) return json(404, { detail: "Ten link jest nieaktywny albo wygasł" });
+      const headers = new Headers(init?.headers);
+      const unlocked = state.publicPin == null || headers.get("X-Dashboard-Access") === "klucz-dostepu";
+      if (pub[3] === "/unlock") {
+        return (body as { pin: string }).pin === state.publicPin ? json(200, { access: "klucz-dostepu" }) : json(403, { detail: "Nieprawidłowy PIN" });
+      }
+      if (pub[3] === "/data") {
+        if (!unlocked) return json(401, { detail: "Ten pulpit wymaga PIN-u" });
+        const inner = new URL(path, "http://x").searchParams.get("path") ?? "";
+        return impl(inner, { method: "GET" }, true);
+      }
+      return json(200, unlocked ? d : { ...d, locked: true, layout: null });
+    }
+
+    if (state.authenticated) {
+      const dash = /^(GET|PATCH|DELETE|POST|PUT) \/api\/dashboards(?:\/(\d+))?(\/default|\/public|\/public\/rotate)?$/.exec(key);
+      if (dash && !(dash[2] === undefined && dash[3] === "/default")) {
+        const [, m, idRaw, sub] = dash;
+        if (!idRaw) {
+          if (m === "GET") return json(200, state.dashboards.map(({ layout: _l, ...info }) => info));
+          const b = body as { name: string; layout: DashboardLayout; make_default?: boolean };
+          const created: DashboardFull = {
+            id: Math.max(0, ...state.dashboards.map((x) => x.id)) + 1,
+            name: b.name,
+            is_default: b.make_default ?? false,
+            widgets: b.layout.widgets.length,
+            updated_at: new Date().toISOString(),
+            public: null,
+            layout: b.layout,
+          };
+          state.dashboards.push(created);
+          return json(201, created);
+        }
+        const found = state.dashboards.find((x) => x.id === Number(idRaw));
+        if (!found) return json(404, { detail: "Nie ma takiego pulpitu" });
+        if (sub === "/default") {
+          state.dashboards.forEach((x) => (x.is_default = x === found));
+          return json(200, found);
+        }
+        if (sub === "/public") {
+          const b = body as PublicPayload;
+          found.public = b.enabled
+            ? { token: found.public?.token ?? `tok${found.id}-abcdefghijklmnopqrstuvwxyz`, expires_at: b.expires_at ?? null, expired: false, has_pin: Boolean(b.pin) || (!b.clear_pin && Boolean(found.public?.has_pin)), options: b.options ?? { refresh_s: 30, range_min: 60, hide_hosts: true } }
+            : null;
+          return json(200, found);
+        }
+        if (sub === "/public/rotate" && found.public) {
+          found.public = { ...found.public, token: `${found.public.token}-nowy` };
+          return json(200, found);
+        }
+        if (m === "GET") return json(200, found);
+        if (m === "DELETE") {
+          state.dashboards = state.dashboards.filter((x) => x !== found);
+          return json(204);
+        }
+        if (m === "PATCH") {
+          Object.assign(found, body as object);
+          return json(200, found);
+        }
+      }
+    }
+
     if (state.authenticated) {
       if (key === "GET /api/alerts") {
         const wanted = new URL(path, "http://x").searchParams.get("state") ?? "firing";
@@ -726,7 +801,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
       case "GET /api/dashboard/wifi":
         return json(200, state.wifi);
       case "GET /api/devices":
-        return state.authenticated ? json(200, state.devices) : json(401, { detail: "Wymagane logowanie" });
+        return state.authenticated || publicCall ? json(200, state.devices) : json(401, { detail: "Wymagane logowanie" });
       default:
         return json(404, { detail: "Not Found" });
     }

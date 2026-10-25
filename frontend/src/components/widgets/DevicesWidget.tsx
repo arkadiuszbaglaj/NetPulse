@@ -55,7 +55,7 @@ function DeviceCard({ device, availability }: { device: Device; availability: nu
               )}
             </h3>
             <p className="truncate text-xs text-text-2">
-              {device.host} · {t(KIND_LABEL[device.kind] ?? "dash.kind.other")}
+              {[device.host, t(KIND_LABEL[device.kind] ?? "dash.kind.other")].filter(Boolean).join(" · ")}
             </p>
           </div>
         </div>

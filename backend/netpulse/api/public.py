@@ -1,0 +1,243 @@
+"""Pulpit publiczny (`/p/<token>`): osobne API tylko do odczytu, bez logowania i bez ciasteczek sesji.
+
+Zasady bezpieczeństwa:
+- token w adresie jest nieodgadywalny (32 bajty), w bazie jest tylko jego skrót do wyszukania; wyłączenie
+  udostępniania albo nowy link od razu unieważnia stary; link może wygasnąć;
+- opcjonalny PIN: po podaniu poprawnego klient dostaje klucz dostępu (skrót tokenu i skrótu PIN-u), zmiana PIN-u
+  albo linku unieważnia klucz; nieudane próby są limitowane jak logowanie;
+- dane wychodzą wyłącznie przez `/data?path=…` i tylko te, których potrzebują widgety zapisane w tym pulpicie
+  (biała lista budowana z układu, nie z żądania) – reszta API pozostaje zamknięta;
+- adresy IP i błędy urządzeń są domyślnie ukryte, odpowiedzi nie trafiają do pamięci podręcznej ani wyszukiwarek.
+"""
+
+from __future__ import annotations
+
+import hmac
+import re
+from datetime import UTC, datetime
+from typing import Any, get_args
+from urllib.parse import parse_qs, urlsplit
+
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+
+from ..auth import hash_token, verify_password
+from ..db import Session
+from ..db.models import Dashboard
+from ..modules import get_modules
+from . import availability, controllers, dashboard, devices, metrics, servers, system, wan
+from .dashboards import _parse, public_options
+from .layout_schemas import AgentSource, DashboardLayout, PublicOptions, RangeMinutes, Source
+from .schemas import DeviceOut
+from .security import LoginLimiter, client_ip
+
+router = APIRouter(prefix="/api/public/dashboards", tags=["pulpit publiczny"])
+
+ACCESS_HEADER = "X-Dashboard-Access"
+NO_STORE = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+RANGES = set(get_args(RangeMinutes))
+SLA_DAYS = {1, 7, 30}
+AVAILABILITY_DAYS = {1, 7, 30, 365}
+PathQuery = Query(max_length=512, description="ścieżka API, której potrzebuje widget, np. /api/dashboard/summary")
+pin_limiter = LoginLimiter(max_failures=10, window_s=900)
+# Pola urządzenia, które nie wychodzą poza panel (konfiguracja SNMP)
+_DEVICE_PRIVATE = ("v3_username", "v3_auth_protocol", "v3_priv_protocol", "v3_context", "sys_name")
+
+
+class PublicDashboardOut(BaseModel):
+    name: str
+    locked: bool  # wymagany PIN, a klient nie podał poprawnego klucza
+    layout: DashboardLayout | None  # None, gdy zablokowany
+    options: PublicOptions
+
+
+class UnlockIn(BaseModel):
+    pin: str = Field(min_length=1, max_length=32)
+
+
+class UnlockOut(BaseModel):
+    access: str
+
+
+def _gone() -> HTTPException:
+    # Ten sam komunikat dla nieznanego, wyłączonego i wygasłego linku – nic nie zdradza
+    return HTTPException(404, "Ten link jest nieaktywny albo wygasł", headers=NO_STORE)
+
+
+async def _dashboard(token: str) -> Dashboard:
+    if not 20 <= len(token) <= 128:
+        raise _gone()
+    async with Session() as session:
+        row = await session.scalar(select(Dashboard).where(Dashboard.public_token_hash == hash_token(token)))
+    if row is None or (row.public_expires_at is not None and row.public_expires_at <= datetime.now(UTC)):
+        raise _gone()
+    return row
+
+
+def access_key(row: Dashboard) -> str:
+    return hash_token(f"{row.public_token_hash}:{row.public_pin_hash}")
+
+
+def _unlocked(row: Dashboard, request: Request) -> bool:
+    if row.public_pin_hash is None:
+        return True
+    return hmac.compare_digest(request.headers.get(ACCESS_HEADER, ""), access_key(row))
+
+
+@router.get("/{token}", response_model=PublicDashboardOut)
+async def get_public(token: str, request: Request, response: Response):
+    row = await _dashboard(token)
+    response.headers.update(NO_STORE)
+    locked = not _unlocked(row, request)
+    return PublicDashboardOut(name=row.name, locked=locked, layout=None if locked else _parse(row.layout), options=public_options(row))
+
+
+@router.post("/{token}/unlock", response_model=UnlockOut)
+async def unlock(token: str, body: UnlockIn, request: Request, response: Response):
+    key = f"pin:{client_ip(request)}"
+    if (wait := pin_limiter.retry_after(key)) is not None:
+        raise HTTPException(429, f"Za dużo prób. Spróbuj ponownie za {wait} s.", headers={"Retry-After": str(wait)})
+    row = await _dashboard(token)
+    response.headers.update(NO_STORE)
+    if row.public_pin_hash is None:
+        return UnlockOut(access=access_key(row))
+    if not verify_password(row.public_pin_hash, body.pin):
+        pin_limiter.failure(key)
+        raise HTTPException(403, "Nieprawidłowy PIN")
+    pin_limiter.success(key)
+    return UnlockOut(access=access_key(row))
+
+
+# --- dane widgetów (biała lista z układu pulpitu) ------------------------------------
+
+
+def _int(value: str | None, default: int) -> int:
+    try:
+        return int(value) if value is not None else default
+    except ValueError as exc:
+        raise HTTPException(422, "Nieprawidłowy parametr") from exc
+
+
+def _chart_path(source: Source) -> tuple[str, dict[str, str]]:
+    """Ścieżka i stałe parametry, pod którymi panel pobiera dane wykresu (jak sourcePath w chartSource.ts)."""
+    match source.kind:
+        case "wan":
+            return "/api/dashboard/traffic", {}
+        case "wifi_total":
+            return "/api/dashboard/wifi", {}
+        case "interface":
+            return f"/api/interfaces/{source.id}/metrics", {}
+        case "device":
+            return f"/api/devices/{source.id}/metrics", {}
+        case "wifi_network":
+            return f"/api/wifi/{source.id}/metrics", {}
+        case "server":
+            return "/api/system/metrics", {}
+    assert isinstance(source, AgentSource)
+    return f"/api/devices/{source.id}/agent-metrics", {"source": source.kind, "key": source.key}
+
+
+async def _chart(source: Source, minutes: int) -> Any:
+    match source.kind:
+        case "wan":
+            return await dashboard.traffic(minutes)
+        case "wifi_total":
+            return await dashboard.wifi(minutes)
+        case "interface":
+            return await metrics.interface_metrics(source.id, minutes)
+        case "device":
+            return await metrics.device_metrics(source.id, minutes)
+        case "wifi_network":
+            return await metrics.wifi_metrics(source.id, minutes)
+        case "server":
+            return await system.metrics(minutes)
+    assert isinstance(source, AgentSource)
+    return await metrics.agent_metrics(source.id, source.kind, source.key, minutes)
+
+
+def _public_device(d, opts: PublicOptions) -> dict:
+    out = DeviceOut.model_validate(d).model_dump(mode="json")
+    out.update(dict.fromkeys(_DEVICE_PRIVATE))
+    if opts.hide_hosts:
+        out.update(host="", port=0, last_error=None)
+    return out
+
+
+async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any:
+    """Dane dla jednego żądania widgetu – tylko jeśli taki widget jest w pulpicie. Inaczej 403."""
+    parts = urlsplit(raw)
+    path, query = parts.path, {k: v[-1] for k, v in parse_qs(parts.query).items()}
+    widgets = layout.widgets
+    types = {w.type for w in widgets}
+    mods = await get_modules()
+
+    def minutes() -> int:
+        m = _int(query.get("minutes"), opts.range_min)
+        if m not in RANGES:
+            raise HTTPException(403, "Niedozwolony zakres czasu")
+        return m
+
+    async def visible_devices() -> list:
+        return list(await devices.list_devices())  # bez urządzeń wyłączonych modułów
+
+    if path == "/api/modules":
+        return mods
+    if path == "/api/dashboard/summary" and "summary" in types:
+        return await dashboard.summary()
+    if path == "/api/devices" and types & {"devices", "poe"}:
+        return [_public_device(d, opts) for d in await visible_devices()]
+    if path == "/api/availability" and "devices" in types:
+        days = _int(query.get("days"), 30)
+        if days not in AVAILABILITY_DAYS:
+            raise HTTPException(403, "Niedozwolony okres")
+        return await availability.devices_availability(days)
+    if (m := re.fullmatch(r"/api/devices/(\d+)/server", path)) and "devices" in types:
+        device_id = int(m.group(1))
+        if not any(d.id == device_id and d.kind == "server" for d in await visible_devices()):
+            raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
+        status = await servers.device_server(device_id)
+        if status is not None:
+            status = status.model_copy(update={"agent": None, "proxmox": None})  # bez adresów i nazw hostów
+        return status
+    if (m := re.fullmatch(r"/api/devices/(\d+)/poe", path)) and mods.get("unifi", True):
+        device_id = int(m.group(1))
+        if any(w.type == "poe" and w.config.device_id in (None, device_id) for w in widgets):
+            return await controllers.device_poe(device_id)
+    if path == "/api/system" and "server" in types:
+        return await system.current()
+    if path == "/api/wan/status" and "wan_status" in types:
+        return await wan.status()
+    if path == "/api/wan/history" and "wan_chart" in types:
+        return await wan.history(minutes())
+    if path == "/api/wan/sla" and "wan_sla" in types:
+        days = _int(query.get("days"), 7)
+        if days not in SLA_DAYS:
+            raise HTTPException(403, "Niedozwolony okres")
+        return await wan.sla(days)
+    for w in widgets:
+        if w.type != "chart":
+            continue
+        source = w.config.source
+        chart_path, fixed = _chart_path(source)
+        if path != chart_path or any(query.get(k) != v for k, v in fixed.items()):
+            continue
+        if source.kind == "pve_guest" and not mods.get("proxmox", True):
+            break
+        if source.kind.startswith("agent_") and not mods.get("agents", True):
+            break
+        return await _chart(source, minutes())
+    raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
+
+
+@router.get("/{token}/data")
+async def public_data(token: str, request: Request, response: Response, path: str = PathQuery):
+    row = await _dashboard(token)
+    if not _unlocked(row, request):
+        raise HTTPException(401, "Ten pulpit wymaga PIN-u", headers=NO_STORE)
+    layout = _parse(row.layout)
+    if layout is None:
+        raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
+    response.headers.update(NO_STORE)
+    return jsonable_encoder(await resolve(layout, public_options(row), path))

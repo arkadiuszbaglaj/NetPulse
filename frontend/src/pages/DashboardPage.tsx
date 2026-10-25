@@ -8,7 +8,7 @@ import {
   IconWand,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Dialog } from "../components/Dialog";
 import { RangePicker } from "../components/RangePicker";
 import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
@@ -31,11 +31,12 @@ import {
   type Widget,
   type WidgetType,
 } from "../lib/layout";
+import { useDashboards } from "../lib/dashboards";
 import { useDashboardLayout, useResetLayout, useSaveLayout } from "../lib/layoutApi";
 import { useDashboardSummary, useDevices } from "../lib/queries";
 
 // Pełne nazwy klas, żeby Tailwind je znalazł (od `lg` układ 12-kolumnowy, niżej jedna kolumna)
-const COL_SPAN: Record<GridWidth, string> = {
+export const COL_SPAN: Record<GridWidth, string> = {
   3: "lg:col-span-3",
   4: "lg:col-span-4",
   6: "lg:col-span-6",
@@ -167,10 +168,37 @@ function ConfirmDialog({ title, body, go, keep, onGo, onKeep, danger }: { title:
   );
 }
 
-/** Pulpit: widgety z układu zapisanego na koncie (albo domyślnego); „Edytuj pulpit” włącza tryb edycji. */
+/** Przełącznik pulpitów: „/” (domyślny) i pozostałe zapisane pulpity. Widoczny, gdy jest więcej niż jeden. */
+function DashboardSwitcher({ currentId }: { currentId?: number }) {
+  const navigate = useNavigate();
+  const { data } = useDashboards();
+  const others = (data ?? []).filter((d) => !d.is_default);
+  if (others.length === 0) return null;
+  const main = (data ?? []).find((d) => d.is_default);
+  return (
+    <select
+      aria-label={t("dash.switch")}
+      value={currentId === undefined || currentId === main?.id ? "" : String(currentId)}
+      onChange={(e) => navigate(e.target.value ? `/dashboards/${e.target.value}` : "/")}
+      className="h-9 max-w-56 rounded-lg border border-border-strong bg-surface px-2 text-sm"
+    >
+      <option value="">{main?.name ?? t("dash.main")}</option>
+      {others.map((d) => (
+        <option key={d.id} value={d.id}>
+          {d.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Pulpit: widgety z układu zapisanego na koncie (albo domyślnego); „Edytuj pulpit” włącza tryb edycji.
+ * Pod /dashboards/<id> – wybrany pulpit z listy (Ustawienia → Dashboardy). */
 export function DashboardPage() {
-  const { layout: saved, isCustom } = useDashboardLayout();
-  const save = useSaveLayout();
+  const param = useParams().dashboardId;
+  const dashboardId = param !== undefined ? Number(param) : undefined;
+  const { layout: saved, isCustom, name, missing } = useDashboardLayout(dashboardId);
+  const save = useSaveLayout(dashboardId);
   const reset = useResetLayout();
   const summary = useDashboardSummary();
   const devices = useDevices();
@@ -184,7 +212,7 @@ export function DashboardPage() {
 
   const edit = draft !== null;
   const layout = draft ?? saved;
-  const noDevices = !devices.isLoading && !devices.isError && (devices.data?.length ?? 0) === 0;
+  const noDevices = dashboardId === undefined && !devices.isLoading && !devices.isError && (devices.data?.length ?? 0) === 0;
   const dirty = draft !== null && !sameLayout(draft, saved);
 
   const update = (fn: (l: DashboardLayout) => DashboardLayout) => setDraft((d) => (d ? fn(d) : d));
@@ -211,8 +239,9 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={t("dash.title")}>
+      <PageHeader title={name ?? t("dash.title")}>
         <div className="flex flex-wrap items-center gap-2">
+          {!edit && <DashboardSwitcher currentId={dashboardId} />}
           {!edit && <RangePicker />}
           {!edit ? (
             <Button onClick={startEdit}>
@@ -225,7 +254,7 @@ export function DashboardPage() {
                 <IconPlus size={16} aria-hidden="true" />
                 {t("dash.edit.add")}
               </Button>
-              {isCustom && (
+              {isCustom && dashboardId === undefined && (
                 <Button variant="ghost" onClick={() => setConfirm("reset")}>
                   {t("dash.edit.reset")}
                 </Button>
@@ -246,6 +275,7 @@ export function DashboardPage() {
           {t("dash.edit.banner")}
         </p>
       )}
+      {missing && <ErrorNote>{t("dash.missing")}</ErrorNote>}
       {saveFailed && <ErrorNote>{t("dash.edit.saveError")}</ErrorNote>}
       {(summary.isError || devices.isError) && !summary.data && !edit && <ErrorNote>{t("dash.error")}</ErrorNote>}
 

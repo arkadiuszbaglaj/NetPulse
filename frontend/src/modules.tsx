@@ -40,6 +40,7 @@ import { ProxmoxPage } from "./pages/ProxmoxPage";
 import { ProxmoxSettingsPage } from "./pages/settings/ProxmoxSettingsPage";
 import { TopologyPage } from "./pages/TopologyPage";
 import { ControllersPage } from "./pages/settings/ControllersPage";
+import { DashboardsPage } from "./pages/settings/dashboards/DashboardsPage";
 import { DevicesPage } from "./pages/settings/devices/DevicesPage";
 import { NotificationsPage } from "./pages/settings/NotificationsPage";
 import { RefreshPage } from "./pages/settings/RefreshPage";
@@ -84,6 +85,14 @@ export const modules: NavModule[] = [
     label: "nav.dashboard",
     icon: IconLayoutDashboard,
     element: <DashboardPage />,
+  },
+  {
+    id: "dashboard-by-id",
+    path: "/dashboards/:dashboardId",
+    label: "nav.dashboard",
+    icon: IconLayoutDashboard,
+    element: <DashboardPage />,
+    hidden: true,
   },
   {
     id: "setup",
@@ -161,6 +170,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.devices",
         icon: IconServer2,
         element: <DevicesPage />,
+      },
+      {
+        path: "dashboards",
+        label: "nav.settings.dashboards",
+        icon: IconLayoutDashboard,
+        element: <DashboardsPage />,
       },
       {
         path: "wan",

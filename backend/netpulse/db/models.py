@@ -151,9 +151,11 @@ class AuthSession(Base):
 
 
 class Dashboard(Base):
-    """Układ pulpitu: wersjonowany JSON z widgetami (schemat: api/layout_schemas.py).
+    """Pulpit: wersjonowany JSON z widgetami (schemat: api/layout_schemas.py). Użytkownik może mieć kilka pulpitów;
+    domyślny (`is_default`) otwiera się pod „/”.
 
-    Na razie każdy użytkownik ma jeden pulpit domyślny; tabela jest gotowa na wiele pulpitów."""
+    Pulpit publiczny ma nieodgadywalny token w adresie `/p/<token>` (w bazie skrót do wyszukania i zaszyfrowana
+    wartość, żeby panel mógł pokazać link ponownie), opcjonalną datę wygaśnięcia i PIN (skrót Argon2)."""
 
     __tablename__ = "dashboards"
 
@@ -165,6 +167,12 @@ class Dashboard(Base):
     layout: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    public_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)  # None = pulpit prywatny
+    public_token: Mapped[str | None] = mapped_column(EncryptedText)  # zaszyfrowany – crypto.py
+    public_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    public_pin_hash: Mapped[str | None] = mapped_column(String(255))
+    # Odświeżanie, zakres wykresów, ukrywanie adresów (api/public.py: PublicOptions)
+    public_options: Mapped[dict | None] = mapped_column(JSONB)
 
 
 class UserPreference(Base):

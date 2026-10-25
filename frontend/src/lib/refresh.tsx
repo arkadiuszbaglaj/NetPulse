@@ -52,22 +52,32 @@ interface RefreshContextValue {
 
 const RefreshContext = createContext<RefreshContextValue | null>(null);
 
-export function RefreshProvider({ children }: { children: ReactNode }) {
+/** `fixed` – stałe ustawienia (pulpit publiczny): bez wyboru i bez zapamiętywania w przeglądarce. */
+export function RefreshProvider({ children, fixed }: { children: ReactNode; fixed?: { refreshSeconds: RefreshSeconds; rangeMinutes: RangeMinutes } }) {
   const qc = useQueryClient();
-  const [refreshSeconds, setRefreshState] = useState<RefreshSeconds>(() =>
-    readChoice(REFRESH_KEY, REFRESH_OPTIONS, DEFAULT_REFRESH),
-  );
-  const [rangeMinutes, setRangeState] = useState<RangeMinutes>(() => readChoice(RANGE_KEY, RANGE_OPTIONS, DEFAULT_RANGE));
+  const [ownRefresh, setRefreshState] = useState<RefreshSeconds>(() => readChoice(REFRESH_KEY, REFRESH_OPTIONS, DEFAULT_REFRESH));
+  const [ownRange, setRangeState] = useState<RangeMinutes>(() => readChoice(RANGE_KEY, RANGE_OPTIONS, DEFAULT_RANGE));
+  const refreshSeconds = fixed?.refreshSeconds ?? ownRefresh;
+  const rangeMinutes = fixed?.rangeMinutes ?? ownRange;
   const fetching = useIsFetching({ predicate: (q) => q.queryKey[0] !== "auth" });
+  const isFixed = fixed !== undefined;
 
-  const setRefreshSeconds = useCallback((s: RefreshSeconds) => {
-    store(REFRESH_KEY, s);
-    setRefreshState(s);
-  }, []);
-  const setRangeMinutes = useCallback((m: RangeMinutes) => {
-    store(RANGE_KEY, m);
-    setRangeState(m);
-  }, []);
+  const setRefreshSeconds = useCallback(
+    (s: RefreshSeconds) => {
+      if (isFixed) return;
+      store(REFRESH_KEY, s);
+      setRefreshState(s);
+    },
+    [isFixed],
+  );
+  const setRangeMinutes = useCallback(
+    (m: RangeMinutes) => {
+      if (isFixed) return;
+      store(RANGE_KEY, m);
+      setRangeState(m);
+    },
+    [isFixed],
+  );
   const refreshNow = useCallback(() => {
     void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
   }, [qc]);

@@ -1,7 +1,8 @@
 """REST API NetPulse (FastAPI).
 
 Wszystko poza /api/health i /api/auth/{status,setup,login} wymaga zalogowania
-(ciasteczko sesji). Wyjątek: agenci serwerów (/api/agent/v1/report) logują się tokenem. Pierwsze konto administratora zakłada kreator: POST /api/auth/setup.
+(ciasteczko sesji). Wyjątki: agenci serwerów (/api/agent/v1/report) logują się tokenem, a pulpity publiczne
+(/api/public/dashboards/<token>) mają własne API tylko do odczytu z białą listą danych (public.py). Pierwsze konto administratora zakłada kreator: POST /api/auth/setup.
 Dokumentacja interaktywna: http://<serwer>:8000/docs
 """
 
@@ -33,6 +34,7 @@ from . import (
     notifications,
     preferences,
     proxmox,
+    public,
     servers,
     system,
     topology,
@@ -71,6 +73,7 @@ app.include_router(modules_api.router)
 app.include_router(notifications.router)
 app.include_router(preferences.router)
 app.include_router(proxmox.router)
+app.include_router(public.router)
 app.include_router(servers.router)
 app.include_router(system.router)
 app.include_router(topology.router)

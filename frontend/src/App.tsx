@@ -1,9 +1,10 @@
-import { BrowserRouter } from "react-router";
+import { BrowserRouter, Route, Routes } from "react-router";
 import { AuthPage } from "./auth/AuthPage";
 import { useAuth } from "./auth/AuthProvider";
 import { Shell } from "./components/Shell";
 import { Button, Card, Logo } from "./components/ui";
 import { t } from "./i18n";
+import { PublicDashboardPage } from "./pages/PublicDashboardPage";
 
 function Splash() {
   return (
@@ -28,9 +29,19 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** Bramka: ładowanie → błąd połączenia → kreator pierwszego konta → logowanie → aplikacja. */
+/** Bramka: ładowanie → błąd połączenia → kreator pierwszego konta → logowanie → aplikacja.
+ * Pulpit publiczny (/p/<token>) omija logowanie – ma własne API tylko do odczytu. */
 export function App() {
   const { status, isLoading, isError, refetch } = useAuth();
+  if (window.location.pathname.startsWith("/p/")) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/p/:token" element={<PublicDashboardPage />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
   if (isLoading) return <Splash />;
   if (isError || !status) return <ConnectionError onRetry={refetch} />;
   if (status.setup_required) return <AuthPage mode="setup" />;

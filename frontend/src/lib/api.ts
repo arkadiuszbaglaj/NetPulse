@@ -22,13 +22,27 @@ export function messageFromDetail(detail: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Pulpit publiczny (/p/<token>): widgety pytają o swoje zwykłe ścieżki, a klient kieruje je do API publicznego,
+ * które wydaje tylko dane widgetów zapisanych w tym pulpicie (backend/netpulse/api/public.py). */
+let publicDashboard: { token: string; access: string | null } | null = null;
+
+export function setPublicDashboard(value: { token: string; access: string | null } | null): void {
+  publicDashboard = value;
+}
+
+function routed(method: string, path: string): string {
+  if (!publicDashboard || method !== "GET" || !path.startsWith("/api/") || path.startsWith("/api/public/")) return path;
+  return `/api/public/dashboards/${publicDashboard.token}/data?path=${encodeURIComponent(path)}`;
+}
+
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(routed(method, path), {
     method,
     credentials: "same-origin",
     headers: {
       Accept: "application/json",
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(publicDashboard?.access ? { "X-Dashboard-Access": publicDashboard.access } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });

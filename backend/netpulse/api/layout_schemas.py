@@ -252,3 +252,16 @@ class DashboardLayout(Strict):
 class RefreshPrefs(Strict):
     interval_s: RefreshSeconds
     range_min: RangeMinutes
+
+
+# --- pulpit publiczny -----------------------------------------------------------------
+
+PublicRefresh = Literal[10, 30, 60, 300]  # wyświetlacz ścienny odświeża się nie częściej niż co 10 s
+
+
+class PublicOptions(Strict):
+    """Ustawienia pulpitu publicznego: odświeżanie, zakres wykresów i ukrywanie adresów urządzeń."""
+
+    refresh_s: PublicRefresh = 30
+    range_min: RangeMinutes = 60
+    hide_hosts: bool = True
