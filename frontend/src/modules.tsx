@@ -3,6 +3,8 @@
  * Nowa sekcja (Alerty, Topologia, Klienci WiFi…) to jeden wpis tutaj.
  */
 import {
+  IconBell,
+  IconBellRinging,
   IconDevicesPc,
   IconDownload,
   IconHierarchy2,
@@ -16,6 +18,8 @@ import {
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
+import { AlertRulesPage } from "./pages/settings/AlertRulesPage";
+import { AlertsPage } from "./pages/AlertsPage";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { ClientsPage } from "./pages/ClientsPage";
 import { TopologyPage } from "./pages/TopologyPage";
@@ -68,6 +72,13 @@ export const modules: NavModule[] = [
     element: <TopologyPage />,
   },
   {
+    id: "alerts",
+    path: "/alerts",
+    label: "nav.alerts",
+    icon: IconBellRinging,
+    element: <AlertsPage />,
+  },
+  {
     id: "settings",
     path: "/settings",
     label: "nav.settings",
@@ -85,6 +96,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.controllers",
         icon: IconKey,
         element: <ControllersPage />,
+      },
+      {
+        path: "alert-rules",
+        label: "nav.settings.alertRules",
+        icon: IconBell,
+        element: <AlertRulesPage />,
       },
       {
         path: "refresh",

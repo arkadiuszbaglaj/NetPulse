@@ -11,6 +11,7 @@ import type {
   UpdatesResponse,
   User,
 } from "../lib/api";
+import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
@@ -212,6 +213,8 @@ interface MockState {
   /** Zapisany układ pulpitu (null = domyślny) */
   layout: DashboardLayout | null;
   controllers: Controller[];
+  alerts: Alert[];
+  rules: AlertRule[];
   clients: NetworkClient[];
   poe: PoeInfo;
   topology: Topology;
@@ -235,6 +238,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     admin: true,
     layout: null,
     controllers: [],
+    alerts: [],
+    rules: [],
     clients: [],
     poe: { budget: null, ports: [] },
     topology: { nodes: [], edges: [] },
@@ -267,6 +272,52 @@ export function mockApi(initial: Partial<MockState> = {}) {
 
     // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
     if (state.authenticated) {
+      if (key === "GET /api/alerts") {
+        const wanted = new URL(path, "http://x").searchParams.get("state") ?? "firing";
+        return json(200, state.alerts.filter((a) => a.state === wanted));
+      }
+      if (key === "GET /api/alerts/summary") {
+        const firing = state.alerts.filter((a) => a.state === "firing");
+        const count = (s: string) => firing.filter((a) => a.severity === s).length;
+        return json(200, {
+          firing: firing.length,
+          unacked: firing.filter((a) => !a.acked_at).length,
+          critical: count("critical"),
+          warning: count("warning"),
+          info: count("info"),
+        });
+      }
+      const ack = /^POST \/api\/alerts\/(\d+)\/ack$/.exec(key);
+      if (ack) {
+        const alert = state.alerts.find((a) => a.id === Number(ack[1]));
+        if (!alert) return json(404, { detail: "Nie ma takiego alertu" });
+        alert.acked_at = new Date().toISOString();
+        alert.acked_by = "admin";
+        return json(200, alert);
+      }
+      if (key === "GET /api/alert-rules") return json(200, state.rules);
+      if (key === "GET /api/alert-rules/metrics") {
+        return json(200, [
+          { metric: "cpu_percent", label: "CPU", unit: "%", per_device: true },
+          { metric: "wan_in_bps", label: "Pobieranie WAN", unit: "b/s", per_device: false },
+        ]);
+      }
+      if (key === "POST /api/alert-rules") {
+        const rule = { ...(body as Omit<AlertRule, "id" | "created_at">), id: state.rules.length + 1, created_at: "2026-10-25T10:00:00Z" } as AlertRule;
+        state.rules.push(rule);
+        return json(201, rule);
+      }
+      const ruleMatch = /^(PUT|DELETE) \/api\/alert-rules\/(\d+)$/.exec(key);
+      if (ruleMatch) {
+        const rule = state.rules.find((r) => r.id === Number(ruleMatch[2]));
+        if (!rule) return json(404, { detail: "Nie ma takiej reguły" });
+        if (ruleMatch[1] === "DELETE") {
+          state.rules = state.rules.filter((r) => r !== rule);
+          return json(204);
+        }
+        Object.assign(rule, body);
+        return json(200, rule);
+      }
       if (key === "GET /api/controllers") return json(200, state.controllers);
       if (key === "POST /api/controllers/probe") {
         const b = body as { api_key: string };
