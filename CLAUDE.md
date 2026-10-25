@@ -26,6 +26,7 @@ Repozytorium: https://github.com/arkadiuszbaglaj/NetPulse
   pysnmp kontra snmpsim v2c/v3, kolektor + TimescaleDB, API) oraz test end-to-end `install.sh`
   → `device add` → dane w API → `netpulse update`. Wynik CI sprawdzać przed zgłoszeniem
   użytkownikowi, że wersja jest gotowa.
+- **Numer wersji** (`backend/netpulse/__init__.py` i `frontend/package.json` + `package-lock.json`) podnosimy przy każdym wypchnięciu zmian, które użytkownik ma zainstalować: drobne zmiany i poprawki → patch (0.8.0 → 0.8.1), nowa funkcja albo etap → minor (0.8.x → 0.9.0). Bez tego panel pokazuje „dostępne zmiany” przy tym samym numerze wersji.
 - Fixtures `backend/tests/fixtures/*.snmprec` to zanonimizowane zrzuty z prawdziwych urządzeń
   (`backend/tools/walk2snmprec.py` – podmienia MAC-i i SSID).
 
