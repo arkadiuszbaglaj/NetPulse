@@ -27,6 +27,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from ..crypto import EncryptedText
+
 
 class Base(DeclarativeBase):
     pass
@@ -44,13 +46,14 @@ class Device(Base):
 
     # SNMP – v1/v2c
     snmp_version: Mapped[str] = mapped_column(String(4), default="2c")
-    community: Mapped[str | None] = mapped_column(String(255), default="public")
+    # Sekrety (community, klucze SNMPv3) są w bazie zaszyfrowane – crypto.py
+    community: Mapped[str | None] = mapped_column(EncryptedText, default="public")
     # SNMP – v3
     v3_username: Mapped[str | None] = mapped_column(String(128))
     v3_auth_protocol: Mapped[str | None] = mapped_column(String(16))
-    v3_auth_key: Mapped[str | None] = mapped_column(String(255))
+    v3_auth_key: Mapped[str | None] = mapped_column(EncryptedText)
     v3_priv_protocol: Mapped[str | None] = mapped_column(String(16))
-    v3_priv_key: Mapped[str | None] = mapped_column(String(255))
+    v3_priv_key: Mapped[str | None] = mapped_column(EncryptedText)
     v3_context: Mapped[str | None] = mapped_column(String(128))
 
     # Wykryte przy odpytywaniu
@@ -239,7 +242,7 @@ class Controller(Base):
     name: Mapped[str] = mapped_column(String(128))
     host: Mapped[str] = mapped_column(String(255), unique=True)
     port: Mapped[int] = mapped_column(Integer, default=443)
-    api_key: Mapped[str] = mapped_column(String(255))
+    api_key: Mapped[str] = mapped_column(EncryptedText)  # zaszyfrowany – crypto.py
     site: Mapped[str] = mapped_column(String(64), default="default")
     verify_tls: Mapped[bool] = mapped_column(Boolean, default=False)  # kontrolery mają zwykle certyfikat samopodpisany
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -316,7 +319,7 @@ class NotificationChannel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(128))
     kind: Mapped[str] = mapped_column(String(16), default="webhook")
-    url: Mapped[str] = mapped_column(String(1024))
+    url: Mapped[str] = mapped_column(EncryptedText)  # zaszyfrowany – crypto.py
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     min_severity: Mapped[str] = mapped_column(String(10), default="warning")  # info | warning | critical
     notify_resolved: Mapped[bool] = mapped_column(Boolean, default=True)

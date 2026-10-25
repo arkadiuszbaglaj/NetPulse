@@ -664,6 +664,7 @@ export const pl = {
   "backups.kind.prerestore": "przed przywróceniem",
   "backups.download": "Pobierz",
   "backups.restore": "Przywróć",
+  "backups.key": "Sekrety (community SNMP, klucze API, adresy webhooków) są w kopii zaszyfrowane kluczem tej instalacji. Przenosząc NetPulse na nowy serwer, przenieś też klucz – instrukcja w docs/15-kopia-zapasowa.md.",
   "backups.where": "Kopie są na serwerze w katalogu backups instalacji (domyślnie /opt/netpulse/backups). Zostaje 10 ostatnich kopii ręcznych i po 3 sprzed aktualizacji i sprzed przywrócenia. Z konsoli: sudo netpulse backup.",
   "backups.restore.title": "Przywrócić bazę z kopii?",
   "backups.restore.body": "Baza wróci do stanu z {date}. Wszystko, co zmieniło się później (nowe urządzenia, ustawienia, historia metryk), przepadnie. Panel będzie niedostępny przez około minutę, a po przywróceniu trzeba się zalogować ponownie.",

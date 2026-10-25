@@ -44,6 +44,9 @@ class Settings:
     system_disk_path: str = _env("SYSTEM_DISK_PATH", "/")
     # Bez puli połączeń (testy, jednorazowe polecenia CLI)
     db_nullpool: bool = _env("DB_NULLPOOL", "0") == "1"
+    # Klucz szyfrowania sekretów w bazie (crypto.py): zmienna albo plik tworzony przy pierwszym starcie
+    secret_key: str = _env("SECRET_KEY", "")
+    secret_key_file: str = _env("SECRET_KEY_FILE", "/var/lib/netpulse/secret.key")
 
 
 settings = Settings()

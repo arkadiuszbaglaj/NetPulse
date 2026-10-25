@@ -8,6 +8,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from .. import crypto
 from ..config import settings
 from . import migrate
 from .models import HYPERTABLES, Base
@@ -43,6 +44,32 @@ async def has_timescale(conn) -> bool:
     return res.scalar() is not None
 
 
+async def encrypt_existing(conn) -> int:
+    """Szyfruje sekrety zapisane jawnym tekstem (sprzed 0.15 albo sprzed ustawienia klucza). Zwraca liczbę wartości."""
+    if not crypto.enabled():
+        log.warning("Brak klucza szyfrowania (wolumen netpulse_keys albo NETPULSE_SECRET_KEY) – sekrety w bazie są jawnym tekstem")
+        return 0
+    done = 0
+    for table, columns in crypto.SECRET_COLUMNS.items():
+        id_col = "id"
+        for column in columns:
+            rows = (
+                await conn.execute(
+                    text(f"SELECT {id_col}, {column} FROM {table} WHERE {column} IS NOT NULL AND {column} <> '' "
+                         f"AND {column} NOT LIKE :prefix"),
+                    {"prefix": crypto.PREFIX + "%"},
+                )
+            ).all()
+            for row_id, value in rows:
+                await conn.execute(
+                    text(f"UPDATE {table} SET {column} = :v WHERE {id_col} = :id"), {"v": crypto.encrypt(value), "id": row_id}
+                )
+            done += len(rows)
+    if done:
+        log.info("Zaszyfrowano %d sekretów zapisanych wcześniej jawnym tekstem", done)
+    return done
+
+
 async def init_db(retention_days: int | None = None) -> bool:
     """Migruje schemat do najnowszej wersji i zakłada hypertables (idempotentnie).
 
@@ -70,6 +97,7 @@ async def init_db(retention_days: int | None = None) -> bool:
                 f"(brakujące kolumny – {details}).\n"
                 "Jeśli nie potrzebujesz zapisanej historii, wyczyść bazę poleceniem: netpulse reset"
             )
+        await encrypt_existing(conn)
         timescale = await has_timescale(conn)
         if timescale:
             for table in HYPERTABLES:
@@ -90,4 +118,4 @@ async def init_db(retention_days: int | None = None) -> bool:
     return timescale
 
 
-__all__ = ["SchemaMismatchError", "Session", "engine", "has_timescale", "init_db", "missing_columns"]
+__all__ = ["SchemaMismatchError", "Session", "encrypt_existing", "engine", "has_timescale", "init_db", "missing_columns"]

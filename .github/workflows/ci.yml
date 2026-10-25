@@ -177,6 +177,15 @@ jobs:
           print(labels)
           assert labels == ['WAN', 'LAN 1', 'LAN 2', 'LAN 3', 'LAN 4'], labels
           "
+      - name: Sekrety zaszyfrowane w bazie
+        run: |
+          dc() { sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env "$@"; }
+          STORED=$(dc exec -T db psql -U netpulse -d netpulse -tAc "SELECT community FROM devices LIMIT 1")
+          echo "community w bazie: ${STORED:0:12}…"
+          case "$STORED" in enc:v1:*) ;; *) echo "community nie jest zaszyfrowane"; exit 1 ;; esac
+          # klucz powstał sam w wolumenie i obie usługi go widzą
+          test "$(dc exec -T api sh -c 'wc -c < /var/lib/netpulse/secret.key')" -ge 64
+          test "$(dc exec -T api cat /var/lib/netpulse/secret.key)" = "$(dc exec -T collector cat /var/lib/netpulse/secret.key)"
       - name: Dane pulpitu
         run: |
           api() { curl -fsS -b cookies.txt "http://127.0.0.1:8000$1"; }

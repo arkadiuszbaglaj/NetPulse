@@ -138,6 +138,7 @@ export function BackupsPage() {
             </Card>
           )}
           <p className="max-w-prose text-xs text-text-2">{t("backups.where")}</p>
+          <p className="max-w-prose text-xs text-text-2">{t("backups.key")}</p>
         </div>
       )}
 

@@ -11,6 +11,8 @@ x-backend: &backend
     NETPULSE_POLL_INTERVAL: ${NETPULSE_POLL_INTERVAL:-30}
     NETPULSE_RETENTION_DAYS: ${NETPULSE_RETENTION_DAYS:-30}
     NETPULSE_LOG_LEVEL: ${NETPULSE_LOG_LEVEL:-INFO}
+    # Klucz szyfrowania sekretów w bazie: plik w wolumenie keys (powstaje sam); zmienna z .env ma pierwszeństwo
+    NETPULSE_SECRET_KEY: ${NETPULSE_SECRET_KEY:-}
     TZ: ${TZ:-Europe/Warsaw}
     # Aktualizacja z panelu: API rozmawia z usługą updater (sieć wewnętrzna); token jest w wolumenie
     # updater-secret (tworzy go usługa aktualizacji przy pierwszym starcie)
@@ -40,12 +42,15 @@ services:
   collector:
     <<: *backend
     command: ["sh", "-c", "netpulse db init && exec netpulse collector"]
+    volumes:
+      - keys:/var/lib/netpulse
 
   api:
     <<: *backend
     command: ["netpulse", "api"]
     volumes:
       - updater-secret:/run/netpulse:ro
+      - keys:/var/lib/netpulse
     ports:
       - "${NETPULSE_PORT:-8000}:8000"
     healthcheck:
@@ -81,5 +86,7 @@ services:
 
 volumes:
   db-data:
+  # Klucz szyfrowania sekretów w bazie (community SNMP, klucze API, webhooki) – przenosić razem z kopią bazy
+  keys:
   # Token API ↔ updater: zapisuje go updater, API tylko czyta
   updater-secret:

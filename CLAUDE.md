@@ -101,6 +101,13 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 Od 0.14.0: Ustawienia → Kopia zapasowa (utworzenie, pobranie, przywrócenie z kopią bezpieczeństwa) i `netpulse backup`;
 `netpulse update` robi kopię przed zmianą kodu. Wykonuje je updater (`updater/netpulse_updater/backups.py`), opis: `docs/15-kopia-zapasowa.md`.
 
+## Szyfrowanie sekretów
+
+Od 0.15.0 community SNMP, klucze SNMPv3, klucz API kontrolera i adresy webhooków są w bazie zaszyfrowane
+(`backend/netpulse/crypto.py`, typ kolumny `EncryptedText`, prefiks `enc:v1:`). Klucz: plik w wolumenie `netpulse_keys`
+(tworzony sam) albo `NETPULSE_SECRET_KEY` w `.env`. Nowa kolumna z sekretem = `EncryptedText` + wpis w `SECRET_COLUMNS`.
+Opis: `docs/16-szyfrowanie-sekretow.md`.
+
 ## Do sprawdzenia później
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej

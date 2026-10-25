@@ -25,7 +25,8 @@ RUN pip install . && pip uninstall -y netpulse
 
 COPY backend/netpulse ./netpulse
 RUN pip install --no-deps . \
-    && useradd --system --uid 10001 --no-create-home netpulse
+    && useradd --system --uid 10001 --no-create-home netpulse \
+    && install -d -o netpulse -g netpulse -m 700 /var/lib/netpulse
 
 # Zbudowany panel – serwuje go API (NETPULSE_WEB_DIR)
 COPY --from=web /web/dist /app/web
