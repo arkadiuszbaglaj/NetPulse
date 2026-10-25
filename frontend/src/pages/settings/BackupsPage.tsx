@@ -119,14 +119,24 @@ export function BackupsPage() {
             }
           }}
         />
-        <Button disabled={busy} onClick={() => fileInput.current?.click()}>
-          <IconUpload size={18} aria-hidden="true" />
-          {upload.isPending ? t("backups.uploading") : t("backups.upload")}
-        </Button>
-        <Button variant="primary" disabled={busy} onClick={() => { upload.reset(); create.mutate(); }}>
-          <IconDatabaseExport size={18} aria-hidden="true" />
-          {create.isPending ? t("backups.creating") : t("backups.create")}
-        </Button>
+        {/* Jedna grupa po prawej: najpierw kopia teraz, potem wgranie z komputera */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="primary"
+            disabled={busy}
+            onClick={() => {
+              upload.reset();
+              create.mutate();
+            }}
+          >
+            <IconDatabaseExport size={18} aria-hidden="true" />
+            {create.isPending ? t("backups.creating") : t("backups.create")}
+          </Button>
+          <Button disabled={busy} onClick={() => fileInput.current?.click()}>
+            <IconUpload size={18} aria-hidden="true" />
+            {upload.isPending ? t("backups.uploading") : t("backups.upload")}
+          </Button>
+        </div>
       </PageHeader>
       <p className="mb-4 max-w-prose text-sm text-text-2">{t("backups.intro")}</p>
 

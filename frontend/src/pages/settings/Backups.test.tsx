@@ -33,6 +33,14 @@ describe("Ustawienia → Kopia zapasowa", () => {
     expect(call?.body).toBe(file);
   });
 
+  it("przyciski w nagłówku: najpierw „Utwórz kopię teraz”, potem „Wgraj kopię z komputera”", async () => {
+    mockApi();
+    renderApp("/settings/backups");
+    await screen.findByText("Nie ma jeszcze żadnej kopii");
+    const header = screen.getByRole("heading", { name: "Kopia zapasowa bazy" }).parentElement as HTMLElement;
+    expect(within(header).getAllByRole("button").map((b) => b.textContent)).toEqual(["Utwórz kopię teraz", "Wgraj kopię z komputera"]);
+  });
+
   it("odrzuca plik, który nie jest .gz, bez wysyłania", async () => {
     const { calls } = mockApi();
     renderApp("/settings/backups");
