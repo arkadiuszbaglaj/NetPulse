@@ -77,8 +77,9 @@ export function Dialog({ title, onClose, children, footer, size = "lg" }: Dialog
           size === "sm" ? "sm:max-w-md" : "sm:max-w-xl"
         }`}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-          <h2 id={titleId} className="text-base font-medium">
+        <div className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 border-b border-border px-5 py-3">
+          <span aria-hidden="true" />
+          <h2 id={titleId} className="text-center text-base font-medium">
             {title}
           </h2>
           <button
