@@ -10,7 +10,7 @@ import { ApiError, get, post, setPublicDashboard } from "../lib/api";
 import type { PublicDashboard } from "../lib/dashboards";
 import { PublicModeContext } from "../lib/publicMode";
 import { RefreshProvider } from "../lib/refresh";
-import { COL_SPAN } from "./DashboardPage";
+import { DashboardGrid } from "../components/DashboardGrid";
 
 const accessKey = (token: string) => `netpulse.public.${token}`;
 
@@ -156,13 +156,7 @@ export function PublicDashboardPage() {
             {d.layout.widgets.length === 0 ? (
               <p className="py-10 text-center text-sm text-text-2">{t("dash.empty.layout")}</p>
             ) : (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-                {d.layout.widgets.map((widget) => (
-                  <div key={widget.id} className={`min-w-0 ${COL_SPAN[widget.w]}`}>
-                    <WidgetView widget={widget} />
-                  </div>
-                ))}
-              </div>
+              <DashboardGrid widgets={d.layout.widgets} scope={`public.${token}`} renderWidget={(widget) => <WidgetView widget={widget} />} />
             )}
           </main>
         </div>

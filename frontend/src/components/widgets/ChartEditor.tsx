@@ -28,7 +28,6 @@ import {
   valueToRaw,
   type Axis,
   type ChartConfig,
-  type ChartHeight,
   type ChartKind,
   type ChartQuery,
   type ChartUnit,
@@ -86,7 +85,6 @@ const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
   pve_guest: "ce.agent.key.guest",
 };
 const KIND_OPTIONS: ChartKind[] = ["area", "line", "bar"];
-const HEIGHTS: ChartHeight[] = ["sm", "md", "lg"];
 const LEGEND_MODES: LegendMode[] = ["list", "table", "hidden"];
 const THRESHOLD_STYLES: ThresholdStyle[] = ["line", "area", "line_area", "off"];
 const MAX_THRESHOLDS = 4;
@@ -599,13 +597,6 @@ export function ChartEditor({ initial, onSave, onClose, isNew }: { initial: Char
                   {KIND_OPTIONS.map((k) => (
                     <option key={k} value={k}>
                       {t(`ce.kind.${k}` as TextKey)}
-                    </option>
-                  ))}
-                </Select>
-                <Select id="ce-height" label={t("ce.height")} value={cfg.height} onChange={(e) => set({ height: e.target.value as ChartHeight })}>
-                  {HEIGHTS.map((h) => (
-                    <option key={h} value={h}>
-                      {t(`ce.height.${h}` as TextKey)}
                     </option>
                   ))}
                 </Select>

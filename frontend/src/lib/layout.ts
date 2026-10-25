@@ -5,8 +5,15 @@
 import type { TextKey } from "../i18n";
 import type { RangeMinutes, RefreshSeconds } from "./refresh";
 
-export type GridWidth = 3 | 4 | 6 | 8 | 12;
+/** Szerokość w kolumnach siatki 12-kolumnowej (od 0.28.0 dowolna 1–12; kreator proponuje typowe). */
+export type GridWidth = number;
 export const GRID_WIDTHS: GridWidth[] = [3, 4, 6, 8, 12];
+export const GRID_COLS = 12;
+/** Wiersz siatki: 30 px wysokości + 12 px odstępu (widget o h wierszach ma 42·h − 12 px) */
+export const ROW_HEIGHT = 30;
+export const GRID_MARGIN = 12;
+export const MAX_HEIGHT = 40;
+export const rowsToPx = (h: number) => h * ROW_HEIGHT + (h - 1) * GRID_MARGIN;
 export const MAX_WIDGETS = 40;
 
 export type ChartKind = "line" | "area" | "bar";
@@ -136,6 +143,10 @@ export function freeColor(c: ChartConfig): ColorIndex {
 interface WidgetBase {
   id: string;
   w: GridWidth;
+  /** Pozycja i wysokość w siatce (od 0.28.0); brak = ułożenie po kolei jak dawniej (placeWidgets) */
+  x?: number | null;
+  y?: number | null;
+  h?: number | null;
 }
 export type SummaryWidgetModel = WidgetBase & { type: "summary"; config: { tiles: SummaryTile[] } };
 export type ChartWidgetModel = WidgetBase & { type: "chart"; config: ChartConfig };
@@ -211,6 +222,8 @@ export type StatWidgetModel = WidgetBase & { type: "stat"; config: StatConfig };
 export type BarGaugeWidgetModel = WidgetBase & { type: "bargauge"; config: BarGaugeConfig };
 export type TableWidgetModel = WidgetBase & { type: "table"; config: TableConfig };
 export type StateTimelineWidgetModel = WidgetBase & { type: "state_timeline"; config: StateTimelineConfig };
+/** Nagłówek sekcji: widgety pod nim (do następnej sekcji) można zwinąć. */
+export type SectionWidgetModel = WidgetBase & { type: "section"; config: { title: string; collapsed: boolean } };
 
 export type Widget =
   | SummaryWidgetModel
@@ -224,7 +237,8 @@ export type Widget =
   | StatWidgetModel
   | BarGaugeWidgetModel
   | TableWidgetModel
-  | StateTimelineWidgetModel;
+  | StateTimelineWidgetModel
+  | SectionWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -442,7 +456,102 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       };
     case "state_timeline":
       return { id, type, w: 12, config: { title: null, items: [] } };
+    case "section":
+      return { id, type, w: 12, h: 1, config: { title: "", collapsed: false } };
   }
+}
+
+// --- swobodna siatka (od 0.28.0) ---------------------------------------------------------------
+
+const CHART_ROWS: Record<ChartHeight, number> = { sm: 7, md: 8, lg: 10 };
+
+/** Wysokość widgetu bez zapisanej pozycji (pulpity sprzed 0.28.0 i nowe widgety): mniej więcej jak dawniej. */
+export function defaultHeight(w: Widget): number {
+  switch (w.type) {
+    case "section":
+      return 1;
+    case "summary":
+      return 3;
+    case "stat":
+      return 4;
+    case "chart":
+      return CHART_ROWS[upgradeChartConfig(w.config).height] ?? 8;
+    case "wan_chart":
+      return CHART_ROWS[w.config.height] + 2;
+    case "wan_status":
+    case "wan_sla":
+    case "state_timeline":
+      return 6;
+    case "bargauge":
+      return 6;
+    default:
+      return 8;
+  }
+}
+
+const placed = (w: Widget) => w.x != null && w.y != null;
+const bottomOf = (widgets: Widget[]) => widgets.reduce((max, w) => Math.max(max, (w.y ?? 0) + (w.h ?? defaultHeight(w))), 0);
+
+/** Uzupełnia pozycje: widgety bez pozycji układa po kolei od lewej (jak dawny układ kolumnowy), pod tymi z pozycją. */
+export function placeWidgets(widgets: Widget[]): Widget[] {
+  let x = 0;
+  let y = bottomOf(widgets.filter(placed));
+  let rowH = 0;
+  return widgets.map((w) => {
+    const width = Math.min(GRID_COLS, Math.max(1, w.w));
+    const h = w.h ?? defaultHeight(w);
+    if (placed(w)) return { ...w, w: width, h };
+    if (x + width > GRID_COLS) {
+      y += rowH;
+      x = 0;
+      rowH = 0;
+    }
+    const out = { ...w, w: width, x, y, h };
+    x += width;
+    rowH = Math.max(rowH, h);
+    return out;
+  });
+}
+
+/** Widgety w kolejności czytania: z góry na dół, w wierszu od lewej (telefon, czytnik ekranu). */
+export function readingOrder(widgets: Widget[]): Widget[] {
+  return [...widgets].sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0));
+}
+
+/** Widgety ukryte przez zwinięte sekcje: wszystko pod nagłówkiem sekcji, do następnego nagłówka. */
+export function hiddenBySections(widgets: Widget[], collapsed: Set<string>): Set<string> {
+  const hidden = new Set<string>();
+  let current: string | null = null;
+  for (const w of readingOrder(widgets)) {
+    if (w.type === "section") current = w.id;
+    else if (current && collapsed.has(current)) hidden.add(w.id);
+  }
+  return hidden;
+}
+
+/** Przesunięcie (dx, dy) albo zmiana rozmiaru (dw, dh) widgetu z klawiatury – w granicach siatki. */
+export function nudgeWidget(l: DashboardLayout, id: string, d: { dx?: number; dy?: number; dw?: number; dh?: number }): DashboardLayout {
+  const widgets = placeWidgets(l.widgets).map((w) => {
+    if (w.id !== id) return w;
+    const width = Math.min(GRID_COLS, Math.max(1, w.w + (d.dw ?? 0)));
+    const h = Math.min(MAX_HEIGHT, Math.max(1, (w.h ?? 1) + (d.dh ?? 0)));
+    const x = Math.min(GRID_COLS - width, Math.max(0, (w.x ?? 0) + (d.dx ?? 0)));
+    const y = Math.max(0, (w.y ?? 0) + (d.dy ?? 0));
+    return { ...w, w: w.type === "section" ? GRID_COLS : width, h: w.type === "section" ? 1 : h, x: w.type === "section" ? 0 : x, y };
+  });
+  return { ...l, widgets };
+}
+
+/** Pozycje z siatki po przeciągnięciu albo rozciągnięciu myszką. */
+export function applyPositions(l: DashboardLayout, items: { i: string; x: number; y: number; w: number; h: number }[]): DashboardLayout {
+  const byId = new Map(items.map((it) => [it.i, it]));
+  return {
+    ...l,
+    widgets: placeWidgets(l.widgets).map((w) => {
+      const it = byId.get(w.id);
+      return it ? { ...w, x: it.x, y: it.y, w: it.w, h: it.h } : w;
+    }),
+  };
 }
 
 /** Układ domyślny: to samo, co pokazywał pulpit przed personalizacją. */
@@ -502,8 +611,12 @@ export function removeWidget(l: DashboardLayout, id: string): DashboardLayout {
   return { ...l, widgets: l.widgets.filter((x) => x.id !== id) };
 }
 
+/** Nowy widget trafia na dół pulpitu, od lewej. */
 export function addWidget(l: DashboardLayout, widget: Widget): DashboardLayout {
-  return l.widgets.length >= MAX_WIDGETS ? l : { ...l, widgets: [...l.widgets, widget] };
+  if (l.widgets.length >= MAX_WIDGETS) return l;
+  const widgets = placeWidgets(l.widgets);
+  const y = l.widgets.some(placed) ? bottomOf(widgets) : null;
+  return { ...l, widgets: [...(y == null ? l.widgets : widgets), y == null ? widget : { ...widget, x: 0, y, h: widget.h ?? defaultHeight(widget) }] };
 }
 
 /** Podmienia widget o tym samym id (np. po edycji konfiguracji). */

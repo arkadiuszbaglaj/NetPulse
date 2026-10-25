@@ -1,5 +1,5 @@
 import { IconBroadcast } from "@tabler/icons-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useContext, useEffect, useMemo, useState } from "react";
 import { t } from "../../i18n";
 import { ApiError, type Series } from "../../lib/api";
 import { formatBps, formatRange, metricFormatter } from "../../lib/format";
@@ -7,6 +7,7 @@ import { useLiveWan } from "../../lib/live";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
 import { buildLines, lineStats } from "../charts/panelData";
+import { GridCellContext } from "../DashboardGrid";
 import { Card } from "../ui";
 import { defaultTitle, useChartQueries } from "./chartSource";
 
@@ -46,6 +47,8 @@ const loading = (
  * `allowLive` dodaje przełącznik „Na żywo” (tylko dla samego ruchu WAN, bez porównań). */
 export function ChartWidget({ config: raw, className = "", allowLive = false }: { config: ChartConfig | LegacyChartConfig; className?: string; allowLive?: boolean }) {
   const config = useMemo(() => upgradeChartConfig(raw), [raw]);
+  // W komórce siatki pulpitu wykres wypełnia wysokość komórki; poza nią (strony szczegółów) – wysokość z konfiguracji
+  const fill = useContext(GridCellContext);
   const first = config.queries[0];
   const canLive = allowLive && config.queries.length === 1 && first.source.kind === "wan" && !first.offset_min;
   const [live, setLive] = useState(false);
@@ -109,7 +112,7 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
   const legendRight = legend.placement === "right" && legend.mode !== "hidden";
 
   return (
-    <Card className={`p-4 ${className}`}>
+    <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
         {canLive && <LiveToggle on={showLive} onClick={() => setLive((v) => !v)} />}
@@ -138,8 +141,8 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
       ) : isLoading ? (
         loading
       ) : (
-        <div className={legendRight ? "flex flex-col gap-3 lg:flex-row" : "flex flex-col gap-2"}>
-          <div className="min-w-0 flex-1">
+        <div className={`${legendRight ? "flex flex-col gap-3 lg:flex-row" : "flex flex-col gap-2"} ${fill ? "min-h-0 flex-1" : ""}`}>
+          <div className={`min-w-0 flex-1 ${fill ? "min-h-24" : ""}`}>
             <Suspense fallback={loading}>
               <PanelChart
                 lines={visible}
@@ -150,12 +153,12 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
                 right={right}
                 thresholds={config.thresholds ?? []}
                 thresholdStyle={config.threshold_style ?? "line"}
-                height={HEIGHT[config.height]}
+                height={fill ? "100%" : HEIGHT[config.height]}
                 ariaLabel={t("chart.summary", { title, range: formatRange(showLive ? 15 : result.minutes) })}
               />
             </Suspense>
           </div>
-          <div className={legendRight ? "lg:w-64 lg:shrink-0" : ""}>
+          <div className={`${legendRight ? "lg:w-64 lg:shrink-0" : ""} ${fill ? "max-h-[45%] shrink-0 overflow-y-auto" : ""}`}>
             <ChartLegend items={legendItems} config={legend} onToggle={toggle} />
           </div>
         </div>

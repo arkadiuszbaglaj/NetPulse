@@ -10,6 +10,8 @@ const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
 let user = null; // { id, username, password, ... }
+let layout = null; // układ pulpitu domyślnego (null = domyślny z panelu)
+let layoutAt = null;
 const sessions = new Set();
 
 const devices = [
@@ -83,7 +85,7 @@ const startSession = (res) => {
 createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const route = `${req.method} ${url.pathname}`;
-  const body = req.method === "POST" || req.method === "PATCH" ? await readBody(req) : {};
+  const body = ["POST", "PATCH", "PUT"].includes(req.method) ? await readBody(req) : {};
 
   if (route === "GET /api/health") return send(res, 200, { status: "ok", version: VERSION, timescaledb: true });
   if (route === "GET /api/auth/status") {
@@ -190,6 +192,55 @@ createServer(async (req, res) => {
     if (job.state === "running") return send(res, 409, { detail: "Aktualizacja już trwa." });
     startSimulation();
     return send(res, 202, updatesView());
+  }
+  // --- pulpit: układ, moduły i dane paneli (wykresy, kolekcje, stany) ---
+  if (route === "GET /api/modules") return send(res, 200, { proxmox: false, unifi: false, agents: false, backups: false });
+  if (route === "GET /api/dashboards") return send(res, 200, []);
+  if (route === "GET /api/dashboards/default") return send(res, 200, { layout, updated_at: layoutAt });
+  if (route === "PUT /api/dashboards/default") {
+    layout = body;
+    layoutAt = now();
+    return send(res, 200, { layout, updated_at: layoutAt });
+  }
+  if (route === "DELETE /api/dashboards/default") {
+    layout = null;
+    return send(res, 204);
+  }
+  const series = /^\/api\/(devices|interfaces|wifi)\/(\d+)\/metrics$/.exec(url.pathname) || url.pathname === "/api/system/metrics";
+  if (req.method === "GET" && series) {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const points = [];
+    for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
+      const time = new Date(Date.now() - i * stride * 1000).toISOString();
+      const cpu = 20 + 15 * Math.sin(i / 11) + (i % 5);
+      points.push({ time, values: { cpu_percent: cpu, mem_used_percent: 48 + 4 * Math.sin(i / 23), load1: cpu / 40, poll_ms: 40 + (i % 7) * 3, in_bps: wave(i, 0) * 4e5, out_bps: wave(i, 1) * 4e5, clients: 5 + (i % 4), disk_used_percent: 63, temp_c: 52 + (i % 6) } });
+    }
+    return send(res, 200, points);
+  }
+  const coll = /^\/api\/collections\/(\w+)$/.exec(url.pathname);
+  if (req.method === "GET" && coll) {
+    const kind = coll[1];
+    const rows =
+      kind === "devices"
+        ? devices.map((d, i) => ({ key: String(d.id), label: d.name, device_id: d.id, values: { up: d.status === "up" ? 1 : 0, cpu_percent: d.status === "up" ? 15 + i * 22 : null, mem_used_percent: d.status === "up" ? 40 + i * 9 : null, poll_ms: 45, uptime_s: d.uptime_s } }))
+        : kind === "ports"
+          ? [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ key: String(n), label: `Port ${n}`, device_id: 2, values: { up: n === 6 ? 0 : 1, in_bps: n * 3e6, out_bps: n * 1e6, speed_mbps: n === 7 ? 100 : 1000 } }))
+          : [["/", 35], ["/boot", 22], ["/mnt/data", 91], ["/mnt/backup", 74]].map(([m, p]) => ({ key: m, label: m, device_id: 1, values: { used_percent: p, used_bytes: p * 1e10, free_bytes: (100 - p) * 1e10, total_bytes: 1e12 } }));
+    return send(res, 200, { kind, rows });
+  }
+  if (route === "GET /api/states") {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const end = Date.now();
+    const start = end - minutes * 60_000;
+    const iso = (t) => new Date(t).toISOString();
+    const items = devices.map((d, i) => ({
+      kind: "device", id: d.id, label: d.name,
+      segments: d.status === "down"
+        ? [{ start: iso(start), end: iso(start + (end - start) * 0.4), state: "up" }, { start: iso(start + (end - start) * 0.4), end: iso(end), state: "down" }]
+        : [{ start: iso(start), end: iso(start + (end - start) * (0.3 + i * 0.1)), state: "up" }, { start: iso(start + (end - start) * (0.3 + i * 0.1)), end: iso(start + (end - start) * (0.33 + i * 0.1)), state: "unknown" }, { start: iso(start + (end - start) * (0.33 + i * 0.1)), end: iso(end), state: "up" }],
+    }));
+    return send(res, 200, { start: iso(start), end: iso(end), bucket_s: 30, items });
   }
   if (route === "GET /api/devices") {
     // Czas odczytu „odświeża się” z każdym zapytaniem

@@ -12,7 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 SCHEMA_VERSION = 1
 MAX_WIDGETS = 40
 
-GridWidth = Literal[3, 4, 6, 8, 12]  # szerokość w kolumnach siatki 12-kolumnowej
+GridWidth = Annotated[int, Field(ge=1, le=12)]  # szerokość w kolumnach siatki 12-kolumnowej (do 0.27: 3/4/6/8/12)
+GRID_COLS = 12
+MAX_ROW = 2000
+MAX_HEIGHT = 40  # wysokość w wierszach siatki (wiersz = 30 px + odstęp)
 RangeMinutes = Literal[15, 60, 360, 1440, 10080, 43200, 525600]  # do 1 roku (agregaty godzinowe)
 RefreshSeconds = Literal[0, 5, 10, 30, 60, 300]
 
@@ -395,6 +398,9 @@ class SummaryWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["summary"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: SummaryConfig
 
 
@@ -402,6 +408,9 @@ class ChartWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["chart"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: ChartConfig
 
 
@@ -409,6 +418,9 @@ class DevicesWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["devices"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: DevicesConfig = DevicesConfig()
 
 
@@ -416,6 +428,9 @@ class PoeWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["poe"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: PoeConfig = PoeConfig()
 
 
@@ -423,6 +438,9 @@ class ServerWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["server"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: ServerConfig = ServerConfig()
 
 
@@ -430,6 +448,9 @@ class WanStatusWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["wan_status"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: WanStatusConfig = WanStatusConfig()
 
 
@@ -437,6 +458,9 @@ class WanChartWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["wan_chart"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: WanChartConfig = WanChartConfig()
 
 
@@ -444,6 +468,9 @@ class WanSlaWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["wan_sla"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: WanSlaConfig = WanSlaConfig()
 
 
@@ -451,6 +478,9 @@ class StatWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["stat"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: StatConfig
 
 
@@ -458,6 +488,9 @@ class BarGaugeWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["bargauge"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: BarGaugeConfig
 
 
@@ -465,6 +498,9 @@ class TableWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["table"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: TableConfig
 
 
@@ -472,7 +508,35 @@ class StateTimelineWidget(Strict):
     id: str = Field(pattern=WIDGET_ID)
     type: Literal["state_timeline"]
     w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: StateTimelineConfig = StateTimelineConfig()
+
+
+class SectionConfig(Strict):
+    """Nagłówek sekcji pulpitu: widgety pod nim (do następnej sekcji) można zwinąć."""
+
+    title: str = Field(min_length=1, max_length=80)
+    collapsed: bool = False  # zwinięta przy otwarciu pulpitu
+
+    @field_validator("title")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Podaj nazwę sekcji")
+        return v
+
+
+class SectionWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["section"]
+    w: GridWidth = GRID_COLS
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: SectionConfig
 
 
 Widget = Annotated[
@@ -487,7 +551,8 @@ Widget = Annotated[
     | StatWidget
     | BarGaugeWidget
     | TableWidget
-    | StateTimelineWidget,
+    | StateTimelineWidget
+    | SectionWidget,
     Field(discriminator="type"),
 ]
 
@@ -502,6 +567,9 @@ class DashboardLayout(Strict):
         ids = [w.id for w in v]
         if len(set(ids)) != len(ids):
             raise ValueError("Identyfikatory widgetów muszą być unikalne")
+        for w in v:
+            if w.x is not None and w.x + w.w > GRID_COLS:
+                raise ValueError(f"Widget {w.id!r} wychodzi poza siatkę ({GRID_COLS} kolumn)")
         return v
 
 

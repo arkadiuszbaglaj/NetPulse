@@ -4,6 +4,7 @@ import {
   IconBolt,
   IconChartBar,
   IconChartLine,
+  IconHeading,
   IconLayoutGrid,
   IconListDetails,
   IconNumber,
@@ -21,6 +22,7 @@ import { PublicModeContext } from "../../lib/publicMode";
 import { ChartWidget, chartTitle } from "./ChartWidget";
 import { DevicesWidget } from "./DevicesWidget";
 import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget, collectionTitle, statTitle, stateTimelineTitle } from "./PanelWidgets";
+import { SectionHeader } from "../DashboardGrid";
 import { PoeWidget } from "./PoeWidget";
 import { ServerWidget } from "./ServerWidget";
 import { SummaryWidget } from "./SummaryWidget";
@@ -34,6 +36,7 @@ export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: Text
   { type: "bargauge", label: "widget.type.bargauge", description: "widget.type.bargauge.desc", icon: IconChartBar },
   { type: "table", label: "widget.type.table", description: "widget.type.table.desc", icon: IconTable },
   { type: "state_timeline", label: "widget.type.state_timeline", description: "widget.type.state_timeline.desc", icon: IconTimeline },
+  { type: "section", label: "widget.type.section", description: "widget.type.section.desc", icon: IconHeading },
   { type: "summary", label: "widget.type.summary", description: "widget.type.summary.desc", icon: IconLayoutGrid },
   { type: "devices", label: "widget.type.devices", description: "widget.type.devices.desc", icon: IconListDetails },
   { type: "poe", label: "widget.type.poe", description: "widget.type.poe.desc", icon: IconBolt },
@@ -69,6 +72,8 @@ export function widgetTitle(w: Widget): string {
       return w.config.title || collectionTitle(w.config.collection.kind);
     case "state_timeline":
       return stateTimelineTitle(w.config);
+    case "section":
+      return w.config.title || t("widget.type.section");
   }
 }
 
@@ -100,5 +105,7 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <TableWidget config={widget.config} />;
     case "state_timeline":
       return <StateTimelineWidget config={widget.config} />;
+    case "section":
+      return <SectionHeader title={widget.config.title} />;
   }
 }

@@ -30,7 +30,8 @@ export interface PanelChartProps {
   right: AxisView | null;
   thresholds: Threshold[];
   thresholdStyle: ThresholdStyle;
-  height: number;
+  /** Piksele albo "100%" (komórka siatki pulpitu) */
+  height: number | string;
   ariaLabel: string;
 }
 

@@ -1,14 +1,7 @@
-import {
-  IconArrowLeft,
-  IconArrowRight,
-  IconGripVertical,
-  IconPencil,
-  IconPlus,
-  IconTrash,
-  IconWand,
-} from "@tabler/icons-react";
+import { IconGripVertical, IconPencil, IconPlus, IconTrash, IconWand } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { DashboardGrid } from "../components/DashboardGrid";
 import { Dialog } from "../components/Dialog";
 import { RangePicker } from "../components/RangePicker";
 import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
@@ -16,33 +9,22 @@ import { WidgetEditDialog } from "../components/widgets/WidgetEditDialog";
 import { Button, Card, ErrorNote, PageHeader } from "../components/ui";
 import { t } from "../i18n";
 import {
-  GRID_WIDTHS,
   MAX_WIDGETS,
   addWidget,
-  dropOn,
+  applyPositions,
   newWidget,
+  nudgeWidget,
+  placeWidgets,
   removeWidget,
   replaceWidget,
-  resizeWidget,
   sameLayout,
-  shiftWidget,
   type DashboardLayout,
-  type GridWidth,
   type Widget,
   type WidgetType,
 } from "../lib/layout";
 import { useDashboards } from "../lib/dashboards";
 import { useDashboardLayout, useResetLayout, useSaveLayout } from "../lib/layoutApi";
 import { useDashboardSummary, useDevices } from "../lib/queries";
-
-// Pełne nazwy klas, żeby Tailwind je znalazł (od `lg` układ 12-kolumnowy, niżej jedna kolumna)
-export const COL_SPAN: Record<GridWidth, string> = {
-  3: "lg:col-span-3",
-  4: "lg:col-span-4",
-  6: "lg:col-span-6",
-  8: "lg:col-span-8",
-  12: "lg:col-span-12",
-};
 
 function IconButton({ label, onClick, disabled, danger, children }: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: React.ReactNode }) {
   return (
@@ -61,57 +43,42 @@ function IconButton({ label, onClick, disabled, danger, children }: { label: str
   );
 }
 
-/** Pasek narzędzi widgetu w trybie edycji: przeciąganie, kolejność, szerokość, edycja, usuwanie. */
+const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+
+/** Pasek narzędzi widgetu w trybie edycji: uchwyt (przeciąganie myszką, strzałki z klawiatury; Shift – rozmiar),
+ * edycja, usuwanie. */
 function EditBar({
   widget,
-  index,
-  count,
-  onShift,
-  onResize,
+  onNudge,
   onEdit,
   onRemove,
-  onDragStart,
 }: {
   widget: Widget;
-  index: number;
-  count: number;
-  onShift: (d: -1 | 1) => void;
-  onResize: (w: GridWidth) => void;
+  onNudge: (d: { dx?: number; dy?: number; dw?: number; dh?: number }) => void;
   onEdit: () => void;
   onRemove: () => void;
-  onDragStart: (e: React.DragEvent) => void;
 }) {
   const name = widgetTitle(widget);
   return (
-    <div className="mb-1 flex flex-wrap items-center gap-1 rounded-lg border border-dashed border-border-strong bg-surface-2 px-1.5 py-1">
-      <span
-        draggable
-        onDragStart={onDragStart}
+    <div className="mb-1 flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-border-strong bg-surface-2 px-1.5 py-1">
+      <button
+        type="button"
         aria-label={t("widget.drag", { name })}
-        title={t("widget.drag", { name })}
-        className="flex size-8 cursor-grab items-center justify-center text-muted active:cursor-grabbing"
+        title={t("widget.drag.hint")}
+        onKeyDown={(e) => {
+          const arrow = ARROWS[e.key];
+          if (!arrow) return;
+          e.preventDefault();
+          onNudge(e.shiftKey ? { dw: arrow[0], dh: arrow[1] } : { dx: arrow[0], dy: arrow[1] });
+        }}
+        className="np-drag flex size-8 cursor-grab items-center justify-center rounded-lg text-muted hover:bg-surface active:cursor-grabbing"
       >
         <IconGripVertical size={18} aria-hidden="true" />
-      </span>
+      </button>
       <span className="min-w-0 flex-1 truncate text-xs font-medium">{name}</span>
-      <IconButton label={t("widget.move.earlier", { name })} onClick={() => onShift(-1)} disabled={index === 0}>
-        <IconArrowLeft size={16} aria-hidden="true" />
-      </IconButton>
-      <IconButton label={t("widget.move.later", { name })} onClick={() => onShift(1)} disabled={index === count - 1}>
-        <IconArrowRight size={16} aria-hidden="true" />
-      </IconButton>
-      <select
-        aria-label={t("widget.width", { name })}
-        value={widget.w}
-        onChange={(e) => onResize(Number(e.target.value) as GridWidth)}
-        className="hidden h-8 rounded-lg border border-border bg-surface px-1.5 text-xs lg:block"
-      >
-        {GRID_WIDTHS.map((w) => (
-          <option key={w} value={w}>
-            {t(`widget.width.${w}` as const)}
-          </option>
-        ))}
-      </select>
+      <span className="hidden shrink-0 text-xs tabular-nums text-muted lg:inline" aria-hidden="true">
+        {widget.w}×{widget.h ?? "?"}
+      </span>
       <IconButton label={t("widget.edit", { name })} onClick={onEdit}>
         <IconPencil size={16} aria-hidden="true" />
       </IconButton>
@@ -204,7 +171,6 @@ export function DashboardPage() {
   const devices = useDevices();
 
   const [draft, setDraft] = useState<DashboardLayout | null>(null); // null = tryb podglądu
-  const [dragId, setDragId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ widget: Widget; isNew: boolean } | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirm, setConfirm] = useState<"discard" | "reset" | null>(null);
@@ -225,7 +191,8 @@ export function DashboardPage() {
   const commit = () => {
     if (!draft) return;
     setSaveFailed(false);
-    save.mutate(draft, {
+    // Zapisujemy pozycje wszystkich widgetów – pulpit sprzed 0.28.0 dostaje je przy pierwszym zapisie
+    save.mutate({ ...draft, widgets: placeWidgets(draft.widgets) }, {
       onSuccess: () => setDraft(null),
       onError: () => setSaveFailed(true),
     });
@@ -301,44 +268,21 @@ export function DashboardPage() {
         <p className="py-10 text-center text-sm text-text-2">{t(edit ? "dash.edit.empty" : "dash.empty.layout")}</p>
       ) : (
         !(noDevices && !edit) && (
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-            {layout.widgets.map((widget, index) => (
-              <div
-                key={widget.id}
-                className={`min-w-0 ${COL_SPAN[widget.w]} ${dragId === widget.id ? "opacity-50" : ""}`}
-                onDragOver={edit && dragId ? (e) => e.preventDefault() : undefined}
-                onDrop={
-                  edit && dragId
-                    ? (e) => {
-                        e.preventDefault();
-                        update((l) => dropOn(l, dragId, widget.id));
-                        setDragId(null);
-                      }
-                    : undefined
-                }
-              >
-                {edit && (
-                  <EditBar
-                    widget={widget}
-                    index={index}
-                    count={layout.widgets.length}
-                    onShift={(d) => update((l) => shiftWidget(l, widget.id, d))}
-                    onResize={(w) => update((l) => resizeWidget(l, widget.id, w))}
-                    onEdit={() => setEditing({ widget, isNew: false })}
-                    onRemove={() => update((l) => removeWidget(l, widget.id))}
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("text/plain", widget.id);
-                      e.dataTransfer.effectAllowed = "move";
-                      setDragId(widget.id);
-                    }}
-                  />
-                )}
-                <div onDragEnd={() => setDragId(null)}>
-                  <WidgetView widget={widget} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <DashboardGrid
+            widgets={layout.widgets}
+            scope={dashboardId === undefined ? "default" : String(dashboardId)}
+            edit={edit}
+            onPositions={(items) => update((l) => applyPositions(l, items))}
+            renderWidget={(widget) => <WidgetView widget={widget} />}
+            renderEditBar={(widget) => (
+              <EditBar
+                widget={widget}
+                onNudge={(d) => update((l) => nudgeWidget(l, widget.id, d))}
+                onEdit={() => setEditing({ widget, isNew: false })}
+                onRemove={() => update((l) => removeWidget(l, widget.id))}
+              />
+            )}
+          />
         )
       )}
 

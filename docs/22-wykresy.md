@@ -10,7 +10,7 @@ Decyzje użytkownika (2026-10-25): wszystkie funkcje wykresu w czasie, nowe pane
 |------|--------|--------|
 | A ✅ | 0.26.0 | Wykres w czasie: wiele źródeł na jednym wykresie, druga oś Y, progi (linia / tło), legenda jako lista albo tabela z min / max / średnią / ostatnią, klik w legendzie ukrywa serię, serie piętrowane (stos), porównanie w czasie (ta sama seria godzinę, dzień albo tydzień wcześniej). Nowy edytor panelu: duże okno z podglądem na żywo. |
 | B ✅ | 0.27.0 | Nowe panele: liczba z mini-wykresem (kolor z progów), paski (bar gauge, np. zajętość wszystkich dysków), tabela (porty, klienci, dyski z sortowaniem), oś stanów (up/down portów i urządzeń w czasie). |
-| C | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
+| C ✅ | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
 
 Każdy etap to osobna wersja do sprawdzenia na serwerze.
 
@@ -74,3 +74,23 @@ stan sprzed niej (spóźniony odczyt). Surowe dane są trzymane 30 dni – dalej
 
 Pulpit publiczny: kolekcje tylko takie, jakie mają paski i tabele pulpitu (rodzaj + urządzenie), stany tylko dla
 dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`, `resolve()`).
+
+## Etap C – swobodna siatka i sekcje (0.28.0)
+
+- **Pozycje**: każdy widget ma `x`, `y` (kolumna i wiersz) i `h` (wysokość w wierszach); `w` to dowolne 1–12.
+  Wiersz = 30 px + 12 px odstępu (`rowsToPx`). Schemat: `layout_schemas.py` (pola opcjonalne, `x + w ≤ 12`).
+- **Pulpity sprzed 0.28.0** nie mają pozycji: panel układa je po kolei jak dawne kolumny (`placeWidgets`,
+  wysokości z `defaultHeight`), a pierwszy zapis w trybie edycji zapisuje już pozycje wszystkich widgetów.
+- **Edycja** (od 1024 px): `react-grid-layout` 2.3 – przeciąganie za uchwyt (`.np-drag`), rozciąganie za prawy dolny
+  róg, prawą i dolną krawędź; reszta widgetów rozsuwa się i dosuwa do góry. Z klawiatury: strzałki na uchwycie
+  przesuwają o jedną kratkę, Shift + strzałki zmieniają rozmiar (`nudgeWidget`).
+- **Wykres i liczba wypełniają komórkę** (kontekst `GridCellContext`); poza pulpitem (strony szczegółów) wykres ma
+  dalej wysokość z konfiguracji. Pole „Wysokość” zniknęło z edytora wykresu.
+- **Sekcje** (`type: "section"`, `config.title`, `config.collapsed`): nagłówek na całą szerokość; zwinięcie ukrywa
+  widgety pod nim do następnej sekcji, a widgety niżej dosuwają się do góry. „Zwinięta przy otwarciu” to ustawienie
+  sekcji; kliknięcia oglądającego pamięta przeglądarka (`localStorage`, osobno dla każdego pulpitu). W trybie edycji
+  wszystkie sekcje są rozwinięte.
+- **Telefon** (< 1024 px): widgety jeden pod drugim w kolejności czytania (z góry na dół, w wierszu od lewej);
+  wykres i liczba mają wysokość z siatki, reszta – swoją.
+- **Podgląd bez serwera**: `npm --prefix frontend run mock` (atrapa API z pulpitem, kolekcjami i stanami) +
+  `npm --prefix frontend run dev`; konfiguracja w `.claude/launch.json`.

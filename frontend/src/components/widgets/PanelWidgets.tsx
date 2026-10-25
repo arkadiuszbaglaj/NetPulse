@@ -72,9 +72,9 @@ export function StatWidget({ config }: { config: StatConfig }) {
   const background = config.color_mode === "background" && value != null;
   const title = statTitle(config);
   return (
-    <Card className="overflow-hidden">
+    <Card className="flex flex-col overflow-hidden">
       <div
-        className="relative flex min-h-32 flex-col p-4"
+        className="relative flex min-h-32 flex-1 flex-col p-4"
         style={background ? { background: `color-mix(in srgb, ${color} 22%, var(--surface))` } : undefined}
       >
       <h2 className="truncate text-sm font-medium">{title}</h2>
@@ -141,7 +141,7 @@ export function BarGaugeWidget({ config }: { config: BarGaugeConfig }) {
       ) : rows.length === 0 ? (
         <Status>{t("panel.empty")}</Status>
       ) : (
-        <ul aria-label={title} className={vertical ? "flex h-48 items-end gap-2" : "flex flex-col gap-2"}>
+        <ul aria-label={title} className={vertical ? "flex min-h-40 flex-1 items-end gap-2" : "flex flex-col gap-2"}>
           {rows.map((r) => {
             const v = r.values[config.key];
             const color = chartColor(thresholdColor(v, config.thresholds, config.color));

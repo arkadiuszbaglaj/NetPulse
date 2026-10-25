@@ -19,7 +19,7 @@ import { useDevices } from "../../lib/queries";
 import { formatRange } from "../../lib/format";
 import { RANGE_OPTIONS, type RangeMinutes } from "../../lib/refresh";
 import { Dialog } from "../Dialog";
-import { Button, Select } from "../ui";
+import { Button, Field, Select } from "../ui";
 import { ChartEditor } from "./ChartEditor";
 import { BarGaugeForm, StatForm, StateTimelineForm, TableForm } from "./PanelEditors";
 import { KIND_LABEL } from "./DevicesWidget";
@@ -42,6 +42,38 @@ function Checkbox({ id, label, checked, onChange }: { id: string; label: string;
 }
 
 // --- podsumowanie i karty urządzeń -------------------------------------------------------------
+
+function SectionForm({ initial, isNew, onSave, onClose }: { initial: { title: string; collapsed: boolean }; isNew: boolean; onSave: (c: { title: string; collapsed: boolean }) => void; onClose: () => void }) {
+  const [title, setTitle] = useState(initial.title);
+  const [collapsed, setCollapsed] = useState(initial.collapsed);
+  const [error, setError] = useState<string | undefined>();
+  const submit = () => {
+    if (!title.trim()) return setError(t("section.err.title"));
+    onSave({ title: title.trim(), collapsed });
+  };
+  return (
+    <Dialog
+      size="sm"
+      title={t(isNew ? "section.new" : "section.edit")}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" onClick={submit}>
+            {t("common.save")}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field id="section-title" label={t("section.title")} value={title} maxLength={80} error={error} hint={t("section.hint")} onChange={(e) => (setTitle(e.target.value), setError(undefined))} />
+        <Checkbox id="section-collapsed" label={t("section.collapsed")} checked={collapsed} onChange={setCollapsed} />
+      </div>
+    </Dialog>
+  );
+}
 
 function SummaryForm({ initial, onSave, onClose }: { initial: SummaryTile[]; onSave: (tiles: SummaryTile[]) => void; onClose: () => void }) {
   const [tiles, setTiles] = useState<SummaryTile[]>(initial);
@@ -277,5 +309,7 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
       return <TableForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
     case "state_timeline":
       return <StateTimelineForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
+    case "section":
+      return <SectionForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
   }
 }

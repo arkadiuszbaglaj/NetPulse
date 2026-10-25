@@ -9,6 +9,16 @@ afterEach(() => {
   delete document.documentElement.dataset.theme;
 });
 
+// jsdom nie ma ResizeObserver (siatka pulpitu mierzy nim szerokość; w testach zostaje szerokość początkowa 1280 px)
+if (!("ResizeObserver" in window)) {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(window, "ResizeObserver", { writable: true, value: ResizeObserverStub });
+}
+
 // jsdom nie ma matchMedia
 if (!window.matchMedia) {
   Object.defineProperty(window, "matchMedia", {

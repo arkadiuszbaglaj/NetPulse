@@ -100,7 +100,7 @@ def test_rejects_duplicate_series_and_unknown_fields():
 @pytest.mark.parametrize(
     "bad",
     [
-        {"w": 5},  # niedozwolona szerokość
+        {"w": 0},  # niedozwolona szerokość
         {"w": 13},
         {"id": ""},
         {"id": "ze spacją"},
@@ -317,3 +317,38 @@ def test_new_panels_validate():
 def test_new_panels_reject_invalid(type_, config):
     with pytest.raises(ValidationError):
         DashboardLayout.model_validate(panel(type_, config))
+
+
+# --- swobodna siatka i sekcje od 0.28.0 -----------------------------------------------------------
+
+
+def test_free_grid_positions_and_sections():
+    parsed = DashboardLayout.model_validate(
+        layout(
+            {"id": "s", "type": "section", "x": 0, "y": 0, "h": 1, "config": {"title": "  Sieć  ", "collapsed": True}},
+            chart(w=5, x=0, y=1, h=8),
+            {"id": "n", "type": "stat", "w": 7, "x": 5, "y": 1, "h": 4, "config": {"source": {"kind": "wan"}, "key": "in_bps"}},
+        )
+    )
+    section, c, n = parsed.widgets
+    assert (section.w, section.config.title, section.config.collapsed) == (12, "Sieć", True)
+    assert (c.w, c.x, c.y, c.h) == (5, 0, 1, 8) and (n.x, n.w) == (5, 7)
+    old = DashboardLayout.model_validate(layout(chart()))  # układ sprzed 0.28: bez pozycji
+    assert (old.widgets[0].x, old.widgets[0].y, old.widgets[0].h) == (None, None, None)
+
+
+@pytest.mark.parametrize(
+    "widget",
+    [
+        chart(w=6, x=7),  # poza siatką
+        chart(x=12),
+        chart(h=0),
+        chart(h=41),
+        chart(y=-1),
+        {"id": "s", "type": "section", "config": {"title": "   "}},
+        {"id": "s", "type": "section", "config": {}},
+    ],
+)
+def test_free_grid_rejects_invalid(widget):
+    with pytest.raises(ValidationError):
+        DashboardLayout.model_validate(layout(widget))

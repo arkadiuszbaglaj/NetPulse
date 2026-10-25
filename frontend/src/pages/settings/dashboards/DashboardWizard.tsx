@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { Dialog } from "../../../components/Dialog";
 import { Button, ErrorNote, Field, Select } from "../../../components/ui";
 import { WIDGET_TYPES, widgetTitle } from "../../../components/widgets/registry";
-import { t } from "../../../i18n";
+import { t, type TextKey } from "../../../i18n";
 import { ApiError } from "../../../lib/api";
 import { TEMPLATES, templateWidgets, useDashboardMutations, type DashboardInfo, type TemplateId } from "../../../lib/dashboards";
 import { formatRange } from "../../../lib/format";
@@ -56,7 +56,7 @@ function WidgetsStep({ widgets, onChange }: { widgets: Widget[]; onChange: (w: W
                 >
                   {GRID_WIDTHS.map((g) => (
                     <option key={g} value={g}>
-                      {t(`widget.width.${g}` as const)}
+                      {t(`widget.width.${g}` as TextKey)}
                     </option>
                   ))}
                 </select>

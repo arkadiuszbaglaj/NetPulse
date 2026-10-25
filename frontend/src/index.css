@@ -115,3 +115,17 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Siatka pulpitu (react-grid-layout): podświetlenie miejsca upuszczenia i uchwyt rozciągania w kolorach motywu */
+.np-grid .react-grid-item.react-grid-placeholder {
+  background: var(--accent);
+  opacity: 0.15;
+  border-radius: 0.75rem;
+}
+.np-grid .react-grid-item > .react-resizable-handle::after {
+  border-color: var(--text-2);
+}
+.np-grid .react-grid-item.resizing,
+.np-grid .react-grid-item.react-draggable-dragging {
+  z-index: 20;
+}
