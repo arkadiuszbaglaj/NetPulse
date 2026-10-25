@@ -44,7 +44,8 @@ async def _clean():
 
 
 def ago(minutes: float) -> datetime:
-    # Próbki z ostatnich minut: agregat „na żywo” liczy je z surowych danych (powyżej ostatniego odświeżenia)
+    # Próbki z ostatnich minut: agregat „na żywo” liczy je z surowych danych (powyżej ostatniego odświeżenia),
+    # a bieżący ruch portu to próbka z ostatnich 5 minut
     return datetime.now(UTC) - timedelta(minutes=minutes)
 
 
@@ -64,12 +65,12 @@ def switch():
             await s.flush()
             # 4 odczyty urządzenia: 3 udane, 1 bez odpowiedzi
             for i, ok in enumerate([True, True, False, True]):
-                s.add(DeviceMetric(time=ago(20 - i), device_id=dev.id, reachable=ok, cpu_percent=10.0 + i if ok else None))
+                s.add(DeviceMetric(time=ago(4 - i * 0.5), device_id=dev.id, reachable=ok, cpu_percent=10.0 + i if ok else None))
             # Port: 2 próbki podłączony, 2 odłączony
             for i, up in enumerate([True, False, False, True]):
-                s.add(InterfaceMetric(time=ago(20 - i), interface_id=port.id, in_bps=1e6, out_bps=2e5, oper_up=up))
-            s.add(PoePortMetric(time=ago(5), device_id=dev.id, port_idx=3, power_w=4.5, delivering=True))
-            s.add(PoePortMetric(time=ago(5), device_id=dev.id, port_idx=4, power_w=9.0, delivering=True))
+                s.add(InterfaceMetric(time=ago(4 - i * 0.5), interface_id=port.id, in_bps=1e6, out_bps=2e5, oper_up=up))
+            s.add(PoePortMetric(time=ago(2), device_id=dev.id, port_idx=3, power_w=4.5, delivering=True))
+            s.add(PoePortMetric(time=ago(2), device_id=dev.id, port_idx=4, power_w=9.0, delivering=True))
             return dev.id, port.id
 
     ids = run(go)

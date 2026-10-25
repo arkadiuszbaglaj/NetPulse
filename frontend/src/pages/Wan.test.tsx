@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { t } from "../i18n";
 import { newWidget, type Widget } from "../lib/layout";
 import { availabilityTone, formatAvailability, formatDuration, type WanHistory, type WanLink, type WanSla } from "../lib/wan";
 import { mockApi } from "../test/mockApi";
@@ -159,9 +160,11 @@ describe("widget SLA łączy WAN", () => {
     expect(calls.some((c) => c.path === "/api/wan/sla?days=7")).toBe(true);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "30 dni" }));
+    // „30 dni” jest też w wyborze zakresu wykresów – szukamy w przełączniku okresu SLA
+    const period = screen.getByRole("group", { name: t("wan.sla.period") });
+    await user.click(within(period).getByRole("button", { name: "30 dni" }));
     await waitFor(() => expect(calls.some((c) => c.path === "/api/wan/sla?days=30")).toBe(true));
-    expect(screen.getByRole("button", { name: "30 dni" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(period).getByRole("button", { name: "30 dni" })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
