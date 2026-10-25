@@ -9,8 +9,8 @@ from typing import Annotated
 from urllib.parse import urlsplit
 
 from fastapi import Depends, HTTPException, Request, Response
-from starlette.requests import HTTPConnection
 from sqlalchemy import delete
+from starlette.requests import HTTPConnection
 
 from ..auth import hash_token, new_token
 from ..config import settings

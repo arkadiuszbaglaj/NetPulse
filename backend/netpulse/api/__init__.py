@@ -20,6 +20,7 @@ from . import auth_routes, dashboard, dashboards, devices, live, metrics, prefer
 from .security import check_origin
 from .web import mount_web
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Cykliczne sprawdzanie aktualizacji (jeśli włączone w ustawieniach), żeby panel mógł o nich przypomnieć
