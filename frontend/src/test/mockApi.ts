@@ -12,6 +12,7 @@ import type {
   User,
 } from "../lib/api";
 import type { Agent } from "../lib/agents";
+import type { BackupsResponse } from "../lib/backups";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
 import type { NotificationChannel } from "../lib/notifications";
@@ -232,6 +233,7 @@ interface MockState {
   layout: DashboardLayout | null;
   controllers: Controller[];
   agents: Agent[];
+  backups: BackupsResponse;
   alerts: Alert[];
   rules: AlertRule[];
   clients: NetworkClient[];
@@ -266,6 +268,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     layout: null,
     controllers: [],
     agents: [],
+    backups: { backups: [], restore: { state: "idle" } },
     alerts: [],
     rules: [],
     clients: [],
@@ -359,6 +362,23 @@ export function mockApi(initial: Partial<MockState> = {}) {
         }
         Object.assign(rule, body);
         return json(200, rule);
+      }
+      if (key === "GET /api/backups") return json(200, state.backups);
+      if (key === "POST /api/backups") {
+        const created = { name: "netpulse-manual-20261025-120000.sql.gz", kind: "manual" as const, size_bytes: 2_500_000, created_at: "2026-10-25T12:00:00+02:00" };
+        state.backups = { ...state.backups, backups: [created, ...state.backups.backups] };
+        return json(201, state.backups);
+      }
+      const backup = /^(DELETE|POST) \/api\/backups\/([^/]+?)(\/restore)?$/.exec(key);
+      if (backup) {
+        const name = decodeURIComponent(backup[2]);
+        if (!state.backups.backups.some((b) => b.name === name)) return json(404, { detail: "Nie ma takiej kopii" });
+        if (backup[3]) {
+          state.backups = { ...state.backups, restore: { state: "running", backup: name, step: "safety" } };
+          return json(202, state.backups);
+        }
+        state.backups = { ...state.backups, backups: state.backups.backups.filter((b) => b.name !== name) };
+        return json(200, state.backups);
       }
       if (key === "GET /api/agents") return json(200, state.agents);
       if (key === "POST /api/agents") {

@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import git_ops, state
+from .backups import prune
 from .config import Settings
 from .envfile import topup_env
 
@@ -126,8 +127,8 @@ class Job:
             raise StepError("Nie udało się wykonać kopii bazy danych, więc aktualizacji nie rozpoczęto. Nic nie zostało zmienione.")
         target.chmod(0o600)
         self.log(f"Kopia bazy: {target.name} ({target.stat().st_size // 1024} KB)")
-        for old in sorted(d.glob("netpulse-*.sql.gz"))[: -self.s.backups_keep]:
-            old.unlink(missing_ok=True)
+        # Tylko kopie sprzed aktualizacji; kopie ręczne i sprzed przywrócenia mają własne limity
+        prune(self.s, "update")
 
     def fetch(self) -> bool:
         """Pobiera i scala kod. False = nie było nic do zainstalowania."""

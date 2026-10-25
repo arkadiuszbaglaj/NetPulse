@@ -96,6 +96,11 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 9. SNMP v3 ✅ (testowane klientem pysnmp kontra snmpsim w CI), MikroTik i Omada: drivery SNMP gotowe, ale na zrzutach syntetycznych – czekają na prawdziwe zrzuty (opis: `docs/12-mikrotik-omada-snmp.md`); API kontrolera Omada i RouterOS dalej do zrobienia
 10. Serwery Linux – etap A ✅ SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B ✅ (0.11.0) własny agent: push z tokenem (`api/agents.py`), jeden plik Pythona `backend/netpulse/agent/netpulse_agent.py` + `install.sh` serwowane przez API, systemd, Docker, SMART, ogólna tabela `metrics` (migracja 0002), Ustawienia → Agenci. Opis: `docs/14-agent-linux.md`. Alerty z agenta ✅ (0.12.0: kontener, usługa, SMART, temperatura; pole `alert_rules.match`, migracja 0003); wykresy z `metrics` ✅ (0.13.0, źródła `agent_*` w edytorze wykresu)
 
+## Kopie zapasowe
+
+Od 0.14.0: Ustawienia → Kopia zapasowa (utworzenie, pobranie, przywrócenie z kopią bezpieczeństwa) i `netpulse backup`;
+`netpulse update` robi kopię przed zmianą kodu. Wykonuje je updater (`updater/netpulse_updater/backups.py`), opis: `docs/15-kopia-zapasowa.md`.
+
 ## Do sprawdzenia później
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej

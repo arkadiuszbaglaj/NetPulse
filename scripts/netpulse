@@ -9,6 +9,7 @@
 #   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
 #   netpulse reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
 #   netpulse cleanup         zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje)
+#   netpulse backup          kopia bazy do katalogu backups (przywracanie: panel → Ustawienia → Kopia zapasowa)
 #
 # Pozostałe polecenia trafiają do aplikacji w kontenerze, np.:
 #   netpulse probe 192.168.1.1 --community public
@@ -116,6 +117,43 @@ cmd_cleanup() {
   c_ok "Wolne miejsce: ${before} MB → ${after} MB (baza i konfiguracja nietknięte)"
 }
 
+# Kopia bazy w katalogu backups – te same nazwy i limity co kopie z panelu (updater/netpulse_updater/backups.py):
+# update = przed aktualizacją (zostają 3), manual = na żądanie (zostaje 10). Wypisuje ścieżkę pliku.
+do_backup() {
+  local kind="$1" dir="$INSTALL_DIR/backups" stamp target keep pattern
+  stamp=$(date +%Y%m%d-%H%M%S)
+  if [ "$kind" = update ]; then
+    target="$dir/netpulse-$stamp.sql.gz" keep=3 pattern='netpulse-[0-9]*.sql.gz'
+  else
+    target="$dir/netpulse-manual-$stamp.sql.gz" keep=10 pattern='netpulse-manual-*.sql.gz'
+  fi
+  mkdir -p "$dir"
+  if ! compose exec -T db pg_dump -U netpulse netpulse | gzip >"$target" || [ "$(stat -c %s "$target")" -lt 100 ]; then
+    rm -f "$target"
+    return 1
+  fi
+  chmod 600 "$target"
+  # shellcheck disable=SC2012 – nazwy kopii nie mają spacji
+  ls -1t "$dir"/$pattern 2>/dev/null | tail -n +$((keep + 1)) | xargs -r rm -f
+  echo "$target"
+}
+
+db_running() {
+  compose ps --status running --services 2>/dev/null | grep -qx db
+}
+
+cmd_backup() {
+  need_root backup "$@"
+  db_running || { c_err "Baza nie działa – uruchom NetPulse: netpulse start"; exit 1; }
+  c_info "Tworzę kopię bazy..."
+  local target
+  if ! target=$(do_backup manual); then
+    c_err "Nie udało się wykonać kopii bazy."
+    exit 1
+  fi
+  c_ok "Kopia: $target ($(du -h "$target" | cut -f1))"
+}
+
 cmd_update() {
   need_root update "$@"
   # Aktualizacja podmienia ten plik – uruchom kopię, żeby bash nie czytał zmienianego skryptu
@@ -143,6 +181,15 @@ cmd_update() {
   fi
   # Miejsce sprawdzamy PRZED zmianą kodu: przy niepowodzeniu nic się nie zmienia i wystarczy ponowić update
   check_disk || exit 1
+  # Kopia bazy przed zmianą kodu (nowa wersja może migrować schemat), jak przy aktualizacji z panelu
+  if db_running; then
+    local backup
+    if ! backup=$(do_backup update); then
+      c_err "Nie udało się wykonać kopii bazy, więc aktualizacji nie rozpoczęto. Nic nie zostało zmienione."
+      exit 1
+    fi
+    c_ok "Kopia bazy: $backup"
+  fi
   if [ "$before" != "$after" ]; then
     git merge --ff-only --quiet "origin/$branch"
   fi
@@ -210,6 +257,7 @@ main() {
     uninstall) cmd_uninstall "$@" ;;
     reset) cmd_reset "$@" ;;
     cleanup) cmd_cleanup "$@" ;;
+    backup) cmd_backup "$@" ;;
     help | -h | --help)
       awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
       ;;

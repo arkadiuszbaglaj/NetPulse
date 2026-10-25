@@ -1,9 +1,11 @@
 """Serwer HTTP usługi aktualizacji (tylko biblioteka standardowa).
 
-Trzy akcje, bez żadnych parametrów od użytkownika (nic z żądania nie trafia do poleceń):
+Akcje (jedyny parametr z żądania to nazwa kopii, sprawdzana wyrażeniem regularnym – patrz backups.py):
   GET  /status   zainstalowana wersja, wynik ostatniego sprawdzenia, stan i log zadania
   POST /check    pobiera informacje ze źródła i zwraca, co jest do zainstalowania
   POST /update   uruchamia aktualizację w osobnym kontenerze (409, gdy już trwa)
+  GET  /backups  lista kopii bazy i stan przywracania;  POST /backups  nowa kopia
+  GET  /backups/<nazwa>/file  pobranie;  DELETE /backups/<nazwa>;  POST /backups/<nazwa>/restore
 Wszystko poza /health wymaga nagłówka `Authorization: Bearer <NETPULSE_UPDATER_TOKEN>`.
 Bez skonfigurowanego tokenu usługa odrzuca każde żądanie (aktualizacja z panelu wyłączona).
 """
@@ -21,6 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from . import git_ops, state
+from .backups import BackupError, Backups
 from .config import Settings
 
 SOCKET = "/var/run/docker.sock"
@@ -84,11 +87,13 @@ class UpdaterApp:
         launcher: Callable[[Settings], None] = launch_job,
         is_running: Callable[[Settings], bool] = job_running,
         checker: Callable[[Settings], dict[str, Any]] = git_ops.check,
+        backups: Backups | None = None,
     ) -> None:
         self.s = settings
         self.launcher = launcher
         self.is_running = is_running
         self.checker = checker
+        self.backups = backups or Backups(settings)
         self._lock = threading.Lock()
 
     # --- widok zadania ------------------------------------------------------------
@@ -139,6 +144,8 @@ class UpdaterApp:
                 return 409, {"error": problem}
             if self.is_running(self.s):
                 return 409, {"error": "Aktualizacja już trwa."}
+            if self.backups.busy:
+                return 409, {"error": "Trwa przywracanie kopii bazy – aktualizację uruchom po jego zakończeniu."}
             cur = git_ops.current(self.s)
             status = state.new_status(cur["version"], cur["commit"])
             state.reset_log(self.s)
@@ -151,17 +158,53 @@ class UpdaterApp:
                 return 500, {"error": status["error"]}
             return 202, self.status()
 
+    # --- kopie bazy ----------------------------------------------------------------
+
+    def backups_view(self) -> dict[str, Any]:
+        from .backups import list_backups
+
+        return {"backups": list_backups(self.s), "restore": self.backups.restore_status()}
+
+    def backup_action(self, method: str, parts: list[str]) -> tuple[int, dict[str, Any]]:
+        try:
+            if parts == [] and method == "GET":
+                return 200, self.backups_view()
+            if parts == [] and method == "POST":
+                if self.backups.busy:
+                    return 409, {"error": "Trwa przywracanie kopii bazy."}
+                return 201, {"backup": self.backups.create("manual"), **self.backups_view()}
+            if len(parts) == 1 and method == "DELETE":
+                self.backups.delete(parts[0])
+                return 200, self.backups_view()
+            if len(parts) == 2 and parts[1] == "restore" and method == "POST":
+                if self.is_running(self.s):
+                    return 409, {"error": "Trwa aktualizacja – przywracanie uruchom po jej zakończeniu."}
+                self.backups.start_restore(parts[0])
+                return 202, self.backups_view()
+        except BackupError as exc:
+            code = 404 if "Nie ma takiej" in str(exc) else 409 if "trwa" in str(exc) else 400
+            return code, {"error": str(exc)}
+        return 404, {"error": "Nie ma takiej akcji."}
+
     # --- routing ------------------------------------------------------------------
 
-    def handle(self, method: str, path: str, authorization: str | None) -> tuple[int, dict[str, Any]]:
-        path = path.split("?", 1)[0].rstrip("/") or "/"
-        if method == "GET" and path == "/health":
-            return 200, {"status": "ok"}
+    def authorized(self, authorization: str | None) -> tuple[int, dict[str, Any]] | None:
+        """None, gdy żądanie ma poprawny token; inaczej odpowiedź z błędem."""
         if not self.s.token:
             return 503, {"error": "Aktualizacje z panelu są wyłączone (NETPULSE_UPDATER=off)."}
         expected = f"Bearer {self.s.token}"
         if not hmac.compare_digest((authorization or "").encode(), expected.encode()):
             return 401, {"error": "Brak uprawnień."}
+        return None
+
+    def handle(self, method: str, path: str, authorization: str | None) -> tuple[int, dict[str, Any]]:
+        path = path.split("?", 1)[0].rstrip("/") or "/"
+        if method == "GET" and path == "/health":
+            return 200, {"status": "ok"}
+        if denied := self.authorized(authorization):
+            return denied
+        if path == "/backups" or path.startswith("/backups/"):
+            return self.backup_action(method, [p for p in path.split("/")[2:] if p])
         if (method, path) == ("GET", "/status"):
             return 200, self.status()
         if (method, path) == ("POST", "/check"):
@@ -197,11 +240,45 @@ def make_handler(app: UpdaterApp) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
             self.wfile.write(body)
 
+        def _file(self) -> bool:
+            """GET /backups/<nazwa>/file – plik kopii strumieniem (nie JSON)."""
+            parts = [p for p in self.path.split("?", 1)[0].split("/") if p]
+            if len(parts) != 3 or parts[0] != "backups" or parts[2] != "file":
+                return False
+            denied = app.authorized(self.headers.get("Authorization"))
+            try:
+                from .backups import path_of
+
+                path = None if denied else path_of(app.s, parts[1])
+            except BackupError as exc:
+                denied = (404, {"error": str(exc)})
+            if denied or path is None:
+                code, payload = denied or (404, {"error": "Nie ma takiej kopii."})
+                body = json.dumps(payload, ensure_ascii=False).encode()
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return True
+            self.send_response(200)
+            self.send_header("Content-Type", "application/gzip")
+            self.send_header("Content-Length", str(path.stat().st_size))
+            self.end_headers()
+            with path.open("rb") as f:
+                while chunk := f.read(1024 * 256):
+                    self.wfile.write(chunk)
+            return True
+
         def do_GET(self) -> None:  # noqa: N802
-            self._reply("GET")
+            if not self._file():
+                self._reply("GET")
 
         def do_POST(self) -> None:  # noqa: N802
             self._reply("POST")
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            self._reply("DELETE")
 
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 – nie logujemy nagłówków
             pass

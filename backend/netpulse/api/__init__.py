@@ -20,6 +20,7 @@ from . import (
     agents,
     alerts,
     auth_routes,
+    backups,
     controllers,
     dashboard,
     dashboards,
@@ -52,6 +53,7 @@ app.include_router(agents.admin_router)
 app.include_router(agents.push_router)
 app.include_router(alerts.router)
 app.include_router(auth_routes.router)
+app.include_router(backups.router)
 app.include_router(controllers.router)
 app.include_router(dashboard.router)
 app.include_router(dashboards.router)

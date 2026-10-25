@@ -5,6 +5,7 @@
 import {
   IconBell,
   IconBellRinging,
+  IconDatabase,
   IconDevicesPc,
   IconDownload,
   IconHeartbeat,
@@ -23,6 +24,7 @@ import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { AgentsPage } from "./pages/settings/AgentsPage";
 import { AlertRulesPage } from "./pages/settings/AlertRulesPage";
+import { BackupsPage } from "./pages/settings/BackupsPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AccountPage } from "./pages/settings/AccountPage";
 import { ClientsPage } from "./pages/ClientsPage";
@@ -132,6 +134,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.system",
         icon: IconHeartbeat,
         element: <SystemPage />,
+      },
+      {
+        path: "backups",
+        label: "nav.settings.backups",
+        icon: IconDatabase,
+        element: <BackupsPage />,
       },
       {
         path: "update",

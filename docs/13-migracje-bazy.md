@@ -14,8 +14,8 @@ Nic się nie zmienia: aktualizacja dalej jest jedną komendą albo jednym klikni
 4. Na koniec bezpiecznik: jeśli w tabelach dalej brakuje kolumn, kolektor kończy się czytelnym błędem
    (jak dotąd), zamiast sypać błędami SQL.
 
-Aktualizacja z panelu (usługa `updater`) robi przed zmianami kopię bazy (`pg_dump` do katalogu `backups`).
-`netpulse update` z konsoli kopii nie robi – przy migracji chroni wtedy sama transakcja.
+Aktualizacja z panelu i `netpulse update` z konsoli (od 0.14.0) robią przed zmianami kopię bazy (`pg_dump` do
+katalogu `backups`, patrz `docs/15-kopia-zapasowa.md`).
 
 Sprawdzenie wersji schematu na serwerze:
 
@@ -54,4 +54,4 @@ Hypertables i retencję zakłada dalej `init_db` po migracjach (lista `HYPERTABL
 tabela metryk to: model, migracja i dopisanie nazwy do `HYPERTABLES`.
 
 Cofanie migracji (`downgrade`) nie jest używane przy aktualizacjach. Do cofnięcia wersji służy kopia bazy
-z aktualizacji z panelu.
+sprzed aktualizacji (Ustawienia → Kopia zapasowa → Przywróć).

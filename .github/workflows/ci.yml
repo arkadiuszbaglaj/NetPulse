@@ -235,6 +235,40 @@ jobs:
           curl -fsSL $API/agent/install.sh | sudo bash -s -- --uninstall 2>&1 | tee -a agent.log
           if systemctl is-active --quiet netpulse-agent; then echo "agent nadal działa"; exit 1; fi
           test ! -e /etc/netpulse-agent.conf
+      - name: Kopia zapasowa z panelu (utworzenie, pobranie, przywrócenie)
+        run: |
+          API=http://127.0.0.1:8000
+          api() { curl -fsS -b cookies.txt -H 'Content-Type: application/json' "$@"; }
+          json() { python3 -c "import json,sys; d=json.loads(sys.stdin.read()); print($1)"; }
+          OUT=$(api -X POST $API/api/backups)
+          echo "$OUT" | tee backups.log
+          NAME=$(json 'd["backups"][0]["name"]' <<<"$OUT")
+          case "$NAME" in netpulse-manual-*.sql.gz) ;; *) echo "zła nazwa: $NAME"; exit 1 ;; esac
+          curl -fsS -b cookies.txt -o backup.sql.gz "$API/api/backups/$NAME/download"
+          gzip -t backup.sql.gz
+          zcat backup.sql.gz | grep -q "CREATE TABLE public.devices"
+          # zmiana po kopii – po przywróceniu ma zniknąć
+          api -X POST -d '{"name":"Po kopii","kind":"device_offline"}' $API/api/alert-rules >/dev/null
+          api $API/api/alert-rules | grep -q "Po kopii"
+          api -X POST "$API/api/backups/$NAME/restore" | tee -a backups.log
+          STATE=running
+          for i in $(seq 1 90); do
+            OUT=$(api $API/api/backups 2>/dev/null || true)
+            STATE=$(json 'd["restore"]["state"]' <<<"$OUT" 2>/dev/null || echo running)
+            echo "[$i] przywracanie: $STATE"
+            case "$STATE" in ok | failed) break ;; esac
+            sleep 2
+          done
+          echo "$OUT" | tee -a backups.log
+          test "$STATE" = ok
+          curl -fsS $API/api/health
+          if api $API/api/alert-rules | grep -q "Po kopii"; then echo "przywracanie nie cofnęło zmian"; exit 1; fi
+          test "$(api $API/api/devices | json 'len(d)')" = 1
+          # kopia bezpieczeństwa sprzed przywrócenia jest na liście
+          json '[b["kind"] for b in d["backups"]]' <<<"$OUT" | grep -q prerestore
+          # kopia z konsoli
+          sudo netpulse backup 2>&1 | tee -a backups.log
+          sudo ls -l /opt/netpulse/backups | tee -a backups.log
       - name: Za mało miejsca – aktualizacja zatrzymuje się, nic nie psując
         run: |
           # Progi ustawione absurdalnie wysoko, żeby wymusić brak miejsca
@@ -333,6 +367,7 @@ jobs:
           bash .github/scripts/annotate.sh install.log "install.sh" 60
           bash .github/scripts/annotate.sh probe.log "probe" 60
           bash .github/scripts/annotate.sh agent.log "agent serwera" 60
+          bash .github/scripts/annotate.sh backups.log "kopia zapasowa" 60
           bash .github/scripts/annotate.sh panel.log "panel" 40
           bash .github/scripts/annotate.sh auth.log "logowanie" 40
           bash .github/scripts/annotate.sh lowdisk.log "mało miejsca" 40
