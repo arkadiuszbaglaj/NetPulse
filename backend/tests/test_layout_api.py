@@ -131,7 +131,7 @@ def test_update_replaces_and_keeps_single_row(client):
 
 
 def test_invalid_layout_is_rejected_and_nothing_is_saved(client):
-    bad = {"version": 1, "widgets": [{**LAYOUT["widgets"][1], "w": 5}]}
+    bad = {"version": 1, "widgets": [{**LAYOUT["widgets"][1], "w": 13}]}
     assert client.put("/api/dashboards/default", json=bad).status_code == 422
     wrong_metric = {
         "version": 1,
