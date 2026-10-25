@@ -184,7 +184,7 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 | Monitorowanie serwerów Linux | Serwer jako urządzenie w panelu: CPU, RAM, dyski, obciążenie, sieć. Etap 1 przez SNMP (`snmpd`), etap 2 własny agent z usługami systemd, kontenerami Docker i SMART. | Dashboard (karty), Ustawienia → Urządzenia, alerty | 2026-10-24 |
 | Alerty w panelu | Reguły z progami (np. ruch, błędy, CPU/RAM, zajętość dysku, port down, urządzenie offline), lista aktywnych i historii alertów, wskaźnik w pasku górnym. To rozwinięcie etapu 8. | Pasek górny (dzwonek), nowa sekcja Alerty, Ustawienia → Alerty | 2026-10-24 |
 | Stan serwera NetPulse | Parametry maszyny, na której działa aplikacja: CPU, RAM i swap, obciążenie, dyski (zajętość, miejsce pod bazę), czas pracy, temperatura, rozmiar bazy, stan usług NetPulse. Z historią na wykresach. | Dashboard (karta „Serwer”), Ustawienia → System | 2026-10-25 |
-| Kreator dashboardów: prywatny i publiczny | Kreator tworzenia własnych dashboardów (nazwa lub szablon, wybór i układ widgetów, widoczność). **Prywatny** widzi tylko administrator po zalogowaniu, **publiczny** otwiera się pod osobnym adresem bez logowania (tylko do odczytu, np. wyświetlacz ścienny, podgląd dla domowników). | Dashboard (lista i przełącznik dashboardów), Ustawienia → Dashboardy, publiczna strona poza powłoką aplikacji | 2026-10-25 |
+| Kreator dashboardów: prywatny i publiczny ✅ wdrożone (0.23.0, opis: `docs/20-szczegoly-i-pulpity.md`) | Kreator tworzenia własnych dashboardów (nazwa lub szablon, wybór i układ widgetów, widoczność). **Prywatny** widzi tylko administrator po zalogowaniu, **publiczny** otwiera się pod osobnym adresem bez logowania (tylko do odczytu, np. wyświetlacz ścienny, podgląd dla domowników). | Dashboard (lista i przełącznik dashboardów), Ustawienia → Dashboardy, publiczna strona poza powłoką aplikacji | 2026-10-25 |
 | Powiadomienie o aktualizacji w pasku górnym ✅ wdrożone (2026-10-25) | Po automatycznym, cyklicznym sprawdzeniu wydań (bez klikania „Sprawdź”) pasek górny pokazuje wyraźną informację, że jest nowa wersja (np. plakietka „Dostępna aktualizacja 0.7.0” z linkiem do Ustawienia → Aktualizacje), żeby użytkownik nie przegapił, gdy zapomni zajrzeć. Wymaga cyklicznego sprawdzania po stronie API (np. co kilka godzin) i zapamiętania wyniku; można dać „odłóż/ukryj tę wersję”. W Ustawienia → Aktualizacje przełącznik **„Automatycznie sprawdzaj aktualizacje”** (domyślnie włączony; po wyłączeniu nic nie jest odpytywane i pasek nie pokazuje plakietki, zostaje ręczne „Sprawdź”) oraz wybór częstotliwości sprawdzania; ustawienie na poziomie instalacji, nie konta, bo sprawdza API. Po wprowadzeniu alertów (etap 8) ta sama informacja trafi też do dzwonka. | Pasek górny, Ustawienia → Aktualizacje | 2026-10-25 |
 | Licencje z zewnętrznego serwisu (propozycja, niewdrażane) | Klucz licencji wpisywany w panelu, instalacja pobiera z serwisu podpisany token (plan, funkcje, limity), weryfikuje go offline i odświeża co dobę. Brak internetu i wygaśnięcie nigdy nie wyłączają zbierania danych; degradują tylko funkcje dodatkowe. Szczegóły, etapy L1–L4 i pytania otwarte: `docs/09-licencje-propozycja.md`. | Ustawienia → Licencja, oznaczenia przy funkcjach płatnych | 2026-10-25 |
 
@@ -207,11 +207,11 @@ kolejność rekomendowana jest na końcu.
 
 **Dane i monitoring**
 
-- **Strona szczegółów urządzenia:** porty, PoE, klienci, wykresy CPU i RAM, historia dostępności w jednym widoku.
-- **Strony szczegółów portu i klienta.** Historia ruchu i błędów portu; dla klienta czas połączenia i sygnał w czasie
+- ✅ (0.20.0) **Strona szczegółów urządzenia:** porty, PoE, klienci, wykresy CPU i RAM, historia dostępności w jednym widoku.
+- ✅ (0.20.0 port, 0.21.0 klient) **Strony szczegółów portu i klienta.** Historia ruchu i błędów portu; dla klienta czas połączenia i sygnał w czasie
   (klienci są dziś tylko zdjęciem stanu, bez historii).
-- **Dostępność (uptime) w procentach** z `device_metrics.reachable`, np. „switch 99,98% w 30 dni”.
-- **Agregaty długoterminowe.** Ciągłe agregaty TimescaleDB (godzinowe, dobowe) dałyby wykresy na rok przy małej bazie
+- ✅ (0.20.0) **Dostępność (uptime) w procentach** z `device_metrics.reachable`, np. „switch 99,98% w 30 dni”.
+- ✅ (0.20.0, godzinowe) **Agregaty długoterminowe.** Ciągłe agregaty TimescaleDB (godzinowe, dobowe) dałyby wykresy na rok przy małej bazie
   (surowe dane trzymamy 30 dni).
 - **Raport tygodniowy:** zużycie WAN, najwięcej ruchu, awarie, najsłabszy sygnał; opcjonalnie mailem.
 - **Wykrywanie nowych urządzeń w sieci:** skan 192.168.1.0/24 ze SNMP i propozycja „dodaj to urządzenie”.
@@ -228,7 +228,7 @@ kolejność rekomendowana jest na końcu.
 - **Wyszukiwarka globalna** (urządzenie, port, klient po nazwie, IP albo MAC).
 - **Eksport do CSV** z wykresu i listy klientów.
 - **Interfejs po angielsku** (i18n jest przygotowane), ważne, jeśli ktoś inny ma to instalować.
-- **Kreator pierwszej konfiguracji:** po założeniu konta „dodaj pierwsze urządzenie, community, test”, zamiast komendy w terminalu.
+- ✅ (0.22.0) **Kreator pierwszej konfiguracji:** po założeniu konta „dodaj pierwsze urządzenie, community, test”, zamiast komendy w terminalu.
 - **PWA** (instalowalna na telefonie) przed prawdziwą aplikacją mobilną.
 
 **Integracje i sprzęt**

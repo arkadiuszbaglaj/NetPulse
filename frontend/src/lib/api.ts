@@ -30,8 +30,11 @@ export function setPublicDashboard(value: { token: string; access: string | null
   publicDashboard = value;
 }
 
+/** Stan logowania (/api/auth/*) zostaje przy zwykłym API – inaczej 401 z pulpitu z PIN-em wywoływałby
+ * ponowne sprawdzanie logowania w nieskończoność. */
 function routed(method: string, path: string): string {
-  if (!publicDashboard || method !== "GET" || !path.startsWith("/api/") || path.startsWith("/api/public/")) return path;
+  if (!publicDashboard || method !== "GET" || !path.startsWith("/api/")) return path;
+  if (path.startsWith("/api/public/") || path.startsWith("/api/auth/")) return path;
   return `/api/public/dashboards/${publicDashboard.token}/data?path=${encodeURIComponent(path)}`;
 }
 

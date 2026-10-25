@@ -92,7 +92,7 @@ i przejmuje bazy sprzed migracji bez utraty danych.
    5e ✅ personalizacja wykresów i układu, 5f ✅ tryb „Na żywo” (WebSocket, ruch WAN co 1–2 s; opis w `docs/06-projekt-panelu.md`)
 6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`)
 7. ✅ Topologia LLDP – mapa sieci
-8. Alerty (8a ✅ silnik, 8b ✅ panel; brakuje reguł dla dysku i błędów portów oraz powiadomień poza panelem) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
+8. Alerty (8a ✅ silnik, 8b ✅ panel, reguły dysku i błędów portów ✅, powiadomienia webhook i Telegram ✅; brakuje e-maila, ntfy, cichych godzin) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
 9. SNMP v3 ✅ (testowane klientem pysnmp kontra snmpsim w CI), MikroTik i Omada: drivery SNMP gotowe, ale na zrzutach syntetycznych – czekają na prawdziwe zrzuty (opis: `docs/12-mikrotik-omada-snmp.md`); API kontrolera Omada i RouterOS dalej do zrobienia
 10. Serwery Linux – etap A ✅ SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B ✅ (0.11.0) własny agent: push z tokenem (`api/agents.py`), jeden plik Pythona `backend/netpulse/agent/netpulse_agent.py` + `install.sh` serwowane przez API, systemd, Docker, SMART, ogólna tabela `metrics` (migracja 0002), Ustawienia → Agenci. Opis: `docs/14-agent-linux.md`. Alerty z agenta ✅ (0.12.0: kontener, usługa, SMART, temperatura; pole `alert_rules.match`, migracja 0003); wykresy z `metrics` ✅ (0.13.0, źródła `agent_*` w edytorze wykresu)
 
@@ -130,6 +130,19 @@ do ruchu WAN, „Na żywo” i alertów). „Aktywne” = informacja z kontroler
 bez kontrolera – link (`ifOperStatus`) i ruch. Logika: `backend/netpulse/wan.py` (czysta), zapis: `wan_links.py`,
 API: `api/wan.py` (`/api/wan/status|history|sla|links`), widgety `wan_status`, `wan_chart`, `wan_sla`.
 Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
+
+## Szczegóły, dostępność i pulpity
+
+Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):
+- Strony szczegółów (trasy ukryte w menu: `hidden: true` w `frontend/src/modules.tsx`): urządzenie `/devices/<id>`,
+  port `/devices/<id>/ports/<id>`, klient `/clients/<MAC>`. Dostępność w %: `api/availability.py`.
+- Ciągłe agregaty godzinowe TimescaleDB (`netpulse/aggregates.py`, zakłada `init_db`, poza Alembikiem): wykresy 30 dni
+  i 1 rok (`RangeMinutes`), powyżej 7 dni zapytania idą do widoków `*_1h`. Przed `drop_all` w testach: `aggregates.drop_all`.
+- Historia klientów: `client_metrics` + `known_clients` (migracja 0007), API `api/clients.py`.
+- Kreator pierwszej konfiguracji `/setup` (otwiera się po założeniu konta).
+- Wiele pulpitów (`dashboards`, jeden `is_default`), Ustawienia → Dashboardy z kreatorem, pulpit publiczny `/p/<token>`
+  (migracja 0008): API `api/public.py` z białą listą danych z widgetów pulpitu – **nowy widget = dopisać jego ścieżki
+  w `resolve()`**; w panelu `setPublicDashboard` w `lib/api.ts` kieruje zapytania widgetów do API publicznego.
 
 ## Do sprawdzenia później
 
