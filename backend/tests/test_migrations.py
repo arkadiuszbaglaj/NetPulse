@@ -44,6 +44,8 @@ AFTER_BASELINE = {"agents", "metrics", "proxmox_servers", "proxmox_nodes", "prox
 COLUMNS_AFTER_BASELINE = {
     "alert_rules": ["match"],
     "dashboards": ["public_token_hash", "public_token", "public_expires_at", "public_pin_hash", "public_options"],
+    "notification_channels": ["secret", "config", "quiet_from", "quiet_to", "quiet_critical", "quiet_backlog"],
+    "alerts": ["muted"],
 }
 
 
