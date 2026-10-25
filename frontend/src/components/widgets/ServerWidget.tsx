@@ -6,7 +6,7 @@ import { Card, ErrorNote } from "../ui";
 
 const BAR_COLOR = { ok: "bg-accent", warn: "bg-warning", danger: "bg-danger" } as const;
 
-function UsageBar({ label, percent, note }: { label: string; percent: number | null; note?: string }) {
+export function UsageBar({ label, percent, note }: { label: string; percent: number | null; note?: string }) {
   const tone = usageTone(percent);
   return (
     <div>

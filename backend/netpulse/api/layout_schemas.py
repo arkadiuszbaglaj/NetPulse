@@ -121,7 +121,7 @@ class SummaryConfig(Strict):
 
 
 class DevicesConfig(Strict):
-    kinds: list[Literal["gateway", "switch", "ap", "other"]] | None = Field(None, max_length=4)  # puste = wszystkie
+    kinds: list[Literal["gateway", "switch", "ap", "server", "other"]] | None = Field(None, max_length=4)  # puste = wszystkie
 
 
 class ServerConfig(Strict):

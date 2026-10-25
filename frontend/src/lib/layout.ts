@@ -13,10 +13,10 @@ export type ChartKind = "line" | "area" | "bar";
 export type ChartUnit = "bits" | "bytes";
 export type ChartHeight = "sm" | "md" | "lg";
 export type ColorIndex = 1 | 2 | 3 | 4;
-export type DeviceKind = "gateway" | "switch" | "ap" | "other";
+export type DeviceKind = "gateway" | "switch" | "ap" | "server" | "other";
 export type SummaryTile = "devices" | "wan_down" | "wan_up" | "wifi_clients";
 export const SUMMARY_TILES: SummaryTile[] = ["devices", "wan_down", "wan_up", "wifi_clients"];
-export const DEVICE_KINDS: DeviceKind[] = ["gateway", "switch", "ap", "other"];
+export const DEVICE_KINDS: DeviceKind[] = ["gateway", "switch", "ap", "server", "other"];
 
 export type Source =
   | { kind: "wan" }

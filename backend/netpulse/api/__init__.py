@@ -26,6 +26,7 @@ from . import (
     live,
     metrics,
     preferences,
+    servers,
     system,
     topology,
     updates,
@@ -54,6 +55,7 @@ app.include_router(devices.router)
 app.include_router(live.router)
 app.include_router(metrics.router)
 app.include_router(preferences.router)
+app.include_router(servers.router)
 app.include_router(system.router)
 app.include_router(topology.router)
 app.include_router(updates.router)

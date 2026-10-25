@@ -546,6 +546,11 @@ export const pl = {
   "sys.chart.load": "Obciążenie (1 min)",
   "sys.chart.temp": "Temperatura",
   "sys.chart.db": "Rozmiar bazy",
+
+  "dash.kind.server": "Serwer",
+  "devform.driver.linux": "Serwer Linux (snmpd)",
+  "devform.linuxHint": "Na serwerze musi działać snmpd (apt install snmpd) z włączonym odczytem dla adresu NetPulse. Gotowa konfiguracja: docs/10-serwer-linux-snmp.md. Sterownik „Automatyczny” rozpozna serwer sam.",
+  "server.processes": "procesów: {n}",
 } as const;
 
 export type TextKey = keyof typeof pl;

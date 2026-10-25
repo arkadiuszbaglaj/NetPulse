@@ -5,18 +5,22 @@ from __future__ import annotations
 from ..snmp import SnmpClient
 from .base import (
     DeviceHealth,
+    DiskSample,
     Driver,
     InterfaceSample,
     PollResult,
+    ServerSample,
     SystemInfo,
     WifiSample,
 )
 from .generic import GenericDriver, read_system
+from .linux import LinuxDriver
 from .unifi import UnifiDriver
 
 DRIVERS: dict[str, type[GenericDriver]] = {
     GenericDriver.name: GenericDriver,
     UnifiDriver.name: UnifiDriver,
+    LinuxDriver.name: LinuxDriver,
 }
 
 
@@ -41,10 +45,13 @@ async def poll_device(client: SnmpClient, driver_name: str = "auto") -> PollResu
 __all__ = [
     "DRIVERS",
     "DeviceHealth",
+    "DiskSample",
     "Driver",
     "GenericDriver",
     "InterfaceSample",
+    "LinuxDriver",
     "PollResult",
+    "ServerSample",
     "SystemInfo",
     "UnifiDriver",
     "WifiSample",

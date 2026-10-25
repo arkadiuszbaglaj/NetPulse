@@ -325,6 +325,29 @@ class Alert(Base):
     acked_by: Mapped[str | None] = mapped_column(String(64))
 
 
+class DiskMetric(Base):
+    """Zajętość partycji serwera (jedna próbka na punkt montowania i cykl)."""
+
+    __tablename__ = "disk_metrics"
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    mount: Mapped[str] = mapped_column(String(255), primary_key=True)
+    total_bytes: Mapped[int] = mapped_column(BigInteger)
+    used_bytes: Mapped[int] = mapped_column(BigInteger)
+
+
+class ServerMetric(Base):
+    """Dodatkowe metryki serwera Linux, których nie ma w `device_metrics` (swap, liczba procesów)."""
+
+    __tablename__ = "server_metrics"
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
+    swap_used_percent: Mapped[float | None] = mapped_column(Float)
+    processes: Mapped[int | None] = mapped_column(Integer)
+
+
 class PoePortMetric(Base):
     """PoE na porcie switcha (moc w W). Tylko porty z PoE; port_idx jak w kontrolerze (1, 2, …)."""
 
@@ -373,4 +396,4 @@ class PoeBudgetMetric(Base):
     max_w: Mapped[float | None] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics")
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics")

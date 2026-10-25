@@ -30,7 +30,7 @@ class SystemInfo:
     vendor: str | None = None
     model: str | None = None
     firmware: str | None = None
-    kind: str = "other"  # gateway | switch | ap | other
+    kind: str = "other"  # gateway | switch | ap | server | other
 
 
 @dataclass
@@ -88,12 +88,33 @@ class WifiSample:
 
 
 @dataclass
+class DiskSample:
+    """Partycja serwera (HOST-RESOURCES-MIB hrStorage), rozmiary w bajtach."""
+
+    mount: str
+    total_bytes: int
+    used_bytes: int
+
+    @property
+    def used_percent(self) -> float:
+        return round(100.0 * self.used_bytes / self.total_bytes, 1) if self.total_bytes else 0.0
+
+
+@dataclass
+class ServerSample:
+    swap_used_percent: float | None = None
+    processes: int | None = None
+
+
+@dataclass
 class PollResult:
     driver: str
     system: SystemInfo
     interfaces: list[InterfaceSample] = field(default_factory=list)
     health: DeviceHealth = field(default_factory=DeviceHealth)
     wifi: list[WifiSample] = field(default_factory=list)
+    disks: list[DiskSample] = field(default_factory=list)
+    server: ServerSample | None = None
 
     def visible_interfaces(self) -> list[InterfaceSample]:
         return [i for i in self.interfaces if not i.hidden]

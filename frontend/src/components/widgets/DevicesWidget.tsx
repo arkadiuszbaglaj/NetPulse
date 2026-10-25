@@ -1,16 +1,18 @@
-import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconRouter } from "@tabler/icons-react";
+import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconRouter, IconServer2 } from "@tabler/icons-react";
 import { t, type TextKey } from "../../i18n";
 import type { Device } from "../../lib/api";
 import { relativeTime } from "../../lib/format";
 import type { DeviceKind } from "../../lib/layout";
 import { useDevices } from "../../lib/queries";
 import { Card } from "../ui";
+import { ServerDetails } from "./ServerDetails";
 
-const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint } as const;
+const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint, server: IconServer2 } as const;
 export const KIND_LABEL: Record<string, TextKey> = {
   gateway: "dash.kind.gateway",
   switch: "dash.kind.switch",
   ap: "dash.kind.ap",
+  server: "dash.kind.server",
   other: "dash.kind.other",
 };
 const STATUS_STYLE: Record<string, string> = {
@@ -52,6 +54,7 @@ function DeviceCard({ device }: { device: Device }) {
           <dd>{polled ?? t("dash.never")}</dd>
         </div>
       </dl>
+      {device.kind === "server" && device.status !== "down" && <ServerDetails deviceId={device.id} />}
       {device.status === "down" && device.last_error && (
         <p className="truncate text-xs text-danger" title={device.last_error}>
           {device.last_error}

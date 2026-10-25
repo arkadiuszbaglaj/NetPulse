@@ -15,7 +15,16 @@ from sqlalchemy.exc import DBAPIError
 
 from .config import settings
 from .db import Session
-from .db.models import Device, DeviceMetric, Interface, InterfaceMetric, WifiMetric, WifiNetwork
+from .db.models import (
+    Device,
+    DeviceMetric,
+    DiskMetric,
+    Interface,
+    InterfaceMetric,
+    ServerMetric,
+    WifiMetric,
+    WifiNetwork,
+)
 from .drivers import PollResult, poll_device
 from .rates import CounterTracker
 from .snmp import SnmpClient, SnmpCredentials, SnmpError
@@ -280,6 +289,21 @@ class Collector:
                 session.add_all(
                     WifiMetric(time=now, wifi_id=wifi_ids[key[:64]], **values)
                     for key, values in wifi_rates.items()
+                )
+
+            if result.disks:
+                session.add_all(
+                    DiskMetric(time=now, device_id=dev_id, mount=d.mount, total_bytes=d.total_bytes, used_bytes=d.used_bytes)
+                    for d in result.disks
+                )
+            if result.server is not None:
+                session.add(
+                    ServerMetric(
+                        time=now,
+                        device_id=dev_id,
+                        swap_used_percent=result.server.swap_used_percent,
+                        processes=result.server.processes,
+                    )
                 )
 
             h = result.health

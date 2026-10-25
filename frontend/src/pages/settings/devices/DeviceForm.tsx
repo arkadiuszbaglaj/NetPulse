@@ -176,6 +176,7 @@ export function DeviceForm({ device, onClose }: DeviceFormProps) {
             ))}
           </Select>
         </div>
+        {values.driver === "linux" && <p className="-mt-2 text-xs text-text-2">{t("devform.linuxHint")}</p>}
 
         {!v3 ? (
           <Field

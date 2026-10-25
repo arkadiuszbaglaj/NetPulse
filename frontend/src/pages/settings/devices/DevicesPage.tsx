@@ -6,6 +6,7 @@ import {
   IconPlugConnected,
   IconPlus,
   IconRouter,
+  IconServer2,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
@@ -20,11 +21,12 @@ import { useDevices } from "../../../lib/queries";
 import { DeviceForm } from "./DeviceForm";
 import { ProbeSummary } from "./ProbeSummary";
 
-const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint } as const;
+const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint, server: IconServer2 } as const;
 const KIND_LABEL: Record<string, TextKey> = {
   gateway: "dash.kind.gateway",
   switch: "dash.kind.switch",
   ap: "dash.kind.ap",
+  server: "dash.kind.server",
   other: "dash.kind.other",
 };
 const STATUS_STYLE: Record<string, string> = {

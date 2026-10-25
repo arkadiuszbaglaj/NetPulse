@@ -20,6 +20,8 @@ KEEP_PREFIXES = (
     "1.3.6.1.2.1.1.",            # system
     "1.3.6.1.2.1.2.",            # ifTable
     "1.3.6.1.2.1.31.1.1.",       # ifXTable
+    "1.3.6.1.2.1.25.1.",         # hrSystem (procesy)
+    "1.3.6.1.2.1.25.2.",         # hrStorage (dyski serwerów Linux)
     "1.3.6.1.4.1.2021.4.",       # UCD memory
     "1.3.6.1.4.1.2021.10.",      # UCD load
     "1.3.6.1.4.1.2021.11.",      # UCD cpu

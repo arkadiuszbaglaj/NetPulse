@@ -13,6 +13,7 @@ import type {
 } from "../lib/api";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
+import type { ServerStatus } from "../components/widgets/ServerDetails";
 import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
@@ -221,6 +222,8 @@ interface MockState {
   topology: Topology;
   /** Ostatnia próbka stanu serwera (null = kolektor jeszcze jej nie zapisał) */
   system: SystemInfo | null;
+  /** Stan serwera Linux (odpowiedź /api/devices/{id}/server) */
+  server: ServerStatus | null;
   services: { id: string; state: string; detail: string | null }[];
   /** Nadpisanie odpowiedzi: "POST /api/auth/login" → { status, body } */
   overrides: Record<string, { status: number; body?: unknown }>;
@@ -248,6 +251,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     poe: { budget: null, ports: [] },
     topology: { nodes: [], edges: [] },
     system: null,
+    server: null,
     services: [
       { id: "api", state: "ok", detail: "0.8.2" },
       { id: "database", state: "ok", detail: "timescaledb" },
@@ -359,6 +363,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
       }
       if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
       if (key === "GET /api/topology") return json(200, state.topology);
+      if (/^GET \/api\/devices\/\d+\/server$/.test(key)) return json(200, state.server);
       if (key === "GET /api/system") return json(200, state.system);
       if (key === "GET /api/system/services") return json(200, state.services);
       if (key === "GET /api/system/metrics") return json(200, state.traffic.points);
