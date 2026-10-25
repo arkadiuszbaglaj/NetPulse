@@ -183,6 +183,67 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 | Powiadomienie o aktualizacji w pasku górnym ✅ wdrożone (2026-10-25) | Po automatycznym, cyklicznym sprawdzeniu wydań (bez klikania „Sprawdź”) pasek górny pokazuje wyraźną informację, że jest nowa wersja (np. plakietka „Dostępna aktualizacja 0.7.0” z linkiem do Ustawienia → Aktualizacje), żeby użytkownik nie przegapił, gdy zapomni zajrzeć. Wymaga cyklicznego sprawdzania po stronie API (np. co kilka godzin) i zapamiętania wyniku; można dać „odłóż/ukryj tę wersję”. W Ustawienia → Aktualizacje przełącznik **„Automatycznie sprawdzaj aktualizacje”** (domyślnie włączony; po wyłączeniu nic nie jest odpytywane i pasek nie pokazuje plakietki, zostaje ręczne „Sprawdź”) oraz wybór częstotliwości sprawdzania; ustawienie na poziomie instalacji, nie konta, bo sprawdza API. Po wprowadzeniu alertów (etap 8) ta sama informacja trafi też do dzwonka. | Pasek górny, Ustawienia → Aktualizacje | 2026-10-25 |
 | Licencje z zewnętrznego serwisu (propozycja, niewdrażane) | Klucz licencji wpisywany w panelu, instalacja pobiera z serwisu podpisany token (plan, funkcje, limity), weryfikuje go offline i odświeża co dobę. Brak internetu i wygaśnięcie nigdy nie wyłączają zbierania danych; degradują tylko funkcje dodatkowe. Szczegóły, etapy L1–L4 i pytania otwarte: `docs/09-licencje-propozycja.md`. | Ustawienia → Licencja, oznaczenia przy funkcjach płatnych | 2026-10-25 |
 
+### Propozycje z przeglądu projektu (2026-10-25)
+
+Pomysły zebrane po etapach 5–7, poza pozycjami z tabeli wyżej. Nic z tego nie jest jeszcze zaplanowane;
+kolejność rekomendowana jest na końcu.
+
+**Niezawodność i bezpieczeństwo**
+
+- **Migracje Alembic.** Dziś zmiana kolumny w istniejącej tabeli wymaga `netpulse reset` (utrata historii).
+  Blokuje też agenta Linux i część alertów. Największy dług techniczny.
+- **Kopia zapasowa i przywracanie z panelu.** Updater robi kopię bazy przy aktualizacji, ale nie ma przycisku
+  „pobierz kopię” ani „przywróć”.
+- **Szyfrowanie sekretów w bazie.** Community SNMP, klucze SNMPv3 i klucz API UniFi leżą jawnym tekstem;
+  wystarczy klucz szyfrujący z `.env`.
+- **Role: administrator i tylko do odczytu.** Pole `is_admin` już jest; brakuje zaproszeń domowników i widoku bez zmian.
+- **Dziennik zdarzeń (audit log).** Kto dodał urządzenie, zmienił hasło, uruchomił aktualizację. Przyda się też
+  przy dashboardach publicznych.
+
+**Dane i monitoring**
+
+- **Strona szczegółów urządzenia:** porty, PoE, klienci, wykresy CPU i RAM, historia dostępności w jednym widoku.
+- **Strony szczegółów portu i klienta.** Historia ruchu i błędów portu; dla klienta czas połączenia i sygnał w czasie
+  (klienci są dziś tylko zdjęciem stanu, bez historii).
+- **Dostępność (uptime) w procentach** z `device_metrics.reachable`, np. „switch 99,98% w 30 dni”.
+- **Agregaty długoterminowe.** Ciągłe agregaty TimescaleDB (godzinowe, dobowe) dałyby wykresy na rok przy małej bazie
+  (surowe dane trzymamy 30 dni).
+- **Raport tygodniowy:** zużycie WAN, najwięcej ruchu, awarie, najsłabszy sygnał; opcjonalnie mailem.
+- **Wykrywanie nowych urządzeń w sieci:** skan 192.168.1.0/24 ze SNMP i propozycja „dodaj to urządzenie”.
+- **Test prędkości łącza** (cyklicznie) i opóźnienie do internetu (ping do 1.1.1.1 i bramy). SNMP tego nie daje.
+
+**Alerty i powiadomienia**
+
+- **Kanały powiadomień:** e-mail, webhook, Telegram/ntfy. Alerty są dziś tylko w panelu.
+- **Ciche godziny i grupowanie** (awaria switcha nie powinna dać dwudziestu wiadomości).
+- **Nowy klient w sieci** (nieznany MAC) i „spadek liczby klientów WiFi do zera” jako typy alertów.
+
+**Panel i obsługa**
+
+- **Wyszukiwarka globalna** (urządzenie, port, klient po nazwie, IP albo MAC).
+- **Eksport do CSV** z wykresu i listy klientów.
+- **Interfejs po angielsku** (i18n jest przygotowane), ważne, jeśli ktoś inny ma to instalować.
+- **Kreator pierwszej konfiguracji:** po założeniu konta „dodaj pierwsze urządzenie, community, test”, zamiast komendy w terminalu.
+- **PWA** (instalowalna na telefonie) przed prawdziwą aplikacją mobilną.
+
+**Integracje i sprzęt**
+
+- **Eksport do Prometheus/OpenMetrics** (Grafana dla tych, którzy ją mają).
+- **Home Assistant** (integracja albo MQTT): stan sieci i klientów w automatyzacjach.
+- **MikroTik i Omada** (etap 9): popularne w homelabach, ale wymagają sprzętu do testów.
+- **Zarządzanie PoE z panelu** (włącz/wyłącz port, restart odbiornika). Pierwszy zapis do sieci zamiast samego odczytu,
+  więc wymaga najpierw ról i dziennika zdarzeń.
+
+**Jakość kodu i wydania**
+
+- **Testy w przeglądarce (Playwright)** dla głównych ścieżek: testy komponentów nie wykryją np. nakładania się elementów mapy sieci.
+- **Automatyczne wydania:** tag, changelog i notatki wersji z commitów, żeby plakietka aktualizacji pokazywała sensowne opisy.
+- **Dokumentacja użytkownika końcowego** osobno od notatek projektowych w `docs/`.
+
+**Rekomendowana kolejność:** Alembic → kanały powiadomień (e-mail/webhook/ntfy) → strona szczegółów urządzenia →
+kopia zapasowa z panelu → test prędkości i ping. Pierwsze odblokowuje resztę, drugie czyni alerty użytecznymi,
+trzecie jest najbardziej widoczne w codziennym użyciu.
+
 ### Szczegóły: kreator dashboardów (prywatny i publiczny)
 
 - **Kreator (kroki):** 1) nazwa i szablon wyjściowy (np. „Pełny przegląd”, „Tylko ruch WAN”, „Status urządzeń”,
