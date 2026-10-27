@@ -3,9 +3,11 @@
 NetPulse monitoruje te urządzenia przez SNMP. Sterownik **MikroTik RouterOS** i **TP-Link Omada / JetStream**
 rozpoznawany jest automatycznie, więc przy dodawaniu zostaw sterownik „Automatyczny".
 
-> **Status:** sterowniki są napisane według opisów MIB i przetestowane na **syntetycznych** zrzutach
-> (`backend/tests/fixtures/mikrotik-hex.snmprec`, `tplink-jetstream.snmprec`), a nie na prawdziwych urządzeniach.
-> Jeśli któreś pole wyjdzie puste albo błędne, zrób zrzut (ostatni rozdział) i dopracujemy sterownik.
+> **Status:** MikroTik sprawdzony na **prawdziwym RouterOS 7.18.2** (CHR x86 w VirtualBox, zrzut z 2026-10-27:
+> `backend/tests/fixtures/mikrotik-chr.snmprec`). Fizycznego routerboardu jeszcze nie było – syntetyczny zrzut
+> `mikrotik-hex.snmprec` zostaje dla przypadków, których CHR nie ma (kilka rdzeni, PPPoE, bridge, komentarze portów).
+> TP-Link nadal tylko na syntetycznym zrzucie (`tplink-jetstream.snmprec`). Jeśli któreś pole wyjdzie puste albo
+> błędne, zrób zrzut (ostatni rozdział) i dopracujemy sterownik.
 
 ## Co pokazują
 
@@ -14,7 +16,7 @@ rozpoznawany jest automatycznie, więc przy dodawaniu zostaw sterownik „Automa
 | Typ urządzenia | po nazwie płyty: CRS/CSS i RB260/RB250 = switch, cAP/wAP/SXT/LHG = access point, reszta = router | po modelu: EAP = access point, ER = router, reszta = switch |
 | Model i wersja | nazwa płyty i wersja RouterOS (MIKROTIK-MIB) | model z opisu systemu |
 | CPU i RAM | średnia z rdzeni i pamięć główna (HOST-RESOURCES-MIB) | tylko jeśli urządzenie udostępnia (zwykle nie) |
-| Porty | `ether1` bez komentarza = WAN; komentarz ze słowem „wan" lub „internet" oznacza WAN na dowolnym porcie; pozostałe `ether`/`sfp` = LAN; komentarz portu jest jego nazwą | „Port N" z numeru na końcu nazwy (`gi1/0/12` to Port 12); LAG jako „LAG N" |
+| Porty | `ether1` bez komentarza = WAN; komentarz albo nazwa portu ze słowem „wan" lub „internet" (np. przemianowany port „WAN”, „wan1”, „ether1-wan”) oznacza WAN na dowolnym porcie; pozostałe `ether`/`sfp` i przemianowane porty Ethernet (np. „LAN”) = LAN; komentarz portu jest jego nazwą | „Port N" z numeru na końcu nazwy (`gi1/0/12` to Port 12); LAG jako „LAG N" |
 | Ukryte | `bridge`, `vlan`, `pppoe-out`, tunele, `lo`, radia `wlan` | `vlan`, `loopback`, `null`, radia |
 
 Tunel PPPoE jest ukryty celowo: ten sam ruch przechodzi przez fizyczny port WAN, więc zliczenie obu podwoiłoby ruch WAN na pulpicie.

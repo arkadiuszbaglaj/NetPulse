@@ -5,7 +5,8 @@ z HOST-RESOURCES-MIB (`hrProcessorLoad`, `hrStorage`), a nazwę płyty i wersję
 Kind urządzenia wynika z nazwy płyty (CRS/CSS = switch, cAP/wAP/SXT = access point, reszta = router).
 
 Interfejsy: `ether1` bez komentarza w RouterOS jest domyślnie WAN, a komentarz (ifAlias) ze słowem „wan”
-albo „internet” oznacza WAN na dowolnym porcie. Tunele PPPoE nie są liczone jako WAN, bo ten sam ruch
+albo „internet” oznacza WAN na dowolnym porcie – tak samo nazwa portu (porty bywają przemianowane, np. „WAN”, „LAN”;
+przemianowany port Ethernet bez „wan” w nazwie to LAN). Tunele PPPoE nie są liczone jako WAN, bo ten sam ruch
 przechodzi przez fizyczny port (suma po interfejsach WAN liczyłaby go podwójnie)."""
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ _AP_PREFIXES = ("CAP", "WAP", "MAP", "SXT", "LHG", "NETMETAL", "BASEBOX", "DISC"
 _VIRTUAL = re.compile(r"^(bridge.*|vlan.*|pppoe-.*|l2tp-.*|pptp-.*|sstp-.*|ovpn-.*|wireguard.*|gre.*|eoip.*|vrrp.*|veth.*|lo)$")
 _RADIO = re.compile(r"^(wlan\d+|wifi\d+|cap\d+)$")
 _WAN_COMMENT = re.compile(r"\b(wan|internet)\b", re.IGNORECASE)
+# Port przemianowany w RouterOS na „WAN”, „wan1”, „ether1-wan”, „Internet-LTE” (litery obok nie mogą tworzyć innego słowa)
+_WAN_NAME = re.compile(r"(?:^|[^a-z])(wan|internet)(?:\d+|[^a-z]|$)", re.IGNORECASE)
 _ETHER = re.compile(r"^(ether|sfp|sfp-sfpplus|qsfp\d*-?)(\d+)")
 
 
@@ -93,13 +96,15 @@ class MikrotikDriver(GenericDriver):
             return
 
         iface.label = comment or name
+        gateway = result.system.kind == "gateway"
         wan_comment = bool(comment and _WAN_COMMENT.search(comment))
-        default_wan = result.system.kind == "gateway" and name == "ether1" and not comment
-        if wan_comment or default_wan:
+        default_wan = gateway and name == "ether1" and not comment
+        wan_name = gateway and bool(_WAN_NAME.search(name))
+        if wan_comment or default_wan or wan_name:
             iface.role = "wan"
-            if not comment:
+            if not comment and not wan_name:
                 iface.label = "WAN"
-        elif _ETHER.match(name):
-            iface.role = "lan" if result.system.kind == "gateway" else "port"
+        elif _ETHER.match(name) or iface.if_type == O.IF_TYPE_ETHERNET:
+            iface.role = "lan" if gateway else "port"
         else:
             super().enrich_interface(iface, result)

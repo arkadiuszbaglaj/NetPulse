@@ -161,8 +161,9 @@ pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrap
 
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
-- **MikroTik na prawdziwym sprzęcie** – użytkownik podłączy routerboard do sieci. Wtedy: zrobić `snmpwalk`,
-  zanonimizować (`backend/tools/walk2snmprec.py`), podmienić syntetyczną fixture i sprawdzić driver w panelu.
+- **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
+  `mikrotik-chr.snmprec`, rozpoznawanie WAN po nazwie portu. Fizyczny routerboard (kilka rdzeni, PPPoE, czujniki
+  MIKROTIK-MIB) dalej tylko na syntetycznym `mikrotik-hex.snmprec`.
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
 - **Proxmox na prawdziwym sprzęcie** – użytkownik nie ma jeszcze Proxmoxa; integracja (0.17.0) testowana na atrapie API.
   Przy pierwszym podłączeniu: token, `netpulse logs collector`, porównać pola z `pve_fake.py`.

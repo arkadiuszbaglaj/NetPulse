@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from conftest import FIXTURES
 
 from netpulse.drivers import (
@@ -176,6 +177,30 @@ def test_mikrotik_wan_marked_by_comment_and_board_decides_kind():
     assert not [i for i in switch.interfaces if i.role == "wan"]  # switch nie ma WAN
 
     assert poll_with("mikrotik-hex", **{MT_BOARD: b"cAP ac"}).system.kind == "ap"
+
+
+def test_mikrotik_chr_real_dump():
+    """Prawdziwy zrzut RouterOS 7.18.2 (CHR w VirtualBox): porty przemianowane na WAN i LAN, bez komentarzy."""
+    r = poll("mikrotik-chr")
+    assert r.driver == MikrotikDriver.name
+    s = r.system
+    assert (s.kind, s.vendor, s.model, s.firmware) == ("gateway", "MikroTik", "x86 innotek GmbH VirtualBox", "7.18.2")
+    assert r.health.cpu_percent == 0.0  # hrProcessorLoad jednego rdzenia
+    assert r.health.mem_total_kb == 524288 and r.health.mem_used_percent == 39.7  # „main memory” z hrStorage
+    ifs = by_name(r)
+    assert (ifs["WAN"].role, ifs["WAN"].label, ifs["WAN"].speed_mbps) == ("wan", "WAN", 100)
+    assert (ifs["LAN"].role, ifs["LAN"].label) == ("lan", "LAN")  # przemianowany port Ethernet
+    assert ifs["lo"].hidden
+    assert {i.name for i in r.visible_interfaces()} == {"WAN", "LAN"}
+
+
+@pytest.mark.parametrize(
+    ("name", "wan"),
+    [("WAN", True), ("wan1", True), ("ether1-wan", True), ("Internet-LTE", True), ("LAN", False), ("swan", False), ("wanda", False)],
+)
+def test_mikrotik_wan_by_interface_name(name, wan):
+    r = poll_with("mikrotik-chr", **{"1.3.6.1.2.1.31.1.1.1.1.2": name.encode(), "1.3.6.1.2.1.2.2.1.2.2": name.encode()})
+    assert (by_name(r)[name].role == "wan") is wan
 
 
 def test_tplink_jetstream_switch():

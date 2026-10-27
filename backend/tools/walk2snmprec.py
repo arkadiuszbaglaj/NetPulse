@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Konwersja `snmpwalk -On` → .snmprec (snmpsim) z anonimizacją.
 
-Zostawia tylko poddrzewa potrzebne driverom (system, IF-MIB, UCD, UniFi),
+Zostawia tylko poddrzewa potrzebne driverom (system, IF-MIB, HOST-RESOURCES, UCD, UniFi, MikroTik),
 podmienia adresy MAC i nazwy SSID, żeby zrzut z sieci domowej można było
 bezpiecznie trzymać w repozytorium jako dane testowe.
 
@@ -26,7 +26,13 @@ KEEP_PREFIXES = (
     "1.3.6.1.4.1.2021.10.",      # UCD load
     "1.3.6.1.4.1.2021.11.",      # UCD cpu
     "1.3.6.1.4.1.41112.1.6.",    # UBNT-UniFi-MIB
+    "1.3.6.1.2.1.25.3.3.",       # hrProcessorTable (CPU na rdzeń: MikroTik)
+    "1.3.6.1.4.1.14988.1.1.3.",  # MIKROTIK-MIB: czujniki (temperatura, napięcie)
+    "1.3.6.1.4.1.14988.1.1.4.",  # MIKROTIK-MIB: licencja i wersja RouterOS
+    "1.3.6.1.4.1.14988.1.1.7.",  # MIKROTIK-MIB: płyta (model, numer seryjny)
 )
+# Numer seryjny płyty MikroTik nie trafia do repozytorium
+MIKROTIK_SERIAL = "1.3.6.1.4.1.14988.1.1.7.3.0"
 DROP_PREFIXES = (
     "1.3.6.1.2.1.1.9.",          # sysORTable – zbędne
 )
@@ -107,6 +113,8 @@ def convert(text: str) -> list[tuple[str, str, str]]:
             value = fake_mac(bytes.fromhex(value)).hex()
         elif oid.startswith(SSID_PREFIX) and tag == "4x":
             value = fake_ssid(bytes.fromhex(value).decode(errors="replace")).encode().hex()
+        elif oid == MIKROTIK_SERIAL and tag == "4x":
+            value = b"0000000000".hex()
         elif oid in (SYS_LOCATION, SYS_CONTACT):
             value = b"homelab".hex()
         records.append((oid, tag, value))
