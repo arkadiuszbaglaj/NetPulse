@@ -62,5 +62,9 @@ Przy aktualizacji ze starszej wersji reguły dochodzą raz. Usuniętej reguły N
 - Magazyn współdzielony (NFS, Ceph) jest liczony raz, przy pierwszym węźle (alfabetycznie).
 - Usunięcie serwera w panelu usuwa jego węzły (urządzenia) z historią. W samym Proxmoxie nic się nie zmienia.
 
-Integracja była testowana na atrapie API (`backend/tests/pve_fake.py`) według dokumentacji Proxmox VE 8.
-Pierwsze uruchomienie na prawdziwym serwerze warto sprawdzić z logiem kolektora: `netpulse logs collector`.
+Integracja powstała na atrapie API (`backend/tests/pve_fake.py`) według dokumentacji Proxmox VE 8. 27.10.2026
+sprawdzona na prawdziwym Proxmox VE 9.1.1 (jeden węzeł bez klastra, zatrzymana VM, magazyny `local` i `local-lvm`):
+wszystkie odpowiedzi parsują się bez zmian w kodzie, test `test_parsers_real_pve91_single_node` trzyma te dane.
+Różnice względem atrapy: brak wpisu `cluster` przy pojedynczym węźle, zasób `network` (SDN) w `/cluster/resources`
+– pomijany, pole `memhost` przy VM (PVE 9) – nieużywane. Na prawdziwym sprzęcie czekają jeszcze: uruchomiona VM/LXC,
+kopie vzdump, klaster kilku węzłów. Problemy widać w logu kolektora: `netpulse logs collector`.

@@ -89,3 +89,27 @@ def test_parsers_tolerate_missing_fields():
     assert parse_tasks([{"type": "vzdump", "status": None}], "solo")[0].ok is None  # trwa
     warn = parse_tasks([{"type": "vzdump", "status": "WARNINGS: 1"}], "solo")[0]
     assert warn.ok is True
+
+
+def test_parsers_real_pve91_single_node():
+    """Odpowiedzi prawdziwego Proxmox VE 9.1.1 (jeden węzeł bez klastra, zatrzymana VM, zasób SDN „network”)."""
+    name, status = parse_cluster_status([{"type": "node", "name": "pve", "nodeid": 0, "online": 1, "local": 1, "level": "", "id": "node/pve", "ip": "192.168.1.86"}])
+    assert name is None and status == {"pve": (True, "192.168.1.86")}
+    resources = [
+        {"id": "qemu/100", "type": "qemu", "vmid": 100, "name": "ubuntu", "node": "pve", "status": "stopped", "template": 0, "cpu": 0, "maxcpu": 4,
+         "mem": 0, "memhost": 0, "maxmem": 2147483648, "disk": 0, "maxdisk": 34359738368, "uptime": 0, "netin": 0, "netout": 0, "diskread": 0, "diskwrite": 0},
+        {"id": "node/pve", "type": "node", "node": "pve", "status": "online", "level": "", "cgroup-mode": 2, "cpu": 0.00123915737298637, "maxcpu": 8,
+         "mem": 1620881408, "maxmem": 8200138752, "disk": 6919643136, "maxdisk": 100861726720, "uptime": 777},
+        {"id": "storage/pve/local", "type": "storage", "storage": "local", "node": "pve", "status": "available", "plugintype": "dir", "shared": 0,
+         "content": "vztmpl,import,backup,iso", "disk": 6919643136, "maxdisk": 100861726720},
+        {"id": "storage/pve/local-lvm", "type": "storage", "storage": "local-lvm", "node": "pve", "status": "available", "plugintype": "lvmthin", "shared": 0,
+         "content": "images,rootdir", "disk": 7890023953, "maxdisk": 373934784512},
+        {"id": "network/pve/localnetwork", "type": "network", "network-type": "zone", "network": "localnetwork", "node": "pve", "status": "ok"},
+    ]  # fmt: skip
+    nodes, guests, storages = parse_resources(resources, status)
+    assert [(n.name, n.online, n.ip, n.cpus, n.uptime_s) for n in nodes] == [("pve", True, "192.168.1.86", 8, 777)]
+    assert nodes[0].cpu_percent == pytest.approx(0.1, abs=0.05)
+    vm = guests[0]
+    assert len(guests) == 1 and (vm.vmid, vm.type, vm.status, vm.cpus, vm.mem_total) == (100, "qemu", "stopped", 4, 2147483648)
+    assert vm.cpu_percent is None and vm.mem_used is None and vm.uptime_s is None  # zatrzymana: zera z API to brak danych
+    assert {s.storage: (s.type, "backup" in s.content) for s in storages} == {"local": ("dir", True), "local-lvm": ("lvmthin", False)}
