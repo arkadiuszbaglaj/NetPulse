@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 
-from ..alerts import AGENT_STATES, MATCHABLE_METRICS, METRICS, PER_DEVICE_METRICS
+from ..alerts import AGENT_STATES, CHECK_METRICS, MATCHABLE_METRICS, METRICS, PER_DEVICE_METRICS
 from ..db import Session
 from ..db.models import Alert, AlertRule, Device
 from .security import CurrentUser, require_user
@@ -18,7 +18,8 @@ router = APIRouter(prefix="/api", tags=["alerty"], dependencies=[Depends(require
 
 Severity = Literal["info", "warning", "critical"]
 Kind = Literal[
-    "device_offline", "port_down", "metric", "container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed"
+    "device_offline", "port_down", "metric", "container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed",
+    "check_down",
 ]
 
 
@@ -49,8 +50,11 @@ class RuleBase(BaseModel):
                 self.match = None
         else:
             self.metric = self.op = self.threshold = None
-            if self.kind not in AGENT_STATES:
+            if self.kind not in AGENT_STATES and self.kind != "check_down":
                 self.match = None
+        if self.kind == "check_down" or self.metric in CHECK_METRICS:
+            if self.device_id is not None:
+                raise ValueError("Reguła sprawdzeń dostępności nie dotyczy urządzenia – zawęź ją nazwą sprawdzenia")
         return self
 
 

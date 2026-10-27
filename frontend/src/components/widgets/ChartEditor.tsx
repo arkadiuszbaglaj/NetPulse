@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { t, type TextKey } from "../../i18n";
 import { get, type Device } from "../../lib/api";
+import { CHECKS_KEY, type Check } from "../../lib/checks";
 import { formatRange } from "../../lib/format";
 import {
   COLOR_INDEXES,
@@ -68,6 +69,7 @@ export const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   wifi_total: "ce.source.wifi_total",
   wifi_network: "ce.source.wifi_network",
   server: "ce.source.server",
+  check: "ce.source.check",
   agent_cpu: "ce.source.agent_cpu",
   agent_net: "ce.source.agent_net",
   agent_disk: "ce.source.agent_disk",
@@ -138,7 +140,7 @@ const deviceIdOf = (s: Source): number | null =>
 
 /** Źródło wymaga wskazania obiektu (portu, urządzenia, sieci albo – dla agenta – serwera i klucza). */
 export const sourceComplete = (s: Source): boolean => {
-  if (s.kind === "interface" || s.kind === "device" || s.kind === "wifi_network") return !!s.id;
+  if (s.kind === "interface" || s.kind === "device" || s.kind === "wifi_network" || s.kind === "check") return !!s.id;
   if (isAgentSource(s.kind)) {
     const a = s as { id: number; key: string };
     return !!a.id && (s.kind === "agent_cpu" || !!a.key);
@@ -170,6 +172,7 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
     queryFn: () => get<WifiItem[]>(`/api/devices/${deviceId}/wifi`),
     enabled: source.kind === "wifi_network" && deviceId != null,
   });
+  const checks = useQuery({ queryKey: CHECKS_KEY, queryFn: () => get<Check[]>("/api/checks"), enabled: source.kind === "check" });
 
   const changeKind = (kind: SourceKind) => {
     const next: Source =
@@ -177,6 +180,8 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
         ? { kind }
         : kind === "device"
           ? { kind, id: deviceId ?? 0 }
+          : kind === "check"
+            ? { kind, id: 0 }
           : isAgentSource(kind)
             ? { kind, id: deviceId ?? 0, key: "" }
             : { kind, id: 0, device_id: deviceId };
@@ -258,6 +263,17 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
         </Select>
       )}
       {source.kind === "wifi_network" && wifi.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noWifi")}</p>}
+      {source.kind === "check" && (
+        <Select id={`${prefix}-check`} label={t("ce.check")} value={source.id || ""} onChange={(e) => onChange({ kind: "check", id: Number(e.target.value) }, false)}>
+          <option value="">{t("ce.choose")}</option>
+          {(checks.data ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+      )}
+      {source.kind === "check" && checks.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noChecks")}</p>}
     </div>
   );
 }

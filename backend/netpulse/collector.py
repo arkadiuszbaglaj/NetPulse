@@ -380,6 +380,7 @@ async def _write_with_retry(write, attempts: int = 5) -> None:
 
 async def run() -> None:
     from .alerts import AlertEngine
+    from .checks_collector import ChecksCollector
     from .db import init_db
     from .notifications import Notifier
     from .proxmox_collector import ProxmoxCollector
@@ -390,4 +391,5 @@ async def run() -> None:
     await ensure_modules()
     engine = AlertEngine(notifier=Notifier())
     await engine.ensure_default_rules()
-    await asyncio.gather(Collector(alert_engine=engine).run_forever(), UnifiCollector().run_forever(), SystemCollector().run_forever(), ProxmoxCollector().run_forever())
+    await asyncio.gather(Collector(alert_engine=engine).run_forever(), UnifiCollector().run_forever(), SystemCollector().run_forever(), ProxmoxCollector().run_forever(),
+                         ChecksCollector().run_forever())

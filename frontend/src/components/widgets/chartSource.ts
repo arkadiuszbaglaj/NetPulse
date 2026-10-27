@@ -32,6 +32,8 @@ export function sourcePath(source: Source, minutes: number, offset = 0): string 
       return `/api/wifi/${source.id}/metrics?minutes=${minutes}${shift}`;
     case "server":
       return `/api/system/metrics?minutes=${minutes}${shift}`;
+    case "check":
+      return `/api/checks/${source.id}/metrics?minutes=${minutes}${shift}`;
     default:
       return `/api/devices/${source.id}/agent-metrics?source=${source.kind}&key=${encodeURIComponent(source.key)}&minutes=${minutes}${shift}`;
   }
@@ -71,6 +73,8 @@ export function defaultTitle(source: Source): string {
       return t("widget.type.server");
     case "agent_cpu":
       return t("widget.title.agent_cpu");
+    case "check":
+      return t("widget.title.check", { id: source.id });
     default:
       return `${t(AGENT_TITLE[source.kind])}: ${source.key}`;
   }

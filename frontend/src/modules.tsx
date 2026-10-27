@@ -4,6 +4,7 @@
  */
 import {
   IconBell,
+  IconActivity,
   IconBellRinging,
   IconServerCog,
   IconDatabase,
@@ -28,6 +29,7 @@ import {
 import type { ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { isOn, useModules, type ModuleId, type Modules } from "./lib/modules";
+import { ChecksPage } from "./pages/ChecksPage";
 import { AgentsPage } from "./pages/settings/AgentsPage";
 import { AlertRulesPage } from "./pages/settings/AlertRulesPage";
 import { BackupsPage } from "./pages/settings/BackupsPage";
@@ -159,6 +161,13 @@ export const modules: NavModule[] = [
     icon: IconHierarchy2,
     element: <TopologyPage />,
     module: "unifi",
+  },
+  {
+    id: "checks",
+    path: "/checks",
+    label: "nav.checks",
+    icon: IconActivity,
+    element: <ChecksPage />,
   },
   {
     id: "alerts",

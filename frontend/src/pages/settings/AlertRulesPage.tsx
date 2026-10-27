@@ -34,6 +34,7 @@ const KIND_LABEL: Record<RuleKind, TextKey> = {
   smart_failed: "rules.kind.smart_failed",
   guest_stopped: "rules.kind.guest_stopped",
   backup_failed: "rules.kind.backup_failed",
+  check_down: "rules.kind.check_down",
 };
 const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
   container_stopped: "rules.match.hint.container",
@@ -41,6 +42,7 @@ const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
   smart_failed: "rules.match.hint.smart",
   guest_stopped: "rules.match.hint.guest",
   backup_failed: "rules.match.hint.backup",
+  check_down: "rules.match.hint.check",
 };
 const SEVERITY_LABEL: Record<Severity, TextKey> = {
   critical: "alerts.severity.critical",
@@ -90,10 +92,12 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
   };
   const meta = metrics.find((m) => m.metric === values.metric);
   const isMetric = values.kind === "metric";
-  const perDevice = !isMetric || meta?.per_device !== false; // WAN to suma po routerach – bez wyboru urządzenia
+  const checkKind = values.kind === "check_down";
+  // WAN to suma po routerach, sprawdzenia dostępności nie są urządzeniami – bez wyboru urządzenia
+  const perDevice = !checkKind && (!isMetric || meta?.per_device !== false);
   const unitHint = meta ? (meta.unit === "b/s" ? "Mb/s" : meta.unit || "") : "";
   const agentKind = AGENT_KINDS.includes(values.kind);
-  const matchable = agentKind || (isMetric && meta?.matchable === true);
+  const matchable = agentKind || checkKind || (isMetric && meta?.matchable === true);
 
   function submit() {
     const found: typeof errors = {};
@@ -166,6 +170,7 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
           </>
         )}
 
+        {checkKind && <p className="text-xs text-text-2">{t("rules.check.hint")}</p>}
         {agentKind && (
           <p className="text-xs text-text-2">
             {t(values.kind === "guest_stopped" || values.kind === "backup_failed" ? "rules.proxmox.hint" : "rules.agent.hint")}
@@ -226,7 +231,7 @@ function describe(rule: AlertRule, metrics: RuleMetric[]): string {
   if (rule.kind === "device_offline") return t("rules.sum.offline", { after: durationLabel(rule.duration_s) });
   if (rule.kind === "port_down") return t("rules.sum.portdown");
   const only = rule.match ? ` (${rule.match})` : "";
-  if (AGENT_KINDS.includes(rule.kind)) return `${t(KIND_LABEL[rule.kind])}${only}, ${durationLabel(rule.duration_s)}`;
+  if (AGENT_KINDS.includes(rule.kind) || rule.kind === "check_down") return `${t(KIND_LABEL[rule.kind])}${only}, ${durationLabel(rule.duration_s)}`;
   const meta = metrics.find((m) => m.metric === rule.metric);
   return t("rules.sum.metric", {
     metric: meta?.label ?? rule.metric ?? "?",

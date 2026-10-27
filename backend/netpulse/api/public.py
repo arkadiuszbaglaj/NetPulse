@@ -27,7 +27,7 @@ from ..auth import hash_token, verify_password
 from ..db import Session
 from ..db.models import Dashboard
 from ..modules import get_modules
-from . import availability, controllers, dashboard, devices, metrics, panels, servers, system, wan
+from . import availability, checks, controllers, dashboard, devices, metrics, panels, servers, system, wan
 from .dashboards import _parse, public_options
 from .layout_schemas import AgentSource, DashboardLayout, PublicOptions, RangeMinutes, Source
 from .schemas import DeviceOut
@@ -135,6 +135,8 @@ def _chart_path(source: Source) -> tuple[str, dict[str, str]]:
             return f"/api/wifi/{source.id}/metrics", {}
         case "server":
             return "/api/system/metrics", {}
+        case "check":
+            return f"/api/checks/{source.id}/metrics", {}
     assert isinstance(source, AgentSource)
     return f"/api/devices/{source.id}/agent-metrics", {"source": source.kind, "key": source.key}
 
@@ -153,6 +155,8 @@ async def _chart(source: Source, minutes: int, offset: int = 0) -> Any:
             return await metrics.wifi_metrics(source.id, minutes, offset)
         case "server":
             return await system.metrics(minutes, offset)
+        case "check":
+            return await checks.check_series(source.id, minutes, offset)
     assert isinstance(source, AgentSource)
     return await metrics.agent_metrics(source.id, source.kind, source.key, minutes, offset)
 
@@ -223,10 +227,14 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
                 return await panels.collection(m.group(1), device_id)
         raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     if path == "/api/states":
-        wanted = {("device", i) for i in panels._ids(query.get("devices"))} | {("interface", i) for i in panels._ids(query.get("interfaces"))}
+        wanted = (
+            {("device", i) for i in panels._ids(query.get("devices"))}
+            | {("interface", i) for i in panels._ids(query.get("interfaces"))}
+            | {("check", i) for i in panels._ids(query.get("checks"))}
+        )
         for w in widgets:
             if w.type == "state_timeline" and {(i.kind, i.id) for i in w.config.items} == wanted:
-                return await panels.states(query.get("devices"), query.get("interfaces"), minutes())
+                return await panels.states(query.get("devices"), query.get("interfaces"), minutes(), query.get("checks"))
         raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     offset = _int(query.get("offset"), 0)
     # Źródła wykresów: zapytania wykresów i panele „liczba” (te bez przesunięcia w czasie)

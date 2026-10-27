@@ -16,8 +16,9 @@ export const COLLECTION_METRICS: Record<CollectionKind, string[]> = {
   containers: ["up", "cpu_percent", "mem_bytes"],
   services: ["up", "mem_bytes", "uptime_s"],
   clients: ["signal_dbm", "rx_rate_kbps", "tx_rate_kbps", "connected_s"],
+  checks: ["up", "latency_ms", "loss_percent", "availability_percent", "cert_days"],
 };
-export const COLLECTION_KINDS: CollectionKind[] = ["devices", "ports", "disks", "wifi", "containers", "services", "clients"];
+export const COLLECTION_KINDS: CollectionKind[] = ["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks"];
 export const COLLECTION_LABEL: Record<CollectionKind, TextKey> = {
   devices: "panel.collection.devices",
   ports: "panel.collection.ports",
@@ -26,6 +27,7 @@ export const COLLECTION_LABEL: Record<CollectionKind, TextKey> = {
   containers: "panel.collection.containers",
   services: "panel.collection.services",
   clients: "panel.collection.clients",
+  checks: "panel.collection.checks",
 };
 /** Kolekcje jednego urządzenia (wifi: opcjonalnie) */
 export const COLLECTION_DEVICE: Record<CollectionKind, "required" | "optional" | "none"> = {
@@ -36,6 +38,7 @@ export const COLLECTION_DEVICE: Record<CollectionKind, "required" | "optional" |
   containers: "required",
   services: "required",
   clients: "none",
+  checks: "none",
 };
 /** Moduł, bez którego kolekcji nie ma (Ustawienia → Moduły) */
 export const COLLECTION_MODULE: Partial<Record<CollectionKind, "agents" | "unifi">> = {
@@ -96,6 +99,7 @@ export function statesPath(items: StateItemRef[], minutes: number): string {
   const params = new URLSearchParams();
   if (ids("device")) params.set("devices", ids("device"));
   if (ids("interface")) params.set("interfaces", ids("interface"));
+  if (ids("check")) params.set("checks", ids("check"));
   params.set("minutes", String(minutes));
   return `/api/states?${params.toString().replace(/%2C/g, ",")}`;
 }

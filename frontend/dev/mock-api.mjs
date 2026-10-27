@@ -218,6 +218,28 @@ createServer(async (req, res) => {
     }
     return send(res, 200, points);
   }
+  // Sprawdzenia dostępności: ping z utratą pakietów, strona www z błędem i certyfikatem
+  if (route === "GET /api/checks") {
+    const base = { port: null, timeout_s: 3, enabled: true, expect_status: null, keyword: null, verify_tls: true, status_since: ago(3600), last_checked_at: ago(5), created_at: ago(86400) };
+    return send(res, 200, [
+      { ...base, id: 1, name: "Internet – Google DNS", kind: "ping", target: "8.8.8.8", interval_s: 30, status: "up", last_ok_at: ago(5), last_error: null, last_latency_ms: 15.2, availability_24h: 99.8, loss_percent: 0, jitter_ms: 0.6, status_code: null, cert_days: null },
+      { ...base, id: 2, name: "Brama UCG", kind: "ping", target: "192.168.1.1", interval_s: 30, status: "up", last_ok_at: ago(5), last_error: null, last_latency_ms: 0.9, availability_24h: 100, loss_percent: 0, jitter_ms: 0.1, status_code: null, cert_days: null },
+      { ...base, id: 3, name: "Pi-hole", kind: "http", target: "https://pihole.lan/admin", interval_s: 60, timeout_s: 10, verify_tls: false, status: "down", last_ok_at: ago(900), last_error: "Kod HTTP 502 (oczekiwany 200-399)", last_latency_ms: 41, availability_24h: 96.4, loss_percent: null, jitter_ms: null, status_code: 502, cert_days: 61 },
+      { ...base, id: 4, name: "Proxmox – panel", kind: "tcp", target: "192.168.1.86", port: 8006, interval_s: 60, status: "up", last_ok_at: ago(20), last_error: null, last_latency_ms: 2.4, availability_24h: 100, loss_percent: null, jitter_ms: null, status_code: null, cert_days: null },
+    ]);
+  }
+  if (route === "POST /api/checks/test") return send(res, 200, { up: true, latency_ms: 14.8, loss_percent: 0, jitter_ms: 0.5, status_code: null, cert_days: null, error: null });
+  if (req.method === "GET" && /^\/api\/checks\/\d+\/metrics$/.test(url.pathname)) {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const points = [];
+    for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
+      const time = new Date(Date.now() - i * stride * 1000).toISOString();
+      const spike = i % 37 === 0;
+      points.push({ time, values: { latency_ms: 15 + 3 * Math.sin(i / 7) + (spike ? 40 : 0), jitter_ms: 0.5 + (i % 4) * 0.2, loss_percent: spike ? 20 : 0, availability_percent: spike ? 80 : 100, cert_days: null } });
+    }
+    return send(res, 200, points);
+  }
   const coll = /^\/api\/collections\/(\w+)$/.exec(url.pathname);
   if (req.method === "GET" && coll) {
     const kind = coll[1];

@@ -1,3 +1,4 @@
+import type { Check, CheckPayload, CheckTestResult } from "../lib/checks";
 import { vi } from "vitest";
 import type {
   AuthStatus,
@@ -285,6 +286,10 @@ interface MockState {
   pveServers: ProxmoxServer[];
   pveGuests: ProxmoxGuest[];
   pveStorages: ProxmoxStorage[];
+  /** Sprawdzenia dostępności (ping, HTTP, TCP) */
+  checks: Check[];
+  /** Odpowiedź na POST /api/checks/test */
+  checkTest: CheckTestResult;
   alerts: Alert[];
   rules: AlertRule[];
   clients: NetworkClient[];
@@ -342,6 +347,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     pveServers: [],
     pveGuests: [],
     pveStorages: [],
+    checks: [],
+    checkTest: { up: true, latency_ms: 14.6, loss_percent: 0, jitter_ms: 0.4, status_code: null, cert_days: null, error: null },
     alerts: [],
     rules: [],
     clients: [],
@@ -519,6 +526,40 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (key === "PUT /api/modules") {
         state.modules = { ...state.modules, ...(body as Partial<Modules>) };
         return json(200, state.modules);
+      }
+      if (key === "GET /api/checks") return json(200, state.checks);
+      if (key === "POST /api/checks/test") return json(200, state.checkTest);
+      if (key === "POST /api/checks") {
+        const created: Check = {
+          ...(body as CheckPayload),
+          id: state.checks.length + 1,
+          status: "unknown",
+          status_since: null,
+          last_checked_at: null,
+          last_ok_at: null,
+          last_error: null,
+          last_latency_ms: null,
+          created_at: "2026-10-28T10:00:00Z",
+          availability_24h: null,
+          loss_percent: null,
+          jitter_ms: null,
+          status_code: null,
+          cert_days: null,
+        };
+        state.checks.push(created);
+        return json(201, created);
+      }
+      if (/^GET \/api\/checks\/\d+\/metrics$/.test(key)) return json(200, []);
+      const chk = /^(PUT|DELETE) \/api\/checks\/(\d+)$/.exec(key);
+      if (chk) {
+        const c = state.checks.find((x) => x.id === Number(chk[2]));
+        if (!c) return json(404, { detail: "Nie ma takiego sprawdzenia" });
+        if (chk[1] === "DELETE") {
+          state.checks = state.checks.filter((x) => x !== c);
+          return json(204);
+        }
+        Object.assign(c, body as CheckPayload);
+        return json(200, c);
       }
       if (key === "GET /api/proxmox/servers") return json(200, state.pveServers);
       if (key === "GET /api/proxmox/guests") return json(200, state.pveGuests);

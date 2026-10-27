@@ -14,10 +14,11 @@ export type RuleKind =
   | "service_failed"
   | "smart_failed"
   | "guest_stopped"
-  | "backup_failed";
+  | "backup_failed"
+  | "check_down";
 /** Rodzaje ze stanu w agencie i Proxmoxie: kontener, usługa, SMART, maszyna, kopia (bez progu, z filtrem nazwy). */
 export const AGENT_KINDS: RuleKind[] = ["container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed"];
-export const RULE_KINDS: RuleKind[] = ["device_offline", "port_down", "metric", ...AGENT_KINDS];
+export const RULE_KINDS: RuleKind[] = ["device_offline", "port_down", "metric", ...AGENT_KINDS, "check_down"];
 
 export interface Alert {
   id: number;

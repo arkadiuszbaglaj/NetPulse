@@ -36,13 +36,14 @@ export type Source =
   | { kind: "device"; id: number }
   | { kind: "wifi_network"; id: number; device_id?: number | null }
   | { kind: "server" }
+  | { kind: "check"; id: number }
   | { kind: AgentSourceKind; id: number; key: string };
 export type SourceKind = Source["kind"];
 /** Źródła z agenta serwera: urządzenie (`id`) i wybrany interfejs, dysk, czujnik albo kontener (`key`). */
 export type AgentSourceKind = "agent_cpu" | "agent_net" | "agent_disk" | "agent_temp" | "agent_container" | "pve_guest";
 export const AGENT_SOURCE_KINDS: AgentSourceKind[] = ["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"];
 export const isAgentSource = (kind: SourceKind): kind is AgentSourceKind => (AGENT_SOURCE_KINDS as string[]).includes(kind);
-export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server", ...AGENT_SOURCE_KINDS];
+export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server", "check", ...AGENT_SOURCE_KINDS];
 
 export type Axis = "left" | "right";
 /** Porównanie w czasie: to samo okno godzinę, dzień albo tydzień wcześniej (parametr `offset` API metryk). */
@@ -163,7 +164,7 @@ export type WanChartWidgetModel = WidgetBase & {
 export type WanSlaWidgetModel = WidgetBase & { type: "wan_sla"; config: { device_id?: number | null; days: 1 | 7 | 30 } };
 
 // --- panele od 0.27.0 (schemat: backend/netpulse/api/layout_schemas.py) ---------------------
-export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "services" | "clients";
+export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "services" | "clients" | "checks";
 /** Zestaw obiektów z bieżącymi wartościami (GET /api/collections/{kind}); porty, dyski i kontenery – jednego urządzenia. */
 export interface Collection {
   kind: CollectionKind;
@@ -206,7 +207,7 @@ export interface TableConfig {
   unit: ChartUnit;
 }
 export interface StateItemRef {
-  kind: "device" | "interface";
+  kind: "device" | "interface" | "check";
   id: number;
   /** Tylko dla edytora: urządzenie portu */
   device_id?: number | null;
@@ -254,7 +255,7 @@ export interface DashboardResponse {
 // --- metryki ---------------------------------------------------------------------------
 
 /** Klasa jednostki: metryki w jednym wykresie muszą należeć do tej samej klasy (wspólna oś Y). */
-export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size" | "state" | "duration" | "dbm" | "linkrate" | "mbps";
+export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size" | "state" | "duration" | "dbm" | "linkrate" | "mbps" | "days";
 
 export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> = {
   in_bps: { label: "metric.in_bps", unitClass: "rate" },
@@ -282,6 +283,12 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   container_mem_bytes: { label: "metric.container_mem_bytes", unitClass: "size" },
   guest_cpu_percent: { label: "metric.guest_cpu_percent", unitClass: "percent" },
   guest_mem_bytes: { label: "metric.guest_mem_bytes", unitClass: "size" },
+  // Sprawdzenia dostępności (ping, HTTP, TCP)
+  latency_ms: { label: "metric.latency_ms", unitClass: "ms" },
+  jitter_ms: { label: "metric.jitter_ms", unitClass: "ms" },
+  loss_percent: { label: "metric.loss_percent", unitClass: "percent" },
+  availability_percent: { label: "metric.availability_percent", unitClass: "percent" },
+  cert_days: { label: "metric.cert_days", unitClass: "days" },
   // Wartości kolekcji (paski, tabela)
   up: { label: "metric.up", unitClass: "state" },
   uptime_s: { label: "metric.uptime_s", unitClass: "duration" },
@@ -311,6 +318,7 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   agent_temp: ["temp_c"],
   agent_container: ["container_cpu_percent", "container_mem_bytes"],
   pve_guest: ["guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"],
+  check: ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"],
 };
 
 export const unitClassOf = (key: string): UnitClass => METRICS[key]?.unitClass ?? "count";
@@ -355,6 +363,8 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
       return [{ key: "container_cpu_percent", color: 1 }];
     case "pve_guest":
       return [{ key: "guest_cpu_percent", color: 1 }];
+    case "check":
+      return [{ key: "latency_ms", color: 1 }];
   }
 }
 

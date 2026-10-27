@@ -57,6 +57,7 @@ def test_every_source_accepts_its_own_metrics():
         "agent_temp": {"kind": "agent_temp", "id": 2, "key": "coretemp/Core 0"},
         "agent_container": {"kind": "agent_container", "id": 2, "key": "nextcloud"},
         "pve_guest": {"kind": "pve_guest", "id": 3, "key": "nextcloud (105)"},
+        "check": {"kind": "check", "id": 4},
     }
     assert set(sources) == set(ALLOWED_METRICS)
     for kind, source in sources.items():

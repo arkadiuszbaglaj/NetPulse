@@ -145,6 +145,16 @@ Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):
   (migracja 0008): API `api/public.py` z białą listą danych z widgetów pulpitu – **nowy widget = dopisać jego ścieżki
   w `resolve()`**; w panelu `setPublicDashboard` w `lib/api.ts` kieruje zapytania widgetów do API publicznego.
 
+## Sprawdzanie dostępności
+
+Od 0.30.0: strona Dostępność – ping (opóźnienie, utrata pakietów, jitter = jakość łącza), HTTP(S) (kod, tekst,
+ważność certyfikatu) i port TCP. Ping bez roota (gniazdo ICMP `SOCK_DGRAM`, działa w kontenerze kolektora), bez
+zewnętrznej biblioteki. Kod: `netpulse/checks.py`, `checks_collector.py` (pętla w kolektorze), `api/checks.py`,
+migracja 0010 (`checks`, hypertable `check_metrics`). Alerty: `check_down` + metryki `check_latency_ms`,
+`check_loss_percent`, `check_cert_days` (filtr nazwy w `match`, bez urządzenia). Pulpit: źródło `check`, kolekcja
+`checks`, oś stanów `kind: "check"`. Rdzeń, nie moduł. Opis: `docs/23-dostepnosc.md`. `1.1.1.1` nie odpowiada na
+ping w sieci użytkownika – domyślny gotowy wybór to `8.8.8.8`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { t, type TextKey } from "../../i18n";
 import { get, type Device } from "../../lib/api";
+import { useChecks } from "../../lib/checks";
 import { formatRange } from "../../lib/format";
 import {
   METRICS,
@@ -442,8 +443,11 @@ export function StateTimelineForm({ initial, isNew, onSave, onClose }: { initial
     queryFn: () => get<PortItem[]>(`/api/devices/${portDevice}/interfaces`),
     enabled: portDevice != null,
   });
+  const checks = useChecks().data ?? [];
   const has = (kind: StateItemRef["kind"], id: number) => cfg.items.some((i) => i.kind === kind && i.id === id);
-  const toggleDevice = (id: number, on: boolean) => set({ items: on ? [...cfg.items, { kind: "device", id }] : cfg.items.filter((i) => !(i.kind === "device" && i.id === id)) });
+  const toggleItem = (kind: "device" | "check", id: number, on: boolean) =>
+    set({ items: on ? [...cfg.items, { kind, id }] : cfg.items.filter((i) => !(i.kind === kind && i.id === id)) });
+  const toggleDevice = (id: number, on: boolean) => toggleItem("device", id, on);
   const portLabel = (item: StateItemRef) => {
     const device = devices.find((d) => d.id === item.device_id);
     const port = item.device_id === portDevice ? ports.data?.find((p) => p.id === item.id) : undefined;
@@ -516,6 +520,16 @@ export function StateTimelineForm({ initial, isNew, onSave, onClose }: { initial
           </Button>
         </div>
       </fieldset>
+      {checks.length > 0 && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">{t("pe.states.checks")}</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {checks.map((c) => (
+              <Checkbox key={c.id} id={`pe-chk-${c.id}`} label={c.name} checked={has("check", c.id)} onChange={(on) => (!on || !full) && toggleItem("check", c.id, on)} />
+            ))}
+          </div>
+        </fieldset>
+      )}
       <TimeFields range={cfg.range_min} refresh={cfg.refresh_s} onChange={set} />
     </EditorDialog>
   );

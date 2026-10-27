@@ -23,6 +23,7 @@ from . import (
     auth_routes,
     availability,
     backups,
+    checks,
     clients,
     controllers,
     dashboard,
@@ -63,6 +64,7 @@ app.include_router(alerts.router)
 app.include_router(auth_routes.router)
 app.include_router(availability.router)
 app.include_router(backups.router)
+app.include_router(checks.router)
 app.include_router(clients.router)
 app.include_router(controllers.router)
 app.include_router(dashboard.router)

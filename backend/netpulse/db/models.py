@@ -625,4 +625,48 @@ class WanLinkMetric(Base):
     out_bps: Mapped[float | None] = mapped_column(Float)
 
 
-HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics", "wan_link_metrics", "client_metrics")
+class Check(Base):
+    """Sprawdzenie dostępności (od 0.30.0): ping (opóźnienie, utrata pakietów, jitter), HTTP(S) (kod odpowiedzi,
+    słowo w treści, ważność certyfikatu) albo port TCP. Wykonuje je checks_collector co `interval_s`."""
+
+    __tablename__ = "checks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    kind: Mapped[str] = mapped_column(String(8))  # ping | http | tcp
+    target: Mapped[str] = mapped_column(String(512))  # host (ping, tcp) albo adres URL (http)
+    port: Mapped[int | None] = mapped_column(Integer)  # tylko tcp
+    interval_s: Mapped[int] = mapped_column(Integer, default=60)
+    timeout_s: Mapped[float] = mapped_column(Float, default=5.0)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    expect_status: Mapped[str | None] = mapped_column(String(32))  # http: np. „200-399” albo „200,204”; puste = 200–399
+    keyword: Mapped[str | None] = mapped_column(String(255))  # http: tekst, który musi być w odpowiedzi
+    verify_tls: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Stan z ostatniego sprawdzenia: up | down | unknown
+    status: Mapped[str] = mapped_column(String(10), default="unknown")
+    status_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(255))
+    last_latency_ms: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CheckMetric(Base):
+    """Wynik sprawdzenia: dostępne, opóźnienie (ping: średnia z serii), utrata pakietów i jitter (ping),
+    kod HTTP i dni do wygaśnięcia certyfikatu (https)."""
+
+    __tablename__ = "check_metrics"
+    __table_args__ = (Index("ix_check_metrics_check_time", "check_id", "time"),)
+
+    time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    check_id: Mapped[int] = mapped_column(ForeignKey("checks.id", ondelete="CASCADE"), primary_key=True)
+    up: Mapped[bool] = mapped_column(Boolean)
+    latency_ms: Mapped[float | None] = mapped_column(Float)
+    loss_percent: Mapped[float | None] = mapped_column(Float)
+    jitter_ms: Mapped[float | None] = mapped_column(Float)
+    status_code: Mapped[int | None] = mapped_column(Integer)
+    cert_days: Mapped[float | None] = mapped_column(Float)
+
+
+HYPERTABLES = ("interface_metrics", "device_metrics", "wifi_metrics", "poe_port_metrics", "poe_budget_metrics", "system_metrics", "disk_metrics", "server_metrics", "metrics", "wan_link_metrics", "client_metrics", "check_metrics")

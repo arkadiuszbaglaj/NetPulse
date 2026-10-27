@@ -21,6 +21,8 @@ from .db.models import (
     Alert,
     AlertRule,
     AppSetting,
+    Check,
+    CheckMetric,
     Device,
     DeviceMetric,
     DiskMetric,
@@ -38,7 +40,7 @@ log = logging.getLogger("netpulse.alerts")
 SEVERITIES = ("info", "warning", "critical")
 # Rodzaje na ogólnej tabeli `metrics`: z agenta (kontener, usługa systemd, SMART) i z Proxmoxa (maszyna, kopia)
 AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed")
-KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS)
+KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS, "check_down")
 OPS = (">", "<")
 
 # Metryki reguł typu „metric”: nazwa → (opis, jednostka). Pierwsze trzy są per urządzenie, WAN to suma po routerach.
@@ -56,6 +58,9 @@ METRICS: dict[str, tuple[str, str]] = {
     "temp_c": ("Temperatura (każdy czujnik serwera z agentem)", "°C"),
     "smart_reallocated": ("SMART: realokowane sektory (każdy dysk serwera z agentem)", ""),
     "backup_age_h": ("Proxmox: godziny od ostatniej kopii (każda VM i LXC)", " h"),
+    "check_latency_ms": ("Sprawdzenie dostępności: opóźnienie", " ms"),
+    "check_loss_percent": ("Sprawdzenie dostępności: utrata pakietów (ping)", "%"),
+    "check_cert_days": ("Sprawdzenie dostępności: dni do wygaśnięcia certyfikatu", " dni"),
 }
 DEVICE_METRICS = ("cpu_percent", "mem_used_percent", "load1")
 DISK_METRICS = ("disk_used_percent",)
@@ -72,8 +77,11 @@ AGENT_METRICS = {"temp_c": "temp_c", "smart_reallocated": "smart_reallocated", "
 AGENT_METRIC_WHAT = {"temp_c": "temperatura", "smart_reallocated": "realokowane sektory", "backup_age_h": "ostatnia kopia"}
 # Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer NetPulse) są globalne
 PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS + tuple(AGENT_METRICS)
+# Sprawdzenia dostępności (od 0.30.0): metryka reguły → kolumna `check_metrics`; alert na każde sprawdzenie
+CHECK_METRICS = {"check_latency_ms": "latency_ms", "check_loss_percent": "loss_percent", "check_cert_days": "cert_days"}
+CHECK_METRIC_WHAT = {"check_latency_ms": "opóźnienie", "check_loss_percent": "utrata pakietów", "check_cert_days": "certyfikat wygasa za"}
 # Reguły, które można zawęzić wzorcem nazwy (pole `match`)
-MATCHABLE_METRICS = tuple(AGENT_METRICS)
+MATCHABLE_METRICS = tuple(AGENT_METRICS) + tuple(CHECK_METRICS)
 
 # Rodzaj reguły z agenta → (metryka w `metrics`, co jest podmiotem, opis stanu w tytule alertu)
 AGENT_STATES = {
@@ -105,6 +113,10 @@ DEFAULT_RULE_SETS = (
         dict(name="Proxmox: maszyna zatrzymana", kind="guest_stopped", duration_s=60, severity="warning"),
         dict(name="Proxmox: kopia zapasowa nie powiodła się", kind="backup_failed", duration_s=0, severity="critical"),
         dict(name="Proxmox: brak świeżej kopii VM", kind="metric", metric="backup_age_h", op=">", threshold=36.0, duration_s=0, severity="warning"),
+    ),
+    (
+        dict(name="Sprawdzenie dostępności nie przechodzi", kind="check_down", duration_s=60, severity="warning"),
+        dict(name="Certyfikat HTTPS wkrótce wygaśnie", kind="metric", metric="check_cert_days", op="<", threshold=14.0, duration_s=0, severity="warning"),
     ),
 )
 DEFAULTS_KEY = "alert_defaults"
@@ -353,6 +365,8 @@ class AlertEngine:
             return await self._port_down(session, rule, scope, now)
         if rule.kind in AGENT_STATES:
             return await self._agent_state(session, rule, scope, now)
+        if rule.kind == "check_down":
+            return await self._check_down(session, rule, now)
         if rule.kind == "metric" and rule.metric in METRICS and rule.op in OPS and rule.threshold is not None:
             return await self._metric(session, rule, scope, now)
         return []
@@ -478,6 +492,8 @@ class AlertEngine:
             return await self._system(session, rule, since, now)
         if metric in AGENT_METRICS:
             return await self._agent_metric(session, rule, scope, since, now)
+        if metric in CHECK_METRICS:
+            return await self._check_metric(session, rule, now)
 
         # WAN: suma po wszystkich interfejsach WAN włączonych routerów (w zakresie reguły)
         column = InterfaceMetric.in_bps if metric == "wan_in_bps" else InterfaceMetric.out_bps
@@ -498,6 +514,48 @@ class AlertEngine:
         if sustained(series, now, rule.duration_s, op, threshold, interval):
             v = series[-1][1]
             hits.append(Hit("wan", f"{label} {format_value(metric, v)}", self._detail(rule, metric), rule.device_id, v))
+        return hits
+
+    async def _checks(self, session, rule: AlertRule) -> list[Check]:
+        rows = (await session.scalars(select(Check).where(Check.enabled))).all()
+        return [c for c in rows if matches(rule.match, c.name)]
+
+    async def _check_down(self, session, rule: AlertRule, now: datetime) -> list[Hit]:
+        """Sprawdzenie nie przechodzi nieprzerwanie od `duration_s` (stan liczy checks_collector)."""
+        hits = []
+        for c in await self._checks(session, rule):
+            if c.status != "down" or c.status_since is None:
+                continue
+            down_s = (now - c.status_since).total_seconds()
+            if down_s >= rule.duration_s:
+                hits.append(Hit(f"c{c.id}", f"{c.name}: niedostępne", c.last_error, None, down_s))
+        return hits
+
+    async def _check_metric(self, session, rule: AlertRule, now: datetime) -> list[Hit]:
+        """Próg na wyniku sprawdzenia (opóźnienie, utrata pakietów, ważność certyfikatu) – osobno dla każdego."""
+        metric, op, threshold = rule.metric, rule.op, float(rule.threshold)
+        checks = {c.id: c for c in await self._checks(session, rule)}
+        if not checks:
+            return []
+        longest = max(c.interval_s for c in checks.values())
+        column = getattr(CheckMetric, CHECK_METRICS[metric])
+        rows = (
+            await session.execute(
+                select(CheckMetric.check_id, CheckMetric.time, column)
+                .where(CheckMetric.check_id.in_(list(checks)), CheckMetric.time >= now - timedelta(seconds=rule.duration_s + longest * 2))
+                .order_by(CheckMetric.check_id, CheckMetric.time)
+            )
+        ).all()
+        samples: dict[int, list[tuple[datetime, float | None]]] = defaultdict(list)
+        for check_id, t, v in rows:
+            samples[check_id].append((t, v))
+        hits = []
+        for check_id, series in samples.items():
+            c = checks[check_id]
+            if sustained(series, now, rule.duration_s, op, threshold, float(c.interval_s)):
+                v = series[-1][1]
+                title = f"{c.name}: {CHECK_METRIC_WHAT[metric]} {format_value(metric, v)}"
+                hits.append(Hit(f"c{check_id}", title, self._detail(rule, metric), None, v))
         return hits
 
     async def _disk(self, session, rule: AlertRule, scope: list[Device], since: datetime, now: datetime) -> list[Hit]:

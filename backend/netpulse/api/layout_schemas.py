@@ -52,6 +52,11 @@ class WifiNetworkSource(Strict):
     device_id: int | None = Field(None, ge=1)  # tylko dla edytora: z którego urządzenia wybrano sieć
 
 
+class CheckSource(Strict):
+    kind: Literal["check"]  # sprawdzenie dostępności (ping, HTTP, TCP)
+    id: int = Field(ge=1)
+
+
 class ServerSource(Strict):
     kind: Literal["server"]  # serwer, na którym działa NetPulse
 
@@ -74,7 +79,7 @@ class AgentSource(Strict):
 
 
 Source = Annotated[
-    WanSource | WifiTotalSource | InterfaceSource | DeviceSource | WifiNetworkSource | ServerSource | AgentSource,
+    WanSource | WifiTotalSource | InterfaceSource | DeviceSource | WifiNetworkSource | ServerSource | AgentSource | CheckSource,
     Field(discriminator="kind"),
 ]
 
@@ -92,6 +97,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "agent_temp": ("temp_c",),
     "agent_container": ("container_cpu_percent", "container_mem_bytes"),
     "pve_guest": ("guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"),
+    "check": ("latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"),
 }
 
 
@@ -224,20 +230,21 @@ COLLECTION_METRICS: dict[str, tuple[str, ...]] = {
     "wifi": ("clients", "rx_bps", "tx_bps"),
     "containers": ("up", "cpu_percent", "mem_bytes"),
     "services": ("up", "mem_bytes", "uptime_s"),
+    "checks": ("up", "latency_ms", "loss_percent", "availability_percent", "cert_days"),
     "clients": ("signal_dbm", "rx_rate_kbps", "tx_rate_kbps", "connected_s"),
 }
 COLLECTIONS_WITH_DEVICE = ("ports", "disks", "containers", "services")  # wymagają urządzenia; wifi – opcjonalnie
 
 
 class Collection(Strict):
-    kind: Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients"]
+    kind: Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks"]
     device_id: int | None = Field(None, ge=1)
 
     @model_validator(mode="after")
     def _device(self) -> Collection:
         if self.kind in COLLECTIONS_WITH_DEVICE and self.device_id is None:
             raise ValueError("Wybierz urządzenie")
-        if self.kind in ("devices", "clients"):
+        if self.kind in ("devices", "clients", "checks"):
             self.device_id = None
         return self
 
@@ -324,7 +331,7 @@ class TableConfig(Strict):
 
 
 class StateItemRef(Strict):
-    kind: Literal["device", "interface"]
+    kind: Literal["device", "interface", "check"]
     id: int = Field(ge=1)
     device_id: int | None = Field(None, ge=1)  # tylko dla edytora: urządzenie portu
 

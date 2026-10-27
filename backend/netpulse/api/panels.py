@@ -17,6 +17,8 @@ from ..config import settings
 from ..db import Session
 from ..db.models import (
     Agent,
+    Check,
+    CheckMetric,
     Device,
     DeviceMetric,
     Interface,
@@ -32,7 +34,7 @@ from .servers import device_server
 
 router = APIRouter(prefix="/api", tags=["panele"], dependencies=[Depends(require_user)])
 
-CollectionKind = Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients"]
+CollectionKind = Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks"]
 MAX_ROWS = 200
 MAX_STATE_ITEMS = 20
 CURRENT = timedelta(minutes=5)
@@ -167,6 +169,25 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                 )
                 for w in networks
             ]
+        elif kind == "checks":
+            from .checks import list_checks
+
+            # Bez adresów celu – te same dane może dostać pulpit publiczny
+            rows = [
+                Row(
+                    key=str(c.id),
+                    label=c.name,
+                    values={
+                        "up": 1.0 if c.status == "up" else 0.0 if c.status == "down" else None,
+                        "latency_ms": c.last_latency_ms,
+                        "loss_percent": c.loss_percent,
+                        "availability_percent": c.availability_24h,
+                        "cert_days": c.cert_days,
+                    },
+                )
+                for c in await list_checks()
+                if c.enabled
+            ]
         elif kind == "services":
             if not mods.get("agents", True):
                 raise HTTPException(404, "Moduł agentów jest wyłączony")
@@ -244,7 +265,7 @@ class Segment(BaseModel):
 
 
 class StateItem(BaseModel):
-    kind: Literal["device", "interface"]
+    kind: Literal["device", "interface", "check"]
     id: int
     label: str
     segments: list[Segment]
@@ -301,10 +322,10 @@ def segments(
 
 
 @router.get("/states", response_model=StatesOut)
-async def states(devices: str | None = None, interfaces: str | None = None, minutes: int = MinutesQuery):
-    """Stany urządzeń i portów w czasie. Bez listy – wszystkie urządzenia (bez portów)."""
-    device_ids, interface_ids = _ids(devices), _ids(interfaces)
-    if len(device_ids) + len(interface_ids) > MAX_STATE_ITEMS:
+async def states(devices: str | None = None, interfaces: str | None = None, minutes: int = MinutesQuery, checks: str | None = None):
+    """Stany urządzeń, portów i sprawdzeń dostępności w czasie. Bez listy – wszystkie urządzenia (bez portów)."""
+    device_ids, interface_ids, check_ids = _ids(devices), _ids(interfaces), _ids(checks)
+    if len(device_ids) + len(interface_ids) + len(check_ids) > MAX_STATE_ITEMS:
         raise HTTPException(422, f"Najwyżej {MAX_STATE_ITEMS} pozycji")
     end = datetime.now(UTC)
     start = end - timedelta(minutes=minutes)
@@ -315,7 +336,7 @@ async def states(devices: str | None = None, interfaces: str | None = None, minu
     items: list[StateItem] = []
     async with Session() as session:
         visible = await _visible_devices(session)
-        if not device_ids and not interface_ids:
+        if not device_ids and not interface_ids and not check_ids:
             device_ids = list(visible)[:MAX_STATE_ITEMS]
         if device_ids:
             bucket = func.date_bin(stride, DeviceMetric.time, origin).label("b")
@@ -352,4 +373,22 @@ async def states(devices: str | None = None, interfaces: str | None = None, minu
                 if (p := ports.get(iface)) is not None:
                     label = f"{visible[p.device_id].name}: {p.label or p.name}"
                     items.append(StateItem(kind="interface", id=iface, label=label, segments=segments(per.get(iface, []), start, end, bucket_s, tolerance_s)))
+        if check_ids:
+            found = {c.id: c for c in (await session.scalars(select(Check).where(Check.id.in_(check_ids)))).all()}
+            bucket = func.date_bin(stride, CheckMetric.time, origin).label("b")
+            rows = (
+                await session.execute(
+                    select(CheckMetric.check_id, bucket, func.bool_and(CheckMetric.up))
+                    .where(CheckMetric.check_id.in_(list(found) or [0]), CheckMetric.time >= start)
+                    .group_by(CheckMetric.check_id, "b")
+                )
+            ).all()
+            per = {}
+            for check_id, b, ok in rows:
+                per.setdefault(check_id, []).append((b, ok))
+            for check_id in check_ids:
+                if (c := found.get(check_id)) is not None:
+                    # sprawdzenia mają własny odstęp – przerwa krótsza niż trzy odstępy to nie „brak danych”
+                    tol = 3 * max(bucket_s, c.interval_s)
+                    items.append(StateItem(kind="check", id=check_id, label=c.name, segments=segments(per.get(check_id, []), start, end, bucket_s, tol)))
     return StatesOut(start=start, end=end, bucket_s=bucket_s, items=items)
