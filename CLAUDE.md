@@ -113,8 +113,8 @@ Opis: `docs/16-szyfrowanie-sekretow.md`.
 Od 0.17.0: Ustawienia → Proxmox (token API, rola PVEAuditor), strona Proxmox (VM/LXC, magazyny), węzły jako urządzenia
 `driver = "proxmox"` (karta, alerty, wykresy), alerty: maszyna zatrzymana, kopia vzdump z błędem, brak świeżej kopii.
 Kod: `backend/netpulse/proxmox.py`, `proxmox_collector.py`, `api/proxmox.py`; atrapa API do testów: `backend/tests/pve_fake.py`.
-Opis: `docs/17-proxmox.md`. Sprawdzone 2026-10-27 na prawdziwym PVE 9.1.1/9.2.24 (jeden węzeł, VM i LXC, alert zatrzymanej maszyny, bez kopii) –
-parsery bez zmian; kopie vzdump i klaster dalej tylko na atrapie.
+Opis: `docs/17-proxmox.md`. Sprawdzone 2026-10-27 na prawdziwym PVE 9.1.1/9.2.24 (jeden węzeł, VM i LXC, alert zatrzymanej maszyny, kopia vzdump) –
+parsery bez zmian; PVEAuditor nie widzi plików kopii, więc od 0.28.5 wiek kopii też z zadań vzdump i ich logów; klaster dalej tylko na atrapie.
 
 ## Moduły
 
@@ -166,8 +166,8 @@ pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrap
   `mikrotik-chr.snmprec`, rozpoznawanie WAN po nazwie portu. Fizyczny routerboard (kilka rdzeni, PPPoE, czujniki
   MIKROTIK-MIB) dalej tylko na syntetycznym `mikrotik-hex.snmprec`.
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
-- **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.2.24 (192.168.1.86, VM 100 + LXC 101) działa; gdy użytkownik
-  zrobi kopię vzdump: sprawdzić listę kopii, alerty kopii i „brak świeżej kopii” (skrypt odczytu przez kontener API).
+- **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.2.24 (192.168.1.86, VM 100 + LXC 101, kopia LXC 101) działa;
+  po 0.28.5 sprawdzić „ostatnia kopia” LXC 101 w panelu i alert „brak świeżej kopii” po 36 h bez nowej kopii.
 - **Dual WAN na prawdziwym sprzęcie** – po podłączeniu drugiego łącza: ustawić WAN 2 w panelu, wyciągnąć kabel WAN 1
   i sprawdzić przełączenie w widgetach. Pobrać `unifi_probe.py` i sprawdzić, czy `stat/device` bramy ma `wan1`/`wan2`/`uplink`
   z `ifname` (parser zakłada port N = ethN-1, gdy go brak); zanonimizowany zrzut (`probe2fixtures.py`) podmienić w fixtures.

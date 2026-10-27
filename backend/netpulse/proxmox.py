@@ -1,18 +1,21 @@
 """Klient Proxmox VE API (token API) i parsery odpowiedzi.
 
 Logowanie tokenem: nagłówek `Authorization: PVEAPIToken=<użytkownik>@<realm>!<id tokenu>=<sekret>`.
-Wystarczy rola `PVEAuditor` (tylko odczyt) na `/`. Używane zasoby (Proxmox VE 7 i 8):
+Wystarczy rola `PVEAuditor` (tylko odczyt) na `/`. Używane zasoby (Proxmox VE 7–9):
   GET /version                         wersja
   GET /cluster/status                  nazwa klastra, węzły z adresami IP i stanem online
   GET /cluster/resources               węzły, VM (qemu), kontenery (lxc) i magazyny z bieżącym zużyciem
   GET /nodes/<węzeł>/status            obciążenie (loadavg) węzła
   GET /nodes/<węzeł>/tasks?typefilter=vzdump   ostatnie zadania kopii zapasowych
-  GET /nodes/<węzeł>/storage/<magazyn>/content?content=backup   pliki kopii (czas ostatniej kopii każdej VM)
+  GET /nodes/<węzeł>/storage/<magazyn>/content?content=backup   pliki kopii (czas ostatniej kopii każdej VM;
+                                                                PVEAuditor ich nie widzi – potrzebne VM.Backup)
+  GET /nodes/<węzeł>/tasks/<upid>/log                           log zadania vzdump: które maszyny mają udaną kopię
 Parsery są tolerancyjne: brak pola daje None, a nie błąd.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -239,6 +242,14 @@ def parse_tasks(data: list[dict], node: str) -> list[PveTask]:
     return sorted(tasks, key=lambda t: t.start or datetime.min.replace(tzinfo=UTC), reverse=True)
 
 
+_FINISHED_BACKUP = re.compile(r"Finished Backup of VM (\d+)")
+
+
+def parse_task_log(lines: list[dict]) -> set[int]:
+    """Maszyny, których kopia w zadaniu vzdump się udała (zadanie kilku maszyn ma puste `id`, więc tylko log to mówi)."""
+    return {int(m.group(1)) for line in lines or [] if (m := _FINISHED_BACKUP.search(str(line.get("t") or "")))}
+
+
 def parse_backups(data: list[dict]) -> list[PveBackup]:
     out = []
     for b in data or []:
@@ -301,6 +312,10 @@ class ProxmoxApi:
 
     async def backup_tasks(self, node: str, limit: int = 20) -> list[PveTask]:
         return parse_tasks(await self._get(f"/nodes/{quote(node)}/tasks", {"typefilter": "vzdump", "limit": limit}), node)
+
+    async def task_backed_up(self, node: str, upid: str) -> set[int]:
+        """Maszyny z udaną kopią w zadaniu vzdump (z logu zadania; wystarczy rola PVEAuditor)."""
+        return parse_task_log(await self._get(f"/nodes/{quote(node)}/tasks/{quote(upid, safe='')}/log", {"limit": 5000}))
 
     async def backups(self, node: str, storage: str) -> list[PveBackup]:
         return parse_backups(await self._get(f"/nodes/{quote(node)}/storage/{quote(storage)}/content", {"content": "backup"}))

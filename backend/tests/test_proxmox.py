@@ -7,7 +7,14 @@ import asyncio
 import pytest
 from pve_fake import FakePve, GiB
 
-from netpulse.proxmox import ProxmoxApi, ProxmoxError, parse_cluster_status, parse_resources, parse_tasks
+from netpulse.proxmox import (
+    ProxmoxApi,
+    ProxmoxError,
+    parse_cluster_status,
+    parse_resources,
+    parse_task_log,
+    parse_tasks,
+)
 
 
 def api(fake: FakePve, secret: str = "secret-uuid-1234") -> ProxmoxApi:
@@ -136,3 +143,24 @@ def test_parsers_real_pve92_lxc():
     assert (g.vmid, g.type, g.name, g.status, g.cpus, g.mem_used, g.mem_total) == (101, "lxc", "CT101", "running", 1, 15765504, 536870912)
     assert (g.disk_used, g.disk_total, g.uptime_s, g.netin) == (357367808, 8350298112, 86, 28725)
     assert g.cpu_percent == pytest.approx(0.2, abs=0.05)
+
+
+def test_parse_task_log_real_pve92():
+    """Log zadania vzdump z prawdziwego Proxmox VE 9.2.24 (kopia LXC 101) i zadanie kilku maszyn z błędem jednej."""
+    real = [
+        {"n": 1, "t": "INFO: starting new backup job: vzdump 101 --remove 0 --mode snapshot --node pve --compress zstd --storage local"},
+        {"n": 2, "t": "INFO: Starting Backup of VM 101 (lxc)"},
+        {"n": 13, "t": "INFO: creating vzdump archive '/var/lib/vz/dump/vzdump-lxc-101-2026_10_27-23_47_25.tar.zst'"},
+        {"n": 19, "t": "INFO: Finished Backup of VM 101 (00:00:03)"},
+        {"n": 21, "t": "INFO: Backup job finished successfully"},
+        {"n": 23, "t": "TASK OK"},
+    ]
+    assert parse_task_log(real) == {101}
+    mixed = [{"t": "INFO: Finished Backup of VM 100 (00:03:02)"}, {"t": "ERROR: Backup of VM 105 failed - no space left"}]
+    assert parse_task_log(mixed) == {100} and parse_task_log([]) == set()
+    (task,) = parse_tasks(
+        [{"upid": "UPID:pve:00001D06:0002661A:6AE129FC:vzdump:101:root@pam:", "type": "vzdump", "id": "101", "status": "OK",
+          "node": "pve", "user": "root@pam", "starttime": 1793141244, "endtime": 1793141248, "pid": 7430, "pstart": 157210}],
+        "pve",
+    )  # fmt: skip
+    assert (task.vmid, task.ok) == ("101", True) and task.end and (task.end - task.start).total_seconds() == 4

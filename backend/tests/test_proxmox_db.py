@@ -155,6 +155,31 @@ def test_poll_creates_node_devices_guests_storages_and_metrics(client):
     assert server_id
 
 
+def test_backup_age_from_tasks_when_token_cannot_list_backups(client):
+    """Token z rolą PVEAuditor nie widzi plików kopii (prawdziwy PVE 9): wiek kopii z udanych zadań vzdump i ich logów."""
+    add_server()
+    fake = FakePve()
+    fake.backups_visible = False
+    collector = collector_for(fake)
+    poll(collector)
+    poll(collector)
+    guests = {g["vmid"]: g for g in client.get("/api/proxmox/guests").json()}
+    assert guests[100]["last_backup_at"] and guests[105]["last_backup_at"]  # z logu zadania kilku maszyn
+    assert guests[106]["last_backup_at"] is None  # jedyne zadanie 106 skończyło się błędem
+    assert guests[101]["last_backup_at"] is None
+
+    async def ages():
+        async with Session() as s:
+            rows = (await s.execute(select(Metric.key, Metric.value).where(Metric.name == "backup_age_h"))).all()
+        return {k: v for k, v in rows}
+
+    got = run(ages)
+    assert 1.9 <= got["homeassistant (100)"] <= 2.0 and 1.9 <= got["nextcloud (105)"] <= 2.0
+    assert "pihole (106)" not in got
+    logs = [c for c in fake.calls if c.endswith("/log")]
+    assert logs == ["/nodes/pve1/tasks/UPID:pve1:1/log", "/nodes/pve1/tasks/UPID:pve1:0/log"]  # każdy log raz
+
+
 def test_unreachable_server_marks_nodes_down(client):
     add_server()
     fake = FakePve()

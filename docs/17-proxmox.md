@@ -52,7 +52,7 @@ Przy aktualizacji ze starszej wersji reguły dochodzą raz. Usuniętej reguły N
 ## Jak to działa
 
 - `backend/netpulse/proxmox.py`: klient API z tokenem (`Authorization: PVEAPIToken=…`) i parsery
-  (`/version`, `/cluster/status`, `/cluster/resources`, `/nodes/<węzeł>/status`, zadania vzdump, pliki kopii).
+  (`/version`, `/cluster/status`, `/cluster/resources`, `/nodes/<węzeł>/status`, zadania vzdump i ich logi, pliki kopii).
 - `backend/netpulse/proxmox_collector.py`: co cykl kolektora (30 s) węzły, maszyny i magazyny; kopie co 10 minut.
   Węzeł = urządzenie `driver = "proxmox"` (kolektor SNMP go nie odpytuje). Jeśli adres IP węzła jest już
   w NetPulse (np. ten sam serwer dodany przez SNMP), węzeł dostaje adres `nazwa.proxmox`.
@@ -67,5 +67,12 @@ sprawdzona na prawdziwym Proxmox VE 9.1.1 i 9.2.24 (jeden węzeł bez klastra, V
 magazyny `local` i `local-lvm`, alert „maszyna zatrzymana” przy restarcie węzła):
 wszystkie odpowiedzi parsują się bez zmian w kodzie, testy `test_parsers_real_pve9*` trzymają te dane.
 Różnice względem atrapy: brak wpisu `cluster` przy pojedynczym węźle, zasób `network` (SDN) w `/cluster/resources`
-– pomijany, pole `memhost` przy VM i LXC (PVE 9) – nieużywane. Na prawdziwym sprzęcie czekają jeszcze:
-kopie vzdump, klaster kilku węzłów. Problemy widać w logu kolektora: `netpulse logs collector`.
+– pomijany, pole `memhost` przy VM i LXC (PVE 9) – nieużywane. Na prawdziwym sprzęcie czeka jeszcze klaster
+kilku węzłów. Problemy widać w logu kolektora: `netpulse logs collector`.
+
+**Kopie a rola PVEAuditor** (sprawdzone na PVE 9.2.24): magazyn nie pokazuje tokenowi plików kopii –
+`/storage/<magazyn>/content` wymaga do tego `VM.Backup`, czyli uprawnienia do robienia kopii. Dlatego od 0.28.5
+czas ostatniej kopii każdej maszyny NetPulse bierze też z udanych zadań vzdump: zadanie jednej maszyny ma jej numer,
+zadanie kilku – log zadania („Finished Backup of VM 101”), czytany raz na zadanie. Wystarcza PVEAuditor.
+Ograniczenie: widać tylko ostatnie 20 zadań na węźle – kopia starsza niż 20 zadań vzdump wstecz nie liczy się,
+a ręcznie usunięty plik kopii dalej się liczy (zadanie zostaje w historii).

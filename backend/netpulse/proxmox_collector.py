@@ -76,6 +76,7 @@ class ProxmoxCollector:
         self.api_factory = api_factory
         self._counters: dict[tuple, tuple[float, int]] = {}
         self._backups: dict[int, tuple[float, BackupInfo]] = {}
+        self._task_vms: dict[str, set[int]] = {}  # UPID zakończonego zadania vzdump → maszyny z udaną kopią
 
     async def run_forever(self) -> None:
         log.info("Kolektor Proxmox start: interwał %ss", settings.poll_interval)
@@ -133,6 +134,7 @@ class ProxmoxCollector:
             try:
                 finished = [t for t in await api.backup_tasks(node) if t.ok is not None]
                 tasks[node] = finished[0] if finished else None
+                await self._backups_from_tasks(api, finished, last)
             except ProxmoxError as exc:
                 log.debug("%s: zadania kopii z %s niedostępne: %s", target.name, node, exc)
         # Magazyny z kopiami: współdzielony wystarczy przeczytać raz
@@ -152,6 +154,30 @@ class ProxmoxCollector:
         info = BackupInfo(tasks=tasks, last_backup=last)
         self._backups[target.id] = (time.monotonic(), info)
         return info
+
+    async def _backups_from_tasks(self, api: ProxmoxApi, finished: list[PveTask], last: dict[int, datetime]) -> None:
+        """Czas ostatniej kopii z udanych zadań vzdump. Token z rolą PVEAuditor nie widzi plików kopii na magazynie
+        (Proxmox wymaga do tego VM.Backup), a zadania i ich logi tak. Zadanie jednej maszyny ma jej numer w `id`,
+        zadanie kilku – tylko w logu („Finished Backup of VM 101”); log zakończonego zadania się nie zmienia."""
+        for task in finished:
+            when = task.end or task.start
+            if when is None:
+                continue
+            if task.vmid and task.vmid.isdigit():
+                vms = {int(task.vmid)} if task.ok else set()
+            else:
+                if task.upid not in self._task_vms:
+                    try:
+                        self._task_vms[task.upid] = await api.task_backed_up(task.node, task.upid)
+                    except ProxmoxError:
+                        continue
+                vms = self._task_vms[task.upid]
+            for vmid in vms:
+                if vmid not in last or when > last[vmid]:
+                    last[vmid] = when
+        if len(self._task_vms) > 500:  # stare zadania wypadają z listy ostatnich 20
+            keep = {t.upid for t in finished}
+            self._task_vms = {k: v for k, v in self._task_vms.items() if k in keep}
 
     def _rate(self, key: tuple, ts: float, value: int | None, factor: float = 1.0) -> float | None:
         """Przyrost licznika na sekundę; restart maszyny (licznik spadł) – brak wartości."""

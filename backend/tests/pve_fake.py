@@ -4,6 +4,8 @@ Klaster „homelab”: węzły pve1 (192.168.1.10) i pve2 (192.168.1.11). Na pve
 VM 101 windows (zatrzymana), szablon 9000, LXC 105 nextcloud (działa); na pve2: LXC 106 pihole (działa).
 Magazyny: local i local-lvm na każdym węźle, współdzielony nas-backup (NFS, kopie). Ostatnie zadanie vzdump:
 pve1 OK, pve2 z błędem. Kopie: 100 i 105 sprzed 2 h, 106 sprzed 3 dni, 101 nigdy.
+`backups_visible = False` udaje token z rolą PVEAuditor: magazyn nie pokazuje plików kopii (jak prawdziwy PVE 9),
+zostają zadania vzdump i ich logi (zadanie pve1 sprzed 2 h: kopie 100 i 105).
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ class FakePve:
         self.counters = 0  # rośnie przy każdym odczycie zasobów (liczniki sieci i dysku maszyn)
         self.guest_status = {100: "running", 101: "stopped", 105: "running", 106: "running"}
         self.calls: list[str] = []
+        self.backups_visible = True
 
     # --- odpowiedzi -------------------------------------------------------------------
 
@@ -90,9 +93,17 @@ class FakePve:
                     {"upid": "UPID:pve1:x", "node": "pve1", "type": "qmstart", "id": "100", "status": "OK", "starttime": int(self.now - 60), "endtime": int(self.now - 59)},
                 ]  # fmt: skip
             return [{"upid": "UPID:pve2:1", "node": "pve2", "type": "vzdump", "id": "106", "status": "job errors", "starttime": int(self.now - 7200), "endtime": int(self.now - 7100)}]  # fmt: skip
+        if "/tasks/" in path and path.endswith("/log"):
+            logs = {
+                "UPID:pve1:1": ["INFO: Starting Backup of VM 100 (qemu)", "INFO: Finished Backup of VM 100 (00:03:12)",
+                                "INFO: Starting Backup of VM 105 (lxc)", "INFO: Finished Backup of VM 105 (00:00:41)", "TASK OK"],
+                "UPID:pve1:0": ["INFO: Finished Backup of VM 100 (00:03:02)", "ERROR: Backup of VM 105 failed - no space left",
+                                "TASK ERROR: job errors"],
+            }  # fmt: skip
+            return [{"n": i, "t": line} for i, line in enumerate(logs.get(path.split("/")[4], ["TASK OK"]), start=1)]
         if "/storage/" in path and path.endswith("/content"):
             storage = path.split("/")[4]
-            if storage == "nas-backup":
+            if storage == "nas-backup" and self.backups_visible:
                 return [
                     {"volid": "nas-backup:backup/vzdump-qemu-100.vma.zst", "content": "backup", "vmid": 100, "ctime": int(self.now - 7100), "size": 5 * GiB},
                     {"volid": "nas-backup:backup/vzdump-lxc-105.tar.zst", "content": "backup", "vmid": 105, "ctime": int(self.now - 7050), "size": GiB},
