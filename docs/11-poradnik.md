@@ -231,6 +231,8 @@ a gdy nikt nie patrzy, router nie jest dodatkowo odpytywany). Po zerwaniu połą
 
 **Ustawienia → Reguły alertów.** Domyślnie włączone są „Urządzenie nie odpowiada" i „Port przeszedł w stan down".
 Można dodawać reguły z progami (np. CPU, RAM, ruch WAN) i czasem trwania, żeby krótkie skoki nie dawały alarmów.
+Alert portu dotyczy tylko portu, który przed chwilą działał (puste porty nie alarmują), i trwa, dopóki port
+nie wstanie – także przez restart switcha (od 0.28.3; wcześniej zamykał się, gdy switch chwilę nie odpowiadał).
 
 ### System
 

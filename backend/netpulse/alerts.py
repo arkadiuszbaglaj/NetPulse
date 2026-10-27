@@ -368,10 +368,10 @@ class AlertEngine:
 
     async def _port_down(self, session, rule: AlertRule, scope: list[Device], now: datetime) -> list[Hit]:
         """Port, który jeszcze przed chwilą działał, a teraz jest down (puste porty nie dają alertu).
-        Alert trwa, dopóki port nie wróci; gdy urządzenie przestaje odpowiadać, mówi o tym alert „offline”."""
+        Alert trwa, dopóki świeży odczyt nie pokaże portu w górze – także gdy urządzenie chwilę nie odpowiada
+        (restart switcha) albo brakuje odczytów; inaczej zamknąłby się i po powrocie switcha już nie wrócił."""
         up = {d.id: d for d in scope if d.status == "up"}
-        if not up:
-            return []
+        by_id = {d.id: d for d in scope}
         since = now - timedelta(seconds=settings.poll_interval * 3 + 30)
         rows = (
             await session.execute(
@@ -384,13 +384,19 @@ class AlertEngine:
         recent: dict[int, list[bool | None]] = defaultdict(list)
         for iface_id, oper_up in rows:
             recent[iface_id].append(oper_up)
-        already = {
-            a.subject for a in (await session.scalars(select(Alert).where(Alert.rule_id == rule.id, Alert.state == "firing"))).all()
-        }
+        firing = (await session.scalars(select(Alert).where(Alert.rule_id == rule.id, Alert.state == "firing"))).all()
+        already = {a.subject for a in firing}
+        held = [int(a.subject[1:]) for a in firing if a.subject[1:].isdigit() and int(a.subject[1:]) not in recent]
         interfaces = {
-            i.id: i for i in (await session.scalars(select(Interface).where(Interface.id.in_(list(recent) or [0])))).all()
+            i.id: i for i in (await session.scalars(select(Interface).where(Interface.id.in_([*recent, *held] or [0])))).all()
         }
         hits = []
+        for iface_id in held:  # brak świeżego odczytu: port nie wrócił, alert trwa
+            iface = interfaces.get(iface_id)
+            device = by_id.get(iface.device_id) if iface else None
+            if device and not iface.hidden:
+                label = iface.alias or iface.label or iface.name
+                hits.append(Hit(f"i{iface_id}", f"Port {label} ({device.name}) jest wyłączony", None, device.id, 0.0))
         for iface_id, states in recent.items():
             if states[0] is not False:
                 continue

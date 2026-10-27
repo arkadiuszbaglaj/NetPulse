@@ -199,6 +199,58 @@ def test_port_down_only_after_transition(client):
     assert [x["state"] for x in alerts(client)] == ["resolved"]
 
 
+def test_port_down_survives_switch_restart(client):
+    """Switch chwilę nie odpowiada (restart): alert portu trwa i zamyka się dopiero, gdy port wstanie."""
+    dev = add_device(status="up")
+    ids = {}
+
+    async def seed():
+        async with Session() as s, s.begin():
+            port = Interface(device_id=dev, if_index=6, name="0/6", label="Port 6", oper_status="down")
+            s.add(port)
+            await s.flush()
+            ids["port"] = port.id
+            s.add_all(
+                [
+                    InterfaceMetric(time=NOW - timedelta(seconds=30), interface_id=port.id, oper_up=True),
+                    InterfaceMetric(time=NOW, interface_id=port.id, oper_up=False),
+                ]
+            )
+
+    async def set_status(status):
+        async with Session() as s, s.begin():
+            (await s.get(Device, dev)).status = status
+
+    def reading(at, oper_up):
+        async def go():
+            async with Session() as s, s.begin():
+                s.add(InterfaceMetric(time=at, interface_id=ids["port"], oper_up=oper_up))
+
+        run(go)
+
+    run(seed)
+    add_rule(name="port", kind="port_down")
+    evaluate()
+    assert [x["state"] for x in alerts(client)] == ["firing"]
+
+    run(lambda: set_status("down"))  # restart switcha: brak odczytów portów
+    t = NOW + timedelta(minutes=10)
+    evaluate(t)
+    assert [x["state"] for x in alerts(client)] == ["firing"]
+
+    run(lambda: set_status("up"))  # switch wrócił, port dalej wyłączony
+    t += timedelta(minutes=2)
+    reading(t - timedelta(seconds=30), False)
+    reading(t, False)
+    evaluate(t)
+    assert [x["state"] for x in alerts(client)] == ["firing"]
+
+    t += timedelta(seconds=30)
+    reading(t, True)
+    evaluate(t)
+    assert [x["state"] for x in alerts(client)] == ["resolved"]
+
+
 def test_deleted_rule_ends_its_alerts_but_keeps_history(client):
     add_device(status="down", last_ok_at=NOW - timedelta(seconds=600))
     rule = add_rule(name="offline", kind="device_offline", duration_s=0)
