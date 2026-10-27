@@ -83,6 +83,8 @@ AGENT_STATES = {
     "guest_stopped": ("guest_up", "maszyna", "zatrzymana"),
     "backup_failed": ("backup_task_ok", "kopia zapasowa", "zakończyła się błędem"),
 }
+# Jak daleko wstecz szukać stanu portu sprzed przerwy w odczytach (restart switcha trwa minuty, nie godziny)
+BREAK_LOOKBACK = timedelta(hours=1)
 # Bez filtru nazwy alarm tylko dla tych, które przed chwilą działały (zatrzymane od dawna są zamierzone)
 WENT_DOWN_KINDS = ("container_stopped", "guest_stopped")
 
@@ -369,27 +371,37 @@ class AlertEngine:
     async def _port_down(self, session, rule: AlertRule, scope: list[Device], now: datetime) -> list[Hit]:
         """Port, który jeszcze przed chwilą działał, a teraz jest down (puste porty nie dają alertu).
         Alert trwa, dopóki świeży odczyt nie pokaże portu w górze – także gdy urządzenie chwilę nie odpowiada
-        (restart switcha) albo brakuje odczytów; inaczej zamknąłby się i po powrocie switcha już nie wrócił."""
+        (restart switcha) albo brakuje odczytów; inaczej zamknąłby się i po powrocie switcha już nie wrócił.
+        Port, który działał przed przerwą w odczytach, a po niej jest down, też alarmuje (padł w trakcie restartu)."""
         up = {d.id: d for d in scope if d.status == "up"}
         by_id = {d.id: d for d in scope}
         since = now - timedelta(seconds=settings.poll_interval * 3 + 30)
         rows = (
             await session.execute(
-                select(InterfaceMetric.interface_id, InterfaceMetric.oper_up)
+                select(InterfaceMetric.interface_id, InterfaceMetric.oper_up, InterfaceMetric.time)
                 .join(Interface, Interface.id == InterfaceMetric.interface_id)
                 .where(Interface.device_id.in_(up), Interface.hidden.is_(False), InterfaceMetric.time >= since)
                 .order_by(InterfaceMetric.interface_id, InterfaceMetric.time.desc())
             )
         ).all()
         recent: dict[int, list[bool | None]] = defaultdict(list)
-        for iface_id, oper_up in rows:
+        oldest: dict[int, datetime] = {}
+        for iface_id, oper_up, at in rows:
             recent[iface_id].append(oper_up)
+            oldest[iface_id] = at
         firing = (await session.scalars(select(Alert).where(Alert.rule_id == rule.id, Alert.state == "firing"))).all()
         already = {a.subject for a in firing}
         held = [int(a.subject[1:]) for a in firing if a.subject[1:].isdigit() and int(a.subject[1:]) not in recent]
         interfaces = {
             i.id: i for i in (await session.scalars(select(Interface).where(Interface.id.in_([*recent, *held] or [0])))).all()
         }
+        # Wszystkie świeże odczyty down (co najmniej dwa: po starcie switcha porty chwilę negocjują link), bez przejścia
+        # w oknie – czy port działał tuż przed przerwą w odczytach?
+        candidates = [
+            i for i, states in recent.items()
+            if f"i{i}" not in already and len(states) >= 2 and all(s is False for s in states)
+        ]  # fmt: skip
+        before_break = await self._up_before_break(session, candidates, oldest, since) if candidates else set()
         hits = []
         for iface_id in held:  # brak świeżego odczytu: port nie wrócił, alert trwa
             iface = interfaces.get(iface_id)
@@ -401,13 +413,35 @@ class AlertEngine:
             if states[0] is not False:
                 continue
             went_down = len(states) > 1 and states[1] is True
-            if not (went_down or f"i{iface_id}" in already):
+            if not (went_down or iface_id in before_break or f"i{iface_id}" in already):
                 continue
             iface = interfaces[iface_id]
             device = up[iface.device_id]
             label = iface.alias or iface.label or iface.name
             hits.append(Hit(f"i{iface_id}", f"Port {label} ({device.name}) jest wyłączony", None, device.id, 0.0))
         return hits
+
+    async def _up_before_break(self, session, candidates: list[int], oldest: dict[int, datetime], since: datetime) -> set[int]:
+        """Porty, których ostatni odczyt przed oknem był „up” i od którego do pierwszego odczytu w oknie minęła przerwa
+        (urządzenie nie odpowiadało). Bez przerwy port padł wcześniej i alarmowałby już wtedy – tu go nie wskrzeszamy."""
+        interval = float(settings.poll_interval)
+        rows = (
+            await session.execute(
+                select(InterfaceMetric.interface_id, InterfaceMetric.oper_up, InterfaceMetric.time)
+                .distinct(InterfaceMetric.interface_id)
+                .where(
+                    InterfaceMetric.interface_id.in_(candidates),
+                    InterfaceMetric.oper_up.is_not(None),
+                    InterfaceMetric.time >= since - BREAK_LOOKBACK,
+                    InterfaceMetric.time < since,
+                )
+                .order_by(InterfaceMetric.interface_id, InterfaceMetric.time.desc())
+            )
+        ).all()
+        return {
+            i for i, oper_up, at in rows
+            if oper_up and (oldest[i] - at).total_seconds() > interval * 2.5
+        }  # fmt: skip
 
     async def _metric(self, session, rule: AlertRule, scope: list[Device], now: datetime) -> list[Hit]:
         metric, op, threshold = rule.metric, rule.op, float(rule.threshold)

@@ -251,6 +251,36 @@ def test_port_down_survives_switch_restart(client):
     assert [x["state"] for x in alerts(client)] == ["resolved"]
 
 
+def test_port_down_during_switch_restart(client):
+    """Port działał przed przerwą w odczytach (restart switcha), a po niej jest down: alert, ale dopiero po dwóch
+    odczytach – port, który po starcie switcha chwilę negocjuje link, i port pusty od dawna nie alarmują."""
+    dev = add_device(status="up")
+    before = NOW - timedelta(minutes=10)  # ostatni odczyt przed restartem
+    # port: (stan przed przerwą, odczyty po przerwie od najstarszego)
+    plan = {
+        "Proxmox": (True, [False, False]),
+        "NAS": (True, [False, True]),
+        "pusty": (False, [False, False]),
+        "TV": (True, [False]),
+    }
+
+    async def seed():
+        async with Session() as s, s.begin():
+            for n, (label, (was_up, after)) in enumerate(plan.items(), start=1):
+                port = Interface(device_id=dev, if_index=n, name=f"0/{n}", label=label, oper_status="down")
+                s.add(port)
+                await s.flush()
+                s.add(InterfaceMetric(time=before - timedelta(seconds=30), interface_id=port.id, oper_up=was_up))
+                s.add(InterfaceMetric(time=before, interface_id=port.id, oper_up=was_up))
+                for k, oper_up in enumerate(reversed(after)):
+                    s.add(InterfaceMetric(time=NOW - timedelta(seconds=30 * k), interface_id=port.id, oper_up=oper_up))
+
+    run(seed)
+    add_rule(name="port", kind="port_down")
+    evaluate()
+    assert [(a["title"], a["state"]) for a in alerts(client)] == [("Port Proxmox (SW) jest wyłączony", "firing")]
+
+
 def test_deleted_rule_ends_its_alerts_but_keeps_history(client):
     add_device(status="down", last_ok_at=NOW - timedelta(seconds=600))
     rule = add_rule(name="offline", kind="device_offline", duration_s=0)

@@ -233,6 +233,8 @@ a gdy nikt nie patrzy, router nie jest dodatkowo odpytywany). Po zerwaniu połą
 Można dodawać reguły z progami (np. CPU, RAM, ruch WAN) i czasem trwania, żeby krótkie skoki nie dawały alarmów.
 Alert portu dotyczy tylko portu, który przed chwilą działał (puste porty nie alarmują), i trwa, dopóki port
 nie wstanie – także przez restart switcha (od 0.28.3; wcześniej zamykał się, gdy switch chwilę nie odpowiadał).
+Od 0.28.4 alarmuje też port, który działał przed restartem switcha, a po nim nie wstał (po dwóch odczytach, czyli
+ok. minuty – porty negocjujące link zaraz po starcie switcha nie dają fałszywych alertów).
 
 ### System
 
