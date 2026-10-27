@@ -113,8 +113,8 @@ Opis: `docs/16-szyfrowanie-sekretow.md`.
 Od 0.17.0: Ustawienia → Proxmox (token API, rola PVEAuditor), strona Proxmox (VM/LXC, magazyny), węzły jako urządzenia
 `driver = "proxmox"` (karta, alerty, wykresy), alerty: maszyna zatrzymana, kopia vzdump z błędem, brak świeżej kopii.
 Kod: `backend/netpulse/proxmox.py`, `proxmox_collector.py`, `api/proxmox.py`; atrapa API do testów: `backend/tests/pve_fake.py`.
-Opis: `docs/17-proxmox.md`. Sprawdzone 2026-10-27 na prawdziwym PVE 9.1.1 (jeden węzeł, zatrzymana VM, bez kopii) –
-parsery bez zmian; uruchomiona VM/LXC, kopie vzdump i klaster dalej tylko na atrapie.
+Opis: `docs/17-proxmox.md`. Sprawdzone 2026-10-27 na prawdziwym PVE 9.1.1 (jeden węzeł, VM zatrzymana i uruchomiona, bez kopii) –
+parsery bez zmian; LXC, kopie vzdump i klaster dalej tylko na atrapie.
 
 ## Moduły
 
@@ -166,8 +166,8 @@ pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrap
   `mikrotik-chr.snmprec`, rozpoznawanie WAN po nazwie portu. Fizyczny routerboard (kilka rdzeni, PPPoE, czujniki
   MIKROTIK-MIB) dalej tylko na syntetycznym `mikrotik-hex.snmprec`.
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
-- **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.1.1 (192.168.1.86) działa; gdy użytkownik uruchomi VM/LXC
-  i zrobi kopię vzdump: sprawdzić CPU/RAM/sieć gościa, alerty kopii i „brak świeżej kopii” (skrypt odczytu przez kontener API).
+- **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.1.1 (192.168.1.86) działa; gdy użytkownik doda LXC
+  i zrobi kopię vzdump: sprawdzić kontener, alerty kopii i „brak świeżej kopii” (skrypt odczytu przez kontener API).
 - **Dual WAN na prawdziwym sprzęcie** – po podłączeniu drugiego łącza: ustawić WAN 2 w panelu, wyciągnąć kabel WAN 1
   i sprawdzić przełączenie w widgetach. Pobrać `unifi_probe.py` i sprawdzić, czy `stat/device` bramy ma `wan1`/`wan2`/`uplink`
   z `ifname` (parser zakłada port N = ethN-1, gdy go brak); zanonimizowany zrzut (`probe2fixtures.py`) podmienić w fixtures.

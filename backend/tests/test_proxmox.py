@@ -113,3 +113,14 @@ def test_parsers_real_pve91_single_node():
     assert len(guests) == 1 and (vm.vmid, vm.type, vm.status, vm.cpus, vm.mem_total) == (100, "qemu", "stopped", 4, 2147483648)
     assert vm.cpu_percent is None and vm.mem_used is None and vm.uptime_s is None  # zatrzymana: zera z API to brak danych
     assert {s.storage: (s.type, "backup" in s.content) for s in storages} == {"local": ("dir", True), "local-lvm": ("lvmthin", False)}
+
+
+def test_parsers_real_pve91_running_vm():
+    """Uruchomiona VM z prawdziwego Proxmox VE 9.1.1 (pole `memhost` PVE 9 pomijane, `disk` VM zawsze 0)."""
+    vm = {"id": "qemu/100", "type": "qemu", "vmid": 100, "name": "ubuntu", "node": "pve", "status": "running", "template": 0, "cpu": 0.165878419011636,
+          "maxcpu": 4, "mem": 1709981696, "memhost": 1867993088, "maxmem": 2147483648, "disk": 0, "maxdisk": 34359738368, "uptime": 53,
+          "netin": 5376237, "netout": 200262, "diskread": 964870754, "diskwrite": 37950464}  # fmt: skip
+    _, guests, _ = parse_resources([vm])
+    g = guests[0]
+    assert (g.status, g.cpus, g.mem_used, g.uptime_s, g.netin, g.netout) == ("running", 4, 1709981696, 53, 5376237, 200262)
+    assert g.cpu_percent == pytest.approx(16.6, abs=0.1) and g.diskread == 964870754 and g.disk_used is None

@@ -63,8 +63,8 @@ Przy aktualizacji ze starszej wersji reguły dochodzą raz. Usuniętej reguły N
 - Usunięcie serwera w panelu usuwa jego węzły (urządzenia) z historią. W samym Proxmoxie nic się nie zmienia.
 
 Integracja powstała na atrapie API (`backend/tests/pve_fake.py`) według dokumentacji Proxmox VE 8. 27.10.2026
-sprawdzona na prawdziwym Proxmox VE 9.1.1 (jeden węzeł bez klastra, zatrzymana VM, magazyny `local` i `local-lvm`):
+sprawdzona na prawdziwym Proxmox VE 9.1.1 (jeden węzeł bez klastra, VM zatrzymana i uruchomiona, magazyny `local` i `local-lvm`):
 wszystkie odpowiedzi parsują się bez zmian w kodzie, test `test_parsers_real_pve91_single_node` trzyma te dane.
 Różnice względem atrapy: brak wpisu `cluster` przy pojedynczym węźle, zasób `network` (SDN) w `/cluster/resources`
-– pomijany, pole `memhost` przy VM (PVE 9) – nieużywane. Na prawdziwym sprzęcie czekają jeszcze: uruchomiona VM/LXC,
+– pomijany, pole `memhost` przy VM (PVE 9) – nieużywane. Na prawdziwym sprzęcie czekają jeszcze: LXC,
 kopie vzdump, klaster kilku węzłów. Problemy widać w logu kolektora: `netpulse logs collector`.
