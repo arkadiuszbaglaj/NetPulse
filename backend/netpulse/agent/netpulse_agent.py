@@ -225,7 +225,8 @@ def process_count() -> int:
 
 
 def parse_systemctl_units(text: str, watched: set[str]) -> dict:
-    """`systemctl list-units --type=service --all --plain --no-legend` → liczniki i lista ważnych usług."""
+    """`systemctl list-units --type=service --all --plain --no-legend` → liczniki i lista usług: wszystkie załadowane
+    poza nieaktywnymi (te są normalne, np. jednorazowe), a z nieaktywnych – z błędem i obserwowane (SERVICES)."""
     running = failed = 0
     items = []
     for line in text.splitlines():
@@ -233,17 +234,40 @@ def parse_systemctl_units(text: str, watched: set[str]) -> dict:
         if len(parts) < 4 or not parts[0].endswith(".service"):
             continue
         unit, load, active, sub = parts[:4]
+        is_watched = unit in watched or unit[: -len(".service")] in watched
         if load == "not-found":
-            if unit[: -len(".service")] in watched or unit in watched:
-                items.append({"name": unit, "active": "missing", "sub": "not-found"})
+            if is_watched:
+                items.append({"name": unit, "active": "missing", "sub": "not-found", "watched": True})
             continue
         if sub == "running":
             running += 1
         if active == "failed":
             failed += 1
-        if active == "failed" or unit in watched or unit[: -len(".service")] in watched:
-            items.append({"name": unit[:255], "active": active[:64], "sub": sub[:64]})
+        if active != "inactive" or is_watched:
+            items.append({"name": unit[:255], "active": active[:64], "sub": sub[:64], "watched": is_watched})
+    # Przy limicie najpierw usługi z błędem i obserwowane – od nich zależą alerty
+    items.sort(key=lambda s: not (s["active"] in ("failed", "missing") or s["watched"]))
     return {"running": running, "failed": failed, "items": items[:300]}
+
+
+def parse_systemctl_show(text: str, now_monotonic_us: int) -> dict[str, dict]:
+    """`systemctl show -p Id,MemoryCurrent,ActiveEnterTimestampMonotonic <usługi>` → pamięć i czas działania usług.
+    Bloki właściwości oddziela pusta linia; „[not set]” i wartości spoza zakresu (brak rozliczania pamięci) pomijamy."""
+    out: dict[str, dict] = {}
+    for block in text.split("\n\n"):
+        props = dict(line.split("=", 1) for line in block.splitlines() if "=" in line)
+        unit = props.get("Id")
+        if not unit:
+            continue
+        info = {}
+        mem = props.get("MemoryCurrent", "")
+        if mem.isdigit() and int(mem) < 2**63 - 1:
+            info["mem_bytes"] = int(mem)
+        since = props.get("ActiveEnterTimestampMonotonic", "")
+        if since.isdigit() and 0 < int(since) <= now_monotonic_us:
+            info["uptime_s"] = (now_monotonic_us - int(since)) // 1_000_000
+        out[unit] = info
+    return out
 
 
 def read_services(watched: set[str]) -> dict | None:
@@ -256,7 +280,21 @@ def read_services(watched: set[str]) -> dict | None:
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return None
-    return parse_systemctl_units(out, watched)
+    services = parse_systemctl_units(out, watched)
+    active = [s["name"] for s in services["items"] if s["active"] == "active"]
+    if active:
+        try:
+            show = subprocess.run(
+                ["systemctl", "show", "-p", "Id,MemoryCurrent,ActiveEnterTimestampMonotonic", "--no-pager", *active],
+                capture_output=True, text=True, timeout=10, check=False,
+            ).stdout
+            # CLOCK_MONOTONIC – ten sam zegar co znaczniki systemd
+            details = parse_systemctl_show(show, int(time.monotonic() * 1_000_000))
+        except (OSError, subprocess.SubprocessError):
+            details = {}
+        for s in services["items"]:
+            s.update(details.get(s["name"], {}))
+    return services
 
 
 class _UnixHTTPConnection(http.client.HTTPConnection):

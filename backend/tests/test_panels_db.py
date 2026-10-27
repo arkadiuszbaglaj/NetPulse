@@ -88,7 +88,12 @@ def lab():
             s.add(Agent(device_id=nas.id, token_hash="x" * 64, token_hint="abcd", inventory={"containers": [
                 {"name": "nextcloud", "state": "running", "cpu_percent": 2.5, "mem_bytes": 5e8},
                 {"name": "stary", "state": "exited"},
-            ]}))
+            ], "services": {"running": 2, "failed": 1, "items": [
+                {"name": "ssh.service", "active": "active", "sub": "running", "watched": False, "mem_bytes": 4194304, "uptime_s": 3600},
+                {"name": "backup.service", "active": "failed", "sub": "failed", "watched": False},
+                {"name": "nginx.service", "active": "inactive", "sub": "dead", "watched": True},
+                {"name": "apt-daily.service", "active": "activating", "sub": "start", "watched": False},
+            ]}}))
             s.add(DeviceMetric(time=ago(1), device_id=nas.id, reachable=True, cpu_percent=5.0))
             s.add(DiskMetric(time=ago(1), device_id=nas.id, mount="/", total_bytes=100 * 10**9, used_bytes=30 * 10**9))
             s.add(DiskMetric(time=ago(1), device_id=nas.id, mount="/mnt/data", total_bytes=4000 * 10**9, used_bytes=3600 * 10**9))
@@ -125,6 +130,14 @@ def test_collections(lab):
     assert disks["/mnt/data"]["used_percent"] == 90.0 and disks["/"]["free_bytes"] == 70 * 10**9
     containers = rows(client, "containers", device_id=ids["nas"])
     assert containers == {"nextcloud": {"up": 1.0, "cpu_percent": 2.5, "mem_bytes": 5e8}, "stary": {"up": 0.0, "cpu_percent": None, "mem_bytes": None}}
+    services = rows(client, "services", device_id=ids["nas"])
+    assert services == {
+        "apt-daily": {"up": None, "mem_bytes": None, "uptime_s": None},  # w trakcie startu
+        "backup": {"up": 0.0, "mem_bytes": None, "uptime_s": None},
+        "nginx": {"up": 0.0, "mem_bytes": None, "uptime_s": None},  # obserwowana i zatrzymana
+        "ssh": {"up": 1.0, "mem_bytes": 4194304.0, "uptime_s": 3600.0},
+    }
+    assert client.get("/api/collections/services").status_code == 422  # bez urządzenia
     clients = client.get("/api/collections/clients").json()["rows"]
     assert clients[0]["label"] == "Telefon" and clients[0]["values"]["signal_dbm"] == -61 and "aa:bb" not in str(clients)
 

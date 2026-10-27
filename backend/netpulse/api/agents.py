@@ -176,12 +176,17 @@ class ServiceIn(BaseModel):
     name: Name
     active: Short
     sub: Short | None = None
+    # Od 0.29.0 agent wysyła wszystkie działające usługi; historię (`service_up`) zapisujemy tylko dla obserwowanych
+    # i tych z błędem. Starszy agent nie podaje `watched` – wysyłał tylko takie usługi.
+    watched: bool | None = None
+    mem_bytes: int | None = Field(None, ge=0)
+    uptime_s: int | None = Field(None, ge=0)
 
 
 class ServicesIn(BaseModel):
     running: int = Field(0, ge=0)
     failed: int = Field(0, ge=0)
-    # Usługi, które nie działają, i te, które użytkownik kazał obserwować (SERVICES w konfiguracji agenta)
+    # Działające, z błędem i obserwowane (SERVICES w konfiguracji agenta); starszy agent – bez działających
     items: Annotated[list[ServiceIn], Field(max_length=300)] = []
 
 
@@ -255,7 +260,8 @@ def metric_rows(report: AgentReport, device_id: int, now: datetime) -> list[dict
     if report.services is not None:
         add("services_failed", report.services.failed)
         for s in report.services.items:
-            add("service_up", 1.0 if s.active == "active" else 0.0, s.name)
+            if s.watched is not False or s.active in ("failed", "missing"):
+                add("service_up", 1.0 if s.active == "active" else 0.0, s.name)
     for c in report.containers or []:
         add("container_up", 1.0 if c.state == "running" else 0.0, c.name)
         add("container_cpu_percent", c.cpu_percent, c.name)

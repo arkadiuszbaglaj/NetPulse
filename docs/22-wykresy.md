@@ -66,6 +66,7 @@ więc zapisane pulpity działają bez zmian, a po pierwszym zapisie są już w n
 | `disks` | wymagane (serwer) | `used_percent`, `used_bytes`, `free_bytes`, `total_bytes` |
 | `wifi` | opcjonalne | `clients`, `rx_bps`, `tx_bps` |
 | `containers` | wymagane (agent) | `up`, `cpu_percent`, `mem_bytes` |
+| `services` | wymagane (agent) | `up`, `mem_bytes`, `uptime_s` (od 0.29.0; `up` puste, gdy usługa zmienia stan) |
 | `clients` | – | `signal_dbm`, `rx_rate_kbps`, `tx_rate_kbps`, `connected_s` (bez MAC-ów: kluczem jest kolejność) |
 
 **Stany** (`GET /api/states?devices=1,2&interfaces=7&minutes=60`): kubełki jak w wykresach, `bool_and(reachable)` dla

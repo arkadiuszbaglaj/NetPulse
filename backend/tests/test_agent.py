@@ -110,11 +110,34 @@ def test_systemctl_counts_failed_and_watched():
     out = agent.parse_systemctl_units(SYSTEMCTL, {"nginx", "ghost"})
     assert out["running"] == 2
     assert out["failed"] == 1
+    # najpierw z błędem i obserwowane (od nich zależą alerty), potem działające; nieaktywne nieobserwowane – pominięte
     assert out["items"] == [
-        {"name": "backup.service", "active": "failed", "sub": "failed"},
-        {"name": "nginx.service", "active": "inactive", "sub": "dead"},
-        {"name": "ghost.service", "active": "missing", "sub": "not-found"},
+        {"name": "backup.service", "active": "failed", "sub": "failed", "watched": False},
+        {"name": "nginx.service", "active": "inactive", "sub": "dead", "watched": True},
+        {"name": "ghost.service", "active": "missing", "sub": "not-found", "watched": True},
+        {"name": "ssh.service", "active": "active", "sub": "running", "watched": False},
+        {"name": "cron.service", "active": "active", "sub": "running", "watched": False},
     ]
+
+
+def test_systemctl_show_memory_and_uptime():
+    show = """Id=ssh.service
+MemoryCurrent=4194304
+ActiveEnterTimestampMonotonic=5000000
+
+Id=cron.service
+MemoryCurrent=[not set]
+ActiveEnterTimestampMonotonic=0
+
+Id=odd.service
+MemoryCurrent=18446744073709551615
+ActiveEnterTimestampMonotonic=999000000000
+"""
+    assert agent.parse_systemctl_show(show, now_monotonic_us=65_000_000) == {
+        "ssh.service": {"mem_bytes": 4194304, "uptime_s": 60},
+        "cron.service": {},  # brak rozliczania pamięci, usługa nie wystartowała
+        "odd.service": {},  # „nieskończona” pamięć i znacznik z przyszłości
+    }
 
 
 def test_container_cpu_and_memory():

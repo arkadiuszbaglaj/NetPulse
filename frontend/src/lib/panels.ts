@@ -14,15 +14,17 @@ export const COLLECTION_METRICS: Record<CollectionKind, string[]> = {
   disks: ["used_percent", "used_bytes", "free_bytes", "total_bytes"],
   wifi: ["clients", "rx_bps", "tx_bps"],
   containers: ["up", "cpu_percent", "mem_bytes"],
+  services: ["up", "mem_bytes", "uptime_s"],
   clients: ["signal_dbm", "rx_rate_kbps", "tx_rate_kbps", "connected_s"],
 };
-export const COLLECTION_KINDS: CollectionKind[] = ["devices", "ports", "disks", "wifi", "containers", "clients"];
+export const COLLECTION_KINDS: CollectionKind[] = ["devices", "ports", "disks", "wifi", "containers", "services", "clients"];
 export const COLLECTION_LABEL: Record<CollectionKind, TextKey> = {
   devices: "panel.collection.devices",
   ports: "panel.collection.ports",
   disks: "panel.collection.disks",
   wifi: "panel.collection.wifi",
   containers: "panel.collection.containers",
+  services: "panel.collection.services",
   clients: "panel.collection.clients",
 };
 /** Kolekcje jednego urządzenia (wifi: opcjonalnie) */
@@ -32,10 +34,15 @@ export const COLLECTION_DEVICE: Record<CollectionKind, "required" | "optional" |
   disks: "required",
   wifi: "optional",
   containers: "required",
+  services: "required",
   clients: "none",
 };
 /** Moduł, bez którego kolekcji nie ma (Ustawienia → Moduły) */
-export const COLLECTION_MODULE: Partial<Record<CollectionKind, "agents" | "unifi">> = { containers: "agents", clients: "unifi" };
+export const COLLECTION_MODULE: Partial<Record<CollectionKind, "agents" | "unifi">> = {
+  containers: "agents",
+  services: "agents",
+  clients: "unifi",
+};
 
 export interface CollectionRow {
   key: string;

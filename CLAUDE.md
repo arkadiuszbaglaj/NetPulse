@@ -160,6 +160,10 @@ pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrap
 
 ## Do sprawdzenia później
 
+- **Pulpit – następne kolekcje** (z przeglądu pulpitu 28.10.2026, po usługach systemd w 0.29.0):
+  1. kolekcja `guests` – maszyny Proxmoxa (stan, CPU, RAM, sieć, wiek kopii), żeby nowe VM/LXC same trafiały
+     do tabel i pasków; 2. wiek kopii (`backup_age_h`) do pokazania w widgetach (dziś tylko alert);
+  3. limit 40 widgetów na pulpit – pełny pulpit „Homelab – pełny” (id 4 na serwerze) go wykorzystuje.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture

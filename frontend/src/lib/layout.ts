@@ -163,7 +163,7 @@ export type WanChartWidgetModel = WidgetBase & {
 export type WanSlaWidgetModel = WidgetBase & { type: "wan_sla"; config: { device_id?: number | null; days: 1 | 7 | 30 } };
 
 // --- panele od 0.27.0 (schemat: backend/netpulse/api/layout_schemas.py) ---------------------
-export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "clients";
+export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "services" | "clients";
 /** Zestaw obiektów z bieżącymi wartościami (GET /api/collections/{kind}); porty, dyski i kontenery – jednego urządzenia. */
 export interface Collection {
   kind: CollectionKind;

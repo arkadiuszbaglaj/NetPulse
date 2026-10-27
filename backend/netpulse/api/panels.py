@@ -1,6 +1,6 @@
 """Dane dla paneli pulpitu (od 0.27.0): kolekcje bieżących wartości (paski, tabela) i stany w czasie (oś stanów).
 
-- `GET /api/collections/{kind}`: wiersz na obiekt (urządzenie, port, dysk, sieć WiFi, kontener, klient) z bieżącymi
+- `GET /api/collections/{kind}`: wiersz na obiekt (urządzenie, port, dysk, sieć WiFi, kontener, usługa systemd, klient) z bieżącymi
   wartościami. Bez adresów, MAC-ów i sekretów – te same dane może dostać pulpit publiczny.
 - `GET /api/states`: odcinki „działa / nie działa / brak danych” dla urządzeń (`reachable`) i portów (`oper_up`)."""
 
@@ -32,7 +32,7 @@ from .servers import device_server
 
 router = APIRouter(prefix="/api", tags=["panele"], dependencies=[Depends(require_user)])
 
-CollectionKind = Literal["devices", "ports", "disks", "wifi", "containers", "clients"]
+CollectionKind = Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients"]
 MAX_ROWS = 200
 MAX_STATE_ITEMS = 20
 CURRENT = timedelta(minutes=5)
@@ -166,6 +166,26 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                     },
                 )
                 for w in networks
+            ]
+        elif kind == "services":
+            if not mods.get("agents", True):
+                raise HTTPException(404, "Moduł agentów jest wyłączony")
+            device = await _device(session, device_id)
+            agent = await session.scalar(select(Agent).where(Agent.device_id == device.id))
+            items = (((agent.inventory or {}).get("services") or {}).get("items") or []) if agent else []
+            rows = [
+                Row(
+                    key=s["name"],
+                    label=s["name"].removesuffix(".service"),
+                    device_id=device.id,
+                    values={
+                        # aktywna (także jednorazowa „exited”) / z błędem, brak usługi albo zatrzymana / w trakcie zmiany
+                        "up": 1.0 if s.get("active") == "active" else 0.0 if s.get("active") in ("failed", "missing", "inactive") else None,
+                        "mem_bytes": _num(s.get("mem_bytes")),
+                        "uptime_s": _num(s.get("uptime_s")),
+                    },
+                )
+                for s in sorted(items, key=lambda s: s.get("name", ""))
             ]
         elif kind == "containers":
             if not mods.get("agents", True):

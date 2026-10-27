@@ -41,7 +41,10 @@ REPORT = {
     "disks": [{"mount": "/", "fs": "ext4", "total_bytes": 100 * 1024**3, "used_bytes": 30 * 1024**3}],
     "net": [{"iface": "eth0", "rx_bps": 1000.0, "tx_bps": 2000.0}],
     "temps": [{"sensor": "coretemp/Package id 0", "celsius": 48.0}],
-    "services": {"running": 30, "failed": 1, "items": [{"name": "backup.service", "active": "failed", "sub": "failed"}]},
+    "services": {"running": 30, "failed": 1, "items": [
+        {"name": "backup.service", "active": "failed", "sub": "failed"},
+        {"name": "ssh.service", "active": "active", "sub": "running", "watched": False, "mem_bytes": 4194304, "uptime_s": 60},
+    ]},
     "containers": [{"name": "nextcloud", "image": "nextcloud:29", "state": "running", "cpu_percent": 2.0, "mem_bytes": 500_000_000}],
     "smart": [{"device": "sda", "model": "WDC", "passed": True, "temp_c": 35}],
 }
@@ -140,6 +143,12 @@ def test_agent_report_flow(client):
     dm, disks, names = run(counts)
     assert dm == 1 and disks == 1
     assert {"cpu_core_percent", "load15", "net_rx_bps", "temp_c", "service_up", "container_up", "smart_ok"} <= names
+
+    async def service_keys():
+        async with Session() as s:
+            return set((await s.scalars(select(Metric.key).where(Metric.device_id == agent["device_id"], Metric.name == "service_up"))).all())
+
+    assert run(service_keys) == {"backup.service"}  # działająca, nieobserwowana usługa – tylko w tabeli, bez historii
 
     # Wykresy z danych agenta (tabela metrics)
     dev = agent["device_id"]

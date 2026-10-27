@@ -220,7 +220,13 @@ function ServicesCard({ services }: { services: NonNullable<AgentInfo["services"
       title={t("srv.services.title")}
       note={`${t("srv.services.summary", { running: services.running, failed: services.failed })} ${t("srv.services.note")}`}
       minWidth="min-w-[28rem]"
-      columns={[{ label: t("srv.services.name") }, { label: t("srv.state") }, { label: t("srv.services.sub") }]}
+      columns={[
+        { label: t("srv.services.name") },
+        { label: t("srv.state") },
+        { label: t("srv.services.sub") },
+        { label: t("srv.services.mem"), right: true },
+        { label: t("srv.services.uptime"), right: true },
+      ]}
     >
       {items.map((s) => (
         <tr key={s.name} className="border-t border-border">
@@ -229,6 +235,8 @@ function ServicesCard({ services }: { services: NonNullable<AgentInfo["services"
             <StateBadge ok={s.active === "active"}>{s.active}</StateBadge>
           </td>
           <td className={`${cell} text-text-2`}>{s.sub ?? "–"}</td>
+          <td className={num}>{s.mem_bytes != null ? formatBytes(s.mem_bytes) : "–"}</td>
+          <td className={num}>{s.uptime_s != null ? formatUptime(s.uptime_s) : "–"}</td>
         </tr>
       ))}
     </TableCard>

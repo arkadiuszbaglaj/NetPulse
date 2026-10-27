@@ -42,7 +42,11 @@ export interface AgentInfo {
   disk_io?: { device: string; read_bps: number | null; write_bps: number | null }[];
   net?: { iface: string; rx_bps: number | null; tx_bps: number | null }[];
   temps: { sensor: string; celsius: number }[];
-  services: { running: number; failed: number; items: { name: string; active: string; sub: string | null }[] } | null;
+  services: {
+    running: number;
+    failed: number;
+    items: { name: string; active: string; sub: string | null; watched?: boolean | null; mem_bytes?: number | null; uptime_s?: number | null }[];
+  } | null;
   containers: AgentContainer[] | null;
   smart: AgentSmart[] | null;
   /** Agent starszy niż NetPulse (server_version) – do zaktualizowania na serwerze. */

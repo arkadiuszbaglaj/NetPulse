@@ -91,13 +91,20 @@ więc karta serwera, wykresy i alerty działają jak dla SNMP. Reszta idzie do o
 | `net_rx_bps`, `net_tx_bps` | interfejs | b/s |
 | `temp_c` | czujnik (`coretemp/Core 0`) | °C |
 | `services_failed` | – | liczba usług w stanie failed |
-| `service_up` | usługa (`nginx.service`) | 1 działa, 0 nie |
+| `service_up` | usługa (`nginx.service`) | 1 działa, 0 nie – tylko usługi z błędem i obserwowane (`SERVICES`) |
 | `container_up` | kontener | 1 działa, 0 zatrzymany |
 | `container_cpu_percent`, `container_mem_bytes` | kontener | % jednego rdzenia, bajty |
 | `smart_ok`, `smart_temp_c`, `smart_reallocated` | dysk | 1/0, °C, liczba |
 
 Zdjęcie bieżącego stanu (lista kontenerów, usług, czujników, SMART) jest w `agents.inventory` i trafia do panelu
 przez `GET /api/devices/{id}/server` (pole `agent`).
+
+**Usługi systemd (od 0.29.0).** Agent wysyła wszystkie załadowane usługi poza nieaktywnymi (jednorazowe, np.
+`apt-daily`, są nieaktywne i to normalne) oraz – jak wcześniej – z błędem i obserwowane, do 300 (najpierw z błędem
+i obserwowane). Dla działających dokłada pamięć (`MemoryCurrent`) i czas działania (`ActiveEnterTimestampMonotonic`)
+z jednego wywołania `systemctl show`. Pełna lista jest tylko w zdjęciu stanu: strona serwera i kolekcja `services`
+w tabeli i paskach pulpitu. Historia `service_up` (i alerty) dalej dotyczy tylko usług z błędem i obserwowanych,
+żeby baza nie rosła o sto wierszy co 30 s. Agent starszy niż 0.29.0 wysyła tylko te dwie grupy.
 
 ## Alerty (od 0.12.0)
 
@@ -137,7 +144,7 @@ Lista interfejsów, dysków, czujników i kontenerów pochodzi z raportów agent
 Strona urządzenia → **Wszystkie szczegóły serwera** (`/devices/<id>/server`) pokazuje wszystko z ostatniego raportu
 w jednym widoku: system (OS, jądro, rdzenie, RAM, obciążenie 1/5/15 min, procesy, wersja agenta), wszystkie systemy
 plików, dyski fizyczne (SMART, temperatura, godziny pracy, realokowane sektory, bieżący odczyt i zapis), wszystkie
-kontenery Docker (zatrzymane na górze), usługi systemd (z błędem i obserwowane z `SERVICES`), ruch interfejsów
+kontenery Docker (zatrzymane na górze), usługi systemd (działające z pamięcią i czasem działania, z błędem i obserwowane z `SERVICES`), ruch interfejsów
 i temperatury czujników. Serwer przez SNMP pokazuje tu system i systemy plików.
 
 Bieżący ruch dysków i interfejsów (`disk_io`, `net` w `agents.inventory`) przysyła każdy agent od 0.13.0; panel

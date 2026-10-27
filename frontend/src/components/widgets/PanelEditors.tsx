@@ -205,7 +205,7 @@ function ThresholdList({
 
 /** Urządzenia, które mają daną kolekcję: dyski – serwery, kontenery – serwery z agentem, WiFi – access pointy. */
 const fitsCollection = (kind: CollectionKind, d: Device) =>
-  kind === "disks" ? d.kind === "server" : kind === "containers" ? d.driver === "agent" : kind === "wifi" ? d.kind === "ap" : true;
+  kind === "disks" ? d.kind === "server" : kind === "containers" || kind === "services" ? d.driver === "agent" : kind === "wifi" ? d.kind === "ap" : true;
 
 function CollectionPicker({ value, error, onChange }: { value: Collection; error?: string; onChange: (c: Collection) => void }) {
   const devices = useDevices();
