@@ -22,6 +22,8 @@ class Settings:
     branch: str = ""  # puste = bieżąca gałąź instalacji
     min_free_mb: int = 2000
     keep_cache_hours: int = 72
+    # Górny limit cache budowania (format Dockera, np. 2gb): wiele aktualizacji w krótkim czasie nie zapcha dysku
+    build_cache_max: str = "2gb"
     backups_keep: int = 3
     health_timeout_s: int = 150
     job_name: str = "netpulse-update-job"
@@ -48,4 +50,5 @@ class Settings:
             branch=env.get("NETPULSE_UPDATE_BRANCH", ""),
             min_free_mb=int(env.get("NETPULSE_MIN_FREE_MB", "2000")),
             keep_cache_hours=int(env.get("NETPULSE_KEEP_BUILD_CACHE_HOURS", "72")),
+            build_cache_max=env.get("NETPULSE_BUILD_CACHE_MAX", "2gb").strip() or "2gb",
         )

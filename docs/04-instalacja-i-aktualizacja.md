@@ -113,6 +113,11 @@ Progi kontroli miejsca (zmienne środowiskowe polecenia, nie `.env`): `NETPULSE_
 2000), `NETPULSE_WARN_FREE_MB` (4000), `NETPULSE_KEEP_BUILD_CACHE_HOURS` (72), np.
 `sudo NETPULSE_MIN_FREE_MB=1000 netpulse update`.
 
+Cache budowania obrazów (od 0.28.1): po każdej aktualizacji zostaje cache z ostatnich 72 godzin, ale razem nie
+więcej niż `NETPULSE_BUILD_CACHE_MAX` (domyślnie `2gb`; dla aktualizacji z panelu – w `.env`). Wcześniej przy wielu
+aktualizacjach w krótkim czasie cache potrafił urosnąć do kilku GB. Ręczne sprzątanie: `sudo docker builder prune -af`
+(baza i dane zostają, następna aktualizacja zbuduje się raz dłużej).
+
 Po zmianie: `netpulse restart`.
 
 Czasy w `netpulse device list` są pokazywane w strefie ze zmiennej `TZ` (domyślnie `Europe/Warsaw`).

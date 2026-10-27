@@ -64,6 +64,7 @@ wait_healthy() {
 MIN_FREE_MB="${NETPULSE_MIN_FREE_MB:-2000}"   # poniżej tego aktualizacja się zatrzymuje
 WARN_FREE_MB="${NETPULSE_WARN_FREE_MB:-4000}" # poniżej tego czyścimy i ostrzegamy
 KEEP_CACHE_HOURS="${NETPULSE_KEEP_BUILD_CACHE_HOURS:-72}"
+BUILD_CACHE_MAX="${NETPULSE_BUILD_CACHE_MAX:-2gb}"     # górny limit cache budowania
 
 # Wolne miejsce (MB) tam, gdzie Docker trzyma dane
 docker_free_mb() {
@@ -80,9 +81,11 @@ clean_docker() {
   docker image prune -f >/dev/null 2>&1 || true
 }
 
-# Po aktualizacji: zostaw świeży cache (kolejna aktualizacja będzie szybka), usuń stary
+# Po aktualizacji: zostaw świeży cache (kolejna aktualizacja będzie szybka), usuń stary i przytnij całość
+# do BUILD_CACHE_MAX (--max-used-space ma Docker 28+, starszy zna to samo jako --keep-storage)
 prune_build_cache() {
   docker builder prune -f --filter "until=${KEEP_CACHE_HOURS}h" >/dev/null 2>&1 || true
+  docker builder prune -f --max-used-space "$BUILD_CACHE_MAX" >/dev/null 2>&1     || docker builder prune -f --keep-storage "$BUILD_CACHE_MAX" >/dev/null 2>&1 || true
   docker image prune -f >/dev/null 2>&1 || true
 }
 

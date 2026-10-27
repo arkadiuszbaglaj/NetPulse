@@ -79,6 +79,7 @@ services:
       NETPULSE_MIN_FREE_MB: ${NETPULSE_MIN_FREE_MB:-2000}
       NETPULSE_MAX_UPLOAD_MB: ${NETPULSE_MAX_UPLOAD_MB:-4096}
       NETPULSE_KEEP_BUILD_CACHE_HOURS: ${NETPULSE_KEEP_BUILD_CACHE_HOURS:-72}
+      NETPULSE_BUILD_CACHE_MAX: ${NETPULSE_BUILD_CACHE_MAX:-2gb}
       TZ: ${TZ:-Europe/Warsaw}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

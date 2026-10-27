@@ -412,6 +412,7 @@ def test_job_success(repo):
     ]
     assert order == sorted(order)
     assert docker.has("builder prune -f --filter until=72h")  # sprzątanie po aktualizacji
+    assert docker.has("builder prune -f --max-used-space 2gb") and not docker.has("--keep-storage")  # limit cache
     assert len(list((repo.install / "backups").glob("netpulse-*.sql.gz"))) == 1
     assert "NETPULSE_NOWA_FUNKCJA=on" in (repo.install / "deploy" / ".env").read_text()  # nowe zmienne w .env
     assert any("Kopia bazy" in line for line in state.log_tail(s))
@@ -542,3 +543,11 @@ def test_status_file_is_written_atomically(repo):
         assert state.read_status(s)["from_version"] == f"0.{n}.0"
     assert not list(s.state_dir.glob("*.tmp"))
     time.sleep(0)  # (brak resztek plików tymczasowych)
+
+
+def test_cache_cap_falls_back_to_keep_storage_on_older_docker(repo):
+    """Docker 27 (obraz updatera) nie zna --max-used-space – wtedy ten sam limit przez --keep-storage."""
+    repo.commit("0.2.0", "Etap A")
+    result, docker, _ = run_job(repo, docker=FakeDocker(fail=("--max-used-space",)), build_cache_max="3gb")
+    assert result == "ok"
+    assert docker.has("builder prune -f --max-used-space 3gb") and docker.has("builder prune -f --keep-storage 3gb")

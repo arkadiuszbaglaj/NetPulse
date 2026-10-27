@@ -205,10 +205,17 @@ class Job:
             self.log(f"Nieoczekiwany błąd: {type(exc).__name__}: {exc}")
             return self._fail(f"Nieoczekiwany błąd: {exc}", old["commit"])
 
-        # Cache budowania: świeży zostaje (następna aktualizacja będzie szybka), stary znika
-        self.sh(["docker", "builder", "prune", "-f", "--filter", f"until={self.s.keep_cache_hours}h"])
-        self.sh(["docker", "image", "prune", "-f"])
+        self.prune_build_cache()
         return self._finish("ok")
+
+    def prune_build_cache(self) -> None:
+        """Cache budowania: świeży zostaje (następna aktualizacja będzie szybka), stary znika, a całość
+        nie przekracza limitu. `--max-used-space` ma Docker 28+, starszy zna to samo jako `--keep-storage`."""
+        self.sh(["docker", "builder", "prune", "-f", "--filter", f"until={self.s.keep_cache_hours}h"])
+        cap = self.s.build_cache_max
+        if self.sh(["docker", "builder", "prune", "-f", "--max-used-space", cap]) != 0:
+            self.sh(["docker", "builder", "prune", "-f", "--keep-storage", cap])
+        self.sh(["docker", "image", "prune", "-f"])
 
     def _fail(self, message: str, old_commit: str | None) -> str:
         phase = self.status.get("phase")
