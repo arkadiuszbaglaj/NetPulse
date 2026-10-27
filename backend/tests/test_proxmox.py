@@ -124,3 +124,15 @@ def test_parsers_real_pve91_running_vm():
     g = guests[0]
     assert (g.status, g.cpus, g.mem_used, g.uptime_s, g.netin, g.netout) == ("running", 4, 1709981696, 53, 5376237, 200262)
     assert g.cpu_percent == pytest.approx(16.6, abs=0.1) and g.diskread == 964870754 and g.disk_used is None
+
+
+def test_parsers_real_pve92_lxc():
+    """Kontener LXC z prawdziwego Proxmox VE 9.2.24 – w przeciwieństwie do VM podaje zajętość dysku."""
+    ct = {"type": "lxc", "id": "lxc/101", "vmid": 101, "name": "CT101", "node": "pve", "status": "running", "template": 0, "cpu": 0.00237540955359101,
+          "maxcpu": 1, "mem": 15765504, "memhost": 0, "maxmem": 536870912, "disk": 357367808, "maxdisk": 8350298112, "uptime": 86,
+          "netin": 28725, "netout": 796, "diskread": 251265024, "diskwrite": 4276224}  # fmt: skip
+    _, guests, _ = parse_resources([ct])
+    g = guests[0]
+    assert (g.vmid, g.type, g.name, g.status, g.cpus, g.mem_used, g.mem_total) == (101, "lxc", "CT101", "running", 1, 15765504, 536870912)
+    assert (g.disk_used, g.disk_total, g.uptime_s, g.netin) == (357367808, 8350298112, 86, 28725)
+    assert g.cpu_percent == pytest.approx(0.2, abs=0.05)
