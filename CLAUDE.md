@@ -171,6 +171,10 @@ pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrap
 
 ## Do sprawdzenia później
 
+- **Wykrywanie urządzeń i zgłaszanie specyfikacji** – propozycja w `docs/24-wykrywanie-propozycja.md` (tylko
+  dokument). A: skan podsieci z wyborem, co dodać; B: zanonimizowany raport urządzenia na driverze ogólnym
+  (pobranie albo zgłoszenie na GitHubie, bez automatycznej wysyłki do czasu chmury i decyzji o licencji).
+  Użytkownik odłożył to 28.10.2026 – nie wdrażać bez jego decyzji.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
