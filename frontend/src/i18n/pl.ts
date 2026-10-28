@@ -362,6 +362,8 @@ export const pl = {
   "widget.edit": "Edytuj: {name}",
   "widget.remove": "Usuń: {name}",
   "widget.drag": "Przenieś: {name}",
+  "widget.moveUp": "Przesuń wyżej: {name}",
+  "widget.moveDown": "Przesuń niżej: {name}",
   "widget.drag.hint": "Przeciągnij myszką albo użyj strzałek; Shift + strzałki zmienia rozmiar",
   "widget.type.section": "Sekcja",
   "widget.type.section.desc": "Nagłówek, który grupuje widgety pod sobą – na pulpicie można ją zwinąć.",
@@ -391,7 +393,7 @@ export const pl = {
   "chart.sourceGone": "Źródło wykresu jest niedostępne (usunięto urządzenie, port albo sieć WiFi).",
 
   "dash.edit": "Edytuj pulpit",
-  "dash.edit.banner": "Tryb edycji: przeciągaj widgety za uchwyt, rozciągaj je za prawy dolny róg (z klawiatury: strzałki na uchwycie, Shift + strzałki – rozmiar), edytuj albo usuwaj. Zmiany zapiszą się dopiero po kliknięciu „Zapisz”.",
+  "dash.edit.banner": "Tryb edycji: przeciągaj widgety za uchwyt, rozciągaj je za prawy dolny róg (z klawiatury: strzałki na uchwycie, Shift + strzałki – rozmiar), edytuj albo usuwaj. Na telefonie i tablecie kolejność zmieniają przyciski ze strzałkami. Zmiany zapiszą się dopiero po kliknięciu „Zapisz”.",
   "dash.edit.add": "Dodaj widget",
   "dash.edit.save": "Zapisz",
   "dash.edit.saving": "Zapisywanie…",

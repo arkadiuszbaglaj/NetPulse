@@ -9,7 +9,7 @@ import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 import type { ChartKind, Threshold, ThresholdStyle } from "../../lib/layout";
 import { useTheme } from "../../lib/theme";
-import { thresholdBands, type PanelLine } from "./panelData";
+import { leftTop, thresholdBands, type PanelLine } from "./panelData";
 
 echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, CanvasRenderer]);
 
@@ -66,8 +66,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
     const showArea = thresholdStyle === "area" || thresholdStyle === "line_area";
     const activeThresholds = thresholdStyle === "off" ? [] : thresholds;
     const topThreshold = activeThresholds.length ? Math.max(...activeThresholds.map((th) => th.value)) : null;
-    const leftData = lines.filter((l) => l.axis === "left").flatMap((l) => l.rows.map((r) => r[1] ?? 0));
-    const dataTop = leftData.length ? Math.max(...leftData) : 0;
+    const dataTop = leftTop(lines, stack);
     const bandTop = Math.max(left.max ?? 0, dataTop, topThreshold ?? 0) * 1.1 || 1;
     const firstLeft = lines.findIndex((l) => l.axis === "left");
 

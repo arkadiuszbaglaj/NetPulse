@@ -86,13 +86,19 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
 - **Edycja** (od 1024 px): `react-grid-layout` 2.3 – przeciąganie za uchwyt (`.np-drag`), rozciąganie za prawy dolny
   róg, prawą i dolną krawędź; reszta widgetów rozsuwa się i dosuwa do góry. Z klawiatury: strzałki na uchwycie
   przesuwają o jedną kratkę, Shift + strzałki zmieniają rozmiar (`nudgeWidget`).
-- **Wykres i liczba wypełniają komórkę** (kontekst `GridCellContext`); poza pulpitem (strony szczegółów) wykres ma
-  dalej wysokość z konfiguracji. Pole „Wysokość” zniknęło z edytora wykresu.
+- **Wykres, liczba i „Aktywne łącze WAN” wypełniają komórkę** (kontekst `GridCellContext`, od 0.31.3 też `ChartCard`
+  z `fill`); poza pulpitem (strony szczegółów) wykres ma dalej wysokość z konfiguracji. Pole „Wysokość” zniknęło z edytora wykresu.
 - **Sekcje** (`type: "section"`, `config.title`, `config.collapsed`): nagłówek na całą szerokość; zwinięcie ukrywa
   widgety pod nim do następnej sekcji, a widgety niżej dosuwają się do góry. „Zwinięta przy otwarciu” to ustawienie
   sekcji; kliknięcia oglądającego pamięta przeglądarka (`localStorage`, osobno dla każdego pulpitu). W trybie edycji
   wszystkie sekcje są rozwinięte.
-- **Telefon** (< 1024 px): widgety jeden pod drugim w kolejności czytania (z góry na dół, w wierszu od lewej);
-  wykres i liczba mają wysokość z siatki, reszta – swoją.
+- **Telefon i tablet** (< 1024 px): widgety w kolejności czytania (z góry na dół, w wierszu od lewej); wykres,
+  liczba i wykres łącza WAN mają wysokość z siatki, reszta – swoją. Od 0.31.3 przy szerokości od 640 px w dwóch
+  kolumnach: widget o szerokości 8+ (z 12), sekcja i wąski widget bez pary zajmują obie (`fullWidthInColumns`).
+  W trybie edycji zamiast uchwytu są przyciski w górę i w dół (`swapInReadingOrder` – zamiana miejscami z sąsiadem;
+  na komputerze nakładające się widgety rozsuwa siatka).
+- **Pasy stanów** (oś stanów, pasy łączy WAN – `components/charts/StateBar.tsx`): szczegóły odcinka po najechaniu,
+  a po kliknięciu albo dotknięciu – pod pasem (na telefonie nie ma podpowiedzi `title`).
+- **Progi przy stosie**: pasy progów sięgają szczytu stosu (suma serii, `leftTop`), nie najwyższej pojedynczej serii.
 - **Podgląd bez serwera**: `npm --prefix frontend run mock` (atrapa API z pulpitem, kolekcjami i stanami) +
   `npm --prefix frontend run dev`; konfiguracja w `.claude/launch.json`.

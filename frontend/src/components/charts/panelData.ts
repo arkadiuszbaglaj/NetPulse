@@ -68,6 +68,21 @@ export function lineStats(rows: ChartRow[]): LineStats {
   };
 }
 
+/** Najwyższa wartość na lewej osi; przy stosie – najwyższa suma serii w jednej chwili (szczyt stosu). */
+export function leftTop(lines: PanelLine[], stack: boolean): number {
+  const sums = new Map<number, number>();
+  let top = 0;
+  for (const line of lines) {
+    if (line.axis !== "left") continue;
+    for (const [time, value] of line.rows) {
+      const v = (stack ? (sums.get(time) ?? 0) : 0) + (value ?? 0);
+      if (stack) sums.set(time, v);
+      top = Math.max(top, v);
+    }
+  }
+  return top;
+}
+
 /** Pasy tła od każdego progu do następnego (ostatni do `top`), w kolorze progu. */
 export function thresholdBands(thresholds: Threshold[], top: number): { from: number; to: number; color: ColorIndex }[] {
   const sorted = [...thresholds].sort((a, b) => a.value - b.value);

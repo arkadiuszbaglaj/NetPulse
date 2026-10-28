@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useContext, useMemo } from "react";
 import { t } from "../../i18n";
 import { formatBps } from "../../lib/format";
 import { autoColor, type ChartHeight, type WanMetric } from "../../lib/layout";
 import { useRefresh, type RangeMinutes } from "../../lib/refresh";
 import { forDevice, useWanHistory, type WanLink, type WanSegment, type WanSwitch } from "../../lib/wan";
 import { ChartCard } from "../charts/ChartCard";
+import { StateBar } from "../charts/StateBar";
+import { GridCellContext } from "../DashboardGrid";
 import type { ChartSeries } from "../charts/TimeSeriesChart";
 import { WAN_STATE_LABEL } from "./WanStatusWidget";
 
@@ -17,24 +19,22 @@ function StateBand({ link, segments, from, to }: { link: WanLink; segments: WanS
   const span = Math.max(1, to - from);
   const pct = (iso: string) => Math.min(100, Math.max(0, ((new Date(iso).getTime() - from) / span) * 100));
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <div className="flex items-start gap-2 text-xs">
       <span className="w-24 shrink-0 truncate text-text-2">{link.name}</span>
-      <div role="list" aria-label={t("wan.band", { name: link.name })} className="relative h-3 flex-1 overflow-hidden rounded bg-surface-2">
-        {segments.map((s) => {
+      <StateBar
+        label={t("wan.band", { name: link.name })}
+        className="mt-0.5 h-3"
+        segments={segments.map((s) => {
           const left = pct(s.start);
-          const label = `${t(WAN_STATE_LABEL[s.state])}: ${timeFmt.format(new Date(s.start))} – ${timeFmt.format(new Date(s.end))}`;
-          return (
-            <span
-              key={`${s.start}-${s.state}`}
-              role="listitem"
-              aria-label={label}
-              title={label}
-              className={`absolute inset-y-0 ${BAND[s.state]}`}
-              style={{ left: `${left}%`, width: `${Math.max(0.3, pct(s.end) - left)}%` }}
-            />
-          );
+          return {
+            key: `${s.start}-${s.state}`,
+            left,
+            width: Math.max(0.3, pct(s.end) - left),
+            label: `${t(WAN_STATE_LABEL[s.state])}: ${timeFmt.format(new Date(s.start))} – ${timeFmt.format(new Date(s.end))}`,
+            className: BAND[s.state],
+          };
         })}
-      </div>
+      />
     </div>
   );
 }
@@ -58,6 +58,8 @@ export function WanChartWidget({
   height: ChartHeight;
 }) {
   const global = useRefresh();
+  // W komórce siatki pulpitu wykres wypełnia jej wysokość, jak widget „wykres”
+  const fill = useContext(GridCellContext);
   const minutes = rangeMin ?? global.rangeMinutes;
   const { data, isLoading, isError } = useWanHistory(minutes);
   const links = useMemo(() => forDevice(data?.links ?? [], deviceId), [data, deviceId]);
@@ -91,10 +93,11 @@ export function WanChartWidget({
       rangeMinutes={minutes}
       kind="line"
       height={HEIGHT[height]}
+      fill={fill}
       errorText={t("wan.error")}
     >
       {data && (
-        <div className="mb-2 flex flex-col gap-1.5">
+        <div className="mb-2 flex shrink-0 flex-col gap-1.5">
           {links.map((l) => (
             <StateBand key={l.id} link={l} segments={data.segments.filter((s) => s.link_id === l.id)} from={from} to={to} />
           ))}

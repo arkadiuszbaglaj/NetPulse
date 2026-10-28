@@ -120,6 +120,9 @@ describe("panele na pulpicie", () => {
     const items = within(band).getAllByRole("listitem");
     expect(items.map((i) => i.getAttribute("aria-label")?.split(":")[0])).toEqual(["działa", "nie działa"]);
     expect(items[1]).toHaveStyle({ left: "50%" });
+    // Na telefonie nie ma podpowiedzi – szczegóły odcinka po dotknięciu, pod pasem
+    await userEvent.setup().click(within(items[1]).getByRole("button"));
+    expect(screen.getByText(items[1].getAttribute("aria-label")!)).toBeInTheDocument();
   });
 });
 

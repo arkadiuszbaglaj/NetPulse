@@ -9,8 +9,11 @@ import {
   removeWidget,
   resizeWidget,
   shiftWidget,
+  swapInReadingOrder,
   toggleMetric,
   newChartConfig,
+  placeWidgets,
+  readingOrder,
   valueFromRaw,
   valueToRaw,
 } from "../lib/layout";
@@ -20,6 +23,19 @@ import { renderApp } from "../test/renderApp";
 const ids = (l: typeof DEFAULT_LAYOUT) => l.widgets.map((w) => w.id);
 
 describe("operacje na układzie pulpitu", () => {
+  it("przestawia widgety w kolejności czytania (telefon i tablet)", () => {
+    const order = (l: typeof DEFAULT_LAYOUT) => readingOrder(placeWidgets(l.widgets)).map((w) => w.id);
+    // W tym samym wierszu widgety zamieniają się kolumnami i nie wychodzą poza siatkę
+    const sameRow = swapInReadingOrder(DEFAULT_LAYOUT, "ruch-wan", 1);
+    expect(order(sameRow)).toEqual(["podsumowanie", "klienci-wifi", "ruch-wan", "urzadzenia"]);
+    expect(sameRow.widgets.every((w) => (w.x ?? 0) + w.w <= 12)).toBe(true);
+    expect(order(swapInReadingOrder(DEFAULT_LAYOUT, "urzadzenia", -1))).toEqual(["podsumowanie", "ruch-wan", "urzadzenia", "klienci-wifi"]);
+    expect(order(swapInReadingOrder(DEFAULT_LAYOUT, "ruch-wan", -1))).toEqual(["ruch-wan", "podsumowanie", "klienci-wifi", "urzadzenia"]);
+    // Pierwszy w górę i ostatni w dół – bez zmian
+    expect(swapInReadingOrder(DEFAULT_LAYOUT, "podsumowanie", -1)).toBe(DEFAULT_LAYOUT);
+    expect(swapInReadingOrder(DEFAULT_LAYOUT, "urzadzenia", 1)).toBe(DEFAULT_LAYOUT);
+  });
+
   it("przesuwa widget i nie mutuje wejścia", () => {
     const moved = shiftWidget(DEFAULT_LAYOUT, "podsumowanie", 1);
     expect(ids(moved)).toEqual(["ruch-wan", "podsumowanie", "klienci-wifi", "urzadzenia"]);

@@ -9,6 +9,7 @@ import { METRICS, unitClassOf, type BarGaugeConfig, type StatConfig, type StateT
 import { COLLECTION_LABEL, reduceValues, thresholdColor, useCollection, useStates, type CollectionRow, type StateSegment } from "../../lib/panels";
 import { useRefresh } from "../../lib/refresh";
 import { seriesName } from "../charts/panelData";
+import { StateBar } from "../charts/StateBar";
 import { Card } from "../ui";
 import { defaultTitle, fetchSeries } from "./chartSource";
 
@@ -284,26 +285,24 @@ export function StateTimelineWidget({ config }: { config: StateTimelineConfig })
       ) : (
         <div className="flex flex-col gap-1.5">
           {data.items.map((item) => (
-            <div key={`${item.kind}${item.id}`} className="flex items-center gap-3 text-xs">
+            <div key={`${item.kind}${item.id}`} className="flex items-start gap-3 text-xs">
               <span className="w-32 shrink-0 truncate text-text-2" title={item.label}>
                 {item.label}
               </span>
-              <div role="list" aria-label={t("panel.state.band", { name: item.label })} className="relative h-4 flex-1 overflow-hidden rounded bg-surface-2">
-                {item.segments.map((s) => {
+              <StateBar
+                label={t("panel.state.band", { name: item.label })}
+                className="h-4"
+                segments={item.segments.map((s) => {
                   const left = pct(s.start);
-                  const label = `${t(STATE_LABEL[s.state])}: ${timeFmt.format(new Date(s.start))} – ${timeFmt.format(new Date(s.end))}`;
-                  return (
-                    <span
-                      key={`${s.start}-${s.state}`}
-                      role="listitem"
-                      aria-label={label}
-                      title={label}
-                      className={`absolute inset-y-0 ${BAND[s.state]}`}
-                      style={{ left: `${left}%`, width: `${Math.max(0.3, pct(s.end) - left)}%` }}
-                    />
-                  );
+                  return {
+                    key: `${s.start}-${s.state}`,
+                    left,
+                    width: Math.max(0.3, pct(s.end) - left),
+                    label: `${t(STATE_LABEL[s.state])}: ${timeFmt.format(new Date(s.start))} – ${timeFmt.format(new Date(s.end))}`,
+                    className: BAND[s.state],
+                  };
                 })}
-              </div>
+              />
             </div>
           ))}
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2 pl-35 text-xs text-text-2">

@@ -1,6 +1,7 @@
 /**
  * Swobodna siatka pulpitu (od 0.28.0): 12 kolumn, wiersz 30 px. Od 1024 px – react-grid-layout z przeciąganiem
- * i rozciąganiem w trybie edycji; węziej widgety jeden pod drugim w kolejności czytania. Sekcje zwijają widgety
+ * i rozciąganiem w trybie edycji; węziej widgety w kolejności czytania: od 640 px w dwóch kolumnach (szerokie na
+ * całą), na telefonie jeden pod drugim. Tam w trybie edycji przestawia się je przyciskami w górę i w dół. Sekcje zwijają widgety
  * pod sobą (stan zwinięcia pamięta przeglądarka, osobno dla każdego pulpitu).
  */
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
@@ -15,8 +16,31 @@ import { GRID_COLS, GRID_MARGIN, MAX_HEIGHT, ROW_HEIGHT, hiddenBySections, place
 export const GridCellContext = createContext(false);
 
 const DESKTOP = 1024;
+const TABLET = 640;
 /** Na telefonie te widgety mają wysokość z siatki (wykres potrzebuje wysokości), reszta – swoją. */
-const FIXED_ON_MOBILE = new Set<Widget["type"]>(["chart", "stat"]);
+const FIXED_ON_MOBILE = new Set<Widget["type"]>(["chart", "stat", "wan_chart"]);
+/** W dwóch kolumnach widget od tej szerokości (z 12) zajmuje całą szerokość. */
+const WIDE = 8;
+
+/** Widgety na całą szerokość w dwóch kolumnach: szerokie, sekcje i wąskie bez pary (bez pustej połowy obok). */
+export function fullWidthInColumns(ordered: Widget[]): Set<string> {
+  const wide = (w: Widget | undefined) => !w || w.type === "section" || w.w >= WIDE;
+  const full = new Set<string>();
+  let paired = false;
+  ordered.forEach((w, i) => {
+    if (paired) paired = false;
+    else if (wide(w) || wide(ordered[i + 1])) full.add(w.id);
+    else paired = true;
+  });
+  return full;
+}
+
+/** Gdzie jest widget w trybie edycji: w siatce (przeciąganie) albo w kolejności czytania (przyciski w górę i w dół). */
+export interface EditPlace {
+  stacked: boolean;
+  first: boolean;
+  last: boolean;
+}
 
 function storageKey(scope: string) {
   return `netpulse.sections.${scope}`;
@@ -60,7 +84,7 @@ export interface DashboardGridProps {
   onPositions?: (items: { i: string; x: number; y: number; w: number; h: number }[]) => void;
   renderWidget: (w: Widget) => ReactNode;
   /** Pasek narzędzi widgetu w trybie edycji (z uchwytem `.np-drag`) */
-  renderEditBar?: (w: Widget) => ReactNode;
+  renderEditBar?: (w: Widget, place: EditPlace) => ReactNode;
 }
 
 export function DashboardGrid({ widgets, scope, edit = false, onPositions, renderWidget, renderEditBar }: DashboardGridProps) {
@@ -86,19 +110,26 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       return next;
     });
 
+  const desktop = width >= DESKTOP;
+  const ordered = desktop ? visible : readingOrder(visible);
+  const placeOf = (w: Widget): EditPlace => {
+    const i = ordered.indexOf(w);
+    return { stacked: !desktop, first: i === 0, last: i === ordered.length - 1 };
+  };
+
   const cell = (w: Widget) => {
     if (w.type === "section") {
       const count = edit ? 0 : hiddenBySections(all, new Set([w.id])).size;
       return (
         <div className="flex h-full flex-col">
-          {edit && renderEditBar?.(w)}
+          {edit && renderEditBar?.(w, placeOf(w))}
           <SectionHeader title={w.config.title} collapsed={!edit && collapsed.has(w.id)} onToggle={edit ? undefined : () => toggle(w.id)} hiddenCount={count} />
         </div>
       );
     }
     return (
       <div className="flex h-full min-h-0 flex-col">
-        {edit && renderEditBar?.(w)}
+        {edit && renderEditBar?.(w, placeOf(w))}
         <div className="flex min-h-0 flex-1 flex-col overflow-auto *:flex-1">
           <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
         </div>
@@ -106,7 +137,8 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
     );
   };
 
-  const desktop = width >= DESKTOP;
+  const columns = width >= TABLET;
+  const full = columns ? fullWidthInColumns(ordered) : new Set<string>();
   return (
     <div ref={containerRef} className="np-grid min-w-0">
       {!mounted ? null : desktop ? (
@@ -135,9 +167,9 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
           ))}
         </ReactGridLayout>
       ) : (
-        <div className="flex flex-col gap-3">
-          {readingOrder(visible).map((w) => (
-            <div key={w.id} className="min-w-0" style={w.type === "section" ? { height: rowsToPx(1) + 8 } : FIXED_ON_MOBILE.has(w.type) ? { height: rowsToPx(w.h ?? 8) + (edit ? 44 : 0) } : undefined}>
+        <div className={columns ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
+          {ordered.map((w) => (
+            <div key={w.id} className={`min-w-0 ${full.has(w.id) ? "col-span-2" : ""}`} style={w.type === "section" ? { height: rowsToPx(1) + 8 } : FIXED_ON_MOBILE.has(w.type) ? { height: rowsToPx(w.h ?? 8) + (edit ? 44 : 0) } : undefined}>
               {cell(w)}
             </div>
           ))}

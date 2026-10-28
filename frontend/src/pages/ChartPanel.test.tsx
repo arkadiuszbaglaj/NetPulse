@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildLines, lineStats, seriesName, thresholdBands } from "../components/charts/panelData";
+import { buildLines, leftTop, lineStats, seriesName, thresholdBands } from "../components/charts/panelData";
 import { defaultTitle, sourcePath } from "../components/widgets/chartSource";
 import { newChartConfig, upgradeChartConfig, type ChartConfig, type DashboardLayout } from "../lib/layout";
 import { TRAFFIC, mockApi } from "../test/mockApi";
@@ -36,6 +36,13 @@ describe("model wykresu w czasie (0.26.0)", () => {
       ["A.in_bps", "Ruch WAN: Pobieranie", "left", 2],
       ["B.cpu_percent", "Urządzenie #1: CPU", "right", 0],
     ]);
+  });
+
+  it("szczyt lewej osi: przy stosie suma serii w jednej chwili", () => {
+    const line = (id: string, rows: [number, number | null][], axis: "left" | "right" = "left") => ({ id, name: id, color: 1 as const, axis, rows, dashed: false });
+    const lines = [line("a", [[1, 10], [2, 30]]), line("b", [[1, 25], [2, null]]), line("c", [[1, 500]], "right")];
+    expect(leftTop(lines, false)).toBe(30);
+    expect(leftTop(lines, true)).toBe(35);
   });
 
   it("statystyki legendy i pasy progów", () => {

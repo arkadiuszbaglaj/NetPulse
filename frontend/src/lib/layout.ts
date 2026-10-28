@@ -554,6 +554,30 @@ export function nudgeWidget(l: DashboardLayout, id: string, d: { dx?: number; dy
   return { ...l, widgets };
 }
 
+/** Zamiana miejscami z poprzednim (-1) albo następnym (1) widgetem w kolejności czytania – przestawianie na telefonie
+ * i tablecie, gdzie nie ma przeciągania. Na komputerze nakładające się widgety rozsuwa siatka. */
+export function swapInReadingOrder(l: DashboardLayout, id: string, dir: -1 | 1): DashboardLayout {
+  const all = placeWidgets(l.widgets);
+  const order = readingOrder(all);
+  const i = order.findIndex((w) => w.id === id);
+  const other = order[i + dir];
+  if (i < 0 || !other) return l;
+  const a = order[i];
+  const at = (w: Widget, to: Widget): Widget => ({ ...w, x: w.type === "section" ? 0 : Math.min(GRID_COLS - w.w, to.x ?? 0), y: to.y });
+  // Ten sam wiersz – zamiana kolumn; inaczej przesunięty w górę ląduje w wierszu sąsiada przed nim
+  const moved = new Map<string, Widget>([
+    [a.id, at(a, other)],
+    [other.id, at(other, a)],
+  ]);
+  if (a.y === other.y) {
+    const [left, right] = dir < 0 ? [other, a] : [a, other];
+    const x = left.x ?? 0;
+    moved.set(right.id, { ...right, x });
+    moved.set(left.id, { ...left, x: Math.min(GRID_COLS - left.w, x + right.w) });
+  }
+  return { ...l, widgets: all.map((w) => moved.get(w.id) ?? w) };
+}
+
 /** Pozycje z siatki po przeciągnięciu albo rozciągnięciu myszką. */
 export function applyPositions(l: DashboardLayout, items: { i: string; x: number; y: number; w: number; h: number }[]): DashboardLayout {
   const byId = new Map(items.map((it) => [it.i, it]));

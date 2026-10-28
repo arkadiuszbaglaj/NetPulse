@@ -14,11 +14,20 @@ import {
   type DashboardLayout,
   type Widget,
 } from "../lib/layout";
+import { fullWidthInColumns } from "../components/DashboardGrid";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
 const section = (id: string, y: number, title: string, collapsed = false): Widget => ({ id, type: "section", w: 12, h: 1, x: 0, y, config: { title, collapsed } });
 const pos = (widgets: Widget[]) => widgets.map((w) => [w.id, w.x, w.y, w.w, w.h]);
+
+describe("dwie kolumny (tablet)", () => {
+  it("wąskie widgety idą parami, szerokie i wąskie bez pary – na całą szerokość", () => {
+    const w = (id: string, width: Widget["w"]): Widget => ({ ...newWidget("summary", id), w: width });
+    const order = [w("a", 12), w("b", 8), w("c", 4), w("d", 12), w("e", 6), w("f", 6), w("g", 4)];
+    expect([...fullWidthInColumns(order)]).toEqual(["a", "b", "c", "d", "g"]);
+  });
+});
 
 describe("model swobodnej siatki", () => {
   it("pulpit sprzed 0.28.0 układa się po kolei jak dawne kolumny", () => {

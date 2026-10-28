@@ -1,7 +1,7 @@
-import { IconGripVertical, IconPencil, IconPlus, IconTrash, IconWand } from "@tabler/icons-react";
+import { IconArrowDown, IconArrowUp, IconGripVertical, IconPencil, IconPlus, IconTrash, IconWand } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { DashboardGrid } from "../components/DashboardGrid";
+import { DashboardGrid, type EditPlace } from "../components/DashboardGrid";
 import { Dialog } from "../components/Dialog";
 import { RangePicker } from "../components/RangePicker";
 import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
@@ -18,6 +18,7 @@ import {
   removeWidget,
   replaceWidget,
   sameLayout,
+  swapInReadingOrder,
   type DashboardLayout,
   type Widget,
   type WidgetType,
@@ -46,35 +47,50 @@ function IconButton({ label, onClick, disabled, danger, children }: { label: str
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 
 /** Pasek narzędzi widgetu w trybie edycji: uchwyt (przeciąganie myszką, strzałki z klawiatury; Shift – rozmiar),
- * edycja, usuwanie. */
+ * edycja, usuwanie. Na telefonie i tablecie zamiast uchwytu przyciski w górę i w dół. */
 function EditBar({
   widget,
+  place,
   onNudge,
+  onMove,
   onEdit,
   onRemove,
 }: {
   widget: Widget;
+  place: EditPlace;
   onNudge: (d: { dx?: number; dy?: number; dw?: number; dh?: number }) => void;
+  onMove: (dir: -1 | 1) => void;
   onEdit: () => void;
   onRemove: () => void;
 }) {
   const name = widgetTitle(widget);
   return (
     <div className="mb-1 flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-border-strong bg-surface-2 px-1.5 py-1">
-      <button
-        type="button"
-        aria-label={t("widget.drag", { name })}
-        title={t("widget.drag.hint")}
-        onKeyDown={(e) => {
-          const arrow = ARROWS[e.key];
-          if (!arrow) return;
-          e.preventDefault();
-          onNudge(e.shiftKey ? { dw: arrow[0], dh: arrow[1] } : { dx: arrow[0], dy: arrow[1] });
-        }}
-        className="np-drag flex size-8 cursor-grab items-center justify-center rounded-lg text-muted hover:bg-surface active:cursor-grabbing"
-      >
-        <IconGripVertical size={18} aria-hidden="true" />
-      </button>
+      {place.stacked ? (
+        <>
+          <IconButton label={t("widget.moveUp", { name })} onClick={() => onMove(-1)} disabled={place.first}>
+            <IconArrowUp size={16} aria-hidden="true" />
+          </IconButton>
+          <IconButton label={t("widget.moveDown", { name })} onClick={() => onMove(1)} disabled={place.last}>
+            <IconArrowDown size={16} aria-hidden="true" />
+          </IconButton>
+        </>
+      ) : (
+        <button
+          type="button"
+          aria-label={t("widget.drag", { name })}
+          title={t("widget.drag.hint")}
+          onKeyDown={(e) => {
+            const arrow = ARROWS[e.key];
+            if (!arrow) return;
+            e.preventDefault();
+            onNudge(e.shiftKey ? { dw: arrow[0], dh: arrow[1] } : { dx: arrow[0], dy: arrow[1] });
+          }}
+          className="np-drag flex size-8 cursor-grab items-center justify-center rounded-lg text-muted hover:bg-surface active:cursor-grabbing"
+        >
+          <IconGripVertical size={18} aria-hidden="true" />
+        </button>
+      )}
       <span className="min-w-0 flex-1 truncate text-xs font-medium">{name}</span>
       <span className="hidden shrink-0 text-xs tabular-nums text-muted lg:inline" aria-hidden="true">
         {widget.w}×{widget.h ?? "?"}
@@ -274,10 +290,12 @@ export function DashboardPage() {
             edit={edit}
             onPositions={(items) => update((l) => applyPositions(l, items))}
             renderWidget={(widget) => <WidgetView widget={widget} />}
-            renderEditBar={(widget) => (
+            renderEditBar={(widget, place) => (
               <EditBar
                 widget={widget}
+                place={place}
                 onNudge={(d) => update((l) => nudgeWidget(l, widget.id, d))}
+                onMove={(dir) => update((l) => swapInReadingOrder(l, widget.id, dir))}
                 onEdit={() => setEditing({ widget, isNew: false })}
                 onRemove={() => update((l) => removeWidget(l, widget.id))}
               />

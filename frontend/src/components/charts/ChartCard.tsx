@@ -24,6 +24,8 @@ export interface ChartCardProps {
   yMax?: number | null;
   /** Wysokość wykresu w pikselach */
   height?: number;
+  /** Wykres wypełnia resztę wysokości karty (komórka siatki pulpitu) zamiast `height` */
+  fill?: boolean;
   /** Treść błędu zamiast domyślnej (np. „źródło niedostępne”) */
   errorText?: string;
   /** Przyciski po prawej stronie tytułu */
@@ -46,6 +48,7 @@ export function ChartCard({
   smooth,
   yMax,
   height,
+  fill = false,
   errorText,
   actions,
   children,
@@ -54,7 +57,7 @@ export function ChartCard({
   const range = rangeMinutes ?? global.rangeMinutes;
   const empty = !isLoading && !isError && (data?.points.length ?? 0) === 0;
   return (
-    <Card className={`p-4 ${className}`}>
+    <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
         {actions}
@@ -71,25 +74,27 @@ export function ChartCard({
           {t("chart.loading")}
         </p>
       ) : (
-        <Suspense
-          fallback={
-            <p role="status" className="py-10 text-center text-sm text-text-2">
-              {t("chart.loading")}
-            </p>
-          }
-        >
-          <TimeSeriesChart
-            series={series}
-            points={data.points}
-            intervalS={data.interval_s}
-            format={format}
-            kind={kind}
-            smooth={smooth}
-            yMax={yMax}
-            height={height}
-            ariaLabel={t("chart.summary", { title, range: formatRange(range) })}
-          />
-        </Suspense>
+        <div className={fill ? "min-h-24 flex-1" : ""}>
+          <Suspense
+            fallback={
+              <p role="status" className="py-10 text-center text-sm text-text-2">
+                {t("chart.loading")}
+              </p>
+            }
+          >
+            <TimeSeriesChart
+              series={series}
+              points={data.points}
+              intervalS={data.interval_s}
+              format={format}
+              kind={kind}
+              smooth={smooth}
+              yMax={yMax}
+              height={fill ? "100%" : height}
+              ariaLabel={t("chart.summary", { title, range: formatRange(range) })}
+            />
+          </Suspense>
+        </div>
       )}
     </Card>
   );

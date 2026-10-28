@@ -35,7 +35,8 @@ export interface TimeSeriesChartProps {
   smooth?: boolean;
   /** Maksimum osi Y w jednostkach surowych metryki; puste = automatycznie */
   yMax?: number | null;
-  height?: number;
+  /** Piksele albo "100%" (komórka siatki pulpitu) */
+  height?: number | string;
   ariaLabel: string;
 }
 
