@@ -85,7 +85,7 @@ def alerts(client, state="all"):
 def add_device(**kw) -> int:
     async def go():
         async with Session() as s, s.begin():
-            d = Device(name=kw.pop("name", "SW"), host=kw.pop("host", "10.9.0.1"), community="public", **kw)
+            d = Device(name=kw.pop("name", "SW"), host=kw.pop("host", "10.9.0.1"), community=kw.pop("community", "public"), **kw)
             s.add(d)
             await s.flush()
             return d.id
