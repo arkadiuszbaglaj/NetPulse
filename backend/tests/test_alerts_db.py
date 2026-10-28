@@ -281,6 +281,24 @@ def test_port_down_during_switch_restart(client):
     assert [(a["title"], a["state"]) for a in alerts(client)] == [("Port Proxmox (SW) jest wyłączony", "firing")]
 
 
+def test_default_community_alert_until_changed(client):
+    """Fabryczne community SNMP (0.31.2): alert na urządzenie v1/v2c z „public”/„private”, znika po zmianie."""
+    weak = add_device(name="UCG", host="10.9.0.1", status="up")  # community domyślnie „public”
+    add_device(name="AP", host="10.9.0.2", status="up", community="Private")
+    add_device(name="Switch", host="10.9.0.3", status="up", community="domowe-123")
+    add_device(name="Router v3", host="10.9.0.4", status="up", snmp_version="3", community="public")
+    add_device(name="Wyłączony", host="10.9.0.5", status="up", enabled=False)
+    add_rule(name="Community", kind="default_community", duration_s=0, severity="warning")
+    evaluate()
+    firing = sorted(a["title"] for a in alerts(client, "firing"))
+    assert firing == ["AP: fabryczne community SNMP", "UCG: fabryczne community SNMP"]
+    assert "Ustawienia → Urządzenia" in alerts(client, "firing")[0]["message"]
+
+    assert client.patch(f"/api/devices/{weak}", json={"community": "nowe-tajne-1"}).status_code == 200
+    evaluate(NOW + timedelta(seconds=30))
+    assert [a["title"] for a in alerts(client, "firing")] == ["AP: fabryczne community SNMP"]
+
+
 def test_deleted_rule_ends_its_alerts_but_keeps_history(client):
     add_device(status="down", last_ok_at=NOW - timedelta(seconds=600))
     rule = add_rule(name="offline", kind="device_offline", duration_s=0)
@@ -300,7 +318,7 @@ def test_default_rules_created_once(client):
     kinds = [r["kind"] for r in client.get("/api/alert-rules").json()]
     assert kinds == [
         "device_offline", "port_down", "container_stopped", "service_failed", "smart_failed", "metric",
-        "guest_stopped", "backup_failed", "metric", "check_down", "metric",
+        "guest_stopped", "backup_failed", "metric", "check_down", "metric", "default_community",
     ]  # fmt: skip
 
 
@@ -313,12 +331,12 @@ def test_default_rules_for_existing_install_and_deleted_rules_stay_deleted(clien
 
     run(go)
     rules = client.get("/api/alert-rules").json()
-    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 10
+    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 11
     temp = next(r for r in rules if r["metric"] == "temp_c")
     assert temp["threshold"] == 85 and temp["op"] == ">"
     assert client.delete(f"/api/alert-rules/{rules[1]['id']}").status_code == 204
     run(go)
-    assert len(client.get("/api/alert-rules").json()) == 9
+    assert len(client.get("/api/alert-rules").json()) == 10
 
 
 def test_rules_api_validation(client):

@@ -35,6 +35,7 @@ const KIND_LABEL: Record<RuleKind, TextKey> = {
   guest_stopped: "rules.kind.guest_stopped",
   backup_failed: "rules.kind.backup_failed",
   check_down: "rules.kind.check_down",
+  default_community: "rules.kind.default_community",
 };
 const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
   container_stopped: "rules.match.hint.container",
@@ -93,6 +94,8 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
   const meta = metrics.find((m) => m.metric === values.metric);
   const isMetric = values.kind === "metric";
   const checkKind = values.kind === "check_down";
+  // Stan bez czasu trwania: port przeszedł w down, fabryczne community (trwa, dopóki się nie zmieni)
+  const noDuration = values.kind === "port_down" || values.kind === "default_community";
   // WAN to suma po routerach, sprawdzenia dostępności nie są urządzeniami – bez wyboru urządzenia
   const perDevice = !checkKind && (!isMetric || meta?.per_device !== false);
   const unitHint = meta ? (meta.unit === "b/s" ? "Mb/s" : meta.unit || "") : "";
@@ -113,7 +116,7 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
       metric: isMetric ? values.metric : null,
       op: isMetric ? values.op : null,
       threshold: isMetric ? thresholdFromDisplay(values.metric, threshold) : null,
-      duration_s: values.kind === "port_down" ? 0 : values.duration_s,
+      duration_s: noDuration ? 0 : values.duration_s,
       severity: values.severity,
       device_id: perDevice && values.device_id ? Number(values.device_id) : null,
       match: matchable && values.match.trim() ? values.match.trim() : null,
@@ -190,7 +193,7 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
           />
         )}
 
-        {values.kind !== "port_down" ? (
+        {!noDuration ? (
           <Select id="rule-duration" label={t("rules.duration")} value={values.duration_s} onChange={(e) => set("duration_s", Number(e.target.value))}>
             {DURATIONS.map((s) => (
               <option key={s} value={s}>
@@ -199,7 +202,7 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
             ))}
           </Select>
         ) : (
-          <p className="text-xs text-text-2">{t("rules.portdown.hint")}</p>
+          <p className="text-xs text-text-2">{t(values.kind === "port_down" ? "rules.portdown.hint" : "rules.community.hint")}</p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -230,6 +233,7 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
 function describe(rule: AlertRule, metrics: RuleMetric[]): string {
   if (rule.kind === "device_offline") return t("rules.sum.offline", { after: durationLabel(rule.duration_s) });
   if (rule.kind === "port_down") return t("rules.sum.portdown");
+  if (rule.kind === "default_community") return t("rules.sum.community");
   const only = rule.match ? ` (${rule.match})` : "";
   if (AGENT_KINDS.includes(rule.kind) || rule.kind === "check_down") return `${t(KIND_LABEL[rule.kind])}${only}, ${durationLabel(rule.duration_s)}`;
   const meta = metrics.find((m) => m.metric === rule.metric);

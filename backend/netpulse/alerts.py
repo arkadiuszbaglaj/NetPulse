@@ -41,7 +41,7 @@ log = logging.getLogger("netpulse.alerts")
 SEVERITIES = ("info", "warning", "critical")
 # Rodzaje na ogólnej tabeli `metrics`: z agenta (kontener, usługa systemd, SMART) i z Proxmoxa (maszyna, kopia)
 AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed")
-KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS, "check_down")
+KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS, "check_down", "default_community")
 OPS = (">", "<")
 
 # Metryki reguł typu „metric”: nazwa → (opis, jednostka). Pierwsze trzy są per urządzenie, WAN to suma po routerach.
@@ -119,8 +119,13 @@ DEFAULT_RULE_SETS = (
         dict(name="Sprawdzenie dostępności nie przechodzi", kind="check_down", duration_s=60, severity="warning"),
         dict(name="Certyfikat HTTPS wkrótce wygaśnie", kind="metric", metric="check_cert_days", op="<", threshold=14.0, duration_s=0, severity="warning"),
     ),
+    (dict(name="Fabryczne community SNMP", kind="default_community", duration_s=0, severity="warning"),),
 )
 DEFAULTS_KEY = "alert_defaults"
+DEFAULT_COMMUNITY_HINT = (
+    "Community „public” albo „private” zna każdy – każdy w sieci może odczytać to urządzenie. "
+    "Ustaw na urządzeniu własne community (albo SNMPv3) i wpisz je w NetPulse: Ustawienia → Urządzenia."
+)
 
 
 # Reguły zależne od modułu: rodzaj albo metryka → moduł (Ustawienia → Moduły)
@@ -362,6 +367,8 @@ class AlertEngine:
         scope = [d for d in devices.values() if rule.device_id in (None, d.id)]
         if rule.kind == "device_offline":
             return self._offline(rule, scope, now)
+        if rule.kind == "default_community":
+            return self._default_community(scope)
         if rule.kind == "port_down":
             return await self._port_down(session, rule, scope, now)
         if rule.kind in AGENT_STATES:
@@ -371,6 +378,14 @@ class AlertEngine:
         if rule.kind == "metric" and rule.metric in METRICS and rule.op in OPS and rule.threshold is not None:
             return await self._metric(session, rule, scope, now)
         return []
+
+    def _default_community(self, scope: list[Device]) -> list[Hit]:
+        """Urządzenie SNMP v1/v2c z community „public” albo „private” – trwa, dopóki community się nie zmieni."""
+        return [
+            Hit(f"d{d.id}", f"{d.name}: fabryczne community SNMP", DEFAULT_COMMUNITY_HINT, d.id, None)
+            for d in scope
+            if d.uses_default_community
+        ]
 
     def _offline(self, rule: AlertRule, scope: list[Device], now: datetime) -> list[Hit]:
         hits = []

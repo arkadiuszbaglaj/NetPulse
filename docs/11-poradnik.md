@@ -94,6 +94,8 @@ W aplikacji UniFi Network włącz SNMP. Nazwy menu zmieniają się między wersj
    Od 0.31.1 panel przypomina o tym: urządzenie z community `public` albo `private` (SNMP v1/v2c) ma plakietkę
    „community public” na liście urządzeń i na swojej stronie, a Ustawienia → System pokazują ich listę.
    Pulpit publiczny tej informacji nie pokazuje.
+   Od 0.31.2 to także alert (reguła domyślna „Fabryczne community SNMP”, ostrzeżenie, jeden na urządzenie):
+   trafia do dzwonka i kanałów powiadomień, a znika sam po wpisaniu własnego community.
 3. Zapisz. Ustawienie trafia do adoptowanych urządzeń (switch, AP).
 
 ### Sprawdzenie SNMP z serwera (opcjonalnie)

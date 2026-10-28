@@ -42,7 +42,7 @@ describe("Ustawienia → Moduły", () => {
     await user.click(await screen.findByRole("button", { name: "Dodaj regułę" }));
     const form = await screen.findByRole("dialog", { name: "Nowa reguła" });
     const kinds = within(within(form).getByLabelText("Rodzaj reguły")).getAllByRole("option").map((o) => o.getAttribute("value"));
-    expect(kinds).toEqual(["device_offline", "port_down", "metric", "check_down"]); // sprawdzenia dostępności – bez modułu
+    expect(kinds).toEqual(["device_offline", "port_down", "metric", "check_down", "default_community"]); // sprawdzenia dostępności – bez modułu
     const metrics = within(within(form).getByLabelText("Metryka")).getAllByRole("option").map((o) => o.getAttribute("value"));
     expect(metrics).not.toContain("temp_c");
   });
