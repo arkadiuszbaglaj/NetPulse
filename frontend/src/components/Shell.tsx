@@ -1,8 +1,9 @@
 import { IconMenu2, IconX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { t } from "../i18n";
+import { useRefresh } from "../lib/refresh";
 import { useVisibleModules } from "../modules";
 import { AlertBell } from "./AlertBell";
 import { RefreshControl } from "./RefreshControl";
@@ -29,6 +30,11 @@ export function Shell() {
   const visible = useVisibleModules();
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawer, setDrawer] = useState(false);
+  const { pathname } = useLocation();
+  const { clearZoom } = useRefresh();
+
+  // Powiększenie wykresów dotyczy jednej strony – po przejściu dalej znów cały zakres
+  useEffect(() => clearZoom(), [pathname, clearZoom]);
 
   useEffect(() => {
     try {

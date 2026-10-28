@@ -167,7 +167,8 @@ przepuszcza `offset` tylko taki, jaki ma zapytanie. Etap B ✅ (0.27.0): widgety
 (paski), `table`, `state_timeline` (oś stanów); dane: `api/panels.py` (`/api/collections/{kind}`, `/api/states`), panel:
 `components/widgets/PanelWidgets.tsx` + `PanelEditors.tsx`, `lib/panels.ts`. Etap C ✅ (0.28.0): swobodna siatka
 (`x`, `y`, `h` na widgecie, `w` 1–12; `components/DashboardGrid.tsx` z react-grid-layout, `placeWidgets` układa stare
-pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
+pulpity), sekcje zwijane (`type: "section"`). Etap D ✅ (0.32.0): powiększanie zaznaczeniem (`ZoomLayer.tsx`, `zoom` w `lib/refresh.tsx`,
+API pyta o samo okno), wspólny kursor (`charts/chartSync.ts`), linki z tabel, pasków i mapy (`rowLink`). Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
 
 ## Do sprawdzenia później
 

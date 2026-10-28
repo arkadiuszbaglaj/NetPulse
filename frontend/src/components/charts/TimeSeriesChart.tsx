@@ -9,7 +9,10 @@ import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 import type { SeriesPoint } from "../../lib/api";
 import { autoColor, type ColorIndex } from "../../lib/layout";
+import { useRefresh } from "../../lib/refresh";
 import { useTheme } from "../../lib/theme";
+import { linkChart } from "./chartSync";
+import { ZoomLayer } from "./ZoomLayer";
 import { toChartRows } from "./chartData";
 
 echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
@@ -57,6 +60,7 @@ export default function TimeSeriesChart({
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
+  const { zoom } = useRefresh();
 
   useEffect(() => {
     if (!el.current) return;
@@ -64,7 +68,9 @@ export default function TimeSeriesChart({
     chart.current = instance;
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(el.current);
+    const unlink = linkChart(instance);
     return () => {
+      unlink();
       observer.disconnect();
       instance.dispose();
       chart.current = null;
@@ -99,6 +105,9 @@ export default function TimeSeriesChart({
         },
         xAxis: {
           type: "time",
+          // Powiększony fragment (zaznaczenie myszą) – ta sama oś na wszystkich wykresach
+          min: zoom?.from,
+          max: zoom?.to,
           axisLine: { lineStyle: { color: grid } },
           // W wąskim wykresie etykiety osi nie mogą na siebie nachodzić
           axisLabel: { color: text, hideOverlap: true },
@@ -114,7 +123,9 @@ export default function TimeSeriesChart({
         },
         series: series.map((s, i) => {
           const color = css(`--chart-${s.color ?? autoColor(i)}`);
-          const data = toChartRows(points, s.key, intervalS);
+          const rows = toChartRows(points, s.key, intervalS);
+          // Oś Y skalowana do widocznego fragmentu, nie do całego zakresu
+          const data = zoom ? rows.filter(([time]) => time >= zoom.from && time <= zoom.to) : rows;
           if (kind === "bar") {
             return { name: s.name, type: "bar", barMaxWidth: 14, itemStyle: { color }, data };
           }
@@ -134,7 +145,11 @@ export default function TimeSeriesChart({
       },
       true,
     );
-  }, [series, points, format, intervalS, kind, smooth, yMax, resolved]);
+  }, [series, points, format, intervalS, kind, smooth, yMax, resolved, zoom]);
 
-  return <div ref={el} role="img" aria-label={ariaLabel} style={{ height }} className="w-full" />;
+  return (
+    <ZoomLayer chart={chart} height={height}>
+      <div ref={el} role="img" aria-label={ariaLabel} className="h-full w-full" />
+    </ZoomLayer>
+  );
 }

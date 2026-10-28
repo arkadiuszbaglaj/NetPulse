@@ -11,6 +11,7 @@ Decyzje użytkownika (2026-10-25): wszystkie funkcje wykresu w czasie, nowe pane
 | A ✅ | 0.26.0 | Wykres w czasie: wiele źródeł na jednym wykresie, druga oś Y, progi (linia / tło), legenda jako lista albo tabela z min / max / średnią / ostatnią, klik w legendzie ukrywa serię, serie piętrowane (stos), porównanie w czasie (ta sama seria godzinę, dzień albo tydzień wcześniej). Nowy edytor panelu: duże okno z podglądem na żywo. |
 | B ✅ | 0.27.0 | Nowe panele: liczba z mini-wykresem (kolor z progów), paski (bar gauge, np. zajętość wszystkich dysków), tabela (porty, klienci, dyski z sortowaniem), oś stanów (up/down portów i urządzeń w czasie). |
 | C ✅ | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
+| D ✅ | 0.32.0 | Powiększanie zaznaczeniem myszą (wszystkie wykresy strony, „Wróć”), wspólny kursor wykresów, klikalne wiersze tabel i pasków oraz węzły mapy sieci. |
 
 Każdy etap to osobna wersja do sprawdzenia na serwerze.
 
@@ -102,3 +103,23 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
 - **Progi przy stosie**: pasy progów sięgają szczytu stosu (suma serii, `leftTop`), nie najwyższej pojedynczej serii.
 - **Podgląd bez serwera**: `npm --prefix frontend run mock` (atrapa API z pulpitem, kolekcjami i stanami) +
   `npm --prefix frontend run dev`; konfiguracja w `.claude/launch.json`.
+
+## Etap D – powiększanie, wspólny kursor, linki (0.32.0)
+
+- **Powiększanie zaznaczeniem** (`components/charts/ZoomLayer.tsx`, stan `zoom` w `lib/refresh.tsx`): przeciągnięcie
+  myszą po obszarze wykresu zawęża oś czasu **wszystkich** wykresów strony. Tylko mysz (`pointerType`) – na ekranie
+  dotykowym przeciąganie przewija stronę. Kolejne powiększenia idą na stos; „Wróć” (przy wyborze zakresu i ikona
+  lupy w rogu wykresu) albo dwuklik cofa o jedno, wybór zakresu i przejście na inną stronę kończą powiększenie.
+- **Dokładniejsze dane**: widget „wykres” (`useChartQueries`) pyta API o samo okno – `minutes` i `offset`
+  z `zoomWindow` (przesunięcie w pełnych minutach w dół, zakres co najmniej 5 min); `fetchSeries(…, back)` cofa okno
+  bez przesuwania czasu (w odróżnieniu od porównania `offset_min`). Pozostałe wykresy (`TimeSeriesChart`: łącze WAN,
+  port, klient) przycinają dane, które już mają. Oś Y skaluje się do widocznego fragmentu. Powiększenie wstrzymuje
+  automatyczne odświeżanie wykresów (okno jest stałe).
+- **Pulpit publiczny** nie powiększa (`canZoom = false`): jego API przyjmuje tylko zakresy i przesunięcia z pulpitu.
+- **Wspólny kursor** (`components/charts/chartSync.ts`): najechanie na wykres pokazuje podpowiedź w tej samej chwili
+  na pozostałych. Synchronizacja po czasie (`convertToPixel`), nie po pikselach jak `echarts.connect` – wykresy mają
+  różne szerokości i osie.
+- **Linki**: nazwa wiersza tabeli i paska prowadzi do strony szczegółów (`rowLink` w `lib/panels.ts`: urządzenie,
+  port, serwer dla dysków/kontenerów/usług, listy klientów, sprawdzeń i Proxmoxa – w wierszu nie ma MAC-a ani węzła),
+  nazwa węzła mapy sieci – do strony urządzenia. Na pulpicie publicznym bez linków (`useDetailLinks`).
+- **Atrapa API** (`frontend/dev/mock-api.mjs`) uwzględnia `offset` w danych ruchu i metryk, jak prawdziwe API.

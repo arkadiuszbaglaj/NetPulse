@@ -362,6 +362,8 @@ export const pl = {
   "widget.edit": "Edytuj: {name}",
   "widget.remove": "Usuń: {name}",
   "widget.drag": "Przenieś: {name}",
+  "zoom.out": "Wróć",
+  "zoom.out.hint": "Cofnij powiększenie wykresów (albo dwuklik na wykresie)",
   "widget.moveUp": "Przesuń wyżej: {name}",
   "widget.moveDown": "Przesuń niżej: {name}",
   "widget.drag.hint": "Przeciągnij myszką albo użyj strzałek; Shift + strzałki zmienia rozmiar",

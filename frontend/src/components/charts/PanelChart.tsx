@@ -8,7 +8,11 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 import type { ChartKind, Threshold, ThresholdStyle } from "../../lib/layout";
+import { useRefresh } from "../../lib/refresh";
 import { useTheme } from "../../lib/theme";
+import { linkChart } from "./chartSync";
+import { ZoomLayer } from "./ZoomLayer";
+import type { ChartRow } from "./chartData";
 import { leftTop, thresholdBands, type PanelLine } from "./panelData";
 
 echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, CanvasRenderer]);
@@ -42,6 +46,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
+  const { zoom } = useRefresh();
 
   useEffect(() => {
     if (!el.current) return;
@@ -49,7 +54,9 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
     chart.current = instance;
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(el.current);
+    const unlink = linkChart(instance);
     return () => {
+      unlink();
       observer.disconnect();
       instance.dispose();
       chart.current = null;
@@ -69,6 +76,8 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
     const dataTop = leftTop(lines, stack);
     const bandTop = Math.max(left.max ?? 0, dataTop, topThreshold ?? 0) * 1.1 || 1;
     const firstLeft = lines.findIndex((l) => l.axis === "left");
+    // Oś Y skalowana do widocznego fragmentu, nie do całego zakresu
+    const inZoom = (rows: ChartRow[]) => (zoom ? rows.filter(([time]) => time >= zoom.from && time <= zoom.to) : rows);
 
     const axis = (a: AxisView, position: "left" | "right", withThreshold: boolean) => ({
       type: "value",
@@ -105,6 +114,9 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
         },
         xAxis: {
           type: "time",
+          // Powiększony fragment (zaznaczenie myszą) – ta sama oś na wszystkich wykresach
+          min: zoom?.from,
+          max: zoom?.to,
           axisLine: { lineStyle: { color: grid } },
           axisLabel: { color: text, hideOverlap: true },
           splitNumber: 4,
@@ -138,7 +150,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
               : {};
           const stackId = stack ? l.axis : undefined;
           if (kind === "bar") {
-            return { name: l.name, type: "bar", yAxisIndex, stack: stackId, barMaxWidth: 14, itemStyle: { color }, data: l.rows, ...marks };
+            return { name: l.name, type: "bar", yAxisIndex, stack: stackId, barMaxWidth: 14, itemStyle: { color }, data: inZoom(l.rows), ...marks };
           }
           return {
             name: l.name,
@@ -152,14 +164,18 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
             lineStyle: { width: 2, color, type: l.dashed ? "dashed" : "solid" },
             itemStyle: { color },
             areaStyle: kind === "area" ? { color, opacity: stack ? 0.35 : 0.1 } : undefined,
-            data: l.rows,
+            data: inZoom(l.rows),
             ...marks,
           };
         }),
       },
       true,
     );
-  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved]);
+  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom]);
 
-  return <div ref={el} role="img" aria-label={ariaLabel} style={{ height }} className="w-full" />;
+  return (
+    <ZoomLayer chart={chart} height={height}>
+      <div ref={el} role="img" aria-label={ariaLabel} className="h-full w-full" />
+    </ZoomLayer>
+  );
 }

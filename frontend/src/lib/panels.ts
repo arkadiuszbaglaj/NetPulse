@@ -58,6 +58,29 @@ export interface CollectionRow {
   values: Record<string, number | null>;
 }
 
+/** Strona szczegółów wiersza kolekcji (null = brak). Klienci i maszyny mają tylko listę – w wierszu nie ma MAC-a
+ * ani węzła (te same dane widzi pulpit publiczny). */
+export function rowLink(kind: CollectionKind, row: CollectionRow): string | null {
+  switch (kind) {
+    case "devices":
+      return `/devices/${row.key}`;
+    case "ports":
+      return row.device_id ? `/devices/${row.device_id}/ports/${row.key}` : null;
+    case "wifi":
+      return row.device_id ? `/devices/${row.device_id}` : null;
+    case "disks":
+    case "containers":
+    case "services":
+      return row.device_id ? `/devices/${row.device_id}/server` : null;
+    case "clients":
+      return "/clients";
+    case "checks":
+      return "/checks";
+    case "guests":
+      return "/proxmox";
+  }
+}
+
 export function collectionPath(c: Collection): string {
   return c.device_id && COLLECTION_DEVICE[c.kind] !== "none" ? `/api/collections/${c.kind}?device_id=${c.device_id}` : `/api/collections/${c.kind}`;
 }

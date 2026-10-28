@@ -48,9 +48,10 @@ const AGENT_TITLE = {
 } as const;
 
 /** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów.
- * Dane z przesunięciem dostają czas przesunięty do przodu, żeby nałożyły się na bieżące. */
-export async function fetchSeries(source: Source, minutes: number, offset = 0): Promise<Series> {
-  const raw = await get<Series | SeriesPoint[]>(sourcePath(source, minutes, offset));
+ * Dane z przesunięciem (porównanie) dostają czas przesunięty do przodu, żeby nałożyły się na bieżące;
+ * `back` cofa okno bez przesuwania czasu (powiększony fragment z przeszłości). */
+export async function fetchSeries(source: Source, minutes: number, offset = 0, back = 0): Promise<Series> {
+  const raw = await get<Series | SeriesPoint[]>(sourcePath(source, minutes, offset + back));
   const series = Array.isArray(raw) ? { interval_s: bucketSeconds(minutes), points: raw } : raw;
   if (!offset) return series;
   const ms = offset * 60_000;
@@ -87,16 +88,19 @@ export interface QueryResult {
   error: unknown;
 }
 
-/** Dane wszystkich zapytań wykresu z własnym zakresem i odświeżaniem widgetu (puste = ustawienia globalne). */
+/** Dane wszystkich zapytań wykresu z własnym zakresem i odświeżaniem widgetu (puste = ustawienia globalne).
+ * Powiększony fragment osi czasu ma pierwszeństwo przed zakresem widgetu i wstrzymuje odświeżanie. */
 export function useChartQueries(config: ChartConfig) {
   const global = useRefresh();
-  const minutes = config.range_min ?? global.rangeMinutes;
+  const zoom = global.zoom;
+  const minutes = zoom?.minutes ?? config.range_min ?? global.rangeMinutes;
+  const back = zoom?.offset ?? 0;
   const own = config.refresh_s;
-  const refetchInterval = own == null ? global.refetchInterval : own > 0 ? own * 1000 : false;
+  const refetchInterval = zoom ? false : own == null ? global.refetchInterval : own > 0 ? own * 1000 : false;
   const results = useQueries({
     queries: config.queries.map((q) => ({
-      queryKey: ["chart", q.source, minutes, q.offset_min ?? 0],
-      queryFn: () => fetchSeries(q.source, minutes, q.offset_min ?? 0),
+      queryKey: back ? ["chart", q.source, minutes, q.offset_min ?? 0, back] : ["chart", q.source, minutes, q.offset_min ?? 0],
+      queryFn: () => fetchSeries(q.source, minutes, q.offset_min ?? 0, back),
       refetchInterval,
       placeholderData: (previous: Series | undefined) => previous, // przy zmianie zakresu stary wykres zostaje do czasu nowych danych
       retry: false,

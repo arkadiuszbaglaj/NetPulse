@@ -1,5 +1,6 @@
 import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconRouter, IconWorld } from "@tabler/icons-react";
 import { useMemo } from "react";
+import { Link } from "react-router";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { t, type TextKey } from "../i18n";
 import {
@@ -59,7 +60,15 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
     <Card className="flex h-full flex-col items-center gap-1.5 overflow-hidden p-3 text-center">
       <div className="flex w-full items-center justify-center gap-2">
         <Icon size={20} aria-hidden="true" className="shrink-0 text-text-2" />
-        <h3 className="min-w-0 truncate text-sm font-medium">{node.name}</h3>
+        <h3 className="min-w-0 truncate text-sm font-medium">
+          {node.device_id != null ? (
+            <Link to={`/devices/${node.device_id}`} className="hover:text-accent hover:underline">
+              {node.name}
+            </Link>
+          ) : (
+            node.name
+          )}
+        </h3>
         <span
           role="img"
           aria-label={t(STATUS_LABEL[status])}

@@ -124,12 +124,13 @@ createServer(async (req, res) => {
   }
   if (route === "GET /api/dashboard/traffic" || route === "GET /api/dashboard/wifi") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const back = Number(url.searchParams.get("offset") ?? 0) * 60_000; // okno przesunięte wstecz, jak w API
     const stride = Math.max(30, Math.floor((minutes * 60) / 300));
     const n = Math.floor((minutes * 60) / stride);
     const points = [];
     for (let i = n; i >= 0; i--) {
-      if (i > n * 0.55 && i < n * 0.62) continue; // przerwa w danych – urządzenie nie odpowiadało
-      const time = new Date(Date.now() - i * stride * 1000).toISOString();
+      if (!back && i > n * 0.55 && i < n * 0.62) continue; // przerwa w danych – urządzenie nie odpowiadało
+      const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
       const values = route.endsWith("traffic")
         ? { in_bps: wave(i, 0) * 1e6, out_bps: wave(i, 1) * 1e6 }
         : { clients: Math.round(12 + 5 * Math.sin(i / 9) + (i % 3)) };
@@ -209,10 +210,11 @@ createServer(async (req, res) => {
   const series = /^\/api\/(devices|interfaces|wifi)\/(\d+)\/metrics$/.exec(url.pathname) || url.pathname === "/api/system/metrics";
   if (req.method === "GET" && series) {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const back = Number(url.searchParams.get("offset") ?? 0) * 60_000;
     const stride = Math.max(30, Math.floor((minutes * 60) / 300));
     const points = [];
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
-      const time = new Date(Date.now() - i * stride * 1000).toISOString();
+      const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
       const cpu = 20 + 15 * Math.sin(i / 11) + (i % 5);
       points.push({ time, values: { cpu_percent: cpu, mem_used_percent: 48 + 4 * Math.sin(i / 23), load1: cpu / 40, poll_ms: 40 + (i % 7) * 3, in_bps: wave(i, 0) * 4e5, out_bps: wave(i, 1) * 4e5, clients: 5 + (i % 4), disk_used_percent: 63, temp_c: 52 + (i % 6) } });
     }
@@ -231,10 +233,11 @@ createServer(async (req, res) => {
   if (route === "POST /api/checks/test") return send(res, 200, { up: true, latency_ms: 14.8, loss_percent: 0, jitter_ms: 0.5, status_code: null, cert_days: null, error: null });
   if (req.method === "GET" && /^\/api\/checks\/\d+\/metrics$/.test(url.pathname)) {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const back = Number(url.searchParams.get("offset") ?? 0) * 60_000;
     const stride = Math.max(30, Math.floor((minutes * 60) / 300));
     const points = [];
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
-      const time = new Date(Date.now() - i * stride * 1000).toISOString();
+      const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
       const spike = i % 37 === 0;
       points.push({ time, values: { latency_ms: 15 + 3 * Math.sin(i / 7) + (spike ? 40 : 0), jitter_ms: 0.5 + (i % 4) * 0.2, loss_percent: spike ? 20 : 0, availability_percent: spike ? 80 : 100, cert_days: null } });
     }

@@ -4,7 +4,7 @@ import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "../lib/queryClient";
-import { RefreshProvider, useRefresh } from "../lib/refresh";
+import { RefreshProvider, useRefresh, zoomWindow } from "../lib/refresh";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
@@ -173,5 +173,35 @@ describe("useRefresh", () => {
     expect(result.current.refreshSeconds).toBe(0);
     expect(result.current.refetchInterval).toBe(false);
     expect(result.current.rangeMinutes).toBe(10080);
+  });
+
+  it("powiększenie: okno API, stos z „Wróć”, wybór zakresu kończy powiększenie", () => {
+    const now = Date.parse("2026-10-29T12:00:00Z");
+    // Fragment 11:00–11:29:40: okno kończy się o pełnej minucie po nim (11:30), czyli 30 min wstecz, i ma 30 min
+    expect(zoomWindow(now - 60 * 60_000, now - 30 * 60_000 - 20_000, now)).toMatchObject({ offset: 30, minutes: 30 });
+    // Fragment krótszy niż 5 minut – API przyjmuje co najmniej 5
+    expect(zoomWindow(now - 60_000, now, now)).toMatchObject({ offset: 0, minutes: 5 });
+
+    const { result } = renderHook(() => useRefresh(), { wrapper });
+    expect(result.current.zoom).toBeNull();
+    act(() => result.current.zoomTo(1000, 5000));
+    act(() => result.current.zoomTo(2000, 3000));
+    expect(result.current.zoom).toMatchObject({ from: 2000, to: 3000 });
+    act(() => result.current.zoomOut());
+    expect(result.current.zoom).toMatchObject({ from: 1000, to: 5000 });
+    act(() => result.current.setRangeMinutes(360));
+    expect(result.current.zoom).toBeNull();
+  });
+
+  it("pulpit publiczny nie powiększa (API przyjmuje tylko zakresy z pulpitu)", () => {
+    const fixed = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={createQueryClient({ retry: false })}>
+        <RefreshProvider fixed={{ refreshSeconds: 30, rangeMinutes: 60 }}>{children}</RefreshProvider>
+      </QueryClientProvider>
+    );
+    const { result } = renderHook(() => useRefresh(), { wrapper: fixed });
+    expect(result.current.canZoom).toBe(false);
+    act(() => result.current.zoomTo(1000, 5000));
+    expect(result.current.zoom).toBeNull();
   });
 });

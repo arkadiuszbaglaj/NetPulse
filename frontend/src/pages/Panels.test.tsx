@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { newWidget, type DashboardLayout, type Widget } from "../lib/layout";
-import { collectionPath, reduceValues, statesPath, thresholdColor, type CollectionRow } from "../lib/panels";
+import { collectionPath, reduceValues, rowLink, statesPath, thresholdColor, type CollectionRow } from "../lib/panels";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
@@ -19,6 +19,16 @@ const DEVICES: CollectionRow[] = [
 ];
 
 describe("panele – funkcje", () => {
+  it("link wiersza kolekcji do strony szczegółów", () => {
+    const row = (key: string, device_id: number | null = null) => ({ key, label: key, device_id, values: {} });
+    expect(rowLink("devices", row("3"))).toBe("/devices/3");
+    expect(rowLink("ports", row("17", 2))).toBe("/devices/2/ports/17");
+    expect(rowLink("ports", row("17"))).toBeNull();
+    expect(rowLink("disks", row("/", 5))).toBe("/devices/5/server");
+    expect(rowLink("checks", row("1"))).toBe("/checks");
+    expect(rowLink("clients", row("0"))).toBe("/clients");
+  });
+
   it("kolor z progów, liczba z zakresu i ścieżki API", () => {
     const th = [
       { value: 90, color: 5 as const },
@@ -73,6 +83,8 @@ describe("panele na pulpicie", () => {
     expect(names()).toEqual(["U6+", "UCG Ultra", "USW Lite"]); // malejąco: 30, 12, brak
     await user.click(within(table).getByRole("button", { name: "CPU" }));
     expect(names()).toEqual(["UCG Ultra", "U6+", "USW Lite"]); // rosnąco, brak dalej na końcu
+    // Nazwa prowadzi do strony szczegółów urządzenia
+    expect(within(table).getByRole("link", { name: "UCG Ultra" })).toHaveAttribute("href", `/devices/${DEVICES.find((d) => d.label === "UCG Ultra")!.key}`);
   });
 
   it("tabela maszyn Proxmox: wiek kopii w godzinach i dniach, stan jako plakietka", async () => {

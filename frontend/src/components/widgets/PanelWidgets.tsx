@@ -1,12 +1,14 @@
 /** Panele od 0.27.0: liczba z mini-wykresem, paski, tabela i oś stanów. Bez ECharts – lekkie SVG i HTML. */
 import { IconArrowDown, IconArrowUp } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { t } from "../../i18n";
 import { ApiError } from "../../lib/api";
 import { metricFormatter } from "../../lib/format";
-import { METRICS, unitClassOf, type BarGaugeConfig, type StatConfig, type StateTimelineConfig, type TableConfig } from "../../lib/layout";
-import { COLLECTION_LABEL, reduceValues, thresholdColor, useCollection, useStates, type CollectionRow, type StateSegment } from "../../lib/panels";
+import { METRICS, unitClassOf, type BarGaugeConfig, type CollectionKind, type StatConfig, type StateTimelineConfig, type TableConfig } from "../../lib/layout";
+import { COLLECTION_LABEL, reduceValues, rowLink, thresholdColor, useCollection, useStates, type CollectionRow, type StateSegment } from "../../lib/panels";
+import { useDetailLinks } from "../../lib/publicMode";
 import { useRefresh } from "../../lib/refresh";
 import { seriesName } from "../charts/panelData";
 import { StateBar } from "../charts/StateBar";
@@ -22,6 +24,21 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="mb-2 truncate text-sm font-medium">{title}</h2>
       {children}
     </Card>
+  );
+}
+
+/** Nazwa wiersza kolekcji: link do strony szczegółów w zalogowanym panelu, na pulpicie publicznym zwykły tekst. */
+function RowLabel({ kind, row, className }: { kind: CollectionKind; row: CollectionRow; className: string }) {
+  const to = rowLink(kind, row);
+  const linked = useDetailLinks() && to;
+  return linked ? (
+    <Link to={to} title={row.label} className={`${className} hover:text-accent hover:underline`}>
+      {row.label}
+    </Link>
+  ) : (
+    <span title={row.label} className={className}>
+      {row.label}
+    </span>
   );
 }
 
@@ -163,15 +180,11 @@ export function BarGaugeWidget({ config }: { config: BarGaugeConfig }) {
                 <div {...meter} className="relative w-full flex-1 overflow-hidden rounded bg-surface-2">
                   <div className="absolute inset-x-0 bottom-0 rounded" style={{ height: `${pct(v)}%`, backgroundColor: color }} />
                 </div>
-                <span className="w-full truncate text-center text-text-2" title={r.label}>
-                  {r.label}
-                </span>
+                <RowLabel kind={config.collection.kind} row={r} className="w-full truncate text-center text-text-2" />
               </li>
             ) : (
               <li key={r.key} className="flex items-center gap-3 text-xs">
-                <span className="w-28 shrink-0 truncate text-text-2" title={r.label}>
-                  {r.label}
-                </span>
+                <RowLabel kind={config.collection.kind} row={r} className="w-28 shrink-0 truncate text-text-2" />
                 <div {...meter} className="relative h-3 flex-1 overflow-hidden rounded bg-surface-2">
                   <div className="absolute inset-y-0 left-0 rounded" style={{ width: `${pct(v)}%`, backgroundColor: color }} />
                 </div>
@@ -235,8 +248,8 @@ export function TableWidget({ config }: { config: TableConfig }) {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.key} className="border-t border-border">
-                  <td className="max-w-48 truncate py-1.5 pr-3" title={r.label}>
-                    {r.label}
+                  <td className="max-w-48 truncate py-1.5 pr-3">
+                    <RowLabel kind={config.collection.kind} row={r} className="" />
                   </td>
                   {config.columns.map((c) => {
                     const v = r.values[c];

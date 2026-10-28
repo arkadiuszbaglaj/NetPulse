@@ -87,6 +87,9 @@ describe("strona Mapa sieci", () => {
     renderApp("/topology");
     expect(await screen.findByRole("heading", { name: "USW" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "UCG" })).toBeInTheDocument();
+    // Nazwa węzła prowadzi do strony urządzenia
+    const ucg = TOPO.nodes.find((n) => n.name === "UCG")!;
+    expect(screen.getByRole("link", { name: "UCG" })).toHaveAttribute("href", `/devices/${ucg.device_id}`);
     expect(screen.getByText("Internet (WAN)")).toBeInTheDocument(); // sąsiad bramy za jej portem WAN
     expect(screen.queryByText("Nieznane urządzenie")).not.toBeInTheDocument();
     expect(screen.queryByText("02:00:ff:33:66:69")).not.toBeInTheDocument(); // bez adresu MAC modemu
