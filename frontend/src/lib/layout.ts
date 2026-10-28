@@ -164,7 +164,7 @@ export type WanChartWidgetModel = WidgetBase & {
 export type WanSlaWidgetModel = WidgetBase & { type: "wan_sla"; config: { device_id?: number | null; days: 1 | 7 | 30 } };
 
 // --- panele od 0.27.0 (schemat: backend/netpulse/api/layout_schemas.py) ---------------------
-export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "services" | "clients" | "checks";
+export type CollectionKind = "devices" | "ports" | "disks" | "wifi" | "containers" | "services" | "clients" | "checks" | "guests";
 /** Zestaw obiektów z bieżącymi wartościami (GET /api/collections/{kind}); porty, dyski i kontenery – jednego urządzenia. */
 export interface Collection {
   kind: CollectionKind;
@@ -255,7 +255,7 @@ export interface DashboardResponse {
 // --- metryki ---------------------------------------------------------------------------
 
 /** Klasa jednostki: metryki w jednym wykresie muszą należeć do tej samej klasy (wspólna oś Y). */
-export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size" | "state" | "duration" | "dbm" | "linkrate" | "mbps" | "days";
+export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size" | "state" | "duration" | "dbm" | "linkrate" | "mbps" | "days" | "hours";
 
 export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> = {
   in_bps: { label: "metric.in_bps", unitClass: "rate" },
@@ -298,6 +298,8 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   free_bytes: { label: "metric.free_bytes", unitClass: "size" },
   total_bytes: { label: "metric.total_bytes", unitClass: "size" },
   mem_bytes: { label: "metric.mem_bytes", unitClass: "size" },
+  mem_percent: { label: "metric.mem_percent", unitClass: "percent" },
+  backup_age_h: { label: "metric.backup_age_h", unitClass: "hours" },
   signal_dbm: { label: "metric.signal_dbm", unitClass: "dbm" },
   rx_rate_kbps: { label: "metric.rx_rate_kbps", unitClass: "linkrate" },
   tx_rate_kbps: { label: "metric.tx_rate_kbps", unitClass: "linkrate" },

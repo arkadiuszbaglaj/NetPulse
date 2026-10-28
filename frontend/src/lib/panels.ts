@@ -17,8 +17,9 @@ export const COLLECTION_METRICS: Record<CollectionKind, string[]> = {
   services: ["up", "mem_bytes", "uptime_s"],
   clients: ["signal_dbm", "rx_rate_kbps", "tx_rate_kbps", "connected_s"],
   checks: ["up", "latency_ms", "loss_percent", "availability_percent", "cert_days"],
+  guests: ["up", "cpu_percent", "mem_bytes", "mem_percent", "rx_bps", "tx_bps", "uptime_s", "backup_age_h"],
 };
-export const COLLECTION_KINDS: CollectionKind[] = ["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks"];
+export const COLLECTION_KINDS: CollectionKind[] = ["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks", "guests"];
 export const COLLECTION_LABEL: Record<CollectionKind, TextKey> = {
   devices: "panel.collection.devices",
   ports: "panel.collection.ports",
@@ -28,6 +29,7 @@ export const COLLECTION_LABEL: Record<CollectionKind, TextKey> = {
   services: "panel.collection.services",
   clients: "panel.collection.clients",
   checks: "panel.collection.checks",
+  guests: "panel.collection.guests",
 };
 /** Kolekcje jednego urządzenia (wifi: opcjonalnie) */
 export const COLLECTION_DEVICE: Record<CollectionKind, "required" | "optional" | "none"> = {
@@ -39,12 +41,14 @@ export const COLLECTION_DEVICE: Record<CollectionKind, "required" | "optional" |
   services: "required",
   clients: "none",
   checks: "none",
+  guests: "optional",
 };
 /** Moduł, bez którego kolekcji nie ma (Ustawienia → Moduły) */
-export const COLLECTION_MODULE: Partial<Record<CollectionKind, "agents" | "unifi">> = {
+export const COLLECTION_MODULE: Partial<Record<CollectionKind, "agents" | "unifi" | "proxmox">> = {
   containers: "agents",
   services: "agents",
   clients: "unifi",
+  guests: "proxmox",
 };
 
 export interface CollectionRow {

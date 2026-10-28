@@ -66,6 +66,7 @@ więc zapisane pulpity działają bez zmian, a po pierwszym zapisie są już w n
 | `disks` | wymagane (serwer) | `used_percent`, `used_bytes`, `free_bytes`, `total_bytes` |
 | `wifi` | opcjonalne | `clients`, `rx_bps`, `tx_bps` |
 | `containers` | wymagane (agent) | `up`, `cpu_percent`, `mem_bytes` |
+| `guests` | opcjonalne (węzeł Proxmox) | `up`, `cpu_percent`, `mem_bytes`, `mem_percent`, `rx_bps`, `tx_bps`, `uptime_s`, `backup_age_h` (od 0.31.0; bez szablonów, tagów i adresów; nowe VM/LXC pojawiają się same) |
 | `services` | wymagane (agent) | `up`, `mem_bytes`, `uptime_s` (od 0.29.0; `up` puste, gdy usługa zmienia stan) |
 | `clients` | – | `signal_dbm`, `rx_rate_kbps`, `tx_rate_kbps`, `connected_s` (bez MAC-ów: kluczem jest kolejność) |
 

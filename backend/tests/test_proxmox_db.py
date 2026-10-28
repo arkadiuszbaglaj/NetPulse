@@ -279,3 +279,31 @@ def test_disk_metrics_are_written_per_storage(client):
             return set((await s.scalars(select(DiskMetric.mount).where(DiskMetric.time >= since))).all())
 
     assert {"/", "local (dir)", "local-lvm (lvmthin)", "nas-backup (nfs)"} <= run(mounts)
+
+
+def test_guests_collection_with_backup_age_and_node_filter(client):
+    """Kolekcja `guests` (0.31.0): wiersz na VM i LXC bez szablonów, ruch z ostatniego odczytu, wiek kopii w godzinach."""
+    add_server()
+    collector = collector_for(FakePve())
+    poll(collector)
+    poll(collector)  # drugi odczyt – szybkości z liczników
+
+    rows = {r["label"]: r for r in client.get("/api/collections/guests").json()["rows"]}
+    assert set(rows) == {"homeassistant (100)", "windows (101)", "nextcloud (105)", "pihole (106)"}  # bez szablonu 9000
+    ha, win, pihole = rows["homeassistant (100)"]["values"], rows["windows (101)"]["values"], rows["pihole (106)"]["values"]
+    assert ha["up"] == 1.0 and ha["cpu_percent"] is not None and ha["mem_bytes"] > 0 and 0 < ha["mem_percent"] <= 100
+    assert ha["rx_bps"] > 0 and ha["uptime_s"] > 0 and 1.9 <= ha["backup_age_h"] <= 2.1
+    assert win["up"] == 0.0 and win["backup_age_h"] is None and win["rx_bps"] is None  # zatrzymana, nigdy bez kopii
+    assert pihole["backup_age_h"] >= 71
+    assert "prod" not in str(rows) and "192.168" not in str(rows)  # bez tagów i adresów (pulpit publiczny)
+
+    devices = {d["name"]: d["id"] for d in client.get("/api/devices").json()}
+    on_pve2 = client.get("/api/collections/guests", params={"device_id": devices["pve2"]}).json()["rows"]
+    assert [r["label"] for r in on_pve2] == ["pihole (106)"]
+    assert client.get("/api/collections/guests", params={"device_id": 999999}).status_code == 404
+
+    assert client.put("/api/modules", json={"proxmox": False}).status_code == 200
+    try:
+        assert client.get("/api/collections/guests").status_code == 404
+    finally:
+        client.put("/api/modules", json={"proxmox": True})  # stan modułów nie jest sprzątany między testami

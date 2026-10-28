@@ -85,6 +85,8 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
       return (v) => `${num(Math.abs(v) < 10 ? 1 : 0)(v)} ms`;
     case "days":
       return (v) => `${num(0)(v)} dni`;
+    case "hours":
+      return (v) => (v >= 48 ? `${num(1)(v / 24)} dni` : `${num(v < 10 ? 1 : 0)(v)} h`);
     case "temp":
       return (v) => `${num(1)(v)} °C`;
     case "size":

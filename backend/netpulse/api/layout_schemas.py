@@ -231,13 +231,14 @@ COLLECTION_METRICS: dict[str, tuple[str, ...]] = {
     "containers": ("up", "cpu_percent", "mem_bytes"),
     "services": ("up", "mem_bytes", "uptime_s"),
     "checks": ("up", "latency_ms", "loss_percent", "availability_percent", "cert_days"),
+    "guests": ("up", "cpu_percent", "mem_bytes", "mem_percent", "rx_bps", "tx_bps", "uptime_s", "backup_age_h"),
     "clients": ("signal_dbm", "rx_rate_kbps", "tx_rate_kbps", "connected_s"),
 }
-COLLECTIONS_WITH_DEVICE = ("ports", "disks", "containers", "services")  # wymagają urządzenia; wifi – opcjonalnie
+COLLECTIONS_WITH_DEVICE = ("ports", "disks", "containers", "services")  # wymagają urządzenia; wifi, guests – opcjonalnie
 
 
 class Collection(Strict):
-    kind: Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks"]
+    kind: Literal["devices", "ports", "disks", "wifi", "containers", "services", "clients", "checks", "guests"]
     device_id: int | None = Field(None, ge=1)
 
     @model_validator(mode="after")

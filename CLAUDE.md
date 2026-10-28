@@ -113,6 +113,7 @@ Opis: `docs/16-szyfrowanie-sekretow.md`.
 Od 0.17.0: Ustawienia → Proxmox (token API, rola PVEAuditor), strona Proxmox (VM/LXC, magazyny), węzły jako urządzenia
 `driver = "proxmox"` (karta, alerty, wykresy), alerty: maszyna zatrzymana, kopia vzdump z błędem, brak świeżej kopii.
 Kod: `backend/netpulse/proxmox.py`, `proxmox_collector.py`, `api/proxmox.py`; atrapa API do testów: `backend/tests/pve_fake.py`.
+Kolekcja `guests` do tabeli i pasków (0.31.0, `panels._guest_rows`): stan, CPU, RAM, ruch, czas pracy, wiek kopii w h.
 Opis: `docs/17-proxmox.md`. Sprawdzone 2026-10-27 na prawdziwym PVE 9.1.1/9.2.24 (jeden węzeł, VM i LXC, alert zatrzymanej maszyny, kopia vzdump) –
 parsery bez zmian; PVEAuditor nie widzi plików kopii, więc od 0.28.5 wiek kopii też z zadań vzdump i ich logów; klaster dalej tylko na atrapie.
 
@@ -170,10 +171,6 @@ pulpity), sekcje zwijane (`type: "section"`). Podgląd panelu bez serwera: atrap
 
 ## Do sprawdzenia później
 
-- **Pulpit – następne kolekcje** (z przeglądu pulpitu 28.10.2026, po usługach systemd w 0.29.0):
-  1. kolekcja `guests` – maszyny Proxmoxa (stan, CPU, RAM, sieć, wiek kopii), żeby nowe VM/LXC same trafiały
-     do tabel i pasków; 2. wiek kopii (`backup_age_h`) do pokazania w widgetach (dziś tylko alert);
-  (limit widgetów podniesiony w 0.30.2 z 40 do 60).
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
