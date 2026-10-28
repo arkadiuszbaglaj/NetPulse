@@ -25,6 +25,14 @@ describe("lista urządzeń", () => {
     expect(screen.getByText("brak odpowiedzi")).toBeInTheDocument();
   });
 
+  it("oznacza urządzenie z fabrycznym community SNMP", async () => {
+    await openPage([{ ...DEVICE, default_community: true }, SECOND]);
+    const row = (await screen.findByText("UCG Ultra")).closest("li") as HTMLElement;
+    expect(within(row).getByText("community public")).toBeInTheDocument();
+    const other = screen.getByText("USW Lite 8 PoE").closest("li") as HTMLElement;
+    expect(within(other).queryByText("community public")).not.toBeInTheDocument();
+  });
+
   it("przy pustej liście zaprasza do dodania urządzenia", async () => {
     await openPage([]);
     expect(await screen.findByText("Nie dodano jeszcze urządzeń")).toBeInTheDocument();

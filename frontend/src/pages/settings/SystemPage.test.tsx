@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { mockApi } from "../../test/mockApi";
+import { DEVICE, mockApi } from "../../test/mockApi";
 import { renderApp } from "../../test/renderApp";
 
 describe("Ustawienia → System", () => {
@@ -13,6 +13,28 @@ describe("Ustawienia → System", () => {
     expect(within(list).getByText("PostgreSQL z TimescaleDB")).toBeInTheDocument();
     expect(within(list).getByText("Kontrolery UniFi")).toBeInTheDocument();
     expect(within(list).getByText("nieskonfigurowane")).toBeInTheDocument(); // UniFi bez kontrolera
+  });
+
+  it("ostrzega przed fabrycznym community SNMP i prowadzi do urządzeń", async () => {
+    mockApi({
+      devices: [
+        { ...DEVICE, default_community: true },
+        { ...DEVICE, id: 2, name: "USW Lite 8 PoE", host: "192.168.1.2", default_community: true },
+        { ...DEVICE, id: 3, name: "Stary AP", host: "192.168.1.9", default_community: true, enabled: false }, // wyłączony – pomijamy
+        { ...DEVICE, id: 4, name: "U6+", host: "192.168.1.3", default_community: false },
+      ],
+    });
+    renderApp("/settings/system");
+    const note = (await screen.findByText("Fabryczne community SNMP: 2")).closest("[role=status]") as HTMLElement;
+    expect(within(note).getByText("UCG Ultra, USW Lite 8 PoE")).toBeInTheDocument();
+    expect(within(note).getByRole("link", { name: "Przejdź do urządzeń" })).toHaveAttribute("href", "/settings/devices");
+  });
+
+  it("bez fabrycznego community nie ma ostrzeżenia", async () => {
+    mockApi();
+    renderApp("/settings/system");
+    await screen.findByText("API i panel");
+    expect(screen.queryByText(/Fabryczne community SNMP/)).not.toBeInTheDocument();
   });
 
   it("nazywa usługę, która nie działa, i podaje komunikat", async () => {

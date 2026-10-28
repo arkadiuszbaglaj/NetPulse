@@ -138,6 +138,7 @@ def test_device_crud(client):
     dev = r.json()
     assert dev["name"] == "Switch" and dev["port"] == 161 and dev["snmp_version"] == "2c"
     assert "community" not in dev and "tajne-community" not in r.text
+    assert dev["default_community"] is False
 
     assert client.post("/api/devices?probe=false", json={"name": "dup", "host": "10.9.9.2"}).status_code == 409
     r = client.post("/api/devices?probe=false", json={"name": "v3", "host": "10.9.9.3", "snmp_version": "3"})
@@ -156,6 +157,14 @@ def test_device_crud(client):
     r = client.post("/api/devices?probe=false", json=v3)
     assert r.status_code == 201, r.text
     assert r.json()["v3_auth_protocol"] == "SHA" and "auth-klucz-1" not in r.text
+    assert r.json()["default_community"] is False  # SNMPv3 nie ma community
+
+    # Fabryczne community: ostrzeżenie w panelu (0.31.1), samo community dalej nie wychodzi z API
+    pub = client.post("/api/devices?probe=false", json={"name": "AP", "host": "10.9.9.5", "community": "Public"}).json()
+    assert pub["default_community"] is True and "Public" not in str(pub)
+    r = client.patch(f"/api/devices/{pub['id']}", json={"community": "domowe-123"})
+    assert r.json()["default_community"] is False
+    assert client.delete(f"/api/devices/{pub['id']}").status_code == 204
 
     dev_id = dev["id"]
     r = client.patch(f"/api/devices/{dev_id}", json={"name": "USW Lite 8", "enabled": False})

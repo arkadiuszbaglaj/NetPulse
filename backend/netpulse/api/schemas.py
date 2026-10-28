@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 SnmpVersion = Literal["1", "2c", "3"]
 AuthProto = Literal["MD5", "SHA", "SHA224", "SHA256", "SHA384", "SHA512"]
@@ -145,6 +145,8 @@ class DeviceOut(BaseModel):
     last_ok_at: datetime | None
     last_error: str | None
     created_at: datetime
+    # SNMP v1/v2c z community „public” albo „private” – samo community nie wychodzi z API
+    default_community: bool = Field(False, validation_alias=AliasChoices("default_community", "uses_default_community"))
 
 
 class ProbeInterface(BaseModel):

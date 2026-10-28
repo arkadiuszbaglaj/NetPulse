@@ -108,6 +108,8 @@ export interface Device {
   last_ok_at: string | null;
   last_error: string | null;
   created_at: string;
+  /** SNMP v1/v2c z fabrycznym community („public”, „private”) – od 0.31.1; brak w starszym API */
+  default_community?: boolean;
 }
 
 export interface DashboardSummary {

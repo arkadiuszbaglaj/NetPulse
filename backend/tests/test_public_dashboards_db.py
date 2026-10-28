@@ -119,6 +119,7 @@ def test_public_link_serves_only_whitelisted_data(client):
         (device,) = data("/api/devices").json()
         # Adres, błąd z adresem i dane SNMP zostają w panelu
         assert device["name"] == "UCG" and device["host"] == "" and device["last_error"] is None and "community" not in device
+        assert device["default_community"] is None  # słabe community to informacja tylko dla panelu
         assert data("/api/dashboard/traffic?minutes=60").status_code == 200
         assert data("/api/dashboard/traffic?minutes=7").status_code == 403  # zakres spoza listy
         # Przesunięcie w czasie tylko takie, jakie ma zapytanie wykresu na pulpicie (tu: żadne)

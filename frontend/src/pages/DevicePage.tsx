@@ -2,6 +2,7 @@ import { IconArrowLeft, IconPencil } from "@tabler/icons-react";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 import { AvailabilityCard } from "../components/Availability";
+import { DefaultCommunityBadge } from "../components/SnmpWarning";
 import { RangePicker } from "../components/RangePicker";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { ChartWidget } from "../components/widgets/ChartWidget";
@@ -197,6 +198,7 @@ export function DevicePage() {
       <PageHeader title={d.name}>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`}>{t(STATUS_LABEL[status])}</span>
+          <DefaultCommunityBadge device={d} />
           <Link
             to="/settings/devices"
             className="inline-flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-sm hover:bg-surface-2"

@@ -34,6 +34,10 @@ class Base(DeclarativeBase):
     pass
 
 
+# Fabryczne community SNMP – panel ostrzega, że trzeba je zmienić (od 0.31.1)
+DEFAULT_COMMUNITIES = frozenset({"public", "private"})
+
+
 class Device(Base):
     __tablename__ = "devices"
 
@@ -76,6 +80,16 @@ class Device(Base):
     interfaces: Mapped[list[Interface]] = relationship(
         back_populates="device", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def uses_default_community(self) -> bool:
+        """SNMP v1/v2c z fabrycznym community („public”, „private”) – każdy w sieci może czytać urządzenie."""
+        return (
+            self.snmp_version in ("1", "2c")
+            and self.driver not in ("agent", "proxmox")
+            and (self.community or "").strip().lower() in DEFAULT_COMMUNITIES
+        )
+
     wifi_networks: Mapped[list[WifiNetwork]] = relationship(
         back_populates="device", cascade="all, delete-orphan", passive_deletes=True
     )

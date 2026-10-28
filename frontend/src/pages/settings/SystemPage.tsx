@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { ChartWidget } from "../../components/widgets/ChartWidget";
 import { ServerWidget } from "../../components/widgets/ServerWidget";
+import { DefaultCommunityNote } from "../../components/SnmpWarning";
 import { Card, ErrorNote, PageHeader } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
 import { get } from "../../lib/api";
@@ -88,6 +89,7 @@ export function SystemPage() {
     <>
       <PageHeader title={t("sys.title")} />
       <p className="mb-4 max-w-2xl text-sm text-text-2">{t("sys.intro")}</p>
+      <DefaultCommunityNote />
 
       <section aria-labelledby="sys-services" className="mb-6">
         <h2 id="sys-services" className="mb-2 text-sm font-medium text-text-2">

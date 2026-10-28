@@ -91,6 +91,9 @@ W aplikacji UniFi Network włącz SNMP. Nazwy menu zmieniają się między wersj
 
 1. Włącz **SNMPv1/v2c**.
 2. Ustaw własną nazwę community (nie zostawiaj `public`), np. `netpulse-ro`.
+   Od 0.31.1 panel przypomina o tym: urządzenie z community `public` albo `private` (SNMP v1/v2c) ma plakietkę
+   „community public” na liście urządzeń i na swojej stronie, a Ustawienia → System pokazują ich listę.
+   Pulpit publiczny tej informacji nie pokazuje.
 3. Zapisz. Ustawienie trafia do adoptowanych urządzeń (switch, AP).
 
 ### Sprawdzenie SNMP z serwera (opcjonalnie)

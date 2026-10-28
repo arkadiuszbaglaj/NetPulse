@@ -43,7 +43,7 @@ AVAILABILITY_DAYS = {1, 7, 30, 365}
 PathQuery = Query(max_length=512, description="ścieżka API, której potrzebuje widget, np. /api/dashboard/summary")
 pin_limiter = LoginLimiter(max_failures=10, window_s=900)
 # Pola urządzenia, które nie wychodzą poza panel (konfiguracja SNMP)
-_DEVICE_PRIVATE = ("v3_username", "v3_auth_protocol", "v3_priv_protocol", "v3_context", "sys_name")
+_DEVICE_PRIVATE = ("v3_username", "v3_auth_protocol", "v3_priv_protocol", "v3_context", "sys_name", "default_community")
 
 
 class PublicDashboardOut(BaseModel):

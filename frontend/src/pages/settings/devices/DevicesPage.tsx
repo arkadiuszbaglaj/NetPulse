@@ -18,6 +18,7 @@ import { t, type TextKey } from "../../../i18n";
 import { ApiError, del, patch, post, type Device, type ProbeResult } from "../../../lib/api";
 import { relativeTime } from "../../../lib/format";
 import { useDevices } from "../../../lib/queries";
+import { DefaultCommunityBadge } from "../../../components/SnmpWarning";
 import { DeviceForm } from "./DeviceForm";
 import { ProbeSummary } from "./ProbeSummary";
 
@@ -88,6 +89,7 @@ function DeviceRow({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <DefaultCommunityBadge device={device} />
           {!device.enabled && <span className="rounded-md bg-surface-2 px-2 py-0.5 text-xs text-text-2">{t("devices.disabled")}</span>}
           {device.enabled && (
             <span className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`} title={polled ?? undefined}>
