@@ -104,42 +104,45 @@ async def ping(host: str, timeout: float = 5.0, count: int = PING_COUNT, gap: fl
     base = int.from_bytes(os.urandom(2), "big") & 0x7FFF  # różne serie się nie mieszają
     sent_at: dict[int, float] = {}
     rtts: dict[int, float] = {}
+    all_back = loop.create_future()
 
-    async def receive() -> None:
-        while len(rtts) < count:
+    # Gniazdo obsługujemy sami (sendto + add_reader), a nie przez loop.sock_sendto/sock_recv – tych nie ma uvloop,
+    # na którym działa API (przycisk „Sprawdź teraz”); kolektor ma zwykłą pętlę asyncio.
+    def on_readable() -> None:
+        while True:
             try:
-                data = await loop.sock_recv(sock, 2048)
+                data = sock.recv(2048)
+            except BlockingIOError:
+                return
             except OSError:  # np. „host nieosiągalny” z routera – dotyczy jednego pakietu
-                await asyncio.sleep(0.01)
                 continue
             seq = parse_echo_reply(data, v6)
             if seq in sent_at and seq not in rtts:
                 rtts[seq] = (time.monotonic() - sent_at[seq]) * 1000.0
+                if len(rtts) >= count and not all_back.done():
+                    all_back.set_result(None)
 
-    receiver = asyncio.create_task(receive())
+    loop.add_reader(sock.fileno(), on_readable)
     sent = 0
     try:
         for i in range(count):
             seq = (base + i) & 0xFFFF
             sent_at[seq] = time.monotonic()
             try:
-                await loop.sock_sendto(sock, echo_request(seq, v6), (ip, 0))
+                sock.sendto(echo_request(seq, v6), (ip, 0))
                 sent += 1
-            except OSError as exc:
-                if sent == 0:
+            except OSError as exc:  # także BlockingIOError – pakiet się nie zmieścił, liczy się jako niewysłany
+                sent_at.pop(seq, None)
+                if sent == 0 and i == count - 1:
                     return CheckResult(up=False, error=f"Błąd wysyłania pinga: {_err(exc)}")
             if i < count - 1:
                 await asyncio.sleep(gap)
         try:
-            await asyncio.wait_for(asyncio.shield(receiver), timeout)
+            await asyncio.wait_for(asyncio.shield(all_back), timeout)
         except TimeoutError:
             pass
     finally:
-        receiver.cancel()
-        try:
-            await receiver
-        except (asyncio.CancelledError, OSError):
-            pass
+        loop.remove_reader(sock.fileno())
         sock.close()
     ordered = [rtts[s] for s in sent_at if s in rtts]
     return ping_summary(ordered, sent)

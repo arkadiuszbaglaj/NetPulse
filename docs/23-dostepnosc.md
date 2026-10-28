@@ -48,6 +48,8 @@ sprawdzenia, więc sprawdzenie co 5 min nie „gubi” danych w regule „przez 
   (Docker domyślnie ustawia `net.ipv4.ping_group_range = 0 2147483647`, więc działa w kontenerze kolektora jako
   użytkownik `netpulse`); jądro liczy sumę kontrolną i identyfikator, odpowiedzi rozpoznajemy po numerze sekwencji.
   Bez zewnętrznej biblioteki (popularna `icmplib` jest na LGPL – decyzja o licencji NetPulse jest otwarta).
+  Gniazdo obsługujemy sami (`sendto` + `add_reader`): API działa na uvloop, który nie ma `loop.sock_sendto`
+  (w 0.30.0 „Sprawdź teraz” dla pingu kończył się `NotImplementedError`; poprawione w 0.30.1).
 - `backend/netpulse/checks_collector.py` – pętla w procesie kolektora: co 5 s wybiera sprawdzenia, których odstęp
   minął, wykonuje je równolegle (najwyżej 20), zapisuje wynik w `check_metrics` (hypertable, retencja jak inne
   metryki) i stan w `checks` (`status`, `status_since`, `last_error`, `last_latency_ms`).

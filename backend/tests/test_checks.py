@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import socket
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -118,3 +119,52 @@ def test_check_form_validation():
     for body in bad:
         with pytest.raises(ValidationError):
             CheckIn(**body)
+
+
+@pytest.mark.skipif(not hasattr(socket, "AF_UNIX"), reason="potrzebne gniazda uniksowe (Linux w CI)")
+def test_ping_works_on_loop_without_sock_sendto(monkeypatch):
+    """API działa na uvloop, który nie ma loop.sock_sendto/sock_recv – ping nie może z nich korzystać (0.30.1)."""
+    ours, theirs = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
+
+    class FakeIcmp:
+        """Gniazdo ICMP udawane parą gniazd: każde echo request od razu dostaje echo reply (typ 0)."""
+
+        def __init__(self, *args):
+            pass
+
+        def setblocking(self, flag):
+            ours.setblocking(flag)
+
+        def fileno(self):
+            return ours.fileno()
+
+        def sendto(self, data, addr):
+            theirs.send(bytes([0]) + data[1:])
+            return len(data)
+
+        def recv(self, size):
+            return ours.recv(size)
+
+        def close(self):
+            ours.close()
+            theirs.close()
+
+    class UvloopLike(asyncio.SelectorEventLoop):
+        async def sock_sendto(self, *args):
+            raise NotImplementedError
+
+        async def sock_recv(self, *args):
+            raise NotImplementedError
+
+    async def resolve(host, port=None):
+        return socket.AF_INET, "192.0.2.1"
+
+    loop = UvloopLike()  # przed podmianą socket.socket – pętla sama tworzy gniazda
+    monkeypatch.setattr(checks, "_resolve", resolve)
+    monkeypatch.setattr(checks.socket, "socket", FakeIcmp)
+    try:
+        r = loop.run_until_complete(checks.ping("example", timeout=2, count=3, gap=0.01))
+    finally:
+        monkeypatch.undo()
+        loop.close()
+    assert r.up and r.loss_percent == 0.0 and r.latency_ms is not None, r
