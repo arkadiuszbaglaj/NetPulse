@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useParams } from "react-router";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
-import { useServerStatus, type AgentContainer, type AgentInfo, type ServerStatus } from "../components/widgets/ServerDetails";
+import { serviceProblem, useServerStatus, type AgentContainer, type AgentInfo, type ServerStatus } from "../components/widgets/ServerDetails";
 import { UsageBar } from "../components/widgets/ServerWidget";
 import { t } from "../i18n";
 import { updateCommand } from "../lib/agents";
@@ -205,7 +205,9 @@ function ContainersCard({ containers }: { containers: AgentContainer[] }) {
 }
 
 function ServicesCard({ services }: { services: NonNullable<AgentInfo["services"]> }) {
-  const items = [...services.items].sort((a, b) => Number(a.active === "active") - Number(b.active === "active") || a.name.localeCompare(b.name));
+  // Najpierw usługi z problemem, potem w trakcie zmiany stanu, na końcu działające
+  const rank = (s: (typeof services.items)[number]) => (serviceProblem(s) ? 0 : s.active === "active" ? 2 : 1);
+  const items = [...services.items].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
   if (!items.length) {
     return (
       <Card className="p-4">
@@ -232,7 +234,7 @@ function ServicesCard({ services }: { services: NonNullable<AgentInfo["services"
         <tr key={s.name} className="border-t border-border">
           <td className={`${cell} font-medium`}>{s.name.replace(/\.service$/, "")}</td>
           <td className={cell}>
-            <StateBadge ok={s.active === "active"}>{s.active}</StateBadge>
+            <StateBadge ok={!serviceProblem(s)}>{s.active}</StateBadge>
           </td>
           <td className={`${cell} text-text-2`}>{s.sub ?? "–"}</td>
           <td className={num}>{s.mem_bytes != null ? formatBytes(s.mem_bytes) : "–"}</td>

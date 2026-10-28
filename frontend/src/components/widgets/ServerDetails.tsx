@@ -94,6 +94,15 @@ function names(list: string[], max = 3): string {
   return list.length > max ? `${list.slice(0, max).join(", ")} +${list.length - max}` : list.join(", ");
 }
 
+type AgentService = NonNullable<AgentInfo["services"]>["items"][number];
+
+/** Usługa z problemem: z błędem, obserwowana i brakująca albo obserwowana i zatrzymana. Usługa w trakcie zmiany
+ * stanu (`activating`, `reloading`, `deactivating`) problemem nie jest – od 0.29.0 agent wysyła wszystkie działające.
+ * Starszy agent nie podaje `watched`; wysyłał tylko usługi z błędem i obserwowane, więc jego „inactive” to problem. */
+export function serviceProblem(s: AgentService): boolean {
+  return s.active === "failed" || s.active === "missing" || (s.active === "inactive" && s.watched !== false);
+}
+
 /** Kontenery, usługi, temperatura i SMART – tylko z agenta (SNMP tego nie podaje). Problemy na czerwono. */
 function AgentLines({ agent }: { agent: AgentInfo }) {
   const lines: { key: string; text: string; problem?: boolean; warn?: boolean }[] = [];
@@ -104,7 +113,7 @@ function AgentLines({ agent }: { agent: AgentInfo }) {
     if (stopped.length) lines.push({ key: "stopped", text: t("agent.containers.stopped", { names: names(stopped) }), problem: true });
   }
   if (agent.services) {
-    const failed = agent.services.items.filter((s) => s.active !== "active").map((s) => s.name.replace(/\.service$/, ""));
+    const failed = agent.services.items.filter(serviceProblem).map((s) => s.name.replace(/\.service$/, ""));
     lines.push(
       failed.length
         ? { key: "services", text: t("agent.services.failed", { names: names(failed) }), problem: true }

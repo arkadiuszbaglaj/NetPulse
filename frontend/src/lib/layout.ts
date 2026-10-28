@@ -14,7 +14,7 @@ export const ROW_HEIGHT = 30;
 export const GRID_MARGIN = 12;
 export const MAX_HEIGHT = 40;
 export const rowsToPx = (h: number) => h * ROW_HEIGHT + (h - 1) * GRID_MARGIN;
-export const MAX_WIDGETS = 40;
+export const MAX_WIDGETS = 60;
 
 export type ChartKind = "line" | "area" | "bar";
 export type ChartUnit = "bits" | "bytes";

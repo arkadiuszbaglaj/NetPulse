@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 SCHEMA_VERSION = 1
-MAX_WIDGETS = 40
+MAX_WIDGETS = 60
 
 GridWidth = Annotated[int, Field(ge=1, le=12)]  # szerokość w kolumnach siatki 12-kolumnowej (do 0.27: 3/4/6/8/12)
 GRID_COLS = 12
