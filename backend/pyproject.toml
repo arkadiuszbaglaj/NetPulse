@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "sqlalchemy[asyncio]>=2.0.36",
+    "sqlalchemy[asyncio]>=2.1",  # postgresql.distinct_on
     "asyncpg>=0.30",
     "alembic>=1.14",  # migracje schematu bazy
     "pysnmp>=7.1,<8",
@@ -27,6 +27,7 @@ dev = [
     "snmpsim>=1.1",
     "pysmi>=1.5",
     "ruff>=0.8",
+    "httpx2>=2.16",  # klient testów Starlette (TestClient) – zastępuje httpx
 ]
 
 [project.scripts]
@@ -41,6 +42,8 @@ packages = ["netpulse"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: testy z symulatorem SNMP (snmpsim)"]
+# Przestarzałe nazwy we wnętrzu pysnmp (jego własny kompilator MIB) – nie do poprawienia po naszej stronie
+filterwarnings = ["ignore::DeprecationWarning:pysnmp.*"]
 
 [tool.ruff]
 line-length = 110

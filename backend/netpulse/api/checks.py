@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import Integer, cast, delete, func, select, text
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..checks import run_check, valid_expect
 from ..db import Session, engine, has_timescale
@@ -131,7 +132,7 @@ async def _stats(session, ids: list[int]) -> tuple[dict[int, float], dict[int, C
         for m in (
             await session.scalars(
                 select(CheckMetric)
-                .distinct(CheckMetric.check_id)
+                .ext(distinct_on(CheckMetric.check_id))
                 .where(CheckMetric.check_id.in_(ids), CheckMetric.time >= since)
                 .order_by(CheckMetric.check_id, CheckMetric.time.desc())
             )

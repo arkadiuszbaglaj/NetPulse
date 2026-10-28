@@ -12,6 +12,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..config import settings
 from ..db import Session
@@ -84,7 +85,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                 for m in (
                     await session.scalars(
                         select(DeviceMetric)
-                        .distinct(DeviceMetric.device_id)
+                        .ext(distinct_on(DeviceMetric.device_id))
                         .where(DeviceMetric.device_id.in_(list(devices) or [0]), DeviceMetric.time >= since)
                         .order_by(DeviceMetric.device_id, DeviceMetric.time.desc())
                     )
@@ -116,7 +117,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                 r.interface_id: r
                 for r in await session.execute(
                     select(InterfaceMetric.interface_id, InterfaceMetric.in_bps, InterfaceMetric.out_bps)
-                    .distinct(InterfaceMetric.interface_id)
+                    .ext(distinct_on(InterfaceMetric.interface_id))
                     .where(InterfaceMetric.interface_id.in_([p.id for p in ports] or [0]), InterfaceMetric.time >= since)
                     .order_by(InterfaceMetric.interface_id, InterfaceMetric.time.desc())
                 )
@@ -150,7 +151,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                 for m in (
                     await session.scalars(
                         select(WifiMetric)
-                        .distinct(WifiMetric.wifi_id)
+                        .ext(distinct_on(WifiMetric.wifi_id))
                         .where(WifiMetric.wifi_id.in_([w.id for w in networks] or [0]), WifiMetric.time >= since)
                         .order_by(WifiMetric.wifi_id, WifiMetric.time.desc())
                     )

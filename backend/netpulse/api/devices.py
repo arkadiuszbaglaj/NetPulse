@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..collector import credentials_for
 from ..db import Session
@@ -222,7 +223,7 @@ async def device_interfaces(device_id: int, include_hidden: bool = False):
         since = datetime.now(UTC) - timedelta(minutes=5)
         latest = (
             select(InterfaceMetric.interface_id, InterfaceMetric.in_bps, InterfaceMetric.out_bps)
-            .distinct(InterfaceMetric.interface_id)
+            .ext(distinct_on(InterfaceMetric.interface_id))
             .where(
                 InterfaceMetric.interface_id.in_([i.id for i in interfaces]),
                 InterfaceMetric.time >= since,

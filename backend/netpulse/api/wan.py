@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import delete, select, text
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from .. import wan_links
 from ..db import Session
@@ -88,7 +89,7 @@ async def status():
         if links:
             latest = (
                 select(WanLinkMetric.wan_link_id, WanLinkMetric.time, WanLinkMetric.in_bps, WanLinkMetric.out_bps)
-                .distinct(WanLinkMetric.wan_link_id)
+                .ext(distinct_on(WanLinkMetric.wan_link_id))
                 .where(WanLinkMetric.wan_link_id.in_([x.id for x in links]), WanLinkMetric.time >= since)
                 .order_by(WanLinkMetric.wan_link_id, WanLinkMetric.time.desc())
             )

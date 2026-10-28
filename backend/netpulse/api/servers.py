@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from .. import __version__
 from ..db import Session
@@ -102,7 +103,7 @@ async def device_server(device_id: int):
             await session.scalars(
                 select(DiskMetric)
                 .where(DiskMetric.device_id == device_id, DiskMetric.time >= since)
-                .distinct(DiskMetric.mount)
+                .ext(distinct_on(DiskMetric.mount))
                 .order_by(DiskMetric.mount, DiskMetric.time.desc())
             )
         ).all()

@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatchcase
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from .config import settings
 from .db import Session
@@ -442,7 +443,7 @@ class AlertEngine:
         rows = (
             await session.execute(
                 select(InterfaceMetric.interface_id, InterfaceMetric.oper_up, InterfaceMetric.time)
-                .distinct(InterfaceMetric.interface_id)
+                .ext(distinct_on(InterfaceMetric.interface_id))
                 .where(
                     InterfaceMetric.interface_id.in_(candidates),
                     InterfaceMetric.oper_up.is_not(None),

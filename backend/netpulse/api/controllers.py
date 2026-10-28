@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..db import Session
 from ..db.models import Controller, Device, Interface, NetworkClient, PoeBudgetMetric, PoePortMetric
@@ -229,7 +230,7 @@ async def device_poe(device_id: int):
             raise HTTPException(404, "Nie ma takiego urządzenia")
         latest = (
             select(PoePortMetric)
-            .distinct(PoePortMetric.port_idx)
+            .ext(distinct_on(PoePortMetric.port_idx))
             .where(PoePortMetric.device_id == device_id, PoePortMetric.time >= since)
             .order_by(PoePortMetric.port_idx, PoePortMetric.time.desc())
         )

@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from .. import aggregates
 from ..config import settings
@@ -70,7 +71,7 @@ async def summary():
         if wan_ids:
             latest = (
                 select(InterfaceMetric.interface_id, InterfaceMetric.in_bps, InterfaceMetric.out_bps)
-                .distinct(InterfaceMetric.interface_id)
+                .ext(distinct_on(InterfaceMetric.interface_id))
                 .where(InterfaceMetric.interface_id.in_(wan_ids), InterfaceMetric.time >= since)
                 .order_by(InterfaceMetric.interface_id, InterfaceMetric.time.desc())
             )
