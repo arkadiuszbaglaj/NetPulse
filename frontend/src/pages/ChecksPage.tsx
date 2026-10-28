@@ -9,7 +9,7 @@ import { ApiError, del, post, request } from "../lib/api";
 import {
   CHECK_INTERVALS,
   CHECK_KINDS,
-  CHECK_PRESETS,
+  checkPresets,
   CHECKS_KEY,
   checkTarget,
   useChecks,
@@ -19,6 +19,7 @@ import {
   type CheckTestResult,
 } from "../lib/checks";
 import { relativeTime } from "../lib/format";
+import { useDevices } from "../lib/queries";
 import { newChartConfig, type ChartConfig } from "../lib/layout";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -395,6 +396,14 @@ export function ChecksPage() {
   });
   const list = data ?? [];
   const down = list.filter((c) => c.enabled && c.status === "down").length;
+  const devices = useDevices().data ?? [];
+  const presets = checkPresets(devices, list);
+  const presetButtons = presets.map((p) => (
+    <Button key={p.id} onClick={() => setForm({ preset: p.payload })}>
+      <IconPlus size={16} aria-hidden="true" />
+      {p.payload.name}
+    </Button>
+  ));
 
   return (
     <>
@@ -411,15 +420,14 @@ export function ChecksPage() {
         <Card className="p-6">
           <h2 className="text-base font-medium">{t("chk.empty.title")}</h2>
           <p className="mt-1 max-w-prose text-sm text-text-2">{t("chk.empty.body")}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {CHECK_PRESETS.map((p) => (
-              <Button key={p.id} onClick={() => setForm({ preset: p.payload })}>
-                <IconPlus size={16} aria-hidden="true" />
-                {p.payload.name}
-              </Button>
-            ))}
-          </div>
+          <div className="mt-4 flex flex-wrap gap-2">{presetButtons}</div>
         </Card>
+      )}
+      {list.length > 0 && presets.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-text-2">{t("chk.quick")}</span>
+          {presetButtons}
+        </div>
       )}
       {list.length > 0 && (
         <>

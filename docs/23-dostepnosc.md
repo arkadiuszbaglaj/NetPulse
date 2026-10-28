@@ -19,6 +19,9 @@ odpowiada nawet z serwera, `8.8.8.8` tak) – wtedy wybierz inny cel.
   w pierwszym megabajcie), weryfikacja certyfikatu – wyłącz dla samopodpisanych (Proxmox, router); datę wygaśnięcia
   NetPulse odczyta i tak (osobne połączenie TLS bez weryfikacji). Przekierowania są śledzone.
 - **Sprawdź teraz** w formularzu wykonuje sprawdzenie od razu, bez zapisu.
+- **Szybko dodaj** (od 0.30.3): ping do bramy każdego włączonego routera z listy urządzeń („Brama – UCG Ultra”:
+  awaria w sieci domowej czy u dostawcy?), ping do publicznych DNS i strona www; gotowe sprawdzenia, których cel już
+  jest sprawdzany, znikają z listy.
 
 ## Alerty
 

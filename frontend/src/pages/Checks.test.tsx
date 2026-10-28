@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Check } from "../lib/checks";
 import { metricFormatter } from "../lib/format";
-import { mockApi } from "../test/mockApi";
+import { DEVICE, mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
 const check = (over: Partial<Check>): Check => ({
@@ -111,6 +111,29 @@ describe("Dostępność", () => {
     expect(within(rows[1]).getByText("niedostępne")).toBeInTheDocument();
     expect(within(rows[1]).getByText("Kod HTTP 502 (oczekiwany 200-399)")).toBeInTheDocument();
     expect(within(rows[1]).getByText(/kod 502 · certyfikat: 61 dni/)).toBeInTheDocument();
+  });
+
+  it("proponuje ping do bramy każdego routera i ukrywa gotowe sprawdzenia, które już są", async () => {
+    mockApi({
+      devices: [
+        { ...DEVICE, kind: "gateway" },
+        { ...DEVICE, id: 2, name: "USW Lite 8 PoE", host: "192.168.1.2", kind: "switch" },
+        { ...DEVICE, id: 8, name: "Mikrotik", host: "192.168.1.62", kind: "gateway", enabled: false },
+      ],
+      checks: [check({})], // 8.8.8.8 już jest
+    });
+    renderApp("/checks");
+    const user = userEvent.setup();
+    const quick = (await screen.findByText("Szybko dodaj:")).parentElement as HTMLElement;
+    const names = within(quick)
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(names).toEqual(["Brama – UCG Ultra", "Internet – Cloudflare DNS", "Strona WWW"]); // bez switcha, wyłączonego routera i 8.8.8.8
+
+    await user.click(within(quick).getByRole("button", { name: "Brama – UCG Ultra" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nowe sprawdzenie" });
+    expect(within(dialog).getByLabelText("Adres IP lub nazwa hosta")).toHaveValue("192.168.1.1");
+    expect(within(dialog).getByLabelText("Nazwa")).toHaveValue("Brama – UCG Ultra");
   });
 
   it("formatuje opóźnienie i ważność certyfikatu", () => {

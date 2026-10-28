@@ -581,6 +581,7 @@ export const pl = {
   "chk.title": "Dostępność",
   "chk.intro": "Ping mierzy jakość łącza (opóźnienie, utratę pakietów i jitter), HTTP sprawdza strony i usługi www (kod odpowiedzi, tekst na stronie, ważność certyfikatu), a port TCP – czy usługa przyjmuje połączenia. Alerty ustawisz w Ustawienia → Reguły alertów.",
   "chk.add": "Dodaj sprawdzenie",
+  "chk.quick": "Szybko dodaj:",
   "chk.loadError": "Nie udało się wczytać sprawdzeń.",
   "chk.empty.title": "Brak sprawdzeń",
   "chk.empty.body": "Zacznij od pingu do publicznego DNS – pokaże opóźnienie i utratę pakietów na łączu. Możesz też sprawdzać strony www i porty usług w sieci.",

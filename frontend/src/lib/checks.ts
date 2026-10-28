@@ -1,6 +1,6 @@
 /** Sprawdzanie dostępności: ping, HTTP(S), port TCP (API: backend/netpulse/api/checks.py). */
 import { useQuery } from "@tanstack/react-query";
-import { get } from "./api";
+import { get, type Device } from "./api";
 import { useRefresh } from "./refresh";
 
 export type CheckKind = "ping" | "http" | "tcp";
@@ -59,10 +59,7 @@ export function useChecks() {
 }
 
 /** Gotowe sprawdzenia do jednego kliknięcia: jakość łącza (ping do publicznych DNS) i brama. */
-export const CHECK_PRESETS: {
-  id: string;
-  payload: Omit<CheckPayload, "enabled">;
-}[] = [
+export const CHECK_PRESETS: CheckPreset[] = [
   {
     id: "google",
     payload: {
@@ -106,6 +103,24 @@ export const CHECK_PRESETS: {
     },
   },
 ];
+
+export interface CheckPreset {
+  id: string;
+  payload: Omit<CheckPayload, "enabled">;
+}
+
+/** Gotowe sprawdzenia do zaproponowania: ping do bramy każdego routera w NetPulse (sieć domowa – „u mnie czy
+ * u dostawcy?”), potem stałe. Bez tych, których cel już jest sprawdzany. */
+export function checkPresets(devices: Pick<Device, "id" | "name" | "host" | "kind" | "enabled">[], existing: Pick<Check, "kind" | "target">[]): CheckPreset[] {
+  const gateways: CheckPreset[] = devices
+    .filter((d) => d.kind === "gateway" && d.enabled)
+    .map((d) => ({
+      id: `gateway-${d.id}`,
+      payload: { name: `Brama – ${d.name}`, kind: "ping", target: d.host, port: null, interval_s: 30, timeout_s: 3, expect_status: null, keyword: null, verify_tls: true },
+    }));
+  const taken = new Set(existing.map((c) => `${c.kind} ${c.target.toLowerCase()}`));
+  return [...gateways, ...CHECK_PRESETS].filter((p) => !taken.has(`${p.payload.kind} ${p.payload.target.toLowerCase()}`));
+}
 
 /** Cel w jednej linii: host, host:port albo adres URL. */
 export function checkTarget(c: Pick<Check, "kind" | "target" | "port">): string {
