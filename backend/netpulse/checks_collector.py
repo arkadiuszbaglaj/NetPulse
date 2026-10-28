@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from .checks import CheckResult, run_check
+from .collector import _write_with_retry
 from .db import Session
 from .db.models import Check, CheckMetric
 
@@ -63,7 +64,7 @@ class ChecksCollector:
 
 
 async def save_result(check_id: int, result: CheckResult, now: datetime) -> None:
-    async with Session() as session, session.begin():
+    async def write(session) -> None:
         check = await session.get(Check, check_id, with_for_update=True)
         if check is None:  # usunięte w trakcie sprawdzania
             return
@@ -83,3 +84,6 @@ async def save_result(check_id: int, result: CheckResult, now: datetime) -> None
                 jitter_ms=result.jitter_ms, status_code=result.status_code, cert_days=result.cert_days,
             )
         )  # fmt: skip
+
+    # Równoległe zapisy pierwszych wyników dnia zakładają ten sam chunk Timescale – możliwy deadlock, ponawiamy
+    await _write_with_retry(write)
