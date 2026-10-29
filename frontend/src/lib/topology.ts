@@ -18,6 +18,42 @@ export interface TopologyEdge {
   a_port: number | null;
   b: string;
   b_port: number | null;
+  /** Obciążenie kabla (0.35.0): port SNMP jednej ze stron, jego prędkość, ruch (większy kierunek) i wykorzystanie 0–1 */
+  interface_id?: number | null;
+  device_id?: number | null;
+  speed_mbps?: number | null;
+  traffic_bps?: number | null;
+  utilization?: number | null;
+}
+
+export type LoadLevel = "none" | "low" | "mid" | "high";
+
+/** Poziom obciążenia kabla: do 50% niski, do 80% średni, wyżej wysoki; bez danych – „none”. */
+export function loadLevel(utilization: number | null | undefined): LoadLevel {
+  if (utilization == null) return "none";
+  return utilization >= 0.8 ? "high" : utilization >= 0.5 ? "mid" : "low";
+}
+
+/** Prędkość łącza krótko: 1G, 2.5G, 100M. */
+export function speedLabel(mbps: number | null | undefined): string | null {
+  if (!mbps) return null;
+  return mbps >= 1000 ? `${+(mbps / 1000).toFixed(1)}G` : `${mbps}M`;
+}
+
+export const MIN_SCALE = 0.3;
+export const MAX_SCALE = 2;
+export const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
+
+/** Skala „Dopasuj”: cała mapa w szerokości ramki, bez powiększania ponad 100%. */
+export function fitScale(frameWidth: number, contentWidth: number): number {
+  return contentWidth > 0 && frameWidth > 0 ? clampScale(Math.min(1, frameWidth / contentWidth)) : 1;
+}
+
+/** Zmiana skali względem punktu (np. środka ramki): ten punkt mapy zostaje w tym samym miejscu ekranu. */
+export function zoomAt(view: { scale: number; x: number; y: number }, scale: number, px: number, py: number) {
+  const next = clampScale(scale);
+  const k = next / view.scale;
+  return { scale: next, x: px - (px - view.x) * k, y: py - (py - view.y) * k };
 }
 
 export interface Topology {
@@ -62,7 +98,8 @@ export function groupByPort<T extends { uplink_port: number | null }>(clients: T
 export const NODE_W = 200;
 export const NODE_H = 132;
 const GAP_X = 32;
-const GAP_Y = 76;
+// Między warstwami mieszczą się trzy opisy: port u góry, prędkość i ruch w połowie, port na dole
+const GAP_Y = 100;
 
 export interface Placement {
   x: number;

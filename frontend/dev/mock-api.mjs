@@ -212,7 +212,21 @@ createServer(async (req, res) => {
     return send(res, 202, updatesView());
   }
   // --- pulpit: układ, moduły i dane paneli (wykresy, kolekcje, stany) ---
-  if (route === "GET /api/modules") return send(res, 200, { proxmox: false, unifi: false, agents: false, backups: false });
+  // Mapa sieci z obciążeniem kabli: brama – switch (uplink mocno zajęty) – AP, modem za bramą
+  if (route === "GET /api/topology") {
+    const node = (id, name, device_kind) => ({ id: `d${id}`, kind: "device", device_id: id, name, device_kind, model: null, status: "up" });
+    return send(res, 200, {
+      nodes: [node(1, "UCG Ultra", "gateway"), node(2, "USW Lite 8 PoE", "switch"), node(3, "U6+", "ap"),
+        { id: "x02:00:ff:33:66:69", kind: "external", device_id: null, name: "02:00:ff:33:66:69", device_kind: null, model: null, status: null }],
+      edges: [
+        { a: "d1", a_port: 1, b: "d2", b_port: 8, interface_id: 28, device_id: 2, speed_mbps: 1000, traffic_bps: 6.2e8, utilization: 0.62 },
+        { a: "d2", a_port: 1, b: "d3", b_port: 1, interface_id: 21, device_id: 2, speed_mbps: 1000, traffic_bps: 4.1e7, utilization: 0.041 },
+        { a: "d1", a_port: 5, b: "x02:00:ff:33:66:69", b_port: null, interface_id: 5, device_id: 1, speed_mbps: 1000, traffic_bps: 9.1e8, utilization: 0.91 },
+      ],
+    });
+  }
+  if (route === "GET /api/clients") return send(res, 200, []);
+  if (route === "GET /api/modules") return send(res, 200, { proxmox: false, unifi: true, agents: false, backups: false });
   if (route === "GET /api/dashboards") return send(res, 200, []);
   if (route === "GET /api/dashboards/default") return send(res, 200, { layout, updated_at: layoutAt });
   if (route === "PUT /api/dashboards/default") {

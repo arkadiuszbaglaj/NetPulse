@@ -158,3 +158,16 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   `auto` (domyślnie) – wykres urządzenia lub z agenta: jego restarty i alerty (też portów), wykres portu: ten port
   i restarty jego urządzenia; wykres ogólny (WAN, WiFi, serwer, sprawdzenie): przełączenia WAN i alerty bez
   urządzenia. `all` – wszystkie, `off` – żadne. W trybie „Na żywo” bez zdarzeń.
+
+## Mapa sieci: obciążenie kabli i powiększanie (0.35.0)
+
+- **API** `/api/topology`: krawędź ma `interface_id`, `device_id`, `speed_mbps`, `traffic_bps` (większy z kierunków,
+  próbka z ostatnich 5 min) i `utilization` (0–1). Port szukany po stronie a, potem b: numer portu z kontrolera →
+  interfejs SNMP „0/N” (switch UniFi), inaczej „eth(N-1)” (brama, AP) – `port_interface` w `api/topology.py`.
+- **Kabel** w kolorze obciążenia (do 50% zielony, 50–80% pomarańczowy, ponad 80% czerwony, bez danych szary)
+  i grubszy, im bardziej zajęty; w połowie opis „1G · 620 Mb/s” – link do strony portu. Legenda pod mapą, prędkość
+  i ruch też na liście połączeń. Odstęp warstw 100 px (trzy opisy między węzłami).
+- **Powiększanie**: przyciski + / − / „Dopasuj do szerokości”, Ctrl + kółko w miejscu kursora, przesuwanie
+  przeciągnięciem tła. Na starcie mapa dopasowana do szerokości (na telefonie bez przewijania w bok); palec
+  przesuwa mapę dopiero po przybliżeniu, wcześniej przewija stronę.
+

@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { NODE_H, NODE_W, groupByPort, isInternetNode, layoutTopology, pickRoot, type Topology, type TopologyNode } from "../lib/topology";
+import { NODE_H, NODE_W, fitScale, groupByPort, isInternetNode, layoutTopology, loadLevel, pickRoot, speedLabel, zoomAt, type Topology, type TopologyNode } from "../lib/topology";
 import type { NetworkClient } from "../lib/unifi";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
@@ -162,5 +162,38 @@ describe("Internet i grupowanie klientów na porcie", () => {
     mockApi({ topology: TOPO });
     renderApp("/topology");
     expect(await screen.findByText("Internet (WAN)")).toBeInTheDocument();
+  });
+});
+
+describe("obciążenie kabli i powiększenie mapy (0.35.0)", () => {
+  it("poziom obciążenia, prędkość, dopasowanie i przybliżanie w punkcie", () => {
+    expect([null, 0.1, 0.5, 0.79, 0.8, 1].map(loadLevel)).toEqual(["none", "low", "mid", "mid", "high", "high"]);
+    expect([1000, 2500, 100, null].map(speedLabel)).toEqual(["1G", "2.5G", "100M", null]);
+    expect(fitScale(400, 800)).toBe(0.5);
+    expect(fitScale(1600, 800)).toBe(1); // bez powiększania ponad 100%
+    expect(fitScale(100, 1000)).toBe(0.3); // nie mniej niż minimum
+    // Punkt pod kursorem (100, 50) zostaje w miejscu
+    const v = zoomAt({ scale: 1, x: 0, y: 0 }, 2, 100, 50);
+    expect(v).toEqual({ scale: 2, x: -100, y: -50 });
+  });
+
+  it("kabel pokazuje prędkość i ruch, opis prowadzi do strony portu", async () => {
+    const topo: Topology = {
+      ...TOPO,
+      edges: [
+        { ...TOPO.edges[0], interface_id: 21, device_id: 2, speed_mbps: 1000, traffic_bps: 8.5e8, utilization: 0.85 },
+        { ...TOPO.edges[1], speed_mbps: 100 },
+        TOPO.edges[2],
+      ],
+    };
+    mockApi({ topology: topo, clients: [] });
+    renderApp("/topology");
+    const label = await screen.findByRole("link", { name: "1G · 850 Mb/s" });
+    expect(label).toHaveAttribute("href", "/devices/2/ports/21");
+    expect(label).toHaveAttribute("title", "1G · 850 Mb/s – ponad 80% (85%)");
+    expect(screen.getByText("100M")).toBeInTheDocument(); // bez ruchu i bez portu SNMP – sam opis
+    expect(screen.getByRole("group", { name: "Powiększenie mapy" })).toBeInTheDocument();
+    const links = screen.getByRole("region", { name: "Połączenia" });
+    expect(within(links).getByText(/1G, 850 Mb\/s/)).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from datetime import UTC, datetime
 
 import pytest
 from conftest import FIXTURES
@@ -25,6 +26,7 @@ from netpulse.db.models import (  # noqa: E402
     Controller,
     Device,
     Interface,
+    InterfaceMetric,
     NetworkClient,
     PoeBudgetMetric,
     PoePortMetric,
@@ -89,7 +91,7 @@ def seed() -> None:
             switch = Device(name="USW", host=devices["usw"], community="public")
             s.add_all([switch, Device(name="U6+", host=devices["uap"], community="public"), Device(name="UCG", host=devices["udm"], community="public")])
             await s.flush()
-            s.add(Interface(device_id=switch.id, if_index=1, name="0/1", label="Port 1", alias="AP U6+"))
+            s.add(Interface(device_id=switch.id, if_index=1, name="0/1", label="Port 1", alias="AP U6+", speed_mbps=1000))
             s.add(Controller(name="UniFi", host="10.0.0.254", api_key="klucz-testowy-123"))
 
     run(go)
@@ -220,3 +222,17 @@ def test_topology_joins_both_ends_of_each_cable(client):
     assert edge("USW", "U6+") == (1, 1)  # AP na porcie 1 switcha, uplink AP to jego eth0
     assert edge("USW", "UCG") == (8, 1)  # brama na porcie 8 switcha
     assert len(topo["edges"]) == 3
+
+    # Obciążenie kabla AP: port 1 switcha („0/1”, 1 Gb/s) i jego ostatni ruch – większy z kierunków
+    async def traffic():
+        async with Session() as s, s.begin():
+            port = await s.scalar(select(Interface).where(Interface.name == "0/1"))
+            s.add(InterfaceMetric(time=datetime.now(UTC), interface_id=port.id, in_bps=5e7, out_bps=2e8))
+            return port.id
+
+    port_id = run(traffic)
+    (ap,) = [e for e in client.get("/api/topology").json()["edges"] if {e["a"], e["b"]} == {by_name["USW"]["id"], by_name["U6+"]["id"]}]
+    assert (ap["interface_id"], ap["device_id"], ap["speed_mbps"]) == (port_id, by_name["USW"]["device_id"], 1000)
+    assert ap["traffic_bps"] == 2e8 and ap["utilization"] == pytest.approx(0.2)
+    (gw,) = [e for e in client.get("/api/topology").json()["edges"] if {e["a"], e["b"]} == {by_name["USW"]["id"], by_name["UCG"]["id"]}]
+    assert gw["interface_id"] is None and gw["utilization"] is None  # portu 8 switcha nie ma w SNMP tego testu
