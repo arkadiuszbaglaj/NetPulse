@@ -198,6 +198,8 @@ class ChartConfig(Strict):
     range_min: RangeMinutes | None = None  # puste = zakres globalny
     refresh_s: RefreshSeconds | None = None  # puste = interwał globalny
     height: Literal["sm", "md", "lg"] = "md"
+    # Zdarzenia na osi czasu (0.34.0): auto – dotyczące urządzeń i portów wykresu, all – wszystkie, off – żadne
+    annotations: Literal["auto", "all", "off"] = "auto"
 
     @model_validator(mode="before")
     @classmethod

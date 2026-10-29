@@ -29,6 +29,7 @@ import {
   valueToRaw,
   type Axis,
   type ChartConfig,
+  type Annotations,
   type ChartKind,
   type ChartQuery,
   type ChartUnit,
@@ -625,6 +626,22 @@ export function ChartEditor({ initial, onSave, onClose, isNew }: { initial: Char
               </div>
               <Checkbox id="ce-stack" label={t("ce.stack")} checked={cfg.stack ?? false} onChange={(v) => set({ stack: v })} />
               <Checkbox id="ce-smooth" label={t("ce.smooth")} checked={cfg.smooth} onChange={(v) => set({ smooth: v })} />
+              <Select
+                id="ce-annotations"
+                label={t("ce.annotations")}
+                aria-describedby="ce-annotations-hint"
+                value={cfg.annotations ?? "auto"}
+                onChange={(e) => set({ annotations: e.target.value as Annotations })}
+              >
+                {(["auto", "all", "off"] as const).map((a) => (
+                  <option key={a} value={a}>
+                    {t(`ce.annotations.${a}`)}
+                  </option>
+                ))}
+              </Select>
+              <p id="ce-annotations-hint" className="-mt-2 text-xs text-text-2">
+                {t("ce.annotations.hint")}
+              </p>
             </Section>
 
             <Section title={t("ce.section.legend")}>

@@ -8,6 +8,8 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef, type RefObject } from "react";
 import type { ChartKind, Threshold, ThresholdStyle } from "../../lib/layout";
+import type { ChartEvent, EventKind } from "../../lib/events";
+import { t } from "../../i18n";
 import { useRefresh } from "../../lib/refresh";
 import { useTheme } from "../../lib/theme";
 import { linkChart } from "./chartSync";
@@ -39,12 +41,25 @@ export interface PanelChartProps {
   ariaLabel: string;
   /** Instancja ECharts dla właściciela (eksport do PNG) */
   instanceRef?: RefObject<echarts.ECharts | null>;
+  /** Zdarzenia na osi czasu: pionowe kreski, opis w podpowiedzi przy kursorze w ich pobliżu */
+  events?: ChartEvent[];
+  /** Szerokość kubełka danych – zdarzenie należy do podpowiedzi punktu, gdy jest bliżej niż pół kubełka */
+  bucketMs?: number;
 }
+
+const EVENT_COLOR: Record<EventKind, (e: ChartEvent) => string> = {
+  alert: (e) => (e.severity === "critical" ? "--danger" : e.severity === "warning" ? "--warning" : "--accent"),
+  alert_end: () => "--success",
+  restart: () => "--chart-6",
+  wan_switch: () => "--accent",
+};
+const EVENT_ICON: Record<EventKind, string> = { alert: "⚠", alert_end: "✓", restart: "↻", wan_switch: "⇄" };
+const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "medium" });
 
-export default function PanelChart({ lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, height, ariaLabel, instanceRef }: PanelChartProps) {
+export default function PanelChart({ lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, height, ariaLabel, instanceRef, events = [], bucketMs = 30_000 }: PanelChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
@@ -113,7 +128,12 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
                 return `${p.marker} ${p.seriesName}: <b>${p.value[1] == null ? "–" : fmt(p.value[1])}</b>`;
               })
               .join("<br/>");
-            return `<div style="font-size:12px;color:${text}">${head}</div>${rows}`;
+            // Zdarzenia przy kursorze (pół kubełka w każdą stronę) – tekst z API, więc bez HTML
+            const near = events.filter((e) => Math.abs(new Date(e.time).getTime() - params[0].axisValue) <= bucketMs / 2);
+            const notes = near
+              .map((e) => `<div style="color:${css(EVENT_COLOR[e.kind](e))}">${EVENT_ICON[e.kind]} ${t(`event.${e.kind}`)}: ${escapeHtml(e.title)}</div>`)
+              .join("");
+            return `<div style="font-size:12px;color:${text}">${head}</div>${rows}${notes ? `<div style="margin-top:4px;font-size:12px">${notes}</div>` : ""}`;
           },
         },
         xAxis: {
@@ -127,55 +147,74 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
           splitLine: { show: false },
         },
         yAxis: right ? [axis(left, "left", true), axis(right, "right", false)] : [axis(left, "left", true)],
-        series: lines.map((l, i) => {
-          const color = css(`--chart-${l.color}`);
-          const yAxisIndex = l.axis === "right" && right ? 1 : 0;
-          const marks =
-            i === firstLeft && activeThresholds.length
-              ? {
-                  markLine: showLines
-                    ? {
-                        silent: true,
-                        symbol: "none",
-                        label: { show: true, position: "insideEndTop", color: text, formatter: (p: { value: number }) => left.format(p.value) },
-                        data: activeThresholds.map((th) => ({ yAxis: th.value, lineStyle: { color: css(`--chart-${th.color}`), type: "dashed", width: 1.5 } })),
-                      }
-                    : undefined,
-                  markArea: showArea
-                    ? {
-                        silent: true,
-                        data: thresholdBands(activeThresholds, bandTop).map((b) => [
-                          { yAxis: b.from, itemStyle: { color: css(`--chart-${b.color}`), opacity: 0.08 } },
-                          { yAxis: b.to },
-                        ]),
-                      }
-                    : undefined,
-                }
-              : {};
-          const stackId = stack ? l.axis : undefined;
-          if (kind === "bar") {
-            return { name: l.name, type: "bar", yAxisIndex, stack: stackId, barMaxWidth: 14, itemStyle: { color }, data: inZoom(l.rows), ...marks };
-          }
-          return {
-            name: l.name,
-            type: "line",
-            yAxisIndex,
-            stack: stackId,
-            smooth,
-            showSymbol: false,
-            symbol: "circle",
-            symbolSize: 6,
-            lineStyle: { width: 2, color, type: l.dashed ? "dashed" : "solid" },
-            itemStyle: { color },
-            areaStyle: kind === "area" ? { color, opacity: stack ? 0.35 : 0.1 } : undefined,
-            data: inZoom(l.rows),
-            ...marks,
-          };
-        }),
+        series: [
+          ...lines.map((l, i) => {
+            const color = css(`--chart-${l.color}`);
+            const yAxisIndex = l.axis === "right" && right ? 1 : 0;
+            const marks =
+              i === firstLeft && activeThresholds.length
+                ? {
+                    markLine: showLines
+                      ? {
+                          silent: true,
+                          symbol: "none",
+                          label: { show: true, position: "insideEndTop", color: text, formatter: (p: { value: number }) => left.format(p.value) },
+                          data: activeThresholds.map((th) => ({ yAxis: th.value, lineStyle: { color: css(`--chart-${th.color}`), type: "dashed", width: 1.5 } })),
+                        }
+                      : undefined,
+                    markArea: showArea
+                      ? {
+                          silent: true,
+                          data: thresholdBands(activeThresholds, bandTop).map((b) => [
+                            { yAxis: b.from, itemStyle: { color: css(`--chart-${b.color}`), opacity: 0.08 } },
+                            { yAxis: b.to },
+                          ]),
+                        }
+                      : undefined,
+                  }
+                : {};
+            const stackId = stack ? l.axis : undefined;
+            if (kind === "bar") {
+              return { name: l.name, type: "bar", yAxisIndex, stack: stackId, barMaxWidth: 14, itemStyle: { color }, data: inZoom(l.rows), ...marks };
+            }
+            return {
+              name: l.name,
+              type: "line",
+              yAxisIndex,
+              stack: stackId,
+              smooth,
+              showSymbol: false,
+              symbol: "circle",
+              symbolSize: 6,
+              lineStyle: { width: 2, color, type: l.dashed ? "dashed" : "solid" },
+              itemStyle: { color },
+              areaStyle: kind === "area" ? { color, opacity: stack ? 0.35 : 0.1 } : undefined,
+              data: inZoom(l.rows),
+              ...marks,
+            };
+          }),
+          // Zdarzenia: pusta seria tylko z pionowymi kreskami (progi zajmują już markLine pierwszej serii)
+          ...(events.length
+            ? [
+                {
+                  name: "",
+                  type: "line",
+                  data: [],
+                  markLine: {
+                    silent: true,
+                    symbol: ["none", "circle"],
+                    symbolSize: 6,
+                    label: { show: false },
+                    data: events.map((e) => ({ xAxis: new Date(e.time).getTime(), lineStyle: { color: css(EVENT_COLOR[e.kind](e)), type: "dashed", width: 1, opacity: 0.8 } })),
+                  },
+                },
+              ]
+            : []),
+        ],
       },
       true,
     );
-  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom]);
+  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom, events, bucketMs]);
 
   return (
     <ZoomLayer chart={chart} height={height}>

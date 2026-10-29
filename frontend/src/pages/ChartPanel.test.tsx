@@ -2,12 +2,41 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildLines, csvTime, leftTop, lineStats, linesToCsv, seriesName, thresholdBands } from "../components/charts/panelData";
 import { fileName } from "../lib/download";
+import { eventsFor, type ChartEvent } from "../lib/events";
 import { defaultTitle, sourcePath } from "../components/widgets/chartSource";
 import { newChartConfig, upgradeChartConfig, type ChartConfig, type DashboardLayout } from "../lib/layout";
 import { TRAFFIC, mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
 const layoutWith = (config: ChartConfig): DashboardLayout => ({ version: 1, widgets: [{ id: "c1", type: "chart", w: 12, config }] });
+
+describe("zdarzenia na wykresie (0.34.0)", () => {
+  const ev = (kind: ChartEvent["kind"], device_id: number | null, interface_id: number | null = null): ChartEvent => ({
+    time: "2026-10-29T12:00:00Z",
+    kind,
+    severity: kind === "alert" ? "warning" : null,
+    title: `${kind} ${device_id ?? "-"} ${interface_id ?? "-"}`,
+    device_id,
+    interface_id,
+  });
+  const all = [ev("restart", 2), ev("alert", 2, 15), ev("alert", 2, 16), ev("alert", 3), ev("wan_switch", 1), ev("alert", null)];
+  const titles = (list: ChartEvent[]) => list.map((e) => e.title);
+
+  it("auto: wykres ogólny – przełączenia WAN i alerty bez urządzenia", () => {
+    expect(titles(eventsFor(all, newChartConfig({ kind: "wan" })))).toEqual(["wan_switch 1 -", "alert - -"]);
+  });
+
+  it("auto: wykres urządzenia – jego restarty i alerty (też portów), wykres portu – tylko ten port", () => {
+    expect(titles(eventsFor(all, newChartConfig({ kind: "device", id: 2 })))).toEqual(["restart 2 -", "alert 2 15", "alert 2 16"]);
+    expect(titles(eventsFor(all, newChartConfig({ kind: "interface", id: 15, device_id: 2 })))).toEqual(["restart 2 -", "alert 2 15"]);
+  });
+
+  it("wszystkie albo żadne", () => {
+    const c = newChartConfig({ kind: "wan" });
+    expect(eventsFor(all, { ...c, annotations: "all" })).toHaveLength(all.length);
+    expect(eventsFor(all, { ...c, annotations: "off" })).toEqual([]);
+  });
+});
 
 describe("eksport wykresu (0.33.0)", () => {
   it("CSV dla polskiego Excela: średnik, przecinek, jednostka w nagłówku, puste pola", () => {

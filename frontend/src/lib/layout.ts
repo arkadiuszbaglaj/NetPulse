@@ -105,7 +105,10 @@ export interface ChartConfig {
   range_min?: RangeMinutes | null;
   refresh_s?: RefreshSeconds | null;
   height: ChartHeight;
+  /** Zdarzenia na osi czasu (0.34.0): auto – dotyczące urządzeń i portów wykresu, all – wszystkie, off – żadne */
+  annotations?: Annotations;
 }
+export type Annotations = "auto" | "all" | "off";
 
 /** Konfiguracja wykresu sprzed 0.26.0: jedno źródło i `y_max`. Serwer zamienia ją przy odczycie; tu na wszelki wypadek. */
 export type LegacyChartConfig = Omit<ChartConfig, "queries"> & { source: Source; series: SeriesConfig[]; y_max?: number | null };

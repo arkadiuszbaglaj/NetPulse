@@ -29,6 +29,7 @@ from . import (
     dashboard,
     dashboards,
     devices,
+    events,
     live,
     metrics,
     modules_api,
@@ -69,6 +70,7 @@ app.include_router(clients.router)
 app.include_router(controllers.router)
 app.include_router(dashboard.router)
 app.include_router(dashboards.router)
+app.include_router(events.router)
 app.include_router(devices.router)
 app.include_router(live.router)
 app.include_router(metrics.router)

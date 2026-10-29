@@ -13,6 +13,7 @@ Decyzje użytkownika (2026-10-25): wszystkie funkcje wykresu w czasie, nowe pane
 | C ✅ | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
 | D ✅ | 0.32.0 | Powiększanie zaznaczeniem myszą (wszystkie wykresy strony, „Wróć”), wspólny kursor wykresów, klikalne wiersze tabel i pasków oraz węzły mapy sieci. |
 | E ✅ | 0.33.0 | Liczba jako wskaźnik kołowy i ze zmianą względem poprzedniego okresu, pełny ekran widgetu, eksport wykresu do CSV i PNG. |
+| F ✅ | 0.34.0 | Zdarzenia na osi czasu (adnotacje): alerty, restarty urządzeń i przełączenia WAN jako pionowe kreski z opisem w podpowiedzi. |
 
 Każdy etap to osobna wersja do sprawdzenia na serwerze.
 
@@ -140,3 +141,20 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   ekran, **CSV** (`linesToCsv`: średnik, przecinek dziesiętny, BOM dla Excela, czas lokalny, wartości surowe
   z jednostką w nagłówku, wiersz na każdą chwilę dowolnej serii) i **PNG** (`getDataURL` ECharts, tło karty,
   2× rozdzielczość). Nazwa pliku z tytułu i chwili (`lib/download.ts`). Jedna akcja = sam przycisk z ikoną.
+
+## Etap F – zdarzenia na osi czasu (0.34.0)
+
+- **API** `GET /api/events?minutes=&offset=` (`api/events.py`, to samo okno co metryki, także powiększony fragment):
+  alert (początek, `alert`) i jego koniec (`alert_end`) z historii `alerts` (z `severity`, `device_id` i
+  `interface_id` z podmiotu `i<id>`), **restart** urządzenia – spadek `uptime_s` między próbkami `device_metrics`
+  (czas = próbka minus nowy uptime) i **przełączenie WAN** – ta sama logika co historia łączy (`wan.switches`).
+  Restarty i przełączenia tylko do 31 dni wstecz (liczone z surowych próbek), alerty w każdym zakresie; najwyżej
+  300 najnowszych. Urządzenia wyłączonych modułów pomijane. Pulpit publiczny tego nie dostaje (403 z `resolve`,
+  panel nie pyta – `useDetailLinks`).
+- **Wykres** (`PanelChart`): pionowe przerywane kreski w osobnej pustej serii (markLine pierwszej serii zajmują
+  progi), kolor: alert krytyczny/ostrzeżenie/info, koniec – zielony, restart – fiolet (`--chart-6`), przełączenie WAN
+  – akcent. Opis w podpowiedzi osi, gdy kursor jest bliżej zdarzenia niż pół kubełka (też we wspólnym kursorze).
+- **Które zdarzenia** (`annotations` w konfiguracji wykresu, edytor → Wygląd, `eventsFor` w `lib/events.ts`):
+  `auto` (domyślnie) – wykres urządzenia lub z agenta: jego restarty i alerty (też portów), wykres portu: ten port
+  i restarty jego urządzenia; wykres ogólny (WAN, WiFi, serwer, sprawdzenie): przełączenia WAN i alerty bez
+  urządzenia. `all` – wszystkie, `off` – żadne. W trybie „Na żywo” bez zdarzeń.

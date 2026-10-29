@@ -287,6 +287,14 @@ def panel(type_, config):
     return layout({"id": "p1", "type": type_, "w": 4, "config": config})
 
 
+def test_chart_annotations():
+    chart = {"queries": [{"id": "A", "source": {"kind": "wan"}, "series": [{"key": "in_bps"}]}]}
+    assert DashboardLayout.model_validate(panel("chart", chart)).widgets[0].config.annotations == "auto"  # układy sprzed 0.34.0
+    assert DashboardLayout.model_validate(panel("chart", {**chart, "annotations": "off"})).widgets[0].config.annotations == "off"
+    with pytest.raises(ValidationError):
+        DashboardLayout.model_validate(panel("chart", {**chart, "annotations": "some"}))
+
+
 def test_stat_gauge_and_change():
     plain = DashboardLayout.model_validate(panel("stat", {"source": {"kind": "wan"}, "key": "in_bps"})).widgets[0].config
     assert (plain.display, plain.max, plain.show_change) == ("number", None, False)  # układy sprzed 0.33.0

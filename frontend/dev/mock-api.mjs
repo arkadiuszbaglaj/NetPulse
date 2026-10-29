@@ -122,6 +122,23 @@ createServer(async (req, res) => {
       poll_interval_s: 30,
     });
   }
+  // Zdarzenia na osi czasu (adnotacje): alert z końcem, restart, przełączenie WAN – w oknie zapytania
+  if (route === "GET /api/events") {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const back = Number(url.searchParams.get("offset") ?? 0) * 60_000;
+    const until = Date.now() - back;
+    const all = [
+      { at: 40, kind: "restart", severity: null, title: "USW Lite 8 PoE", device_id: 2, interface_id: null },
+      { at: 25, kind: "wan_switch", severity: null, title: "WAN 1 → WAN 2", device_id: 1, interface_id: null },
+      { at: 20, kind: "alert", severity: "critical", title: "Garaż (testowy) nie odpowiada", device_id: 4, interface_id: null },
+      { at: 12, kind: "alert_end", severity: "critical", title: "Garaż (testowy) nie odpowiada", device_id: 4, interface_id: null },
+      { at: 8, kind: "alert", severity: "warning", title: "Ruch WAN powyżej 50 Mb/s", device_id: null, interface_id: null },
+    ];
+    const events = all
+      .map(({ at, ...e }) => ({ ...e, time: new Date(Date.now() - at * 60_000).toISOString() }))
+      .filter((e) => { const t = Date.parse(e.time); return t <= until && t >= until - minutes * 60_000; });
+    return send(res, 200, events);
+  }
   if (route === "GET /api/dashboard/traffic" || route === "GET /api/dashboard/wifi") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
     const back = Number(url.searchParams.get("offset") ?? 0) * 60_000; // okno przesunięte wstecz, jak w API
