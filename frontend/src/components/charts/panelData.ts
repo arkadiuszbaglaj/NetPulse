@@ -1,7 +1,7 @@
 /** Dane panelu wykresu w czasie: serie z wielu zapytań, statystyki legendy i obszary progów. Czyste funkcje (bez Reacta). */
 import { t } from "../../i18n";
 import type { Series } from "../../lib/api";
-import { METRICS, allSeries, autoColor, type Axis, type ChartConfig, type ColorIndex, type OffsetMinutes, type SeriesConfig, type Source, type Threshold } from "../../lib/layout";
+import { METRICS, allSeries, autoColor, unitClassOf, type Axis, type ChartConfig, type ColorIndex, type OffsetMinutes, type SeriesConfig, type Source, type Threshold, type UnitClass } from "../../lib/layout";
 import { toChartRows, type ChartRow } from "./chartData";
 
 export interface PanelLine {
@@ -89,4 +89,45 @@ export function thresholdBands(thresholds: Threshold[], top: number): { from: nu
   return sorted
     .map((th, i) => ({ from: th.value, to: sorted[i + 1]?.value ?? Math.max(top, th.value), color: th.color }))
     .filter((b) => b.to > b.from);
+}
+
+/** Jednostka surowych wartości w nagłówku CSV (bez przeliczania – dane do dalszej obróbki). */
+const RAW_UNIT: Partial<Record<UnitClass, string>> = {
+  rate: "b/s",
+  percent: "%",
+  ms: "ms",
+  temp: "°C",
+  size: "B",
+  duration: "s",
+  dbm: "dBm",
+  linkrate: "kb/s",
+  mbps: "Mb/s",
+  days: "dni",
+  hours: "h",
+};
+
+const pad = (n: number) => String(n).padStart(2, "0");
+/** Czas lokalny „2026-10-29 12:00:30” – tak go czyta arkusz kalkulacyjny. */
+export function csvTime(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** Serie wykresu jako CSV dla polskiego Excela: średnik, przecinek dziesiętny, BOM (polskie znaki). Wiersz na każdą
+ * chwilę z dowolnej serii; brak wartości – puste pole. Wartości surowe (np. bity/s), jednostka w nagłówku. */
+export function linesToCsv(lines: PanelLine[], timeLabel: string): string {
+  const cell = (s: string) => (/[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const num = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? "" : String(+v.toFixed(6)).replace(".", ","));
+  const head = [
+    timeLabel,
+    ...lines.map((l) => {
+      const unit = RAW_UNIT[unitClassOf(l.id.slice(l.id.indexOf(".") + 1))];
+      return unit ? `${l.name} [${unit}]` : l.name;
+    }),
+  ];
+  const values = lines.map((l) => new Map(l.rows.map(([time, v]) => [time, v])));
+  const times = [...new Set(lines.flatMap((l) => l.rows.map(([time]) => time)))].sort((a, b) => a - b);
+  const rows = times.map((time) => [csvTime(time), ...values.map((m) => num(m.get(time)))].join(";"));
+  // BOM na początku – Excel czyta wtedy polskie znaki jako UTF-8
+  return String.fromCharCode(0xfeff) + [head.map(cell).join(";"), ...rows].join("\r\n");
 }

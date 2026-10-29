@@ -6,7 +6,7 @@ import { BarChart, LineChart } from "echarts/charts";
 import { GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import type { ChartKind, Threshold, ThresholdStyle } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 import { useTheme } from "../../lib/theme";
@@ -37,12 +37,14 @@ export interface PanelChartProps {
   /** Piksele albo "100%" (komórka siatki pulpitu) */
   height: number | string;
   ariaLabel: string;
+  /** Instancja ECharts dla właściciela (eksport do PNG) */
+  instanceRef?: RefObject<echarts.ECharts | null>;
 }
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "medium" });
 
-export default function PanelChart({ lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, height, ariaLabel }: PanelChartProps) {
+export default function PanelChart({ lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, height, ariaLabel, instanceRef }: PanelChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
@@ -52,6 +54,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
     if (!el.current) return;
     const instance = echarts.init(el.current, undefined, { renderer: "canvas" });
     chart.current = instance;
+    if (instanceRef) instanceRef.current = instance;
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(el.current);
     const unlink = linkChart(instance);
@@ -60,8 +63,9 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       observer.disconnect();
       instance.dispose();
       chart.current = null;
+      if (instanceRef) instanceRef.current = null;
     };
-  }, []);
+  }, [instanceRef]);
 
   useEffect(() => {
     const instance = chart.current;

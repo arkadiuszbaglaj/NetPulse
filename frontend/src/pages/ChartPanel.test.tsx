@@ -1,12 +1,43 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildLines, leftTop, lineStats, seriesName, thresholdBands } from "../components/charts/panelData";
+import { buildLines, csvTime, leftTop, lineStats, linesToCsv, seriesName, thresholdBands } from "../components/charts/panelData";
+import { fileName } from "../lib/download";
 import { defaultTitle, sourcePath } from "../components/widgets/chartSource";
 import { newChartConfig, upgradeChartConfig, type ChartConfig, type DashboardLayout } from "../lib/layout";
 import { TRAFFIC, mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
 const layoutWith = (config: ChartConfig): DashboardLayout => ({ version: 1, widgets: [{ id: "c1", type: "chart", w: 12, config }] });
+
+describe("eksport wykresu (0.33.0)", () => {
+  it("CSV dla polskiego Excela: średnik, przecinek, jednostka w nagłówku, puste pola", () => {
+    const t1 = new Date(2026, 9, 29, 12, 0, 30).getTime();
+    const t2 = t1 + 30_000;
+    const line = (id: string, name: string, rows: [number, number | null][]) => ({ id, name, color: 1 as const, axis: "left" as const, rows, dashed: false });
+    const csv = linesToCsv([line("A.in_bps", "Pobieranie", [[t1, 1.5e6], [t2, null]]), line("B.cpu_percent", 'CPU; "rdzeń"', [[t2, 12.25]])], "czas");
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv.slice(1).split("\r\n")).toEqual([
+      'czas;Pobieranie [b/s];"CPU; ""rdzeń"" [%]"',
+      "2026-10-29 12:00:30;1500000;",
+      "2026-10-29 12:01:00;;12,25",
+    ]);
+    expect(csvTime(t1)).toBe("2026-10-29 12:00:30");
+  });
+
+  it("nazwa pliku z tytułu i chwili, bez polskich znaków", () => {
+    expect(fileName("Ruch WAN – łącze główne", "png", new Date(2026, 9, 29, 9, 5))).toBe("ruch-wan-lacze-glowne-2026-10-29-0905.png");
+    expect(fileName("???", "csv", new Date(2026, 0, 1, 0, 0))).toBe("wykres-2026-01-01-0000.csv");
+  });
+
+  it("menu wykresu: pełny ekran, CSV i PNG", async () => {
+    mockApi({ layout: layoutWith(newChartConfig({ kind: "wan" })) });
+    renderApp();
+    await screen.findByTestId("chart");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Więcej działań" }));
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Pełny ekran", "Pobierz dane (CSV)", "Pobierz obraz (PNG)"]);
+  });
+});
 
 describe("model wykresu w czasie (0.26.0)", () => {
   it("stara konfiguracja (jedno źródło, y_max) zamienia się na zapytania i oś", () => {

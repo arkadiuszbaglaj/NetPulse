@@ -156,6 +156,12 @@ export function thresholdColor(value: number | null | undefined, thresholds: Thr
 }
 
 /** Jedna liczba z serii: ostatnia, średnia, największa albo najmniejsza (pomija luki). */
+/** Zmiana w % względem poprzedniej wartości; null, gdy jej nie ma albo była zerem (z zera nie ma procentów). */
+export function percentChange(now: number | null, before: number | null): number | null {
+  if (now == null || before == null || before === 0) return null;
+  return ((now - before) / Math.abs(before)) * 100;
+}
+
 export function reduceValues(values: (number | null | undefined)[], reduce: Reduce): number | null {
   const v = values.filter((x): x is number => x != null && Number.isFinite(x));
   if (v.length === 0) return null;

@@ -140,6 +140,19 @@ def test_public_link_serves_only_whitelisted_data(client):
         assert device["host"] == "192.168.1.1"
 
 
+def test_public_stat_change_allows_previous_period(client):
+    stat = {"source": {"kind": "wan"}, "key": "in_bps", "show_change": True}
+    layout = {"version": 1, "widgets": [{"id": "s", "type": "stat", "w": 3, "config": stat}, {"id": "s2", "type": "stat", "w": 3, "config": {**stat, "range_min": 360}}]}
+    wall = client.post("/api/dashboards", json={"name": "Liczby", "layout": layout}).json()
+    token = share(client, wall["id"], options={"refresh_s": 30, "range_min": 60})["public"]["token"]
+    with anon() as tv:
+        data = lambda path: tv.get(f"/api/public/dashboards/{token}/data", params={"path": path})  # noqa: E731
+        # Poprzedni okres tej samej długości: zakres pulpitu albo własny zakres panelu
+        assert data("/api/dashboard/traffic?minutes=60&offset=60").status_code == 200
+        assert data("/api/dashboard/traffic?minutes=360&offset=360").status_code == 200
+        assert data("/api/dashboard/traffic?minutes=60&offset=1440").status_code == 403
+
+
 def test_pin_rotate_disable_and_expiry(client):
     wall = client.post("/api/dashboards", json={"name": "Ściana", "layout": LAYOUT}).json()
     # PIN tylko z cyfr

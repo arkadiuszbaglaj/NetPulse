@@ -168,7 +168,8 @@ przepuszcza `offset` tylko taki, jaki ma zapytanie. Etap B ✅ (0.27.0): widgety
 `components/widgets/PanelWidgets.tsx` + `PanelEditors.tsx`, `lib/panels.ts`. Etap C ✅ (0.28.0): swobodna siatka
 (`x`, `y`, `h` na widgecie, `w` 1–12; `components/DashboardGrid.tsx` z react-grid-layout, `placeWidgets` układa stare
 pulpity), sekcje zwijane (`type: "section"`). Etap D ✅ (0.32.0): powiększanie zaznaczeniem (`ZoomLayer.tsx`, `zoom` w `lib/refresh.tsx`,
-API pyta o samo okno), wspólny kursor (`charts/chartSync.ts`), linki z tabel, pasków i mapy (`rowLink`). Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
+API pyta o samo okno), wspólny kursor (`charts/chartSync.ts`), linki z tabel, pasków i mapy (`rowLink`). Etap E ✅ (0.33.0): liczba jako wskaźnik i ze zmianą (`display`, `max`, `show_change`),
+pełny ekran (`WidgetExpandContext`), menu „⋯” z eksportem CSV/PNG (`WidgetActions.tsx`, `linesToCsv`). Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
 
 ## Do sprawdzenia później
 

@@ -290,6 +290,7 @@ export function DashboardPage() {
             edit={edit}
             onPositions={(items) => update((l) => applyPositions(l, items))}
             renderWidget={(widget) => <WidgetView widget={widget} />}
+            widgetLabel={widgetTitle}
             renderEditBar={(widget, place) => (
               <EditBar
                 widget={widget}

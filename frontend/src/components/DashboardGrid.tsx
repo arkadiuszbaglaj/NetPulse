@@ -4,12 +4,14 @@
  * całą), na telefonie jeden pod drugim. Tam w trybie edycji przestawia się je przyciskami w górę i w dół. Sekcje zwijają widgety
  * pod sobą (stan zwinięcia pamięta przeglądarka, osobno dla każdego pulpitu).
  */
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
-import { createContext, useMemo, useState, type ReactNode } from "react";
+import { IconChevronDown, IconChevronRight, IconX } from "@tabler/icons-react";
+import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import ReactGridLayout, { useContainerWidth } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { t } from "../i18n";
+import { WidgetExpandContext } from "./widgets/WidgetActions";
 import { GRID_COLS, GRID_MARGIN, MAX_HEIGHT, ROW_HEIGHT, hiddenBySections, placeWidgets, readingOrder, rowsToPx, type Widget } from "../lib/layout";
 
 /** Widget w komórce siatki o stałej wysokości: wykresy wypełniają całą komórkę. */
@@ -75,6 +77,46 @@ export function SectionHeader({ title, collapsed, onToggle, hiddenCount }: { tit
   );
 }
 
+/** Widget na pełnym ekranie: nad całym panelem, Escape albo przycisk zamyka, fokus wraca na miejsce. */
+function Fullscreen({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
+  const close = useRef<HTMLButtonElement>(null);
+  // Funkcja zamykania z rodzica jest nowa przy każdym renderze – efekt (fokus, Escape) tylko raz, przy otwarciu
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const back = document.activeElement as HTMLElement | null;
+    close.current?.focus();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+      back?.focus();
+    };
+  }, []);
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={label} className="fixed inset-0 z-50 flex flex-col gap-2 bg-bg p-3 sm:p-4">
+      <div className="flex shrink-0 justify-end">
+        <button
+          ref={close}
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-2 hover:text-text"
+        >
+          <IconX size={16} aria-hidden="true" />
+          {t("widget.fullscreen.close")}
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col *:flex-1">
+        <GridCellContext.Provider value>{children}</GridCellContext.Provider>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export interface DashboardGridProps {
   widgets: Widget[];
   /** Klucz pamięci zwiniętych sekcji (np. id pulpitu) */
@@ -85,12 +127,15 @@ export interface DashboardGridProps {
   renderWidget: (w: Widget) => ReactNode;
   /** Pasek narzędzi widgetu w trybie edycji (z uchwytem `.np-drag`) */
   renderEditBar?: (w: Widget, place: EditPlace) => ReactNode;
+  /** Nazwa widgetu dla okna pełnego ekranu */
+  widgetLabel?: (w: Widget) => string;
 }
 
-export function DashboardGrid({ widgets, scope, edit = false, onPositions, renderWidget, renderEditBar }: DashboardGridProps) {
+export function DashboardGrid({ widgets, scope, edit = false, onPositions, renderWidget, renderEditBar, widgetLabel }: DashboardGridProps) {
   // Siatka dopiero po zmierzeniu kontenera – inaczej wąski ekran mignąłby układem desktopowym i widgety montowałyby się dwa razy
   const { width, containerRef, mounted } = useContainerWidth({ measureBeforeMount: true });
   const [overrides, setOverrides] = useState(() => readOverrides(scope));
+  const [expanded, setExpanded] = useState<string | null>(null);
   const all = useMemo(() => placeWidgets(widgets), [widgets]);
   const collapsed = useMemo(
     () => new Set(all.filter((w) => w.type === "section" && (overrides[w.id] ?? w.config.collapsed)).map((w) => w.id)),
@@ -131,16 +176,24 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       <div className="flex h-full min-h-0 flex-col">
         {edit && renderEditBar?.(w, placeOf(w))}
         <div className="flex min-h-0 flex-1 flex-col overflow-auto *:flex-1">
-          <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
+          <WidgetExpandContext.Provider value={edit ? null : () => setExpanded(w.id)}>
+            <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
+          </WidgetExpandContext.Provider>
         </div>
       </div>
     );
   };
 
   const columns = width >= TABLET;
+  const big = expanded && !edit ? all.find((w) => w.id === expanded) : undefined;
   const full = columns ? fullWidthInColumns(ordered) : new Set<string>();
   return (
     <div ref={containerRef} className="np-grid min-w-0">
+      {big && (
+        <Fullscreen label={widgetLabel?.(big) ?? t("widget.fullscreen")} onClose={() => setExpanded(null)}>
+          {renderWidget(big)}
+        </Fullscreen>
+      )}
       {!mounted ? null : desktop ? (
         <ReactGridLayout
           width={width}

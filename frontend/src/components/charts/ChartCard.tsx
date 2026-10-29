@@ -4,6 +4,7 @@ import type { Series } from "../../lib/api";
 import { formatRange } from "../../lib/format";
 import { useRefresh } from "../../lib/refresh";
 import { Card } from "../ui";
+import { WidgetActions } from "../widgets/WidgetActions";
 import type { ChartSeries } from "./TimeSeriesChart";
 
 // ECharts jest duży – ładowany dopiero po wejściu na pulpit, nie na ekranie logowania
@@ -60,7 +61,10 @@ export function ChartCard({
     <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
-        {actions}
+        <div className="flex shrink-0 items-center gap-1">
+          {actions}
+          <WidgetActions />
+        </div>
       </div>
       {children}
       {isError && !data ? (

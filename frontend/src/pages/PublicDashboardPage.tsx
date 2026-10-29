@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "react-router";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { Button, Card, ErrorNote, Field, Logo } from "../components/ui";
-import { WidgetView } from "../components/widgets/registry";
+import { WidgetView, widgetTitle } from "../components/widgets/registry";
 import { t } from "../i18n";
 import { ApiError, get, post, setPublicDashboard } from "../lib/api";
 import type { PublicDashboard } from "../lib/dashboards";
@@ -156,7 +156,7 @@ export function PublicDashboardPage() {
             {d.layout.widgets.length === 0 ? (
               <p className="py-10 text-center text-sm text-text-2">{t("dash.empty.layout")}</p>
             ) : (
-              <DashboardGrid widgets={d.layout.widgets} scope={`public.${token}`} renderWidget={(widget) => <WidgetView widget={widget} />} />
+              <DashboardGrid widgets={d.layout.widgets} scope={`public.${token}`} renderWidget={(widget) => <WidgetView widget={widget} />} widgetLabel={widgetTitle} />
             )}
           </main>
         </div>

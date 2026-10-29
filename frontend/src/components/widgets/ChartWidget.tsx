@@ -1,15 +1,18 @@
-import { IconBroadcast } from "@tabler/icons-react";
-import { lazy, Suspense, useContext, useEffect, useMemo, useState } from "react";
+import { IconBroadcast, IconFileSpreadsheet, IconPhoto } from "@tabler/icons-react";
+import type * as echarts from "echarts/core";
+import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { ApiError, type Series } from "../../lib/api";
 import { formatBps, formatRange, metricFormatter } from "../../lib/format";
 import { useLiveWan } from "../../lib/live";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
-import { buildLines, lineStats } from "../charts/panelData";
+import { buildLines, lineStats, linesToCsv } from "../charts/panelData";
+import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
 import { Card } from "../ui";
 import { defaultTitle, useChartQueries } from "./chartSource";
+import { WidgetActions, type WidgetAction } from "./WidgetActions";
 
 // ECharts jest duży – ładowany dopiero, gdy wykres jest na ekranie
 const PanelChart = lazy(() => import("../charts/PanelChart"));
@@ -109,13 +112,31 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
   const isError = showLive ? false : result.isError;
   const empty = !isLoading && !isError && lines.every((l) => l.rows.length === 0);
   const legend = config.legend ?? DEFAULT_LEGEND;
+  const instance = useRef<echarts.ECharts | null>(null);
+  const hasData = !isLoading && !isError && !empty;
+  const exports: WidgetAction[] = hasData
+    ? [
+        { label: t("chart.export.csv"), icon: IconFileSpreadsheet, onClick: () => download(fileName(title, "csv"), new Blob([linesToCsv(lines, t("chart.export.time"))], { type: "text/csv;charset=utf-8" })) },
+        {
+          label: t("chart.export.png"),
+          icon: IconPhoto,
+          onClick: () => {
+            const url = instance.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim() });
+            if (url) download(fileName(title, "png"), url);
+          },
+        },
+      ]
+    : [];
   const legendRight = legend.placement === "right" && legend.mode !== "hidden";
 
   return (
     <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
-        {canLive && <LiveToggle on={showLive} onClick={() => setLive((v) => !v)} />}
+        <div className="flex shrink-0 items-center gap-1">
+          {canLive && <LiveToggle on={showLive} onClick={() => setLive((v) => !v)} />}
+          <WidgetActions actions={exports} />
+        </div>
       </div>
       {showLive && stream.status === "live" && (
         <p className="mb-1 flex gap-4 text-lg font-medium" aria-live="off">
@@ -155,6 +176,7 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
                 thresholdStyle={config.threshold_style ?? "line"}
                 height={fill ? "100%" : HEIGHT[config.height]}
                 ariaLabel={t("chart.summary", { title, range: formatRange(showLive ? 15 : result.minutes) })}
+                instanceRef={instance}
               />
             </Suspense>
           </div>

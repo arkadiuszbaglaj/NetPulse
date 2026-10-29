@@ -269,6 +269,11 @@ class StatConfig(Strict):
     thresholds: list[Threshold] = Field([], max_length=4)
     range_min: RangeMinutes | None = None
     refresh_s: RefreshSeconds | None = None
+    # Od 0.33.0: wskaźnik kołowy (max – koniec skali; puste = 100 dla %, inaczej maksimum z zakresu)
+    # i zmiana względem poprzedniego okresu tej samej długości
+    display: Literal["number", "gauge"] = "number"
+    max: float | None = Field(None, gt=0)
+    show_change: bool = False
 
     _strip = field_validator("title")(lambda cls, v: _title(v))
 

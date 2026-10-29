@@ -287,6 +287,17 @@ def panel(type_, config):
     return layout({"id": "p1", "type": type_, "w": 4, "config": config})
 
 
+def test_stat_gauge_and_change():
+    plain = DashboardLayout.model_validate(panel("stat", {"source": {"kind": "wan"}, "key": "in_bps"})).widgets[0].config
+    assert (plain.display, plain.max, plain.show_change) == ("number", None, False)  # układy sprzed 0.33.0
+    cfg = {"source": {"kind": "device", "id": 1}, "key": "cpu_percent", "display": "gauge", "max": 100, "show_change": True}
+    gauge = DashboardLayout.model_validate(panel("stat", cfg)).widgets[0].config
+    assert (gauge.display, gauge.max, gauge.show_change) == ("gauge", 100, True)
+    for bad in ({"display": "pie"}, {"max": 0}):
+        with pytest.raises(ValidationError):
+            DashboardLayout.model_validate(panel("stat", {**cfg, **bad}))
+
+
 def test_new_panels_validate():
     DashboardLayout.model_validate(panel("stat", {"source": {"kind": "wan"}, "key": "in_bps", "thresholds": [{"value": 5e8, "color": 5}]}))
     DashboardLayout.model_validate(panel("bargauge", {"collection": {"kind": "disks", "device_id": 3}, "key": "used_percent", "max": 100}))

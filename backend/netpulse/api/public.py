@@ -237,9 +237,11 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
                 return await panels.states(query.get("devices"), query.get("interfaces"), minutes(), query.get("checks"))
         raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     offset = _int(query.get("offset"), 0)
-    # Źródła wykresów: zapytania wykresów i panele „liczba” (te bez przesunięcia w czasie)
+    # Źródła wykresów: zapytania wykresów i panele „liczba”
     chart_queries = [(q.source, q.offset_min) for w in widgets if w.type == "chart" for q in w.config.queries]
     chart_queries += [(w.config.source, 0) for w in widgets if w.type == "stat"]
+    # Zmiana w „liczbie”: poprzedni okres tej samej długości, czyli przesunięcie o zakres panelu
+    chart_queries += [(w.config.source, w.config.range_min or opts.range_min) for w in widgets if w.type == "stat" and w.config.show_change]
     for source, query_offset in chart_queries:
         chart_path, fixed = _chart_path(source)
         # Przesunięcie w czasie tylko takie, jakie ma zapytanie wykresu na tym pulpicie

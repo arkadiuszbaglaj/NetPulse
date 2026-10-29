@@ -183,6 +183,11 @@ export interface StatConfig {
   thresholds: Threshold[];
   range_min?: RangeMinutes | null;
   refresh_s?: RefreshSeconds | null;
+  /** Od 0.33.0: liczba albo wskaźnik kołowy (`max` – koniec skali; puste = 100 dla %, inaczej maksimum z zakresu) */
+  display?: "number" | "gauge";
+  max?: number | null;
+  /** Zmiana względem poprzedniego okresu tej samej długości */
+  show_change?: boolean;
 }
 export interface BarGaugeConfig {
   title?: string | null;

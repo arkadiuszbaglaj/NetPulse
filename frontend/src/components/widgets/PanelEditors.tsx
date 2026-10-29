@@ -244,16 +244,21 @@ export function StatForm({ initial, isNew, onSave, onClose }: { initial: StatCon
   const [cfg, setCfg] = useState(initial);
   const cls = unitClassOf(cfg.key);
   const [drafts, setDrafts] = useState(() => draftsOf(initial.thresholds, unitClassOf(initial.key), initial.unit));
-  const [errors, setErrors] = useState<{ source?: string; bad: number[] }>({ bad: [] });
+  const [errors, setErrors] = useState<{ source?: string; max?: string; bad: number[] }>({ bad: [] });
+  const [maxText, setMaxText] = useState(() => toText(initial.max, unitClassOf(initial.key), initial.unit));
   const set = (patch: Partial<StatConfig>) => setCfg((c) => ({ ...c, ...patch }));
   const composed = composeThresholds(drafts, cls, cfg.unit);
-  const preview = { ...cfg, thresholds: composed.list };
+  const gauge = cfg.display === "gauge";
+  const max = parse(maxText);
+  const rawMax = gauge && typeof max === "number" && max > 0 ? valueToRaw(max, cls, cfg.unit) : null;
+  const preview = { ...cfg, thresholds: composed.list, max: rawMax };
   const ok = sourceComplete(cfg.source) && SOURCE_METRICS[cfg.source.kind].includes(cfg.key);
 
   const submit = () => {
-    const next = { source: ok ? undefined : t("ce.err.source"), bad: composed.bad };
+    const badMax = gauge && (max === "bad" || (typeof max === "number" && max <= 0));
+    const next = { source: ok ? undefined : t("ce.err.source"), max: badMax ? t("ce.err.number") : undefined, bad: composed.bad };
     setErrors(next);
-    if (!next.source && next.bad.length === 0) onSave({ ...preview, title: cfg.title?.trim() || null });
+    if (!next.source && !next.max && next.bad.length === 0) onSave({ ...preview, title: cfg.title?.trim() || null });
   };
   return (
     <EditorDialog title={t(isNew ? "pe.stat.new" : "pe.stat.edit")} onSave={submit} onClose={onClose} preview={ok ? <StatWidget config={preview} /> : <p className="text-xs text-text-2">{t("ce.preview.invalid")}</p>}>
@@ -280,12 +285,18 @@ export function StatForm({ initial, isNew, onSave, onClose }: { initial: StatCon
             <option value="bytes">{t("ce.unit.bytes")}</option>
           </Select>
         )}
+        <Select id="pe-display" label={t("pe.display")} value={cfg.display ?? "number"} onChange={(e) => set({ display: e.target.value as StatConfig["display"] })}>
+          <option value="number">{t("pe.display.number")}</option>
+          <option value="gauge">{t("pe.display.gauge")}</option>
+        </Select>
+        {gauge && <Field id="pe-max" label={t("pe.gauge.max")} inputMode="decimal" value={maxText} error={errors.max} hint={t("pe.max.hint")} onChange={(e) => setMaxText(e.target.value)} />}
         <Select id="pe-color-mode" label={t("pe.colorMode")} value={cfg.color_mode} onChange={(e) => set({ color_mode: e.target.value as StatConfig["color_mode"] })}>
           <option value="value">{t("pe.colorMode.value")}</option>
           <option value="background">{t("pe.colorMode.background")}</option>
         </Select>
       </div>
-      <Checkbox id="pe-sparkline" label={t("pe.sparkline")} checked={cfg.sparkline} onChange={(v) => set({ sparkline: v })} />
+      {!gauge && <Checkbox id="pe-sparkline" label={t("pe.sparkline")} checked={cfg.sparkline} onChange={(v) => set({ sparkline: v })} />}
+      <Checkbox id="pe-change" label={t("pe.showChange")} checked={!!cfg.show_change} onChange={(v) => set({ show_change: v })} />
       <ThresholdList base={cfg.color} onBase={(color) => set({ color })} drafts={drafts} onChange={setDrafts} cls={cls} unit={cfg.unit} bad={errors.bad} />
       <TimeFields range={cfg.range_min} refresh={cfg.refresh_s} onChange={set} />
     </EditorDialog>

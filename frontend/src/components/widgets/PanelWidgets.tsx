@@ -5,15 +5,16 @@ import { Link } from "react-router";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { t } from "../../i18n";
 import { ApiError } from "../../lib/api";
-import { metricFormatter } from "../../lib/format";
+import { formatRange, metricFormatter } from "../../lib/format";
 import { METRICS, unitClassOf, type BarGaugeConfig, type CollectionKind, type StatConfig, type StateTimelineConfig, type TableConfig } from "../../lib/layout";
-import { COLLECTION_LABEL, reduceValues, rowLink, thresholdColor, useCollection, useStates, type CollectionRow, type StateSegment } from "../../lib/panels";
+import { COLLECTION_LABEL, percentChange, reduceValues, rowLink, thresholdColor, useCollection, useStates, type CollectionRow, type StateSegment } from "../../lib/panels";
 import { useDetailLinks } from "../../lib/publicMode";
 import { useRefresh } from "../../lib/refresh";
 import { seriesName } from "../charts/panelData";
 import { StateBar } from "../charts/StateBar";
 import { Card } from "../ui";
 import { defaultTitle, fetchSeries } from "./chartSource";
+import { WidgetActions } from "./WidgetActions";
 
 const metricName = (key: string) => (METRICS[key] ? t(METRICS[key].label) : key);
 const chartColor = (n: number) => `var(--chart-${n})`;
@@ -21,7 +22,10 @@ const chartColor = (n: number) => `var(--chart-${n})`;
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card className="flex flex-col p-4">
-      <h2 className="mb-2 truncate text-sm font-medium">{title}</h2>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="truncate text-sm font-medium">{title}</h2>
+        <WidgetActions />
+      </div>
       {children}
     </Card>
   );
@@ -72,41 +76,115 @@ export function statTitle(c: StatConfig): string {
   return c.title || `${defaultTitle(c.source)}: ${seriesName(c.source, { key: c.key })}`;
 }
 
+/** Wskaźnik kołowy: łuk od 0 do `max`, wypełniony w kolorze z progów. */
+function Gauge({ fraction, color }: { fraction: number; color: string }) {
+  // Półokrąg o promieniu 40 (obwód 40π); wypełnienie przez długość kreski
+  const length = Math.PI * 40;
+  return (
+    <svg viewBox="0 0 100 56" aria-hidden="true" className="mx-auto mt-1 block h-auto w-full max-w-48">
+      <path d="M10,50 A40,40 0 0 1 90,50" fill="none" stroke="var(--surface-2)" strokeWidth={10} strokeLinecap="round" />
+      {fraction > 0 && (
+        <path
+          d="M10,50 A40,40 0 0 1 90,50"
+          fill="none"
+          stroke={color}
+          strokeWidth={10}
+          strokeLinecap="round"
+          strokeDasharray={`${fraction * length} ${length}`}
+        />
+      )}
+    </svg>
+  );
+}
+
+// Bez znaku – kierunek pokazuje strzałka
+const changeFmt = new Intl.NumberFormat("pl", { maximumFractionDigits: 1, signDisplay: "never" });
+
+/** „↑ 12% względem poprzedniego okresu” – kolor neutralny: wzrost ruchu nie musi być dobry ani zły. */
+function Change({ value, minutes }: { value: number; minutes: number }) {
+  const Icon = value > 0 ? IconArrowUp : value < 0 ? IconArrowDown : null;
+  return (
+    <p className="relative z-10 mt-1 inline-flex items-center gap-1 text-xs text-text-2" title={t("panel.change.hint", { range: formatRange(minutes) })}>
+      {Icon && <Icon size={12} aria-hidden="true" />}
+      <span className="tabular-nums">{changeFmt.format(value)}%</span>
+      <span>{t("panel.change.vs")}</span>
+    </p>
+  );
+}
+
 export function StatWidget({ config }: { config: StatConfig }) {
   const global = useRefresh();
   const minutes = config.range_min ?? global.rangeMinutes;
   const own = config.refresh_s;
+  const refetchInterval = own == null ? global.refetchInterval : own > 0 ? own * 1000 : false;
   const query = useQuery({
     queryKey: ["chart", config.source, minutes, 0],
     queryFn: () => fetchSeries(config.source, minutes),
-    refetchInterval: own == null ? global.refetchInterval : own > 0 ? own * 1000 : false,
+    refetchInterval,
+    placeholderData: (previous) => previous,
+    retry: false,
+  });
+  // Poprzedni okres tej samej długości (ten sam klucz co porównanie w wykresie – wspólna pamięć podręczna)
+  const before = useQuery({
+    queryKey: ["chart", config.source, minutes, minutes],
+    queryFn: () => fetchSeries(config.source, minutes, minutes),
+    enabled: !!config.show_change,
+    refetchInterval,
     placeholderData: (previous) => previous,
     retry: false,
   });
   const values = useMemo(() => (query.data?.points ?? []).map((p) => p.values[config.key] ?? null), [query.data, config.key]);
   const value = reduceValues(values, config.reduce);
-  const format = metricFormatter(unitClassOf(config.key), config.unit);
+  const previous = useMemo(() => (before.data?.points ?? []).map((p) => p.values[config.key] ?? null), [before.data, config.key]);
+  const change = config.show_change ? percentChange(value, reduceValues(previous, config.reduce)) : null;
+  const cls = unitClassOf(config.key);
+  const format = metricFormatter(cls, config.unit);
   const color = chartColor(thresholdColor(value, config.thresholds, config.color));
   const background = config.color_mode === "background" && value != null;
+  const gauge = config.display === "gauge";
+  const max = config.max ?? (cls === "percent" ? 100 : Math.max(0, ...values.filter((v): v is number => v != null)));
   const title = statTitle(config);
+  const text = value == null ? "–" : format(value);
   return (
     <Card className="flex flex-col overflow-hidden">
       <div
         className="relative flex min-h-32 flex-1 flex-col p-4"
         style={background ? { background: `color-mix(in srgb, ${color} 22%, var(--surface))` } : undefined}
       >
-      <h2 className="truncate text-sm font-medium">{title}</h2>
-      {query.isError && !query.data ? (
-        <Status alert>{query.error instanceof ApiError && query.error.status === 404 ? t("chart.sourceGone") : t("chart.error")}</Status>
-      ) : query.isLoading ? (
-        <Status>{t("chart.loading")}</Status>
-      ) : (
-        <p className="relative z-10 mt-2 text-3xl font-semibold tabular-nums" style={{ color: background ? undefined : color }} aria-label={`${title}: ${value == null ? "–" : format(value)}`}>
-          {value == null ? "–" : format(value)}
-          {config.reduce !== "last" && <span className="ml-2 text-xs font-normal text-text-2">{t(`panel.reduce.${config.reduce}` as const)}</span>}
-        </p>
-      )}
-      {config.sparkline && <Sparkline values={values} color={color} />}
+        <div className="relative z-10 flex items-center justify-between gap-2">
+          <h2 className="truncate text-sm font-medium">{title}</h2>
+          <WidgetActions />
+        </div>
+        {query.isError && !query.data ? (
+          <Status alert>{query.error instanceof ApiError && query.error.status === 404 ? t("chart.sourceGone") : t("chart.error")}</Status>
+        ) : query.isLoading ? (
+          <Status>{t("chart.loading")}</Status>
+        ) : gauge ? (
+          <div
+            role="meter"
+            aria-label={title}
+            aria-valuemin={0}
+            aria-valuemax={max}
+            aria-valuenow={value ?? undefined}
+            aria-valuetext={text}
+            className="flex flex-1 flex-col items-center justify-center"
+          >
+            <Gauge fraction={value == null || max <= 0 ? 0 : Math.min(1, Math.max(0, value / max))} color={color} />
+            <p className="-mt-5 text-2xl font-semibold tabular-nums" style={{ color: background ? undefined : color }}>
+              {text}
+            </p>
+            {change != null && <Change value={change} minutes={minutes} />}
+          </div>
+        ) : (
+          <>
+            <p className="relative z-10 mt-2 text-3xl font-semibold tabular-nums" style={{ color: background ? undefined : color }} aria-label={`${title}: ${text}`}>
+              {text}
+              {config.reduce !== "last" && <span className="ml-2 text-xs font-normal text-text-2">{t(`panel.reduce.${config.reduce}` as const)}</span>}
+            </p>
+            {change != null && <Change value={change} minutes={minutes} />}
+          </>
+        )}
+        {config.sparkline && !gauge && <Sparkline values={values} color={color} />}
       </div>
     </Card>
   );

@@ -12,6 +12,7 @@ Decyzje użytkownika (2026-10-25): wszystkie funkcje wykresu w czasie, nowe pane
 | B ✅ | 0.27.0 | Nowe panele: liczba z mini-wykresem (kolor z progów), paski (bar gauge, np. zajętość wszystkich dysków), tabela (porty, klienci, dyski z sortowaniem), oś stanów (up/down portów i urządzeń w czasie). |
 | C ✅ | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
 | D ✅ | 0.32.0 | Powiększanie zaznaczeniem myszą (wszystkie wykresy strony, „Wróć”), wspólny kursor wykresów, klikalne wiersze tabel i pasków oraz węzły mapy sieci. |
+| E ✅ | 0.33.0 | Liczba jako wskaźnik kołowy i ze zmianą względem poprzedniego okresu, pełny ekran widgetu, eksport wykresu do CSV i PNG. |
 
 Każdy etap to osobna wersja do sprawdzenia na serwerze.
 
@@ -123,3 +124,19 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   port, serwer dla dysków/kontenerów/usług, listy klientów, sprawdzeń i Proxmoxa – w wierszu nie ma MAC-a ani węzła),
   nazwa węzła mapy sieci – do strony urządzenia. Na pulpicie publicznym bez linków (`useDetailLinks`).
 - **Atrapa API** (`frontend/dev/mock-api.mjs`) uwzględnia `offset` w danych ruchu i metryk, jak prawdziwe API.
+
+## Etap E – wskaźnik, zmiana, pełny ekran, eksport (0.33.0)
+
+- **Liczba** (`StatWidget`): nowe pola `display` (`number` | `gauge`), `max` (koniec skali wskaźnika; puste = 100
+  dla %, inaczej maksimum z zakresu) i `show_change`. Zmiana = ta sama redukcja (ostatnia, średnia…) policzona dla
+  poprzedniego okresu tej samej długości (`fetchSeries(…, offset = zakres)`, `percentChange`); kolor neutralny,
+  kierunek pokazuje strzałka. Pulpit publiczny przepuszcza to przesunięcie tylko dla liczby z `show_change`
+  (`public.resolve`). Stare układy dostają wartości domyślne (schemat `StatConfig`).
+- **Pełny ekran** (`DashboardGrid` → `Fullscreen`, kontekst `WidgetExpandContext`): okno w portalu nad całym
+  panelem (komórki siatki są przesuwane `transform`, więc `fixed` w nich nie działa), Escape zamyka, fokus wraca.
+  Mają go widgety z nagłówkiem `WidgetActions`: wykres, liczba, paski, tabela, oś stanów i łącze WAN. W trybie
+  edycji wyłączony.
+- **Menu „⋯” wykresu** (`components/widgets/WidgetActions.tsx`, też w portalu – komórka przycina treść): pełny
+  ekran, **CSV** (`linesToCsv`: średnik, przecinek dziesiętny, BOM dla Excela, czas lokalny, wartości surowe
+  z jednostką w nagłówku, wiersz na każdą chwilę dowolnej serii) i **PNG** (`getDataURL` ECharts, tło karty,
+  2× rozdzielczość). Nazwa pliku z tytułu i chwili (`lib/download.ts`). Jedna akcja = sam przycisk z ikoną.

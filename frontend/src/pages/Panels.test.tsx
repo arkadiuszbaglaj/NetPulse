@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { newWidget, type DashboardLayout, type Widget } from "../lib/layout";
-import { collectionPath, reduceValues, rowLink, statesPath, thresholdColor, type CollectionRow } from "../lib/panels";
+import { collectionPath, percentChange, reduceValues, rowLink, statesPath, thresholdColor, type CollectionRow } from "../lib/panels";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
@@ -19,6 +19,13 @@ const DEVICES: CollectionRow[] = [
 ];
 
 describe("panele – funkcje", () => {
+  it("zmiana w procentach", () => {
+    expect(percentChange(112, 100)).toBeCloseTo(12);
+    expect(percentChange(-5, -10)).toBeCloseTo(50); // z -10 do -5 to wzrost
+    expect(percentChange(5, 0)).toBeNull();
+    expect(percentChange(null, 3)).toBeNull();
+  });
+
   it("link wiersza kolekcji do strony szczegółów", () => {
     const row = (key: string, device_id: number | null = null) => ({ key, label: key, device_id, values: {} });
     expect(rowLink("devices", row("3"))).toBe("/devices/3");
@@ -55,6 +62,28 @@ describe("panele na pulpicie", () => {
     renderApp();
     const value = await screen.findByLabelText("Ruch WAN: Pobieranie: 2 Mb/s");
     expect(value).toHaveStyle({ color: "var(--chart-5)" });
+  });
+
+  it("liczba jako wskaźnik ze zmianą względem poprzedniego okresu; pełny ekran", async () => {
+    const stat = newWidget("stat", "s1");
+    if (stat.type !== "stat") throw new Error();
+    stat.config = { ...stat.config, display: "gauge", max: 4e6, show_change: true };
+    const { calls } = mockApi({ layout: layoutWith(stat) });
+    renderApp();
+    const meter = await screen.findByRole("meter", { name: "Ruch WAN: Pobieranie" });
+    expect(meter).toHaveAttribute("aria-valuemax", "4000000");
+    expect(meter).toHaveAttribute("aria-valuetext", "2 Mb/s");
+    // Atrapa zwraca te same dane dla poprzedniego okresu – zmiana 0%
+    expect(await within(meter).findByText("0%")).toBeInTheDocument();
+    expect(calls.some((c) => c.path === "/api/dashboard/traffic?minutes=60&offset=60")).toBe(true);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Pełny ekran" }));
+    const dialog = screen.getByRole("dialog", { name: "Ruch WAN: Pobieranie" });
+    expect(within(dialog).getByRole("meter")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Pełny ekran" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("paski: zajętość dysków od największej, % do 100", async () => {
