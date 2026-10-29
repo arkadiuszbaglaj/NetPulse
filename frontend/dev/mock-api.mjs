@@ -213,6 +213,31 @@ createServer(async (req, res) => {
   }
   // --- pulpit: układ, moduły i dane paneli (wykresy, kolekcje, stany) ---
   // Mapa sieci z obciążeniem kabli: brama – switch (uplink mocno zajęty) – AP, modem za bramą
+  // Dwa łącza WAN: światłowód niesie ruch, 25 minut temu przełączenie na LTE na 10 minut
+  if (route === "GET /api/wan/history") {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const link = (id, name, position, iface) => ({
+      id, name, position, device_id: 1, device_name: "UCG Ultra", interface_id: iface, interface_name: `eth${iface}`, interface_label: name,
+      speed_mbps: 1000, state: id === 1 ? "active" : "standby", state_since: ago(900), source: "traffic", in_bps: null, out_bps: null, sampled_at: ago(10),
+    });
+    const onLte = (s) => s >= 15 * 60 && s < 25 * 60;
+    const points = [];
+    for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
+      const lte = onLte(i * stride);
+      points.push({ time: ago(i * stride), values: { in_1: lte ? null : wave(i, 0) * 1e6, out_1: lte ? null : wave(i, 1) * 1e6, in_2: lte ? wave(i, 0) * 4e5 : null, out_2: lte ? wave(i, 1) * 4e5 : null } });
+    }
+    return send(res, 200, {
+      interval_s: stride,
+      links: [link(1, "Światłowód", 1, 4), link(2, "LTE", 2, 3)],
+      points,
+      segments: [
+        { link_id: 1, state: "active", start: ago(minutes * 60), end: ago(1500) }, { link_id: 1, state: "down", start: ago(1500), end: ago(900) }, { link_id: 1, state: "active", start: ago(900), end: now() },
+        { link_id: 2, state: "standby", start: ago(minutes * 60), end: ago(1500) }, { link_id: 2, state: "active", start: ago(1500), end: ago(900) }, { link_id: 2, state: "standby", start: ago(900), end: now() },
+      ],
+      switches: [{ time: ago(1500), from_ids: [1], to_ids: [2] }, { time: ago(900), from_ids: [2], to_ids: [1] }],
+    });
+  }
   if (route === "GET /api/topology") {
     const node = (id, name, device_kind) => ({ id: `d${id}`, kind: "device", device_id: id, name, device_kind, model: null, status: "up" });
     return send(res, 200, {

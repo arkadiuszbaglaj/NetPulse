@@ -139,13 +139,19 @@ describe("widget Aktywne łącze WAN", () => {
     renderApp();
     const chart = await screen.findByTestId("chart");
     expect(chart).toHaveTextContent("Światłowód, LTE");
-    expect(chart).toHaveAttribute("data-points", "2");
+    expect(chart).toHaveAttribute("data-points", "3"); // 2 punkty z API i luka między nimi (wspólny silnik od 0.36.0)
     expect(screen.getByText("Aktywne łącze WAN – pobieranie")).toBeInTheDocument();
     const band = screen.getByRole("list", { name: "Stan łącza LTE w czasie" });
     const items = within(band).getAllByRole("listitem");
     expect(items.map((i) => i.getAttribute("aria-label")?.split(":")[0])).toEqual(["Nieaktywne – łącze zapasowe, gotowe", "W użyciu – ruch idzie tym łączem"]);
     expect(screen.getByText(/ruch przeszedł z Światłowód na LTE/)).toBeInTheDocument();
     expect(calls.some((c) => c.path === "/api/wan/history?minutes=60")).toBe(true);
+    // Wspólny silnik wykresów: legenda z ukrywaniem serii i menu z eksportem
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "LTE" }));
+    expect(chart).toHaveTextContent(/^Światłowód$/);
+    await user.click(screen.getByRole("button", { name: "Więcej działań" }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Pełny ekran", "Pobierz dane (CSV)", "Pobierz obraz (PNG)"]);
   });
 });
 

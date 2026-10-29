@@ -114,7 +114,7 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   lupy w rogu wykresu) albo dwuklik cofa o jedno, wybór zakresu i przejście na inną stronę kończą powiększenie.
 - **Dokładniejsze dane**: widget „wykres” (`useChartQueries`) pyta API o samo okno – `minutes` i `offset`
   z `zoomWindow` (przesunięcie w pełnych minutach w dół, zakres co najmniej 5 min); `fetchSeries(…, back)` cofa okno
-  bez przesuwania czasu (w odróżnieniu od porównania `offset_min`). Pozostałe wykresy (`TimeSeriesChart`: łącze WAN,
+  bez przesuwania czasu (w odróżnieniu od porównania `offset_min`). Pozostałe wykresy (do 0.35.0 `TimeSeriesChart`: łącze WAN,
   port, klient) przycinają dane, które już mają. Oś Y skaluje się do widocznego fragmentu. Powiększenie wstrzymuje
   automatyczne odświeżanie wykresów (okno jest stałe).
 - **Pulpit publiczny** nie powiększa (`canZoom = false`): jego API przyjmuje tylko zakresy i przesunięcia z pulpitu.
@@ -170,4 +170,16 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
 - **Powiększanie**: przyciski + / − / „Dopasuj do szerokości”, Ctrl + kółko w miejscu kursora, przesuwanie
   przeciągnięciem tła. Na starcie mapa dopasowana do szerokości (na telefonie bez przewijania w bok); palec
   przesuwa mapę dopiero po przybliżeniu, wcześniej przewija stronę.
+
+## Jeden silnik wykresów (0.36.0)
+
+- Stary `TimeSeriesChart` usunięty. `ChartCard` (wykres „Aktywne łącze WAN”, PoE portu, sygnał i prędkość klienta)
+  rysuje `PanelChart` – to samo co widget „wykres”: powiększanie zaznaczeniem, wspólny kursor, legenda z ukrywaniem
+  serii (przy kilku seriach), menu „⋯” z eksportem CSV/PNG, pełny ekran na pulpicie, wypełnianie komórki siatki
+  (`GridCellContext` czyta sama karta) i opcjonalne zdarzenia (`events`). API karty bez zmian (`series` z kluczem
+  punktu, nazwą i kolorem).
+- Oś Y od danych, gdy są wartości ujemne (sygnał w dBm) – `AxisView.autoMin`; wcześniej oś zaczynała się od zera
+  i ucinała wykres sygnału.
+- Testy: jeden stub `PanelChart` w `test/setup.tsx` (liczba wierszy obejmuje puste punkty luk w danych).
+- Atrapa API ma historię dwóch łączy WAN z przełączeniem (`/api/wan/history`).
 

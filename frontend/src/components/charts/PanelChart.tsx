@@ -24,6 +24,8 @@ export interface AxisView {
   min?: number | null;
   max?: number | null;
   label?: string | null;
+  /** Oś od danych zamiast od zera (np. sygnał w dBm) – tylko gdy `min` nie jest ustawione */
+  autoMin?: boolean;
 }
 
 export interface PanelChartProps {
@@ -103,7 +105,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       position,
       name: a.label ?? undefined,
       nameTextStyle: { color: text },
-      min: a.min ?? (position === "left" ? 0 : undefined),
+      min: a.min ?? (position === "left" && !a.autoMin ? 0 : undefined),
       // Próg ponad danymi też ma być widoczny
       max: a.max ?? (withThreshold && topThreshold != null ? (v: { max: number }) => Math.max(v.max, topThreshold * 1.05) : undefined),
       axisLabel: { color: text, formatter: (v: number) => a.format(v) },

@@ -1,13 +1,11 @@
-import { useContext, useMemo } from "react";
+import { useMemo } from "react";
 import { t } from "../../i18n";
 import { formatBps } from "../../lib/format";
 import { autoColor, type ChartHeight, type WanMetric } from "../../lib/layout";
 import { useRefresh, type RangeMinutes } from "../../lib/refresh";
 import { forDevice, useWanHistory, type WanLink, type WanSegment, type WanSwitch } from "../../lib/wan";
-import { ChartCard } from "../charts/ChartCard";
+import { ChartCard, type ChartSeries } from "../charts/ChartCard";
 import { StateBar } from "../charts/StateBar";
-import { GridCellContext } from "../DashboardGrid";
-import type { ChartSeries } from "../charts/TimeSeriesChart";
 import { WAN_STATE_LABEL } from "./WanStatusWidget";
 
 const HEIGHT = { sm: 180, md: 240, lg: 340 } as const;
@@ -58,14 +56,12 @@ export function WanChartWidget({
   height: ChartHeight;
 }) {
   const global = useRefresh();
-  // W komórce siatki pulpitu wykres wypełnia jej wysokość, jak widget „wykres”
-  const fill = useContext(GridCellContext);
   const minutes = rangeMin ?? global.rangeMinutes;
   const { data, isLoading, isError } = useWanHistory(minutes);
   const links = useMemo(() => forDevice(data?.links ?? [], deviceId), [data, deviceId]);
   const prefix = metric === "in_bps" ? "in" : "out";
   const series: ChartSeries[] = useMemo(
-    () => links.map((l, i) => ({ key: `${prefix}_${l.id}`, name: l.name, color: autoColor(i), area: false })),
+    () => links.map((l, i) => ({ key: `${prefix}_${l.id}`, name: l.name, color: autoColor(i) })),
     [links, prefix],
   );
   const ids = new Set(links.map((l) => l.id));
@@ -93,7 +89,6 @@ export function WanChartWidget({
       rangeMinutes={minutes}
       kind="line"
       height={HEIGHT[height]}
-      fill={fill}
       errorText={t("wan.error")}
     >
       {data && (
