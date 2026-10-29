@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { lastDays } from "../components/Availability";
 import { CLIENTS, DEVICE, PORT, mockApi } from "../test/mockApi";
@@ -18,7 +18,7 @@ describe("strona urządzenia", () => {
     expect(window.location.pathname).toBe("/devices/1");
     expect(screen.getByText("Informacje")).toBeInTheDocument();
     // Dostępność: 24 godz., 7 dni, 30 dni, rok – i pasek ostatnich 30 dni
-    expect(await screen.findAllByText("99,50%")).toHaveLength(4);
+    await waitFor(() => expect(screen.getAllByText("99,50%")).toHaveLength(4));
     expect(screen.getByRole("list", { name: /dzień po dniu/ }).children).toHaveLength(30);
     expect(screen.getByText("Procesor i pamięć")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Zakres czasu" })).toBeInTheDocument();

@@ -1,10 +1,11 @@
 {
   "name": "netpulse-web",
   "private": true,
-  "version": "0.36.0",
+  "version": "0.36.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "preview": "vite preview",
     "mock": "node dev/mock-api.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",

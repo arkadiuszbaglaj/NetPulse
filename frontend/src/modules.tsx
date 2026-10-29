@@ -26,34 +26,44 @@ import {
   IconWorld,
   type Icon,
 } from "@tabler/icons-react";
-import type { ReactNode } from "react";
+import { lazy, type ComponentType, type ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { isOn, useModules, type ModuleId, type Modules } from "./lib/modules";
-import { ChecksPage } from "./pages/ChecksPage";
-import { AgentsPage } from "./pages/settings/AgentsPage";
-import { AlertRulesPage } from "./pages/settings/AlertRulesPage";
-import { BackupsPage } from "./pages/settings/BackupsPage";
-import { ModulesPage } from "./pages/settings/ModulesPage";
-import { AlertsPage } from "./pages/AlertsPage";
-import { AccountPage } from "./pages/settings/AccountPage";
-import { ClientPage } from "./pages/ClientPage";
-import { ClientsPage } from "./pages/ClientsPage";
-import { ProxmoxPage } from "./pages/ProxmoxPage";
-import { ProxmoxSettingsPage } from "./pages/settings/ProxmoxSettingsPage";
-import { TopologyPage } from "./pages/TopologyPage";
-import { ControllersPage } from "./pages/settings/ControllersPage";
-import { DashboardsPage } from "./pages/settings/dashboards/DashboardsPage";
-import { DevicesPage } from "./pages/settings/devices/DevicesPage";
-import { NotificationsPage } from "./pages/settings/NotificationsPage";
-import { RefreshPage } from "./pages/settings/RefreshPage";
-import { SystemPage } from "./pages/settings/SystemPage";
-import { UpdatePage } from "./pages/settings/UpdatePage";
-import { WanLinksPage } from "./pages/settings/WanLinksPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { DevicePage } from "./pages/DevicePage";
-import { PortPage } from "./pages/PortPage";
-import { ServerPage } from "./pages/ServerPage";
-import { SetupPage } from "./pages/SetupPage";
+
+/** Strona ładowana dopiero przy pierwszym wejściu (osobny plik JS) – panel otwiera się szybciej. */
+function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
+  return lazy(() => load().then((m) => ({ default: m[name] })));
+}
+
+// Pulpit to pierwszy ekran po zalogowaniu – jego plik pobieramy od razu, równolegle z resztą panelu
+const loadDashboard = () => import("./pages/DashboardPage");
+void loadDashboard();
+
+const ChecksPage = page(() => import("./pages/ChecksPage"), "ChecksPage");
+const AgentsPage = page(() => import("./pages/settings/AgentsPage"), "AgentsPage");
+const AlertRulesPage = page(() => import("./pages/settings/AlertRulesPage"), "AlertRulesPage");
+const BackupsPage = page(() => import("./pages/settings/BackupsPage"), "BackupsPage");
+const ModulesPage = page(() => import("./pages/settings/ModulesPage"), "ModulesPage");
+const AlertsPage = page(() => import("./pages/AlertsPage"), "AlertsPage");
+const AccountPage = page(() => import("./pages/settings/AccountPage"), "AccountPage");
+const ClientPage = page(() => import("./pages/ClientPage"), "ClientPage");
+const ClientsPage = page(() => import("./pages/ClientsPage"), "ClientsPage");
+const ProxmoxPage = page(() => import("./pages/ProxmoxPage"), "ProxmoxPage");
+const ProxmoxSettingsPage = page(() => import("./pages/settings/ProxmoxSettingsPage"), "ProxmoxSettingsPage");
+const TopologyPage = page(() => import("./pages/TopologyPage"), "TopologyPage");
+const ControllersPage = page(() => import("./pages/settings/ControllersPage"), "ControllersPage");
+const DashboardsPage = page(() => import("./pages/settings/dashboards/DashboardsPage"), "DashboardsPage");
+const DevicesPage = page(() => import("./pages/settings/devices/DevicesPage"), "DevicesPage");
+const NotificationsPage = page(() => import("./pages/settings/NotificationsPage"), "NotificationsPage");
+const RefreshPage = page(() => import("./pages/settings/RefreshPage"), "RefreshPage");
+const SystemPage = page(() => import("./pages/settings/SystemPage"), "SystemPage");
+const UpdatePage = page(() => import("./pages/settings/UpdatePage"), "UpdatePage");
+const WanLinksPage = page(() => import("./pages/settings/WanLinksPage"), "WanLinksPage");
+const DashboardPage = page(loadDashboard, "DashboardPage");
+const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
+const PortPage = page(() => import("./pages/PortPage"), "PortPage");
+const ServerPage = page(() => import("./pages/ServerPage"), "ServerPage");
+const SetupPage = page(() => import("./pages/SetupPage"), "SetupPage");
 
 export interface NavChild {
   /** Ścieżka względem rodzica, np. "account" → /settings/account */

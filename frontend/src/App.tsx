@@ -4,7 +4,10 @@ import { useAuth } from "./auth/AuthProvider";
 import { Shell } from "./components/Shell";
 import { Button, Card, Logo } from "./components/ui";
 import { t } from "./i18n";
-import { PublicDashboardPage } from "./pages/PublicDashboardPage";
+import { lazy, Suspense } from "react";
+
+// Pulpit publiczny (wyświetlacz ścienny) – osobny plik, zalogowany panel go nie pobiera
+const PublicDashboardPage = lazy(() => import("./pages/PublicDashboardPage").then((m) => ({ default: m.PublicDashboardPage })));
 
 function Splash() {
   return (
@@ -37,7 +40,14 @@ export function App() {
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/p/:token" element={<PublicDashboardPage />} />
+          <Route
+            path="/p/:token"
+            element={
+              <Suspense fallback={<Splash />}>
+                <PublicDashboardPage />
+              </Suspense>
+            }
+          />
         </Routes>
       </BrowserRouter>
     );

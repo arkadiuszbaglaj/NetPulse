@@ -13,7 +13,7 @@ describe("Ustawienia → Moduły", () => {
     const nav = await screen.findByRole("navigation", { name: "Menu główne" });
     // Proxmox jest w menu głównym i w podstronach Ustawień
     expect(await within(nav).findAllByRole("link", { name: "Proxmox" })).toHaveLength(2);
-    expect(screen.getByText("włączone: 4 z 4")).toBeInTheDocument();
+    expect(await screen.findByText("włączone: 4 z 4")).toBeInTheDocument(); // strona ładuje się osobnym plikiem
 
     await user.click(screen.getByRole("switch", { name: "Proxmox VE" }));
     await waitFor(() => expect(state.modules.proxmox).toBe(false));

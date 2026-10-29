@@ -1,5 +1,5 @@
 import { IconMenu2, IconX } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { t } from "../i18n";
@@ -21,6 +21,15 @@ function readCollapsed(): boolean {
   } catch {
     return false;
   }
+}
+
+/** Na czas pobierania pliku strony (pierwsze wejście w nią). */
+function PageLoading() {
+  return (
+    <p role="status" className="py-10 text-center text-sm text-text-2">
+      {t("app.loading")}
+    </p>
+  );
 }
 
 /** Układ aplikacji: pasek górny (konto, motyw), menu po lewej, treść. */
@@ -97,20 +106,22 @@ export function Shell() {
         </aside>
 
         <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          <Routes>
-            {visible.flatMap((m) => {
-              if (m.children) {
-                return [
-                  <Route key={m.id} path={m.path} element={<Navigate to={`${m.path}/${m.children[0].path}`} replace />} />,
-                  ...m.children.map((c) => (
-                    <Route key={`${m.id}/${c.path}`} path={`${m.path}/${c.path}`} element={c.element} />
-                  )),
-                ];
-              }
-              return [<Route key={m.id} path={m.path} element={m.element} />];
-            })}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <Suspense fallback={<PageLoading />}>
+            <Routes>
+              {visible.flatMap((m) => {
+                if (m.children) {
+                  return [
+                    <Route key={m.id} path={m.path} element={<Navigate to={`${m.path}/${m.children[0].path}`} replace />} />,
+                    ...m.children.map((c) => (
+                      <Route key={`${m.id}/${c.path}`} path={`${m.path}/${c.path}`} element={c.element} />
+                    )),
+                  ];
+                }
+                return [<Route key={m.id} path={m.path} element={m.element} />];
+              })}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </div>

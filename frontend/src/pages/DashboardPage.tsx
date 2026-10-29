@@ -1,11 +1,10 @@
 import { IconArrowDown, IconArrowUp, IconGripVertical, IconPencil, IconPlus, IconTrash, IconWand } from "@tabler/icons-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { DashboardGrid, type EditPlace } from "../components/DashboardGrid";
 import { Dialog } from "../components/Dialog";
 import { RangePicker } from "../components/RangePicker";
 import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
-import { WidgetEditDialog } from "../components/widgets/WidgetEditDialog";
 import { Button, Card, ErrorNote, PageHeader } from "../components/ui";
 import { t } from "../i18n";
 import {
@@ -26,6 +25,9 @@ import {
 import { useDashboards } from "../lib/dashboards";
 import { useDashboardLayout, useResetLayout, useSaveLayout } from "../lib/layoutApi";
 import { useDashboardSummary, useDevices } from "../lib/queries";
+
+// Edytory widgetów (wykres, panele) są duże – pobierane dopiero przy edycji
+const WidgetEditDialog = lazy(() => import("../components/widgets/WidgetEditDialog").then((m) => ({ default: m.WidgetEditDialog })));
 
 function IconButton({ label, onClick, disabled, danger, children }: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: React.ReactNode }) {
   return (
@@ -315,15 +317,17 @@ export function DashboardPage() {
         />
       )}
       {editing && (
-        <WidgetEditDialog
-          widget={editing.widget}
-          isNew={editing.isNew}
-          onClose={() => setEditing(null)}
-          onSave={(widget) => {
-            update((l) => (editing.isNew ? addWidget(l, widget) : replaceWidget(l, widget)));
-            setEditing(null);
-          }}
-        />
+        <Suspense fallback={null}>
+          <WidgetEditDialog
+            widget={editing.widget}
+            isNew={editing.isNew}
+            onClose={() => setEditing(null)}
+            onSave={(widget) => {
+              update((l) => (editing.isNew ? addWidget(l, widget) : replaceWidget(l, widget)));
+              setEditing(null);
+            }}
+          />
+        </Suspense>
       )}
       {confirm === "discard" && (
         <ConfirmDialog

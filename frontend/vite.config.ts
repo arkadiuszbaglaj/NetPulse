@@ -13,7 +13,25 @@ export default defineConfig({
     port: 5173,
     proxy: { "/api": API, "/docs": API, "/openapi.json": API },
   },
-  build: { outDir: "dist", sourcemap: false },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+    // ECharts (~545 kB) to osobny plik ładowany dopiero z pierwszym wykresem – ostrzeżenie o rozmiarze nic tu nie wnosi
+    chunkSizeWarningLimit: 600,
+    rolldownOptions: {
+      output: {
+        // Biblioteki zmieniają się rzadko – osobny plik zostaje w pamięci przeglądarki po aktualizacji NetPulse.
+        // Strony i ECharts są ładowane na żądanie (lazy w modules.tsx i przy wykresach).
+        codeSplitting: {
+          groups: [
+            { name: "vendor", test: /node_modules[\/](react|react-dom|scheduler|react-router|@tanstack)[\/]/ },
+            // Ikony jednym plikiem zamiast kilkudziesięciu mikroskopijnych (każda strona używa kilku)
+            { name: "icons", test: /node_modules[\/]@tabler[\/]/ },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,

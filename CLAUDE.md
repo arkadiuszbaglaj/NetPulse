@@ -122,6 +122,7 @@ parsery bez zmian; PVEAuditor nie widzi plików kopii, więc od 0.28.5 wiek kopi
 Od 0.18.0: Ustawienia → Moduły (Proxmox, UniFi, agenci, kopia zapasowa z panelu). Wyłączony moduł znika z panelu, kolektor
 go pomija, jego urządzenia i reguły alertów są pomijane; dane zostają. Nowa instalacja startuje z wyłączonymi integracjami.
 Backend: `netpulse/modules.py` (`require_module`, `hidden_drivers`), panel: pole `module` w rejestrze `frontend/src/modules.tsx`.
+Strony w rejestrze są ładowane na żądanie (od 0.36.1 – nowa strona przez `page()`, opis: `docs/06-projekt-panelu.md`).
 Nowa integracja = nowy moduł. Opis: `docs/18-moduly.md`.
 
 ## Dual WAN (failover)

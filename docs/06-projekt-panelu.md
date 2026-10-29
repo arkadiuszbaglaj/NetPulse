@@ -158,6 +158,19 @@ Nie budujemy tego teraz, ale unikamy decyzji, które by to blokowały:
 | Tłumaczenia   | i18n od początku (domyślnie polski, angielski później)                |
 | Dostarczanie  | Node tylko w etapie budowania obrazu; gotowe pliki serwuje kontener API |
 
+### Ładowanie na żądanie (od 0.36.1)
+
+- Każda strona z rejestru `frontend/src/modules.tsx` to osobny plik JS (`page(() => import(…), "Nazwa")` →
+  `React.lazy`), `Suspense` w `Shell.tsx` pokazuje „Ładowanie…” przy pierwszym wejściu. Plik pulpitu pobierany
+  od razu po starcie (pierwszy ekran po zalogowaniu). Nowa strona = wpis przez `page()`, nie zwykły import.
+- Leniwie też: edytor widgetów (`WidgetEditDialog` – dopiero w trybie edycji), pulpit publiczny, ECharts
+  (`PanelChart`, przy pierwszym wykresie).
+- `vite.config.ts` (`codeSplitting`): biblioteki React/router/TanStack w pliku `vendor`, ikony w `icons` – po
+  aktualizacji NetPulse przeglądarka ma je w pamięci (API wysyła `/assets` jako `immutable`).
+- Efekt: kod startowy 795 kB → ok. 100 kB (+ `vendor` 294 kB, raz na zawsze); po kompresji 222 kB → ok. 130 kB
+  razem z bibliotekami. Podgląd zbudowanej wersji: konfiguracja `panel-build` w `.claude/launch.json`
+  (`npm --prefix frontend run preview`, API z atrapy).
+
 ## Etapy budowy (krok 5)
 
 | Etap | Zakres                                                                                     |
