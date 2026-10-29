@@ -181,6 +181,9 @@ wykresów: `ChartCard` też rysuje `PanelChart` (stary `TimeSeriesChart` usunię
   dokument). A: skan podsieci z wyborem, co dodać; B: zanonimizowany raport urządzenia na driverze ogólnym
   (pobranie albo zgłoszenie na GitHubie, bez automatycznej wysyłki do czasu chmury i decyzji o licencji).
   Użytkownik odłożył to 28.10.2026 – nie wdrażać bez jego decyzji.
+- **Asystent AI (OpenRouter / OpenAI-compatible / lokalny model)** – propozycja w `docs/25-ai-propozycja.md`
+  (tylko dokument, 29.10.2026): wyjaśnianie alertów, „co się działo” na wykresie, raport tygodniowy, czat tylko do odczytu.
+  Czeka na decyzję użytkownika – nie wdrażać bez niej.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
