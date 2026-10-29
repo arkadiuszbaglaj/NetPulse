@@ -153,6 +153,19 @@ def test_public_stat_change_allows_previous_period(client):
         assert data("/api/dashboard/traffic?minutes=60&offset=1440").status_code == 403
 
 
+def test_public_heatmap_weeks(client):
+    heat = {"id": "h", "type": "heatmap", "w": 12, "config": {"source": {"kind": "wan"}, "key": "in_bps", "weeks": 4}}
+    wall = client.post("/api/dashboards", json={"name": "Mapa", "layout": {"version": 1, "widgets": [heat]}}).json()
+    token = share(client, wall["id"], options={"refresh_s": 30, "range_min": 60})["public"]["token"]
+    with anon() as tv:
+        data = lambda path: tv.get(f"/api/public/dashboards/{token}/data", params={"path": path})  # noqa: E731
+        # Tydzień po tygodniu – 4 tygodnie wstecz, dalej już nie
+        for k in range(4):
+            assert data(f"/api/dashboard/traffic?minutes=10080&offset={k * 10080}").status_code == 200
+        assert data("/api/dashboard/traffic?minutes=10080&offset=40320").status_code == 403
+        assert data("/api/dashboard/traffic?minutes=60&offset=10080").status_code == 403
+
+
 def test_pin_rotate_disable_and_expiry(client):
     wall = client.post("/api/dashboards", json={"name": "Ściana", "layout": LAYOUT}).json()
     # PIN tylko z cyfr

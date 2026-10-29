@@ -4,6 +4,7 @@ import {
   IconBolt,
   IconChartBar,
   IconChartLine,
+  IconGridDots,
   IconHeading,
   IconLayoutGrid,
   IconListDetails,
@@ -21,6 +22,7 @@ import type { Widget, WidgetType } from "../../lib/layout";
 import { PublicModeContext } from "../../lib/publicMode";
 import { ChartWidget, chartTitle } from "./ChartWidget";
 import { DevicesWidget } from "./DevicesWidget";
+import { HeatmapWidget, heatmapTitle } from "./HeatmapWidget";
 import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget, collectionTitle, statTitle, stateTimelineTitle } from "./PanelWidgets";
 import { SectionHeader } from "../DashboardGrid";
 import { PoeWidget } from "./PoeWidget";
@@ -36,6 +38,7 @@ export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: Text
   { type: "bargauge", label: "widget.type.bargauge", description: "widget.type.bargauge.desc", icon: IconChartBar },
   { type: "table", label: "widget.type.table", description: "widget.type.table.desc", icon: IconTable },
   { type: "state_timeline", label: "widget.type.state_timeline", description: "widget.type.state_timeline.desc", icon: IconTimeline },
+  { type: "heatmap", label: "widget.type.heatmap", description: "widget.type.heatmap.desc", icon: IconGridDots },
   { type: "section", label: "widget.type.section", description: "widget.type.section.desc", icon: IconHeading },
   { type: "summary", label: "widget.type.summary", description: "widget.type.summary.desc", icon: IconLayoutGrid },
   { type: "devices", label: "widget.type.devices", description: "widget.type.devices.desc", icon: IconListDetails },
@@ -72,6 +75,8 @@ export function widgetTitle(w: Widget): string {
       return w.config.title || collectionTitle(w.config.collection.kind);
     case "state_timeline":
       return stateTimelineTitle(w.config);
+    case "heatmap":
+      return heatmapTitle(w.config);
     case "section":
       return w.config.title || t("widget.type.section");
   }
@@ -105,6 +110,8 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <TableWidget config={widget.config} />;
     case "state_timeline":
       return <StateTimelineWidget config={widget.config} />;
+    case "heatmap":
+      return <HeatmapWidget config={widget.config} />;
     case "section":
       return <SectionHeader title={widget.config.title} />;
   }

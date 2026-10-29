@@ -192,6 +192,17 @@ export interface StatConfig {
   /** Zmiana względem poprzedniego okresu tej samej długości */
   show_change?: boolean;
 }
+/** Mapa cieplna (0.37.0): metryka w kratkach godzina × dzień tygodnia albo × data, z `weeks` tygodni. */
+export interface HeatmapConfig {
+  title?: string | null;
+  source: Source;
+  key: string;
+  reduce: "avg" | "max";
+  group: "weekday" | "date";
+  weeks: 1 | 4 | 12;
+  unit: ChartUnit;
+  color: ColorIndex;
+}
 export interface BarGaugeConfig {
   title?: string | null;
   collection: Collection;
@@ -231,6 +242,7 @@ export type StatWidgetModel = WidgetBase & { type: "stat"; config: StatConfig };
 export type BarGaugeWidgetModel = WidgetBase & { type: "bargauge"; config: BarGaugeConfig };
 export type TableWidgetModel = WidgetBase & { type: "table"; config: TableConfig };
 export type StateTimelineWidgetModel = WidgetBase & { type: "state_timeline"; config: StateTimelineConfig };
+export type HeatmapWidgetModel = WidgetBase & { type: "heatmap"; config: HeatmapConfig };
 /** Nagłówek sekcji: widgety pod nim (do następnej sekcji) można zwinąć. */
 export type SectionWidgetModel = WidgetBase & { type: "section"; config: { title: string; collapsed: boolean } };
 
@@ -247,7 +259,8 @@ export type Widget =
   | BarGaugeWidgetModel
   | TableWidgetModel
   | StateTimelineWidgetModel
-  | SectionWidgetModel;
+  | SectionWidgetModel
+  | HeatmapWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -476,6 +489,8 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       };
     case "state_timeline":
       return { id, type, w: 12, config: { title: null, items: [] } };
+    case "heatmap":
+      return { id, type, w: 12, config: { title: null, source: { kind: "wan" }, key: "in_bps", reduce: "avg", group: "weekday", weeks: 4, unit: "bits", color: 1 } };
     case "section":
       return { id, type, w: 12, h: 1, config: { title: "", collapsed: false } };
   }
@@ -502,6 +517,8 @@ export function defaultHeight(w: Widget): number {
     case "wan_sla":
     case "state_timeline":
       return 6;
+    case "heatmap":
+      return 7;
     case "bargauge":
       return 6;
     default:

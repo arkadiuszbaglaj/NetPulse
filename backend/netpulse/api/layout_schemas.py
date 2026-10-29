@@ -530,6 +530,42 @@ class StateTimelineWidget(Strict):
     config: StateTimelineConfig = StateTimelineConfig()
 
 
+class HeatmapConfig(Strict):
+    """Mapa cieplna (0.37.0): jedna metryka źródła wykresu w kratkach godzina × dzień tygodnia albo × data.
+
+    Dane z `weeks` tygodni (osobne zapytania o 7 dni wstecz, przesunięte o kolejne tygodnie), grupowane w panelu
+    w strefie czasowej przeglądarki; wartość kratki to średnia albo maksimum z próbek tej godziny."""
+
+    title: str | None = Field(None, max_length=80)
+    source: Source
+    key: str = Field(max_length=32)
+    reduce: Literal["avg", "max"] = "avg"
+    group: Literal["weekday", "date"] = "weekday"
+    weeks: Literal[1, 4, 12] = 4
+    unit: Literal["bits", "bytes"] = "bits"
+    color: ColorIndex = 1
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+    @model_validator(mode="after")
+    def _metric(self) -> HeatmapConfig:
+        if self.key not in ALLOWED_METRICS[self.source.kind]:
+            raise ValueError(f"Metryka {self.key!r} nie jest dostępna dla źródła {self.source.kind!r}")
+        if self.group == "date" and self.weeks > 4:
+            raise ValueError("Układ dzień po dniu – najwyżej 4 tygodnie")
+        return self
+
+
+class HeatmapWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["heatmap"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: HeatmapConfig
+
+
 class SectionConfig(Strict):
     """Nagłówek sekcji pulpitu: widgety pod nim (do następnej sekcji) można zwinąć."""
 
@@ -568,6 +604,7 @@ Widget = Annotated[
     | BarGaugeWidget
     | TableWidget
     | StateTimelineWidget
+    | HeatmapWidget
     | SectionWidget,
     Field(discriminator="type"),
 ]

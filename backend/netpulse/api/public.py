@@ -169,6 +169,9 @@ def _public_device(d, opts: PublicOptions) -> dict:
     return out
 
 
+HEATMAP_WEEK = 7 * 24 * 60
+
+
 async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any:
     """Dane dla jednego żądania widgetu – tylko jeśli taki widget jest w pulpicie. Inaczej 403."""
     parts = urlsplit(raw)
@@ -242,6 +245,10 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
     chart_queries += [(w.config.source, 0) for w in widgets if w.type == "stat"]
     # Zmiana w „liczbie”: poprzedni okres tej samej długości, czyli przesunięcie o zakres panelu
     chart_queries += [(w.config.source, w.config.range_min or opts.range_min) for w in widgets if w.type == "stat" and w.config.show_change]
+    # Mapa cieplna: tydzień po tygodniu (zakres 7 dni, przesunięcie o kolejne tygodnie)
+    heatmaps = [w.config for w in widgets if w.type == "heatmap"]
+    if heatmaps and minutes() == HEATMAP_WEEK:
+        chart_queries += [(c.source, k * HEATMAP_WEEK) for c in heatmaps for k in range(c.weeks)]
     for source, query_offset in chart_queries:
         chart_path, fixed = _chart_path(source)
         # Przesunięcie w czasie tylko takie, jakie ma zapytanie wykresu na tym pulpicie

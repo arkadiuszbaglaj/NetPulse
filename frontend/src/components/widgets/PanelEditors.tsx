@@ -18,6 +18,7 @@ import {
   type CollectionKind,
   type ColorIndex,
   type Reduce,
+  type HeatmapConfig,
   type StatConfig,
   type StateItemRef,
   type StateTimelineConfig,
@@ -33,6 +34,7 @@ import { Dialog } from "../Dialog";
 import { refreshLabel } from "../RefreshControl";
 import { Button, Field, Select } from "../ui";
 import { Checkbox, ColorPicker, SourcePicker, sourceComplete } from "./ChartEditor";
+import { HeatmapWidget } from "./HeatmapWidget";
 import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget } from "./PanelWidgets";
 
 const metricName = (key: string) => (METRICS[key] ? t(METRICS[key].label) : key);
@@ -545,3 +547,72 @@ export function StateTimelineForm({ initial, isNew, onSave, onClose }: { initial
     </EditorDialog>
   );
 }
+
+// --- mapa cieplna -------------------------------------------------------------------------------------
+
+export function HeatmapForm({ initial, isNew, onSave, onClose }: { initial: HeatmapConfig; isNew: boolean; onSave: (c: HeatmapConfig) => void; onClose: () => void }) {
+  const [cfg, setCfg] = useState(initial);
+  const [error, setError] = useState<string | undefined>();
+  const set = (patch: Partial<HeatmapConfig>) => setCfg((c) => ({ ...c, ...patch }));
+  const cls = unitClassOf(cfg.key);
+  const ok = sourceComplete(cfg.source) && SOURCE_METRICS[cfg.source.kind].includes(cfg.key);
+
+  const submit = () => {
+    setError(ok ? undefined : t("ce.err.source"));
+    if (ok) onSave({ ...cfg, title: cfg.title?.trim() || null });
+  };
+  return (
+    <EditorDialog
+      title={t(isNew ? "pe.heatmap.new" : "pe.heatmap.edit")}
+      onSave={submit}
+      onClose={onClose}
+      preview={ok ? <HeatmapWidget config={cfg} /> : <p className="text-xs text-text-2">{t("ce.preview.invalid")}</p>}
+    >
+      <Field id="pe-title" label={t("ce.field.title")} hint={t("ce.field.title.hint")} value={cfg.title ?? ""} maxLength={80} onChange={(e) => set({ title: e.target.value })} />
+      <SourcePicker prefix="pe" source={cfg.source} error={error} onChange={(source, reset) => set(reset ? { source, key: SOURCE_METRICS[source.kind][0] } : { source })} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Select id="pe-key" label={t("pe.metric")} value={cfg.key} onChange={(e) => set({ key: e.target.value })}>
+          {SOURCE_METRICS[cfg.source.kind].map((k) => (
+            <option key={k} value={k}>
+              {metricName(k)}
+            </option>
+          ))}
+        </Select>
+        <Select id="pe-heat-reduce" label={t("pe.heatmap.reduce")} value={cfg.reduce} onChange={(e) => set({ reduce: e.target.value as HeatmapConfig["reduce"] })}>
+          <option value="avg">{t("pe.heatmap.reduce.avg")}</option>
+          <option value="max">{t("pe.heatmap.reduce.max")}</option>
+        </Select>
+        <Select
+          id="pe-heat-group"
+          label={t("pe.heatmap.group")}
+          value={cfg.group}
+          // Dzień po dniu – najwyżej 4 tygodnie (28 wierszy)
+          onChange={(e) => {
+            const group = e.target.value as HeatmapConfig["group"];
+            set(group === "date" && cfg.weeks > 4 ? { group, weeks: 4 } : { group });
+          }}
+        >
+          <option value="weekday">{t("pe.heatmap.group.weekday")}</option>
+          <option value="date">{t("pe.heatmap.group.date")}</option>
+        </Select>
+        <Select id="pe-heat-weeks" label={t("pe.heatmap.weeks")} value={cfg.weeks} onChange={(e) => set({ weeks: Number(e.target.value) as HeatmapConfig["weeks"] })}>
+          {([1, 4, 12] as const)
+            .filter((w) => cfg.group === "weekday" || w <= 4)
+            .map((w) => (
+              <option key={w} value={w}>
+                {t(`pe.heatmap.weeks.${w}`)}
+              </option>
+            ))}
+        </Select>
+        {cls === "rate" && (
+          <Select id="pe-unit" label={t("ce.unit")} value={cfg.unit} onChange={(e) => set({ unit: e.target.value as ChartUnit })}>
+            <option value="bits">{t("ce.unit.bits")}</option>
+            <option value="bytes">{t("ce.unit.bytes")}</option>
+          </Select>
+        )}
+      </div>
+      <ColorPicker label={t("pe.heatmap.color")} value={cfg.color} onChange={(color) => set({ color })} />
+    </EditorDialog>
+  );
+}
+

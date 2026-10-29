@@ -287,6 +287,15 @@ def panel(type_, config):
     return layout({"id": "p1", "type": type_, "w": 4, "config": config})
 
 
+def test_heatmap():
+    cfg = {"source": {"kind": "wan"}, "key": "in_bps"}
+    heat = DashboardLayout.model_validate(panel("heatmap", cfg)).widgets[0].config
+    assert (heat.reduce, heat.group, heat.weeks, heat.color) == ("avg", "weekday", 4, 1)
+    for bad in ({"key": "cpu_percent"}, {"weeks": 2}, {"group": "date", "weeks": 12}):
+        with pytest.raises(ValidationError):
+            DashboardLayout.model_validate(panel("heatmap", {**cfg, **bad}))
+
+
 def test_chart_annotations():
     chart = {"queries": [{"id": "A", "source": {"kind": "wan"}, "series": [{"key": "in_bps"}]}]}
     assert DashboardLayout.model_validate(panel("chart", chart)).widgets[0].config.annotations == "auto"  # układy sprzed 0.34.0

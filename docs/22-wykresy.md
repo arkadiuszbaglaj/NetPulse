@@ -183,3 +183,15 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
 - Testy: jeden stub `PanelChart` w `test/setup.tsx` (liczba wierszy obejmuje puste punkty luk w danych).
 - Atrapa API ma historię dwóch łączy WAN z przełączeniem (`/api/wan/history`).
 
+## Mapa cieplna (0.37.0)
+
+- Widget `heatmap` (`components/widgets/HeatmapWidget.tsx`, obliczenia: `lib/heatmap.ts`): jedna metryka źródła
+  wykresu w kratkach **godzina × dzień tygodnia** (pn–nd, średnio z kilku tygodni) albo **godzina × data** (dzień po
+  dniu, najwyżej 4 tygodnie). Wartość kratki – średnia albo maksimum próbek tej godziny; kolor od tła do koloru
+  widgetu względem najmniejszej i największej kratki, legenda pod mapą, kliknięcie kratki pokazuje wartość.
+- Dane: `weeks` (1, 4, 12) zapytań o 7 dni (`fetchSeries(…, back = k tygodni)`; do 7 dni dane surowe, kubełki
+  ok. 30 min) – bez nowego API. Grupowanie w przeglądarce, w jej strefie czasowej (serwer jej nie zna). Bieżący
+  tydzień odświeżany jak pulpit, starsze tylko raz.
+- Pulpit publiczny przepuszcza zakres 7 dni z przesunięciem o 0…(weeks−1) tygodni dla źródła mapy (`public.resolve`).
+- Schemat: `HeatmapConfig` (`source`, `key`, `reduce` avg/max, `group` weekday/date, `weeks`, `unit`, `color`).
+
