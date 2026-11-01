@@ -10,7 +10,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -207,13 +207,14 @@ async def apply_update(_: AdminUser):
 SETTINGS_KEY = "updates"
 SCHEDULER_START_DELAY = 90.0  # usługa aktualizacji startuje razem z API – dajemy jej chwilę
 SCHEDULER_TICK = 600.0
+CHECK_INTERVAL_H = 168  # raz w tygodniu
 
 
 class UpdateSettings(BaseModel):
-    """Ustawienie instalacji: czy API samo sprawdza wydania i jak często (w godzinach)."""
+    """Ustawienie instalacji: czy API samo sprawdza wydania (raz w tygodniu, `CHECK_INTERVAL_H`).
+    Dawne pole `interval_h` z zapisanych ustawień jest pomijane."""
 
     auto_check: bool = True
-    interval_h: Literal[6, 12, 24, 168] = 24
 
 
 async def load_settings() -> UpdateSettings:
@@ -267,7 +268,7 @@ async def auto_check_once(now: datetime | None = None) -> bool:
         if code != 200 or (payload.get("job") or {}).get("state") == "running":
             return False
         info = payload.get("info") or {}
-        if not _is_due(info.get("checked_at"), cfg.interval_h, now or datetime.now(UTC)):
+        if not _is_due(info.get("checked_at"), CHECK_INTERVAL_H, now or datetime.now(UTC)):
             return False
         code, _ = await _call("POST", "/check", CHECK_TIMEOUT)
     except _Unreachable:

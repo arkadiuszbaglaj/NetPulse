@@ -54,21 +54,23 @@ def client():
     reset_db()
 
 
-def test_defaults_to_enabled_daily(client):
-    assert client.get("/api/updates/settings").json() == {"auto_check": True, "interval_h": 24}
+def test_defaults_to_enabled(client):
+    assert client.get("/api/updates/settings").json() == {"auto_check": True}
 
 
-def test_admin_can_disable_and_change_interval(client):
-    r = client.put("/api/updates/settings", json={"auto_check": False, "interval_h": 6})
-    assert r.status_code == 200 and r.json() == {"auto_check": False, "interval_h": 6}
-    assert client.get("/api/updates/settings").json() == {"auto_check": False, "interval_h": 6}
+def test_admin_can_disable_and_enable(client):
+    r = client.put("/api/updates/settings", json={"auto_check": False})
+    assert r.status_code == 200 and r.json() == {"auto_check": False}
+    assert client.get("/api/updates/settings").json() == {"auto_check": False}
     # kolejny zapis nadpisuje ten sam wiersz
-    client.put("/api/updates/settings", json={"auto_check": True, "interval_h": 168})
-    assert client.get("/api/updates/settings").json() == {"auto_check": True, "interval_h": 168}
+    client.put("/api/updates/settings", json={"auto_check": True})
+    assert client.get("/api/updates/settings").json() == {"auto_check": True}
 
 
-def test_rejects_unknown_interval(client):
-    assert client.put("/api/updates/settings", json={"auto_check": True, "interval_h": 5}).status_code == 422
+def test_ignores_old_interval_field(client):
+    """Starszy panel wysyła jeszcze `interval_h` – sprawdzanie i tak jest raz w tygodniu."""
+    r = client.put("/api/updates/settings", json={"auto_check": True, "interval_h": 6})
+    assert r.status_code == 200 and r.json() == {"auto_check": True}
 
 
 def test_non_admin_can_read_but_not_change(client):
@@ -80,7 +82,7 @@ def test_non_admin_can_read_but_not_change(client):
     other = TestClient(app)
     assert other.post("/api/auth/login", json=OTHER).status_code == 200
     assert other.get("/api/updates/settings").status_code == 200
-    assert other.put("/api/updates/settings", json={"auto_check": False, "interval_h": 24}).status_code == 403
+    assert other.put("/api/updates/settings", json={"auto_check": False}).status_code == 403
 
 
 def test_requires_login():

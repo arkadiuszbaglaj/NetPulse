@@ -367,7 +367,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
       { id: "unifi", state: "off", detail: "not_configured" },
       { id: "updater", state: "ok", detail: null },
     ],
-    updateSettings: { auto_check: true, interval_h: 24 },
+    updateSettings: { auto_check: true },
     wanStatus: { links: [], active_ids: [] },
     wanHistory: { interval_s: 30, links: [], points: [], segments: [], switches: [] },
     wanSla: { days: 7, start: "2026-10-18T12:00:00Z", end: "2026-10-25T12:00:00Z", links: [] },

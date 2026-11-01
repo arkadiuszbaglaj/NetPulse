@@ -45,21 +45,19 @@ describe("plakietka o aktualizacji w pasku górnym", () => {
 });
 
 describe("ustawienia automatycznego sprawdzania", () => {
-  it("administrator wyłącza sprawdzanie i zmienia częstotliwość", async () => {
+  it("administrator wyłącza sprawdzanie; włączone działa raz w tygodniu", async () => {
     const { state, calls } = mockApi();
     renderApp("/settings/update");
     const user = userEvent.setup();
 
-    const select = await screen.findByLabelText("Jak często sprawdzać");
-    expect(select).toHaveValue("24");
-    await user.selectOptions(select, "6");
-    await waitFor(() => expect(state.updateSettings).toEqual({ auto_check: true, interval_h: 6 }));
+    expect(await screen.findByText("Aktualizacje są sprawdzane raz w tygodniu.")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("switch", { name: "Automatycznie sprawdzaj aktualizacje" }));
-    await waitFor(() => expect(state.updateSettings.auto_check).toBe(false));
-    expect(calls.filter((c) => c.method === "PUT" && c.path === "/api/updates/settings")).toHaveLength(2);
+    await waitFor(() => expect(state.updateSettings).toEqual({ auto_check: false }));
+    expect(calls.filter((c) => c.method === "PUT" && c.path === "/api/updates/settings")).toHaveLength(1);
     expect(await screen.findByText(/Serwer niczego nie sprawdza sam/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Jak często sprawdzać")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aktualizacje są sprawdzane raz w tygodniu.")).not.toBeInTheDocument();
   });
 
   it("zwykły użytkownik widzi ustawienia, ale nie może ich zmienić", async () => {
@@ -67,7 +65,7 @@ describe("ustawienia automatycznego sprawdzania", () => {
     renderApp("/settings/update");
     const toggle = await screen.findByRole("switch", { name: "Automatycznie sprawdzaj aktualizacje" });
     expect(toggle).toBeDisabled();
-    expect(screen.getByLabelText("Jak często sprawdzać")).toBeDisabled();
+    expect(screen.getByText("Aktualizacje są sprawdzane raz w tygodniu.")).toBeInTheDocument();
     expect(screen.getByText("Te ustawienia może zmienić tylko administrator.")).toBeInTheDocument();
   });
 });

@@ -236,11 +236,12 @@ def test_auto_check_runs_when_never_checked_and_then_waits(client, monkeypatch, 
     url, repo, _, _ = updater
     configure(monkeypatch, url)
     repo.commit("0.2.0", "Etap 6: nowa funkcja")
-    cfg = updates.UpdateSettings(auto_check=True, interval_h=24)
+    cfg = updates.UpdateSettings(auto_check=True)
     assert run_auto(monkeypatch, cfg) is True
     assert client.get("/api/updates").json()["info"]["update_available"] is True
     assert run_auto(monkeypatch, cfg) is False  # świeży wynik: za wcześnie na kolejne sprawdzenie
-    assert run_auto(monkeypatch, cfg, datetime.now(UTC) + timedelta(hours=25)) is True
+    assert run_auto(monkeypatch, cfg, datetime.now(UTC) + timedelta(days=6)) is False  # raz w tygodniu
+    assert run_auto(monkeypatch, cfg, datetime.now(UTC) + timedelta(days=7, hours=1)) is True
 
 
 def test_auto_check_disabled_or_unconfigured_does_nothing(client, monkeypatch, updater):

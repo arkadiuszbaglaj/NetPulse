@@ -13,13 +13,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "../../auth/AuthProvider";
 import { Dialog } from "../../components/Dialog";
-import { Button, Card, ErrorNote, PageHeader, Select, Toggle } from "../../components/ui";
+import { Button, Card, ErrorNote, PageHeader, Toggle } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
 import {
   ApiError,
-  UPDATE_CHECK_INTERVALS,
   post,
-  type UpdateCheckInterval,
   type UpdateJob,
   type UpdatePhaseStatus,
   type UpdatesResponse,
@@ -307,25 +305,7 @@ export function UpdatePage() {
               onChange={(auto_check) => saveSettings.mutate({ ...autoSettings.data, auto_check })}
             />
           </div>
-          {autoSettings.data.auto_check && (
-            <div className="mt-3 max-w-xs">
-              <Select
-                id="update-interval"
-                label={t("update.auto.interval")}
-                value={autoSettings.data.interval_h}
-                disabled={!user.is_admin || saveSettings.isPending}
-                onChange={(e) =>
-                  saveSettings.mutate({ ...autoSettings.data, interval_h: Number(e.target.value) as UpdateCheckInterval })
-                }
-              >
-                {UPDATE_CHECK_INTERVALS.map((h) => (
-                  <option key={h} value={h}>
-                    {t(`update.auto.every.${h}` as const)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
+          {autoSettings.data.auto_check && <p className="mt-3 text-sm">{t("update.auto.weekly")}</p>}
           <p className="mt-3 text-xs text-muted">{t(autoSettings.data.auto_check ? "update.auto.hintOn" : "update.auto.hintOff")}</p>
           {!user.is_admin && <p className="mt-1 text-xs text-muted">{t("update.adminOnly.settings")}</p>}
           {saveSettings.error && (
