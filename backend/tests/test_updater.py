@@ -225,6 +225,21 @@ def test_status_check_and_status_again(repo):
     assert app.handle("GET", "/status", auth)[1]["info"]["latest"]["version"] == "0.2.0"
 
 
+def test_status_after_install_drops_stale_update_available(repo):
+    """Po instalacji (z panelu albo `netpulse update`) zapamiętane „jest nowa wersja” znika od razu."""
+    app, _, _ = make_app(repo)
+    auth = "Bearer tajny-token"
+    repo.commit("0.2.0", "nowa funkcja")
+    checked_at = app.handle("POST", "/check", auth)[1]["info"]["checked_at"]
+    git(repo.install, "merge", "--ff-only", "-q", "origin/main")
+
+    info = app.handle("GET", "/status", auth)[1]["info"]
+    assert info["update_available"] is False and info["behind"] == 0 and info["changes"] == []
+    assert info["current"]["version"] == "0.2.0"
+    assert info["checked_at"] == checked_at  # rytm automatycznego sprawdzania się nie zmienia
+    assert state.read_check(settings(repo))["update_available"] is False
+
+
 def test_check_error_is_502(repo):
     app = UpdaterApp(settings(repo), launcher=Launcher(), is_running=lambda s: False, checker=_raise_update_error)
     code, body = app.handle("POST", "/check", "Bearer tajny-token")

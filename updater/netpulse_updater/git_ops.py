@@ -64,15 +64,17 @@ def current(s: Settings) -> dict[str, Any]:
     }
 
 
-def check(s: Settings) -> dict[str, Any]:
-    """Pobiera informacje ze źródła (git fetch) i zwraca, co jest do zainstalowania."""
+def check(s: Settings, fetch: bool = True) -> dict[str, Any]:
+    """Pobiera informacje ze źródła (git fetch) i zwraca, co jest do zainstalowania.
+    `fetch=False` liczy wynik na nowo z tego, co już pobrano (bez łączenia się ze źródłem)."""
     branch = branch_name(s)
-    if s.repo_url:
-        sh(["git", "remote", "set-url", "origin", s.repo_url], s.install_dir)
-    r = sh(["git", "fetch", "--quiet", "origin", branch], s.install_dir, timeout=120)
-    if r.returncode != 0:
-        detail = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["brak szczegółów"]
-        raise UpdateError(f"Nie udało się połączyć ze źródłem aktualizacji: {detail[0][:200]}")
+    if fetch:
+        if s.repo_url:
+            sh(["git", "remote", "set-url", "origin", s.repo_url], s.install_dir)
+        r = sh(["git", "fetch", "--quiet", "origin", branch], s.install_dir, timeout=120)
+        if r.returncode != 0:
+            detail = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["brak szczegółów"]
+            raise UpdateError(f"Nie udało się połączyć ze źródłem aktualizacji: {detail[0][:200]}")
 
     remote = f"origin/{branch}"
     behind = int(_out(s, "rev-list", "--count", f"HEAD..{remote}"))

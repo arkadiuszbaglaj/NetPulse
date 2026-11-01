@@ -121,10 +121,24 @@ class UpdaterApp:
             )
         return None
 
+    def fresh_check(self, cur: dict[str, Any]) -> dict[str, Any] | None:
+        """Zapamiętany wynik sprawdzenia; gdy od tamtej pory zmieniła się zainstalowana wersja
+        (aktualizacja z panelu albo `netpulse update`), liczy go na nowo bez łączenia się ze źródłem."""
+        info = state.read_check(self.s)
+        if not info or (info.get("current") or {}).get("commit") == cur["commit"]:
+            return info
+        try:
+            info = {**git_ops.check(self.s, fetch=False), "checked_at": info.get("checked_at")}
+        except (git_ops.UpdateError, ValueError):
+            return None  # nie da się policzyć – lepiej nic niż nieaktualne „jest nowa wersja”
+        state.write_check(self.s, info)
+        return info
+
     def status(self) -> dict[str, Any]:
+        cur = git_ops.current(self.s)
         return {
-            "current": git_ops.current(self.s),
-            "info": state.read_check(self.s),
+            "current": cur,
+            "info": self.fresh_check(cur),
             "job": self.job_view(),
             "problem": self.problem(),
         }
