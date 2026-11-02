@@ -4,6 +4,7 @@ import {
   IconBolt,
   IconChartBar,
   IconChartLine,
+  IconChartPie,
   IconGridDots,
   IconHeading,
   IconLayoutGrid,
@@ -25,6 +26,8 @@ import { DevicesWidget } from "./DevicesWidget";
 import { HeatmapWidget, heatmapTitle } from "./HeatmapWidget";
 import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget, collectionTitle, statTitle, stateTimelineTitle } from "./PanelWidgets";
 import { SectionHeader } from "../DashboardGrid";
+import { PieWidget } from "./PieWidget";
+import { pieTitle } from "../../lib/pie";
 import { PoeWidget } from "./PoeWidget";
 import { ServerWidget } from "./ServerWidget";
 import { SummaryWidget } from "./SummaryWidget";
@@ -35,6 +38,7 @@ import { WanStatusWidget } from "./WanStatusWidget";
 export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: TextKey; icon: Icon }[] = [
   { type: "chart", label: "widget.type.chart", description: "widget.type.chart.desc", icon: IconChartLine },
   { type: "stat", label: "widget.type.stat", description: "widget.type.stat.desc", icon: IconNumber },
+  { type: "pie", label: "widget.type.pie", description: "widget.type.pie.desc", icon: IconChartPie },
   { type: "bargauge", label: "widget.type.bargauge", description: "widget.type.bargauge.desc", icon: IconChartBar },
   { type: "table", label: "widget.type.table", description: "widget.type.table.desc", icon: IconTable },
   { type: "state_timeline", label: "widget.type.state_timeline", description: "widget.type.state_timeline.desc", icon: IconTimeline },
@@ -77,6 +81,8 @@ export function widgetTitle(w: Widget): string {
       return stateTimelineTitle(w.config);
     case "heatmap":
       return heatmapTitle(w.config);
+    case "pie":
+      return pieTitle(w.config);
     case "section":
       return w.config.title || t("widget.type.section");
   }
@@ -112,6 +118,8 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <StateTimelineWidget config={widget.config} />;
     case "heatmap":
       return <HeatmapWidget config={widget.config} />;
+    case "pie":
+      return <PieWidget config={widget.config} />;
     case "section":
       return <SectionHeader title={widget.config.title} />;
   }

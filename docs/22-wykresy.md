@@ -195,3 +195,19 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
 - Pulpit publiczny przepuszcza zakres 7 dni z przesunięciem o 0…(weeks−1) tygodni dla źródła mapy (`public.resolve`).
 - Schemat: `HeatmapConfig` (`source`, `key`, `reduce` avg/max, `group` weekday/date, `weeks`, `unit`, `color`).
 
+
+## Wykres kołowy (0.39.0)
+
+- Widget `pie` w „Dodaj widget”: najpierw **urządzenie** (albo „Cała sieć”), potem **co monitorować**. Lista zależy od
+  urządzenia (`pieMetricsFor` w `frontend/src/lib/pie.ts`):
+  - urządzenie SNMP: CPU, RAM, ruch odbierany / wysyłany według portów, porty podłączone / odłączone
+    (AP dodatkowo klienci według sieci WiFi, serwer SNMP – zajętość dysku i miejsce według dysków),
+  - agent: CPU, RAM, zajętość dysku (wybór dysku), miejsce według dysków, kontenery według RAM / CPU, usługi działa / nie,
+  - Proxmox: CPU, RAM, maszyny według RAM-u, maszyny działające / zatrzymane,
+  - cała sieć: urządzenia działa / nie, sprawdzenia dostępności działa / nie, klienci według sieci WiFi.
+- Trzy tryby: **zajętość** (zajęte / wolne, kolor od 70% i 90%), **udział** (kawałek na wiersz od największego,
+  najwyżej `limit` kawałków, reszta jako „Pozostałe”), **stan** (działa / nie działa / brak danych, w środku „3 z 4”).
+- Dane z istniejących kolekcji (`/api/collections/{kind}`), bez nowego API; CPU i RAM – wiersz urządzenia w kolekcji
+  `devices`. Pierścień i legenda w SVG/HTML (`components/widgets/PieWidget.tsx`), edytor: `PieEditor.tsx`.
+- Schemat: `PieConfig` (`device_id`, `metric`, `item` – dysk, `limit` 2–12), mapa `PIE_COLLECTION` w `layout_schemas.py`;
+  pulpit publiczny przepuszcza tylko kolekcję wykresu (`PieConfig.collection()` w `public.resolve`).

@@ -1,5 +1,6 @@
 /** Okna edycji widgetów: wykres (ChartEditor), podsumowanie (kafelki), karty urządzeń (filtr), PoE i łącza WAN. */
 import { useState } from "react";
+import { PieForm } from "./PieEditor";
 import { t, type TextKey } from "../../i18n";
 import { type Device } from "../../lib/api";
 import {
@@ -309,6 +310,8 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
       return <TableForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
     case "state_timeline":
       return <StateTimelineForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
+    case "pie":
+      return <PieForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
     case "heatmap":
       return <HeatmapForm initial={widget.config} isNew={isNew} onClose={onClose} onSave={(config) => onSave({ ...widget, config })} />;
     case "section":

@@ -238,7 +238,35 @@ export interface StateTimelineConfig {
   range_min?: RangeMinutes | null;
   refresh_s?: RefreshSeconds | null;
 }
+/** Co monitoruje wykres kołowy (lista i kolekcje: lib/pie.ts). */
+export type PieMetric =
+  | "cpu"
+  | "mem"
+  | "disk"
+  | "disks_share"
+  | "ports_in"
+  | "ports_out"
+  | "ports_state"
+  | "wifi_clients"
+  | "containers_mem"
+  | "containers_cpu"
+  | "services_state"
+  | "guests_mem"
+  | "guests_state"
+  | "devices_state"
+  | "checks_state";
+/** Wykres kołowy (0.39.0): urządzenie (puste = cała sieć) i to, co na nim monitorować. */
+export interface PieConfig {
+  title?: string | null;
+  device_id?: number | null;
+  metric: PieMetric;
+  /** Dysk (punkt montowania) dla „disk”; puste = pierwszy */
+  item?: string | null;
+  /** Najwięcej kawałków, reszta jako „Pozostałe” */
+  limit: number;
+}
 export type StatWidgetModel = WidgetBase & { type: "stat"; config: StatConfig };
+export type PieWidgetModel = WidgetBase & { type: "pie"; config: PieConfig };
 export type BarGaugeWidgetModel = WidgetBase & { type: "bargauge"; config: BarGaugeConfig };
 export type TableWidgetModel = WidgetBase & { type: "table"; config: TableConfig };
 export type StateTimelineWidgetModel = WidgetBase & { type: "state_timeline"; config: StateTimelineConfig };
@@ -260,7 +288,8 @@ export type Widget =
   | TableWidgetModel
   | StateTimelineWidgetModel
   | SectionWidgetModel
-  | HeatmapWidgetModel;
+  | HeatmapWidgetModel
+  | PieWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -491,6 +520,8 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 12, config: { title: null, items: [] } };
     case "heatmap":
       return { id, type, w: 12, config: { title: null, source: { kind: "wan" }, key: "in_bps", reduce: "avg", group: "weekday", weeks: 4, unit: "bits", color: 1 } };
+    case "pie":
+      return { id, type, w: 4, config: { title: null, device_id: null, metric: "devices_state", item: null, limit: 8 } };
     case "section":
       return { id, type, w: 12, h: 1, config: { title: "", collapsed: false } };
   }
@@ -521,6 +552,8 @@ export function defaultHeight(w: Widget): number {
       return 7;
     case "bargauge":
       return 6;
+    case "pie":
+      return 7;
     default:
       return 8;
   }

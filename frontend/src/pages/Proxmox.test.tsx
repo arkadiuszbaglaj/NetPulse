@@ -149,7 +149,7 @@ describe("strona Proxmox", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /Wykres/ }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
     const form = await screen.findByRole("dialog", { name: "Nowy wykres" });
     await user.selectOptions(within(form).getByLabelText("Źródło danych"), "pve_guest");
     const devices = within(form).getByLabelText("Urządzenie");

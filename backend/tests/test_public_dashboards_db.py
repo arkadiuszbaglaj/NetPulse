@@ -166,6 +166,24 @@ def test_public_heatmap_weeks(client):
         assert data("/api/dashboard/traffic?minutes=60&offset=10080").status_code == 403
 
 
+def test_public_pie_serves_only_its_collection(client):
+    (ucg,) = client.get("/api/devices").json()
+    dev = ucg["id"]
+    pies = [
+        {"id": "p1", "type": "pie", "w": 4, "config": {"device_id": dev, "metric": "cpu"}},
+        {"id": "p2", "type": "pie", "w": 4, "config": {"device_id": dev, "metric": "ports_in"}},
+    ]
+    wall = client.post("/api/dashboards", json={"name": "Koła", "layout": {"version": 1, "widgets": pies}}).json()
+    token = share(client, wall["id"])["public"]["token"]
+    with anon() as tv:
+        data = lambda path: tv.get(f"/api/public/dashboards/{token}/data", params={"path": path})  # noqa: E731
+        assert data("/api/collections/devices").status_code == 200
+        assert data(f"/api/collections/ports?device_id={dev}").status_code == 200
+        # Porty innego urządzenia i kolekcje spoza pulpitu – nie
+        assert data(f"/api/collections/ports?device_id={dev + 1}").status_code == 403
+        assert data("/api/collections/checks").status_code == 403
+
+
 def test_pin_rotate_disable_and_expiry(client):
     wall = client.post("/api/dashboards", json={"name": "Ściana", "layout": LAYOUT}).json()
     # PIN tylko z cyfr

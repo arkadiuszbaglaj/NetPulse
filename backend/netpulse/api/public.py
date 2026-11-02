@@ -228,6 +228,8 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         for w in widgets:
             if w.type in ("bargauge", "table") and w.config.collection.kind == m.group(1) and w.config.collection.device_id == device_id:
                 return await panels.collection(m.group(1), device_id)
+            if w.type == "pie" and w.config.collection() == (m.group(1), device_id):
+                return await panels.collection(m.group(1), device_id)
         raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     if path == "/api/states":
         wanted = (

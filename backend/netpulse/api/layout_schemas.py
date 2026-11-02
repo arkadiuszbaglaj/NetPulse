@@ -566,6 +566,66 @@ class HeatmapWidget(Strict):
     config: HeatmapConfig
 
 
+PieMetric = Literal[
+    "cpu", "mem", "disk", "disks_share",
+    "ports_in", "ports_out", "ports_state",
+    "wifi_clients",
+    "containers_mem", "containers_cpu", "services_state",
+    "guests_mem", "guests_state",
+    "devices_state", "checks_state",
+]
+# Co monitoruje wykres kołowy → kolekcja z danymi (pulpit publiczny przepuszcza tylko ją)
+PIE_COLLECTION: dict[str, str] = {
+    "cpu": "devices", "mem": "devices", "devices_state": "devices",
+    "disk": "disks", "disks_share": "disks",
+    "ports_in": "ports", "ports_out": "ports", "ports_state": "ports",
+    "wifi_clients": "wifi",
+    "containers_mem": "containers", "containers_cpu": "containers", "services_state": "services",
+    "guests_mem": "guests", "guests_state": "guests",
+    "checks_state": "checks",
+}
+PIE_GLOBAL = {"devices_state", "checks_state"}  # cała sieć, bez urządzenia
+PIE_DEVICE_OPTIONAL = {"wifi_clients", "guests_mem", "guests_state"}  # puste urządzenie = wszystkie
+
+
+class PieConfig(Strict):
+    """Wykres kołowy (0.39.0): urządzenie i to, co na nim monitorować – zajętość (CPU, RAM, dysk), udział
+    (ruch portów, klienci sieci WiFi, kontenery, maszyny) albo stan (działa / nie działa)."""
+
+    title: str | None = Field(None, max_length=80)
+    device_id: int | None = Field(None, ge=1)
+    metric: PieMetric
+    item: str | None = Field(None, max_length=255)  # dysk (punkt montowania) dla „disk”; puste = pierwszy
+    limit: int = Field(8, ge=2, le=12)  # najwięcej kawałków, reszta jako „Pozostałe”
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+    @model_validator(mode="after")
+    def _device(self) -> PieConfig:
+        if self.metric in PIE_GLOBAL:
+            self.device_id = None
+        elif self.device_id is None and self.metric not in PIE_DEVICE_OPTIONAL:
+            raise ValueError("Wybierz urządzenie")
+        if self.metric != "disk":
+            self.item = None
+        return self
+
+    def collection(self) -> tuple[str, int | None]:
+        """Kolekcja i urządzenie, o które pyta panel (`/api/collections/{kind}?device_id=`)."""
+        kind = PIE_COLLECTION[self.metric]
+        return kind, None if kind in ("devices", "checks") else self.device_id
+
+
+class PieWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["pie"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: PieConfig
+
+
 class SectionConfig(Strict):
     """Nagłówek sekcji pulpitu: widgety pod nim (do następnej sekcji) można zwinąć."""
 
@@ -605,6 +665,7 @@ Widget = Annotated[
     | TableWidget
     | StateTimelineWidget
     | HeatmapWidget
+    | PieWidget
     | SectionWidget,
     Field(discriminator="type"),
 ]

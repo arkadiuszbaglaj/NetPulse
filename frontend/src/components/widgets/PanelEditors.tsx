@@ -74,7 +74,7 @@ const parse = (text: string): number | null | "bad" => {
 };
 
 /** Wspólne okno edytora panelu: podgląd na górze, ustawienia pod nim, Zapisz / Anuluj. */
-function EditorDialog({ title, preview, children, onSave, onClose }: { title: string; preview: ReactNode; children: ReactNode; onSave: () => void; onClose: () => void }) {
+export function EditorDialog({ title, preview, children, onSave, onClose }: { title: string; preview: ReactNode; children: ReactNode; onSave: () => void; onClose: () => void }) {
   return (
     <Dialog
       size="xl"

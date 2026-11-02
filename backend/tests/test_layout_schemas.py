@@ -296,6 +296,22 @@ def test_heatmap():
             DashboardLayout.model_validate(panel("heatmap", {**cfg, **bad}))
 
 
+def test_pie():
+    cpu = DashboardLayout.model_validate(panel("pie", {"device_id": 1, "metric": "cpu", "item": "/"})).widgets[0].config
+    assert (cpu.limit, cpu.item, cpu.collection()) == (8, None, ("devices", None))  # dysk tylko dla „disk”
+    disk = DashboardLayout.model_validate(panel("pie", {"device_id": 4, "metric": "disk", "item": "/srv"})).widgets[0].config
+    assert (disk.item, disk.collection()) == ("/srv", ("disks", 4))
+    # Cała sieć – bez urządzenia; WiFi i maszyny – urządzenie opcjonalne
+    whole = DashboardLayout.model_validate(panel("pie", {"device_id": 3, "metric": "devices_state"})).widgets[0].config
+    assert (whole.device_id, whole.collection()) == (None, ("devices", None))
+    assert DashboardLayout.model_validate(panel("pie", {"metric": "wifi_clients"})).widgets[0].config.collection() == ("wifi", None)
+    ports = DashboardLayout.model_validate(panel("pie", {"device_id": 2, "metric": "ports_in", "limit": 5})).widgets[0].config
+    assert ports.collection() == ("ports", 2)
+    for bad in ({"metric": "ports_in"}, {"device_id": 1, "metric": "swap"}, {"device_id": 1, "metric": "cpu", "limit": 1}, {"device_id": 1, "metric": "cpu", "limit": 13}):
+        with pytest.raises(ValidationError):
+            DashboardLayout.model_validate(panel("pie", bad))
+
+
 def test_chart_annotations():
     chart = {"queries": [{"id": "A", "source": {"kind": "wan"}, "series": [{"key": "in_bps"}]}]}
     assert DashboardLayout.model_validate(panel("chart", chart)).widgets[0].config.annotations == "auto"  # układy sprzed 0.34.0
