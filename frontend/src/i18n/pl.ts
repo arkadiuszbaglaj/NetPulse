@@ -437,6 +437,10 @@ export const pl = {
 
   "live.toggle": "Na żywo",
   "live.lost": "Połączenie „Na żywo” zostało przerwane, wykres wrócił do zwykłego odświeżania.",
+  "live.lostTable": "Połączenie „Na żywo” zostało przerwane, tabela wróciła do zwykłego odświeżania.",
+  "live.load": "Obciążenie {pct}% z {speed}",
+  "live.load.col": "Obciążenie",
+  "live.wanPorts": "Porty WAN na żywo",
   "chart.sourceGone": "Źródło wykresu jest niedostępne (usunięto urządzenie, port albo sieć WiFi).",
 
   "dash.edit": "Edytuj pulpit",

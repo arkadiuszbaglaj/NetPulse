@@ -781,7 +781,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (/^GET \/api\/interfaces\/\d+\/poe-metrics$/.test(key)) return json(200, [{ time: "2026-10-24T20:00:00Z", values: { power_w: 4.5 } }]);
       const iface = /^GET \/api\/interfaces\/(\d+)$/.exec(key);
       if (iface) return Number(iface[1]) === state.port.id ? json(200, state.port) : json(404, { detail: "Nie ma takiego portu" });
-      if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, name: "eth0", label: "Port 1", alias: "AP U6+" }, { id: 12, name: "eth1", label: "Port 2", alias: null }]);
+      if (key === "GET /api/devices/1/interfaces") return json(200, [{ id: 11, name: "eth0", label: "Port 1", alias: "AP U6+", oper_status: "up", speed_mbps: 1000 }, { id: 12, name: "eth1", label: "Port 2", alias: null }]);
       if (key === "GET /api/devices/1/wifi") return json(200, [{ id: 21, ssid: "Dom", radio: "ng" }]);
       if (/^GET \/api\/(interfaces|wifi|devices)\/\d+\/metrics$/.test(key)) return json(200, state.traffic.points);
       if (key === "GET /api/updates/settings") return json(200, state.updateSettings);

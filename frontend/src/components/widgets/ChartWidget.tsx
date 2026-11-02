@@ -5,7 +5,7 @@ import { t } from "../../i18n";
 import { ApiError, type Series } from "../../lib/api";
 import { formatBps, formatRange, metricFormatter } from "../../lib/format";
 import { useChartEvents } from "../../lib/events";
-import { useLiveWan } from "../../lib/live";
+import { useLivePorts, useLiveWan } from "../../lib/live";
 import { useDetailLinks } from "../../lib/publicMode";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
@@ -14,6 +14,7 @@ import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
 import { Card } from "../ui";
 import { defaultTitle, useChartQueries } from "./chartSource";
+import { WanPortsLive } from "./LiveLoad";
 import { WidgetActions, type WidgetAction } from "./WidgetActions";
 
 // ECharts jest duży – ładowany dopiero, gdy wykres jest na ekranie
@@ -21,7 +22,7 @@ const PanelChart = lazy(() => import("../charts/PanelChart"));
 
 const HEIGHT = { sm: 180, md: 240, lg: 340 } as const;
 
-function LiveToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+export function LiveToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -49,15 +50,24 @@ const loading = (
 );
 
 /** Wykres w czasie skonfigurowany w widgecie: zapytania (źródła), osie, progi, legenda, zakres i odświeżanie.
- * `allowLive` dodaje przełącznik „Na żywo” (tylko dla samego ruchu WAN, bez porównań). */
+ * `allowLive` dodaje przełącznik „Na żywo” (ruch WAN albo ruch jednego portu, bez porównań). */
 export function ChartWidget({ config: raw, className = "", allowLive = false }: { config: ChartConfig | LegacyChartConfig; className?: string; allowLive?: boolean }) {
   const config = useMemo(() => upgradeChartConfig(raw), [raw]);
   // W komórce siatki pulpitu wykres wypełnia wysokość komórki; poza nią (strony szczegółów) – wysokość z konfiguracji
   const fill = useContext(GridCellContext);
   const first = config.queries[0];
-  const canLive = allowLive && config.queries.length === 1 && first.source.kind === "wan" && !first.offset_min;
+  const src = first.source;
+  const portTraffic = src.kind === "interface" && src.device_id != null && first.series.every((s) => s.key === "in_bps" || s.key === "out_bps");
+  const canLive = allowLive && config.queries.length === 1 && (src.kind === "wan" || portTraffic) && !first.offset_min;
   const [live, setLive] = useState(false);
-  const stream = useLiveWan(live && canLive);
+  const wanStream = useLiveWan(live && canLive && src.kind === "wan");
+  const portStream = useLivePorts(src.kind === "interface" ? src.device_id : null, live && canLive && portTraffic);
+  const portId = src.kind === "interface" ? src.id : null;
+  const portSeries = useMemo(() => (portId == null ? null : portStream.series(portId)), [portStream.history, portId]);
+  const stream =
+    portId != null && portSeries
+      ? { status: portStream.status, series: portSeries, current: portStream.current(portId) ?? { in_bps: null, out_bps: null }, ports: [] }
+      : wanStream;
   const lost = live && stream.status === "lost";
   // Po utracie połączenia wracamy do zwykłego odświeżania i mówimy o tym użytkownikowi
   useEffect(() => {
@@ -153,6 +163,7 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
           </span>
         </p>
       )}
+      {showLive && stream.status === "live" && <WanPortsLive ports={stream.ports} />}
       {notice && !showLive && (
         <p role="status" className="mb-1 text-xs text-danger">
           {t("live.lost")}

@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
-    proxy: { "/api": API, "/docs": API, "/openapi.json": API },
+    proxy: { "/api": { target: API, ws: true }, "/docs": API, "/openapi.json": API },
   },
   build: {
     outDir: "dist",

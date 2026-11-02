@@ -1,21 +1,26 @@
 import { IconArrowLeft, IconPencil } from "@tabler/icons-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { AvailabilityCard } from "../components/Availability";
 import { DefaultCommunityBadge } from "../components/SnmpWarning";
 import { RangePicker } from "../components/RangePicker";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
-import { ChartWidget } from "../components/widgets/ChartWidget";
+import { ChartWidget, LiveToggle } from "../components/widgets/ChartWidget";
+import { LoadBar } from "../components/widgets/LiveLoad";
 import { KIND_LABEL, STATUS_LABEL, STATUS_STYLE, deviceIcon } from "../components/widgets/DevicesWidget";
 import { ServerDetails } from "../components/widgets/ServerDetails";
 import { t } from "../i18n";
 import { ApiError, type Device } from "../lib/api";
 import { formatSpeed, useDevice, useInterfaces, useWifiNetworks, type InterfaceItem } from "../lib/details";
 import { formatBps, formatDateTime, formatUptime, relativeTime } from "../lib/format";
+import { useLivePorts } from "../lib/live";
 import { newChartConfig, type ChartConfig } from "../lib/layout";
 import { isOn, useModules } from "../lib/modules";
 import { formatWatts, usePoe, type PoePort } from "../lib/unifi";
 import { ClientList } from "./ClientList";
+
+/** Urządzenia bez SNMP (agent, Proxmox) – bez trybu „Na żywo” w tabeli portów. */
+const NON_SNMP = new Set(["agent", "proxmox"]);
 
 export const OPER_STYLE: Record<string, string> = {
   up: "bg-success-soft text-success",
@@ -72,11 +77,32 @@ function InfoCard({ device }: { device: Device }) {
   );
 }
 
-function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces: InterfaceItem[]; poe: Map<string, PoePort> }) {
+/** Tabela portów; „Na żywo” podmienia odbierane/wysyłane na próbki co ~1,5 s i dokłada obciążenie łącza. */
+function PortsCard({ deviceId, interfaces, poe, canLive }: { deviceId: number; interfaces: InterfaceItem[]; poe: Map<string, PoePort>; canLive: boolean }) {
   const withPoe = poe.size > 0;
+  const [live, setLive] = useState(false);
+  const stream = useLivePorts(deviceId, live && canLive);
+  const lost = live && stream.status === "lost";
+  const [notice, setNotice] = useState(false);
+  // Po utracie połączenia tabela wraca do zwykłego odświeżania i mówi o tym użytkownikowi
+  useEffect(() => {
+    if (lost) {
+      setLive(false);
+      setNotice(true);
+    } else if (live) setNotice(false);
+  }, [lost, live]);
+  const showLive = live && canLive && stream.status === "live";
   return (
     <Card className="overflow-x-auto">
-      <h2 className="px-4 pt-4 text-sm font-medium">{t("device.ports.title", { n: interfaces.length })}</h2>
+      <div className="flex items-center justify-between gap-2 px-4 pt-4">
+        <h2 className="text-sm font-medium">{t("device.ports.title", { n: interfaces.length })}</h2>
+        {canLive && <LiveToggle on={live} onClick={() => setLive((v) => !v)} />}
+      </div>
+      {notice && !live && (
+        <p role="status" className="px-4 pt-1 text-xs text-danger">
+          {t("live.lostTable")}
+        </p>
+      )}
       <table className="mt-2 w-full min-w-[36rem] text-left text-sm">
         <thead className="text-xs text-text-2">
           <tr>
@@ -86,28 +112,37 @@ function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces
             <th scope="col" className="px-4 py-2 font-medium">{t("device.ports.speed")}</th>
             <th scope="col" className="px-4 py-2 text-right font-medium">{t("port.in")}</th>
             <th scope="col" className="px-4 py-2 text-right font-medium">{t("port.out")}</th>
+            {showLive && <th scope="col" className="w-40 px-4 py-2 font-medium">{t("live.load.col")}</th>}
             {withPoe && <th scope="col" className="px-4 py-2 text-right font-medium">PoE</th>}
           </tr>
         </thead>
         <tbody>
-          {interfaces.map((i) => (
-            <tr key={i.id} className="border-t border-border">
-              <td className="px-4 py-2">
-                <Link to={`/devices/${deviceId}/ports/${i.id}`} className="font-medium hover:text-accent hover:underline">
-                  {i.label || i.name}
-                </Link>
-                {i.label && i.label !== i.name && <span className="ml-1.5 text-xs text-muted">{i.name}</span>}
-              </td>
-              <td className="max-w-48 truncate px-4 py-2 text-text-2">{i.alias ?? "–"}</td>
-              <td className="px-4 py-2">
-                <OperBadge status={i.oper_status} />
-              </td>
-              <td className="px-4 py-2 text-text-2">{i.oper_status === "up" ? formatSpeed(i.speed_mbps) : "–"}</td>
-              <td className="px-4 py-2 text-right tabular-nums">{formatBps(i.in_bps)}</td>
-              <td className="px-4 py-2 text-right tabular-nums">{formatBps(i.out_bps)}</td>
-              {withPoe && <td className="px-4 py-2 text-right tabular-nums">{poe.has(i.name) ? formatWatts(poe.get(i.name)?.power_w) : "–"}</td>}
-            </tr>
-          ))}
+          {interfaces.map((i) => {
+            const rate = showLive ? stream.current(i.id) : null;
+            return (
+              <tr key={i.id} className="border-t border-border">
+                <td className="px-4 py-2">
+                  <Link to={`/devices/${deviceId}/ports/${i.id}`} className="font-medium hover:text-accent hover:underline">
+                    {i.label || i.name}
+                  </Link>
+                  {i.label && i.label !== i.name && <span className="ml-1.5 text-xs text-muted">{i.name}</span>}
+                </td>
+                <td className="max-w-48 truncate px-4 py-2 text-text-2">{i.alias ?? "–"}</td>
+                <td className="px-4 py-2">
+                  <OperBadge status={i.oper_status} />
+                </td>
+                <td className="px-4 py-2 text-text-2">{i.oper_status === "up" ? formatSpeed(i.speed_mbps) : "–"}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatBps(showLive ? rate?.in_bps : i.in_bps)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatBps(showLive ? rate?.out_bps : i.out_bps)}</td>
+                {showLive && (
+                  <td className="px-4 py-2">
+                    {rate && i.oper_status === "up" && <LoadBar in_bps={rate.in_bps} out_bps={rate.out_bps} speedMbps={i.speed_mbps} />}
+                  </td>
+                )}
+                {withPoe && <td className="px-4 py-2 text-right tabular-nums">{poe.has(i.name) ? formatWatts(poe.get(i.name)?.power_w) : "–"}</td>}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </Card>
@@ -238,7 +273,7 @@ export function DevicePage() {
         </div>
         <DeviceCharts deviceId={id} />
 
-        {ports.length > 0 && <PortsCard deviceId={id} interfaces={ports} poe={poeByName} />}
+        {ports.length > 0 && <PortsCard deviceId={id} interfaces={ports} poe={poeByName} canLive={!NON_SNMP.has(d.driver)} />}
         <WifiCard deviceId={id} />
         {unifi && <ClientList deviceId={id} title={t("device.clients")} />}
       </div>

@@ -91,7 +91,16 @@ pokazuje średnie z odczytów kolektora (domyślnie co 30 s), więc nie może te
 - **W panelu:** przełącznik „Na żywo” przy wykresie ruchu WAN (obok zakresu czasu), duże liczby
   pobierania i wysyłania oraz wykres przesuwający się w czasie rzeczywistym; po utracie połączenia
   automatyczny powrót do zwykłego odświeżania.
-- **Dalej:** ten sam mechanizm dla wybranego portu switcha (strona urządzenia, etap późniejszy).
+- **Porty na żywo (0.38.0, test):** ten sam mechanizm dla portów każdego urządzenia SNMP.
+  - Przy wykresie „Ruch WAN” pod sumą każdy port WAN osobno: pobieranie, wysyłanie i pasek obciążenia
+    (większy z kierunków względem prędkości portu; nazwa z Ustawienia → Łącza WAN).
+  - Strona urządzenia: przełącznik „Na żywo” w tabeli portów – odbierane/wysyłane co ~1,5 s i kolumna „Obciążenie”.
+  - Strona portu: przełącznik „Na żywo” na wykresie ruchu (też na pulpicie dla wykresu jednego portu).
+  - API: `/api/live/wan` (suma + `ports`), `/api/live/ports?device=<id>` (wszystkie widoczne porty urządzenia).
+    Jedno wspólne odpytywanie: porty WAN tylko, gdy ktoś ogląda WAN, porty urządzenia tylko, gdy ktoś ogląda to urządzenie;
+    jedno zapytanie SNMP na urządzenie (do 40 liczników). Limit 20 widzów.
+  - Obciążenie liczone względem prędkości portu (np. 1 Gb/s), nie pakietu u operatora.
+  - Do sprawdzenia na sprzęcie: czy switch odświeża liczniki SNMP co sekundę (jeśli rzadziej, wykres będzie „schodkowy”).
 - **Uwagi:** SNMP odświeża liczniki mniej więcej co sekundę, więc dokładność jest bliska UniFi,
   ale nie identyczna (UniFi czyta wewnętrzne liczniki routera). Autoryzacja WebSocketu tą samą
   sesją co reszta API; limit liczby jednoczesnych połączeń i minimalny interwał (1 s), żeby nie

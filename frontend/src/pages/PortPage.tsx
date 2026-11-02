@@ -131,7 +131,7 @@ export function PortPage() {
           <RangePicker />
         </div>
         <div className="grid gap-3 lg:grid-cols-2">
-          <ChartWidget config={traffic} />
+          <ChartWidget config={traffic} allowLive />
           <ChartWidget config={errors} />
           {unifi && poeIdx != null && <PoeChart interfaceId={id} />}
         </div>

@@ -2,7 +2,7 @@
 //   npm run mock   (port 8000)   +   npm run dev   (port 5173, proxy /api → 8000)
 // Dane są w pamięci i znikają po restarcie. Pierwsze konto zakłada kreator, jak w prawdziwym API.
 import { createServer } from "node:http";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.PORT ?? 8000);
 const VERSION = "0.6.0";
@@ -263,6 +263,23 @@ createServer(async (req, res) => {
     layout = null;
     return send(res, 204);
   }
+  const one = /^\/api\/devices\/(\d+)$/.exec(url.pathname);
+  if (req.method === "GET" && one) {
+    const d = devices.find((x) => x.id === Number(one[1]));
+    return d ? send(res, 200, d) : send(res, 404, { detail: "Nie ma takiego urządzenia" });
+  }
+  const ifaces = /^\/api\/devices\/(\d+)\/interfaces$/.exec(url.pathname);
+  if (req.method === "GET" && ifaces) {
+    const dev = Number(ifaces[1]);
+    return send(
+      res,
+      200,
+      [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+        id: dev * 10 + n, if_index: n, name: `0/${n}`, label: `Port ${n}`, alias: n === 1 ? "UCG Ultra" : null, role: "port", hidden: false, mac: null,
+        admin_up: true, oper_status: n <= 6 ? "up" : "down", speed_mbps: n === 6 ? 100 : 1000, in_bps: n <= 6 ? wave(n, 0) * 1e5 : null, out_bps: n <= 6 ? wave(n, 1) * 1e5 : null,
+      })),
+    );
+  }
   const series = /^\/api\/(devices|interfaces|wifi)\/(\d+)\/metrics$/.exec(url.pathname) || url.pathname === "/api/system/metrics";
   if (req.method === "GET" && series) {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
@@ -328,4 +345,40 @@ createServer(async (req, res) => {
     return send(res, 200, devices.map((d) => (d.status === "up" ? { ...d, last_polled_at: ago(d.polled) } : d)));
   }
   send(res, 404, { detail: "Not Found" });
-}).listen(PORT, "127.0.0.1", () => console.log(`Atrapa API NetPulse: http://127.0.0.1:${PORT}`));
+})
+  // Tryb „Na żywo”: minimalny WebSocket (tylko ramki tekstowe serwer → przeglądarka), próbka co 1,5 s
+  .on("upgrade", (req, socket) => {
+    const url = new URL(req.url, "http://x");
+    const device = Number(url.searchParams.get("device"));
+    if (url.pathname !== "/api/live/wan" && !(url.pathname === "/api/live/ports" && device)) return socket.destroy();
+    const accept = createHash("sha1").update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
+    socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
+    const frame = (text) => {
+      const data = Buffer.from(text);
+      const head = data.length < 126 ? Buffer.from([0x81, data.length]) : Buffer.from([0x81, 126, data.length >> 8, data.length & 255]);
+      return Buffer.concat([head, data]);
+    };
+    let i = 0;
+    const tick = () => {
+      i += 1;
+      const rate = (k, scale) => Math.max(0, wave(i, k) * scale * (0.6 + Math.random() * 0.8));
+      const time = new Date().toISOString();
+      if (url.pathname === "/api/live/wan") {
+        const ports = [
+          { id: 101, device_id: 1, name: "WAN 1", speed_mbps: 1000, in_bps: rate(0, 4e6), out_bps: rate(1, 3e6) },
+          { id: 102, device_id: 1, name: "WAN 2", speed_mbps: 100, in_bps: rate(0, 2e5), out_bps: rate(1, 1e5) },
+        ];
+        const sum = (key) => ports.reduce((a, p) => a + p[key], 0);
+        socket.write(frame(JSON.stringify({ time, in_bps: sum("in_bps"), out_bps: sum("out_bps"), ports })));
+      } else {
+        const ports = Array.from({ length: 8 }, (_, n) => ({ id: device * 10 + n + 1, in_bps: n < 6 ? rate(n % 2, 2e6 * (n + 1)) : null, out_bps: n < 6 ? rate(1, 4e5 * (n + 1)) : null }));
+        socket.write(frame(JSON.stringify({ time, ports })));
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1500);
+    socket.on("data", (buf) => (buf[0] & 0x0f) === 8 && socket.end()); // ramka „close” z przeglądarki
+    socket.on("close", () => clearInterval(timer));
+    socket.on("error", () => clearInterval(timer));
+  })
+  .listen(PORT, "127.0.0.1", () => console.log(`Atrapa API NetPulse: http://127.0.0.1:${PORT}`));
