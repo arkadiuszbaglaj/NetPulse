@@ -568,6 +568,7 @@ class HeatmapWidget(Strict):
 
 PieMetric = Literal[
     "cpu", "mem", "disk", "disks_share",
+    "port_load", "port_dir",
     "ports_in", "ports_out", "ports_state",
     "wifi_clients",
     "containers_mem", "containers_cpu", "services_state",
@@ -578,6 +579,7 @@ PieMetric = Literal[
 PIE_COLLECTION: dict[str, str] = {
     "cpu": "devices", "mem": "devices", "devices_state": "devices",
     "disk": "disks", "disks_share": "disks",
+    "port_load": "ports", "port_dir": "ports",
     "ports_in": "ports", "ports_out": "ports", "ports_state": "ports",
     "wifi_clients": "wifi",
     "containers_mem": "containers", "containers_cpu": "containers", "services_state": "services",
@@ -586,16 +588,19 @@ PIE_COLLECTION: dict[str, str] = {
 }
 PIE_GLOBAL = {"devices_state", "checks_state"}  # cała sieć, bez urządzenia
 PIE_DEVICE_OPTIONAL = {"wifi_clients", "guests_mem", "guests_state"}  # puste urządzenie = wszystkie
+PIE_ITEM = {"disk", "port_load", "port_dir"}  # wybrany dysk albo port (`item`)
 
 
 class PieConfig(Strict):
     """Wykres kołowy (0.39.0): urządzenie i to, co na nim monitorować – zajętość (CPU, RAM, dysk), udział
-    (ruch portów, klienci sieci WiFi, kontenery, maszyny) albo stan (działa / nie działa)."""
+    (klienci sieci WiFi, kontenery, maszyny) albo stan (działa / nie działa). Od 0.40.0 jeden wybrany port:
+    obciążenie (`port_load`) albo odbierane / wysyłane (`port_dir`); `ports_in` / `ports_out` (wszystkie porty
+    na jednym wykresie) zostają tylko dla zapisanych pulpitów."""
 
     title: str | None = Field(None, max_length=80)
     device_id: int | None = Field(None, ge=1)
     metric: PieMetric
-    item: str | None = Field(None, max_length=255)  # dysk (punkt montowania) dla „disk”; puste = pierwszy
+    item: str | None = Field(None, max_length=255)  # dysk (punkt montowania; puste = pierwszy) albo id portu
     limit: int = Field(8, ge=2, le=12)  # najwięcej kawałków, reszta jako „Pozostałe”
 
     _strip = field_validator("title")(lambda cls, v: _title(v))
@@ -606,8 +611,10 @@ class PieConfig(Strict):
             self.device_id = None
         elif self.device_id is None and self.metric not in PIE_DEVICE_OPTIONAL:
             raise ValueError("Wybierz urządzenie")
-        if self.metric != "disk":
+        if self.metric not in PIE_ITEM:
             self.item = None
+        elif self.metric != "disk" and not (self.item or "").isdigit():
+            raise ValueError("Wybierz port")
         return self
 
     def collection(self) -> tuple[str, int | None]:

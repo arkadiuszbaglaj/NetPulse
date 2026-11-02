@@ -244,6 +244,8 @@ export type PieMetric =
   | "mem"
   | "disk"
   | "disks_share"
+  | "port_load"
+  | "port_dir"
   | "ports_in"
   | "ports_out"
   | "ports_state"
@@ -260,7 +262,7 @@ export interface PieConfig {
   title?: string | null;
   device_id?: number | null;
   metric: PieMetric;
-  /** Dysk (punkt montowania) dla „disk”; puste = pierwszy */
+  /** Dysk (punkt montowania; puste = pierwszy) albo id portu dla „port_load” / „port_dir” */
   item?: string | null;
   /** Najwięcej kawałków, reszta jako „Pozostałe” */
   limit: number;

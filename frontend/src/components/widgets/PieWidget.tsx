@@ -1,11 +1,14 @@
-/** Wykres kołowy (0.39.0): pierścień w SVG z dużą liczbą w środku i legendą – bez ECharts. */
+/** Wykres kołowy (0.39.0): pierścień w SVG z dużą liczbą w środku i legendą – bez ECharts.
+ * Wykresy z ruchu portów biorą prędkość na żywo (co ~1,5 s) z WebSocketu; na pulpicie publicznym i po utracie
+ * połączenia – odczyty kolektora. */
 import { useQuery } from "@tanstack/react-query";
-import { useContext } from "react";
+import { useContext, useMemo } from "react";
 import { t } from "../../i18n";
 import { ApiError, get, type Device } from "../../lib/api";
 import type { PieConfig } from "../../lib/layout";
-import { useCollection } from "../../lib/panels";
-import { pieCollection, pieData, pieTitle, type PieSlice } from "../../lib/pie";
+import { useLivePorts } from "../../lib/live";
+import { useCollection, type CollectionRow } from "../../lib/panels";
+import { isLiveMetric, isPortMetric, pieCollection, pieData, pieTitle, type PieSlice } from "../../lib/pie";
 import { PublicModeContext } from "../../lib/publicMode";
 import { Card } from "../ui";
 import { WidgetActions } from "./WidgetActions";
@@ -44,21 +47,43 @@ function Ring({ slices, label }: { slices: PieSlice[]; label: string }) {
   );
 }
 
+/** Wiersze portów z prędkością na żywo (pierwsza próbka nie ma prędkości – wtedy zostaje odczyt kolektora). */
+function withLive(rows: CollectionRow[] | undefined, rates: Map<number, { in_bps: number | null; out_bps: number | null }>) {
+  return rows?.map((r) => {
+    const rate = rates.get(Number(r.key));
+    if (!rate) return r;
+    return { ...r, values: { ...r.values, in_bps: rate.in_bps ?? r.values.in_bps, out_bps: rate.out_bps ?? r.values.out_bps } };
+  });
+}
+
 export function PieWidget({ config }: { config: PieConfig }) {
   const query = useCollection(pieCollection(config));
   // Nazwa urządzenia do tytułu – na pulpicie publicznym lista urządzeń nie jest dostępna
   const isPublic = useContext(PublicModeContext);
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => get<Device[]>("/api/devices"), enabled: !isPublic && !!config.device_id && !config.title });
   const deviceName = config.device_id ? devices.data?.find((d) => d.id === config.device_id)?.name : null;
-  const title = pieTitle(config, deviceName);
-  const data = query.data ? pieData(config, query.data) : null;
+  // WebSocket wymaga logowania – pulpit publiczny zostaje przy odczytach kolektora
+  const live = useLivePorts(config.device_id, isLiveMetric(config.metric) && !isPublic);
+  const isLive = live.status === "live";
+  const rows = useMemo(() => (isLive ? withLive(query.data, live.rates) : query.data), [isLive, query.data, live.rates]);
+  const itemLabel = isPortMetric(config.metric) ? rows?.find((r) => r.key === config.item)?.label : null;
+  const title = pieTitle(config, deviceName, itemLabel);
+  const data = rows ? pieData(config, rows) : null;
   const total = data ? data.slices.reduce((sum, s) => sum + s.value, 0) : 0;
 
   return (
     <Card className="flex h-full flex-col p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
-        <WidgetActions />
+        <div className="flex shrink-0 items-center gap-1">
+          {isLive && (
+            <span className="inline-flex items-center gap-1 text-xs text-success" title={t("pie.live.hint")}>
+              <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+              {t("pie.live")}
+            </span>
+          )}
+          <WidgetActions />
+        </div>
       </div>
       {query.isError ? (
         <p role="alert" className="py-6 text-center text-sm text-danger">

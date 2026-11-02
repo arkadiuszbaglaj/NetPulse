@@ -2,7 +2,8 @@
  * Ta sama lista metryk i kolekcji co `PIE_COLLECTION` w backend/netpulse/api/layout_schemas.py. */
 import { t, type TextKey } from "../i18n";
 import type { Device } from "./api";
-import { metricFormatter } from "./format";
+import { formatSpeed } from "./details";
+import { formatBps, metricFormatter } from "./format";
 import { unitClassOf, type Collection, type CollectionKind, type PieConfig, type PieMetric } from "./layout";
 import type { CollectionRow } from "./panels";
 
@@ -23,6 +24,9 @@ export const PIE_METRICS: Record<PieMetric, PieDef> = {
   mem: { label: "pie.m.mem", mode: "usage", kind: "devices", key: "mem_used_percent", scope: "device" },
   disk: { label: "pie.m.disk", mode: "usage", kind: "disks", key: "used_bytes", scope: "device" },
   disks_share: { label: "pie.m.disks_share", mode: "share", kind: "disks", key: "used_bytes", scope: "device" },
+  port_load: { label: "pie.m.port_load", mode: "usage", kind: "ports", key: "in_bps", scope: "device" },
+  port_dir: { label: "pie.m.port_dir", mode: "share", kind: "ports", key: "in_bps", scope: "device" },
+  // Wszystkie porty na jednym wykresie – tylko zapisane pulpity sprzed 0.40.0 (edytor ich nie proponuje)
   ports_in: { label: "pie.m.ports_in", mode: "share", kind: "ports", key: "in_bps", scope: "device" },
   ports_out: { label: "pie.m.ports_out", mode: "share", kind: "ports", key: "out_bps", scope: "device" },
   ports_state: { label: "pie.m.ports_state", mode: "state", kind: "ports", key: "up", scope: "device" },
@@ -44,13 +48,18 @@ export function pieMetricsFor(device: Pick<Device, "driver" | "kind"> | null): P
   return [
     "cpu",
     "mem",
-    "ports_in",
-    "ports_out",
+    "port_load",
+    "port_dir",
     "ports_state",
     ...(device.kind === "ap" ? (["wifi_clients"] as const) : []),
     ...(device.kind === "server" ? (["disk", "disks_share"] as const) : []),
   ];
 }
+
+/** Wykres jednego portu (wybór portu w edytorze) */
+export const isPortMetric = (m: PieMetric) => m === "port_load" || m === "port_dir";
+/** Wykres z ruchu portów – te pokazują dane na żywo */
+export const isLiveMetric = (m: PieMetric) => isPortMetric(m) || m === "ports_in" || m === "ports_out";
 
 /** Kolekcja z danymi wykresu (CPU i RAM – wiersz urządzenia w kolekcji wszystkich urządzeń). */
 export function pieCollection(config: PieConfig): Collection {
@@ -84,6 +93,7 @@ function usageColor(percent: number): string {
 /** Kawałki koła z wierszy kolekcji; null, gdy nie ma czego pokazać (np. urządzenie bez odczytu CPU). */
 export function pieData(config: PieConfig, rows: CollectionRow[]): PieData | null {
   const def = PIE_METRICS[config.metric];
+  if (isPortMetric(config.metric)) return portData(config.metric, rows.find((r) => r.key === config.item));
   if (def.mode === "usage") {
     if (def.kind === "disks") {
       const row = rows.find((r) => r.key === config.item) ?? rows[0];
@@ -143,8 +153,38 @@ export function pieData(config: PieConfig, rows: CollectionRow[]): PieData | nul
   return { slices, center: format(total), sub: t("pie.total") };
 }
 
-export function pieTitle(config: PieConfig, deviceName?: string | null): string {
+/** Jeden port: obciążenie (większy z kierunków względem prędkości portu) albo odbierane / wysyłane. */
+function portData(metric: PieMetric, row: CollectionRow | undefined): PieData | null {
+  const rx = row?.values.in_bps;
+  const tx = row?.values.out_bps;
+  if (row == null || rx == null || tx == null) return null;
+  if (metric === "port_dir") {
+    return {
+      slices: [
+        { key: "in", label: t("port.in"), value: rx, color: chartColor(1), text: formatBps(rx) },
+        { key: "out", label: t("port.out"), value: tx, color: chartColor(2), text: formatBps(tx) },
+      ],
+      center: formatBps(rx + tx),
+      sub: t("pie.total"),
+    };
+  }
+  const speed = row.values.speed_mbps;
+  if (!speed) return null; // port odłączony albo bez prędkości
+  const cap = speed * 1_000_000;
+  const used = Math.min(cap, Math.max(rx, tx));
+  const percent = (used / cap) * 100;
+  return {
+    slices: [
+      { key: "used", label: t("pie.used"), value: used, color: usageColor(percent), text: formatBps(used) },
+      { key: "free", label: t("pie.free"), value: cap - used, color: FREE, text: formatBps(cap - used) },
+    ],
+    center: pct(percent),
+    sub: t("pie.port.of", { speed: formatSpeed(speed) }),
+  };
+}
+
+/** Tytuł: co, wybrany port albo dysk i urządzenie, np. „Obciążenie portu · Port 8 · USW Lite 8 PoE”. */
+export function pieTitle(config: PieConfig, deviceName?: string | null, itemLabel?: string | null): string {
   if (config.title) return config.title;
-  const what = t(PIE_METRICS[config.metric].label);
-  return deviceName ? `${what} · ${deviceName}` : what;
+  return [t(PIE_METRICS[config.metric].label), itemLabel, deviceName].filter(Boolean).join(" · ");
 }

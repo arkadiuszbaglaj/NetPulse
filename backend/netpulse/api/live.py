@@ -1,11 +1,9 @@
-"""Tryb „Na żywo”: prędkość portów co ~1,5 s przez WebSocket.
+"""Dane na żywo dla wykresów kołowych (od 0.40.0 tylko one): prędkość portów co ~1,5 s przez WebSocket.
 
-- `/api/live/wan` – suma WAN i każdy port WAN osobno (z prędkością łącza do obciążenia w %),
-- `/api/live/ports?device=<id>` – wszystkie widoczne porty jednego urządzenia (strona urządzenia i portu).
-
-Dopóki ktoś jest połączony, jedno wspólne odpytywanie (bez zapisu do bazy): porty WAN plus porty urządzeń,
-które ktoś właśnie ogląda – jedno zapytanie SNMP na urządzenie. Gdy ostatni widz odejdzie, odpytywanie się
-kończy i klienty SNMP są zamykane."""
+`/api/live/ports?device=<id>` – wszystkie widoczne porty jednego urządzenia. Dopóki ktoś jest połączony, jedno
+wspólne odpytywanie (bez zapisu do bazy) portów urządzeń, które ktoś właśnie ogląda – jedno zapytanie SNMP na
+urządzenie, niezależnie od liczby wykresów. Gdy ostatni widz odejdzie, odpytywanie się kończy i klienty SNMP
+są zamykane."""
 
 from __future__ import annotations
 
@@ -18,11 +16,11 @@ from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, WebSocket
-from sqlalchemy import or_, select
+from sqlalchemy import select
 
 from ..collector import DeviceTarget, credentials_for, make_client
 from ..db import Session
-from ..db.models import Device, Interface, WanLink
+from ..db.models import Device, Interface
 from ..rates import CounterTracker
 from ..snmp import SnmpClient, SnmpError, as_int
 from ..snmp import oids as O
@@ -32,21 +30,16 @@ log = logging.getLogger("netpulse.live")
 router = APIRouter(tags=["na żywo"])
 
 LIVE_INTERVAL = 1.5  # s; nie szybciej, żeby nie przeciążać urządzeń
-MAX_VIEWERS = 20
+MAX_VIEWERS = 40  # połączeń (każdy wykres kołowy portu to jedno)
 TARGETS_TTL = 30.0  # jak często odświeżać listę portów
 MAX_OIDS = 40  # liczników w jednym zapytaniu SNMP (duży switch = kilka zapytań)
 NON_SNMP_DRIVERS = ("agent", "proxmox")
-
-Topic = str | int  # "wan" albo id urządzenia
-
 
 @dataclass(frozen=True)
 class LivePort:
     id: int  # interfaces.id
     if_index: int
     speed_mbps: int | None
-    wan: bool = False
-    name: str = ""  # nazwa do panelu (łącze WAN z Ustawień albo nazwa portu)
 
 
 @dataclass(frozen=True)
@@ -61,7 +54,7 @@ class LiveHub:
         self.interval = interval
         self.max_viewers = max_viewers
         self.tracker = CounterTracker()
-        self._queues: dict[asyncio.Queue[dict], Topic] = {}
+        self._queues: dict[asyncio.Queue[dict], int] = {}  # kolejka widza → urządzenie
         self._task: asyncio.Task | None = None
         self._clients: dict[int, tuple[DeviceTarget, SnmpClient]] = {}
         self._targets: list[LiveTarget] = []
@@ -72,12 +65,12 @@ class LiveHub:
     def viewers(self) -> int:
         return len(self._queues)
 
-    def subscribe(self, topic: Topic = "wan") -> asyncio.Queue[dict] | None:
+    def subscribe(self, device_id: int) -> asyncio.Queue[dict] | None:
         """Kolejka próbek dla nowego widza albo None, gdy osiągnięto limit."""
         if len(self._queues) >= self.max_viewers:
             return None
         q: asyncio.Queue[dict] = asyncio.Queue(maxsize=4)
-        self._queues[q] = topic
+        self._queues[q] = device_id
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._run())
         return q
@@ -91,32 +84,29 @@ class LiveHub:
                 await task
 
     def _watched_devices(self) -> frozenset[int]:
-        return frozenset(t for t in self._queues.values() if isinstance(t, int))
+        return frozenset(self._queues.values())
 
     # --- odpytywanie ---------------------------------------------------------------
 
     async def _load_targets(self, device_ids: frozenset[int]) -> list[LiveTarget]:
-        """Porty WAN wszystkich urządzeń i widoczne porty urządzeń z `device_ids`."""
+        """Widoczne porty urządzeń z `device_ids` (bez urządzeń bez SNMP)."""
         async with Session() as session:
             rows = (
                 await session.execute(
-                    select(Device, Interface, WanLink.name)
+                    select(Device, Interface)
                     .join(Interface, Interface.device_id == Device.id)
-                    .outerjoin(WanLink, WanLink.interface_id == Interface.id)
                     .where(
                         Device.enabled,
                         Device.driver.not_in(NON_SNMP_DRIVERS),
-                        or_(Interface.role == "wan", Device.id.in_(device_ids) & ~Interface.hidden),
+                        Device.id.in_(device_ids),
+                        Interface.hidden.is_(False),
                     )
                     .order_by(Device.id, Interface.if_index)
                 )
             ).all()
         grouped: dict[int, tuple[Device, list[LivePort]]] = {}
-        for device, iface, link_name in rows:
-            port = LivePort(
-                iface.id, iface.if_index, iface.speed_mbps, iface.role == "wan", link_name or iface.label or iface.name
-            )
-            grouped.setdefault(device.id, (device, []))[1].append(port)
+        for device, iface in rows:
+            grouped.setdefault(device.id, (device, []))[1].append(LivePort(iface.id, iface.if_index, iface.speed_mbps))
         return [
             LiveTarget(DeviceTarget(d.id, d.name, d.host, d.port, d.driver, credentials_for(d)), tuple(ports))
             for d, ports in grouped.values()
@@ -171,40 +161,18 @@ class LiveHub:
         for dev_id in [d for d in self._clients if d not in active]:
             await self._drop(dev_id)
 
-    async def sample(self) -> dict[Topic, dict]:
-        """Jedna próbka: wiadomość dla każdego tematu, który ktoś ogląda."""
+    async def sample(self) -> dict[int, dict]:
+        """Jedna próbka: wiadomość dla każdego oglądanego urządzenia."""
         now = time.monotonic()
         await self._refresh_targets(now)
         watched = self._watched_devices()
-        want_wan = "wan" in self._queues.values()
-        # Tylko to, co ktoś ogląda: porty WAN, gdy jest widz WAN, i porty oglądanych urządzeń
-        targets = [
-            LiveTarget(t.device, ports)
-            for t in self._targets
-            if (ports := tuple(p for p in t.ports if t.device.id in watched or (want_wan and p.wan)))
-        ]
+        targets = [t for t in self._targets if t.device.id in watched]
         results = await asyncio.gather(*(self._sample_device(t, now) for t in targets))
         stamp = datetime.now(UTC).isoformat()
-        out: dict[Topic, dict] = {}
-
-        wan_ports = [
-            {"id": p.id, "device_id": t.device.id, "name": p.name, "speed_mbps": p.speed_mbps, "in_bps": r[p.id][0], "out_bps": r[p.id][1]}
+        out: dict[int, dict] = {
+            t.device.id: {"time": stamp, "ports": [{"id": p.id, "in_bps": r[p.id][0], "out_bps": r[p.id][1]} for p in t.ports]}
             for t, r in zip(targets, results, strict=True)
-            for p in t.ports
-            if p.wan
-        ]
-        if want_wan:
-            ins = [p["in_bps"] for p in wan_ports if p["in_bps"] is not None]
-            outs = [p["out_bps"] for p in wan_ports if p["out_bps"] is not None]
-            out["wan"] = {
-                "time": stamp,
-                "in_bps": sum(ins) if ins else None,
-                "out_bps": sum(outs) if outs else None,
-                "ports": wan_ports,
-            }
-        for t, r in zip(targets, results, strict=True):
-            if t.device.id in watched:
-                out[t.device.id] = {"time": stamp, "ports": [{"id": p.id, "in_bps": r[p.id][0], "out_bps": r[p.id][1]} for p in t.ports]}
+        }
         for dev_id in watched - out.keys():  # urządzenie bez portów albo wyłączone – pusta próbka, żeby panel nie czekał
             out[dev_id] = {"time": stamp, "ports": []}
         return out
@@ -238,7 +206,12 @@ class LiveHub:
 hub = LiveHub()
 
 
-async def _stream(ws: WebSocket, topic: Topic) -> None:
+@router.websocket("/api/live/ports")
+async def live_ports(ws: WebSocket) -> None:
+    device = ws.query_params.get("device", "")
+    if not device.isdigit():
+        await ws.close(code=1008)
+        return
     origin = ws.headers.get("origin")
     if origin and urlsplit(origin).netloc.lower() not in allowed_hosts(ws):
         await ws.close(code=1008)
@@ -246,7 +219,7 @@ async def _stream(ws: WebSocket, topic: Topic) -> None:
     if await user_from_request(ws) is None:  # type: ignore[arg-type]
         await ws.close(code=1008)
         return
-    queue = hub.subscribe(topic)
+    queue = hub.subscribe(int(device))
     if queue is None:
         await ws.close(code=1013)
         return
@@ -267,17 +240,3 @@ async def _stream(ws: WebSocket, topic: Topic) -> None:
         await hub.unsubscribe(queue)
         with contextlib.suppress(Exception):
             await ws.close()
-
-
-@router.websocket("/api/live/wan")
-async def live_wan(ws: WebSocket) -> None:
-    await _stream(ws, "wan")
-
-
-@router.websocket("/api/live/ports")
-async def live_ports(ws: WebSocket) -> None:
-    device = ws.query_params.get("device", "")
-    if not device.isdigit():
-        await ws.close(code=1008)
-        return
-    await _stream(ws, int(device))

@@ -17,10 +17,8 @@ import {
   IconWorld,
   type Icon,
 } from "@tabler/icons-react";
-import { useContext } from "react";
 import { t, type TextKey } from "../../i18n";
 import type { Widget, WidgetType } from "../../lib/layout";
-import { PublicModeContext } from "../../lib/publicMode";
 import { ChartWidget, chartTitle } from "./ChartWidget";
 import { DevicesWidget } from "./DevicesWidget";
 import { HeatmapWidget, heatmapTitle } from "./HeatmapWidget";
@@ -88,12 +86,11 @@ export function widgetTitle(w: Widget): string {
   }
 }
 
-/** Widok widgetu w pulpicie. Na pulpicie publicznym bez trybu „Na żywo” (WebSocket wymaga logowania). */
+/** Widok widgetu w pulpicie. */
 export function WidgetView({ widget }: { widget: Widget }) {
-  const isPublic = useContext(PublicModeContext);
   switch (widget.type) {
     case "chart":
-      return <ChartWidget config={widget.config} allowLive={!isPublic} />;
+      return <ChartWidget config={widget.config} />;
     case "summary":
       return <SummaryWidget tiles={widget.config.tiles} />;
     case "devices":

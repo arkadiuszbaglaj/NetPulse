@@ -89,7 +89,7 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
    5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
-   5e ✅ personalizacja wykresów i układu, 5f ✅ tryb „Na żywo” (WebSocket, ruch WAN co 1–2 s; od 0.38.0 – na próbę – każdy port WAN z obciążeniem, tabela portów urządzenia i wykres portu; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
+   5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – od 0.40.0 tylko w wykresach kołowych portów (WebSocket `/api/live/ports`, co ~1,5 s; przełączniki przy wykresach, tabeli portów i stronie portu usunięte; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
 6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`)
 7. ✅ Topologia LLDP – mapa sieci (od 0.35.0 obciążenie i prędkość kabli, przybliżanie; opis: `docs/22-wykresy.md`)
 8. ✅ Alerty (8a silnik, 8b panel, reguły dysku i błędów portów, powiadomienia: webhook/Telegram, od 0.25.0 ntfy i e-mail (SMTP), ciche godziny z podsumowaniem po ciszy, grupowanie po topologii LLDP; opis: `docs/21-powiadomienia.md`) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
@@ -173,7 +173,7 @@ API pyta o samo okno), wspólny kursor (`charts/chartSync.ts`), linki z tabel, p
 pełny ekran (`WidgetExpandContext`), menu „⋯” z eksportem CSV/PNG (`WidgetActions.tsx`, `linesToCsv`). Etap F ✅ (0.34.0): zdarzenia na osi czasu
 (`api/events.py`: alerty, restarty z `uptime_s`, przełączenia WAN; `lib/events.ts`, pole `annotations`). Od 0.36.0 jeden silnik
 wykresów: `ChartCard` też rysuje `PanelChart` (stary `TimeSeriesChart` usunięty). Mapa cieplna ✅ (0.37.0): widget `heatmap`
-(godzina × dzień tygodnia albo data, `lib/heatmap.ts`, dane tydzień po tygodniu z API metryk). Wykres kołowy ✅ (0.39.0): widget `pie` – urządzenie, potem co monitorować (zajętość, udział, stan; `lib/pie.ts`). Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
+(godzina × dzień tygodnia albo data, `lib/heatmap.ts`, dane tydzień po tygodniu z API metryk). Wykres kołowy ✅ (0.39.0): widget `pie` – urządzenie, potem co monitorować (zajętość, udział, stan; `lib/pie.ts`); od 0.40.0 jeden wybrany port (obciążenie albo odbierane / wysyłane) z danymi na żywo. Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
 
 ## Do sprawdzenia później
 

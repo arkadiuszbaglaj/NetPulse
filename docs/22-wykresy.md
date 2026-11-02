@@ -200,8 +200,10 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
 
 - Widget `pie` w „Dodaj widget”: najpierw **urządzenie** (albo „Cała sieć”), potem **co monitorować**. Lista zależy od
   urządzenia (`pieMetricsFor` w `frontend/src/lib/pie.ts`):
-  - urządzenie SNMP: CPU, RAM, ruch odbierany / wysyłany według portów, porty podłączone / odłączone
-    (AP dodatkowo klienci według sieci WiFi, serwer SNMP – zajętość dysku i miejsce według dysków),
+  - urządzenie SNMP: CPU, RAM, **jeden wybrany port** – obciążenie (zajęte / wolne względem prędkości portu) albo
+    odbierane / wysyłane (od 0.40.0, na żywo co ~1,5 s), porty podłączone / odłączone
+    (AP dodatkowo klienci według sieci WiFi, serwer SNMP – zajętość dysku i miejsce według dysków);
+    „ruch według portów” (wszystkie porty na jednym kole) z 0.39.0 zostaje tylko w zapisanych pulpitach,
   - agent: CPU, RAM, zajętość dysku (wybór dysku), miejsce według dysków, kontenery według RAM / CPU, usługi działa / nie,
   - Proxmox: CPU, RAM, maszyny według RAM-u, maszyny działające / zatrzymane,
   - cała sieć: urządzenia działa / nie, sprawdzenia dostępności działa / nie, klienci według sieci WiFi.
@@ -209,5 +211,5 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   najwyżej `limit` kawałków, reszta jako „Pozostałe”), **stan** (działa / nie działa / brak danych, w środku „3 z 4”).
 - Dane z istniejących kolekcji (`/api/collections/{kind}`), bez nowego API; CPU i RAM – wiersz urządzenia w kolekcji
   `devices`. Pierścień i legenda w SVG/HTML (`components/widgets/PieWidget.tsx`), edytor: `PieEditor.tsx`.
-- Schemat: `PieConfig` (`device_id`, `metric`, `item` – dysk, `limit` 2–12), mapa `PIE_COLLECTION` w `layout_schemas.py`;
+- Schemat: `PieConfig` (`device_id`, `metric`, `item` – dysk albo id portu, `limit` 2–12), mapa `PIE_COLLECTION` w `layout_schemas.py`;
   pulpit publiczny przepuszcza tylko kolekcję wykresu (`PieConfig.collection()` w `public.resolve`).

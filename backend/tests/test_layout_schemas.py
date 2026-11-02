@@ -307,7 +307,9 @@ def test_pie():
     assert DashboardLayout.model_validate(panel("pie", {"metric": "wifi_clients"})).widgets[0].config.collection() == ("wifi", None)
     ports = DashboardLayout.model_validate(panel("pie", {"device_id": 2, "metric": "ports_in", "limit": 5})).widgets[0].config
     assert ports.collection() == ("ports", 2)
-    for bad in ({"metric": "ports_in"}, {"device_id": 1, "metric": "swap"}, {"device_id": 1, "metric": "cpu", "limit": 1}, {"device_id": 1, "metric": "cpu", "limit": 13}):
+    port = DashboardLayout.model_validate(panel("pie", {"device_id": 2, "metric": "port_load", "item": "46"})).widgets[0].config
+    assert (port.item, port.collection()) == ("46", ("ports", 2))
+    for bad in ({"device_id": 2, "metric": "port_load"}, {"device_id": 2, "metric": "port_dir", "item": "/"}, {"metric": "ports_in"}, {"device_id": 1, "metric": "swap"}, {"device_id": 1, "metric": "cpu", "limit": 1}, {"device_id": 1, "metric": "cpu", "limit": 13}):
         with pytest.raises(ValidationError):
             DashboardLayout.model_validate(panel("pie", bad))
 

@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 import { newWidget, type DashboardLayout, type PieConfig, type Widget } from "../lib/layout";
 import type { CollectionRow } from "../lib/panels";
 import { pieCollection, pieData, pieMetricsFor } from "../lib/pie";
@@ -18,8 +19,27 @@ const PORTS: CollectionRow[] = [1, 2, 3, 4].map((n) => ({
   key: String(10 + n),
   label: `Port ${n}`,
   device_id: 1,
-  values: { up: n < 4 ? 1 : 0, in_bps: n < 4 ? n * 10e6 : null, out_bps: 1e6 },
+  values: { up: n < 4 ? 1 : 0, in_bps: n < 4 ? n * 10e6 : null, out_bps: 1e6, speed_mbps: n < 4 ? (n === 3 ? 100 : 1000) : null },
 }));
+
+class FakeSocket {
+  static instances: FakeSocket[] = [];
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  closed = false;
+  constructor(public url: string) {
+    FakeSocket.instances.push(this);
+  }
+  close() {
+    this.closed = true;
+  }
+}
+
+beforeEach(() => {
+  FakeSocket.instances = [];
+  vi.stubGlobal("WebSocket", FakeSocket);
+});
 const DISKS: CollectionRow[] = [
   { key: "/", label: "/", device_id: 5, values: { used_percent: 35, used_bytes: 35e9, free_bytes: 65e9, total_bytes: 100e9 } },
   { key: "/srv", label: "/srv", device_id: 5, values: { used_percent: 92, used_bytes: 920e9, free_bytes: 80e9, total_bytes: 1000e9 } },
@@ -28,7 +48,7 @@ const DISKS: CollectionRow[] = [
 describe("wykres kołowy – dane", () => {
   it("co można monitorować zależy od urządzenia", () => {
     expect(pieMetricsFor(null)).toEqual(["devices_state", "checks_state", "wifi_clients"]);
-    expect(pieMetricsFor({ driver: "auto", kind: "switch" })).toEqual(["cpu", "mem", "ports_in", "ports_out", "ports_state"]);
+    expect(pieMetricsFor({ driver: "auto", kind: "switch" })).toEqual(["cpu", "mem", "port_load", "port_dir", "ports_state"]);
     expect(pieMetricsFor({ driver: "auto", kind: "ap" })).toContain("wifi_clients");
     expect(pieMetricsFor({ driver: "agent", kind: "server" })).toEqual(["cpu", "mem", "disk", "disks_share", "containers_mem", "containers_cpu", "services_state"]);
     expect(pieMetricsFor({ driver: "proxmox", kind: "server" })).toEqual(["cpu", "mem", "guests_mem", "guests_state"]);
@@ -58,6 +78,23 @@ describe("wykres kołowy – dane", () => {
     expect(data.slices.map((s) => s.label)).toEqual(["Port 3", "Pozostałe"]);
     expect(data.slices[1].value).toBe(30e6);
     expect(data.center).toBe("60 Mb/s");
+  });
+
+  it("jeden port: obciążenie względem prędkości portu i odbierane / wysyłane", () => {
+    const load = pieData(pie({ device_id: 1, metric: "port_load", item: "13" }), PORTS)!;
+    expect([load.center, load.sub]).toEqual(["30%", "z 100 Mb/s"]); // 30 Mb/s z 100 Mb/s
+    expect(load.slices.map((s) => [s.label, s.text])).toEqual([
+      ["Zajęte", "30 Mb/s"],
+      ["Wolne", "70 Mb/s"],
+    ]);
+    const dir = pieData(pie({ device_id: 1, metric: "port_dir", item: "12" }), PORTS)!;
+    expect(dir.center).toBe("21 Mb/s");
+    expect(dir.slices.map((s) => [s.label, s.text])).toEqual([
+      ["Odbierane", "20 Mb/s"],
+      ["Wysyłane", "1 Mb/s"],
+    ]);
+    expect(pieData(pie({ device_id: 1, metric: "port_load", item: "14" }), PORTS)).toBeNull(); // port odłączony
+    expect(pieData(pie({ device_id: 1, metric: "port_load", item: "99" }), PORTS)).toBeNull();
   });
 
   it("stan: działa, nie działa i brak danych", () => {
@@ -101,14 +138,52 @@ describe("wykres kołowy – pulpit", () => {
     expect(within(metric).queryByRole("option", { name: "Urządzenia: działają i nie" })).not.toBeInTheDocument();
     await user.selectOptions(metric, "cpu");
     expect(await within(form).findByRole("img", { name: /Procesor \(CPU\) · UCG Ultra: Zajęte 23%, Wolne 77%/ })).toBeInTheDocument(); // podgląd
-    await user.selectOptions(metric, "ports_in");
-    expect(within(form).getByLabelText("Najwięcej kawałków")).toBeInTheDocument();
+    await user.selectOptions(metric, "port_load");
+    await user.click(within(form).getByRole("button", { name: "Zapisz" }));
+    expect(within(form).getByText("Wybierz port.")).toBeInTheDocument(); // bez portu nie zapisze
+    const port = within(form).getByLabelText("Port");
+    await waitFor(() => expect(within(port).getAllByRole("option")).toHaveLength(5));
+    await user.selectOptions(port, "13");
+    expect(await within(form).findByRole("img", { name: /Obciążenie portu · Port 3 · UCG Ultra: Zajęte 30 Mb\/s/ })).toBeInTheDocument();
+    await user.selectOptions(metric, "port_dir");
+    expect(within(form).getByLabelText("Port")).toHaveValue("13"); // ten sam port po zmianie widoku
 
     await user.click(within(form).getByRole("button", { name: "Zapisz" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nowy wykres kołowy" })).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Zapisz" }));
     await waitFor(() => expect(state.layout).not.toBeNull());
     const saved = (state.layout as DashboardLayout).widgets[0];
-    expect(saved.type === "pie" && saved.config).toMatchObject({ device_id: 1, metric: "ports_in", limit: 8, item: null });
+    expect(saved.type === "pie" && saved.config).toMatchObject({ device_id: 1, metric: "port_dir", item: "13" });
+  });
+
+  it("wykres portu pokazuje prędkość na żywo, a po zerwaniu wraca do odczytów kolektora", async () => {
+    const w = newWidget("pie", "p1");
+    if (w.type !== "pie") throw new Error();
+    w.config = pie({ device_id: 1, metric: "port_load", item: "12" });
+    mockApi({ layout: layoutWith(w), collections: { ports: PORTS } });
+    renderApp();
+    expect(await screen.findByRole("img", { name: /Zajęte 20 Mb\/s/ })).toBeInTheDocument(); // odczyt kolektora
+    const ws = FakeSocket.instances.at(-1)!;
+    expect(ws.url).toMatch(/\/api\/live\/ports\?device=1$/);
+
+    act(() => ws.onmessage?.({ data: JSON.stringify({ time: "t", ports: [{ id: 12, in_bps: 450_000_000, out_bps: 5e6 }] }) }));
+    expect(await screen.findByRole("img", { name: /Zajęte 450 Mb\/s/ })).toBeInTheDocument();
+    expect(screen.getAllByText("45%").length).toBeGreaterThan(0);
+    expect(screen.getByText("Na żywo")).toBeInTheDocument();
+
+    act(() => ws.onclose?.());
+    expect(await screen.findByRole("img", { name: /Zajęte 20 Mb\/s/ })).toBeInTheDocument();
+    expect(screen.queryByText("Na żywo")).not.toBeInTheDocument();
+  });
+
+  it("CPU i stany nie otwierają połączenia na żywo; inne wykresy nie mają przełącznika", async () => {
+    const w = newWidget("pie", "p1");
+    if (w.type !== "pie") throw new Error();
+    w.config = pie({ device_id: 1, metric: "cpu" });
+    mockApi({ layout: layoutWith(w, newWidget("chart", "c1")), collections: { devices: DEVICES } });
+    renderApp();
+    expect(await screen.findByRole("img", { name: /Procesor/ })).toBeInTheDocument();
+    expect(FakeSocket.instances).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Na żywo" })).not.toBeInTheDocument();
   });
 });

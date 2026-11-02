@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import type { PieConfig, PieMetric } from "../../lib/layout";
 import { isOn, useModules } from "../../lib/modules";
 import { useCollection } from "../../lib/panels";
-import { PIE_METRICS, pieMetricsFor } from "../../lib/pie";
+import { isPortMetric, PIE_METRICS, pieMetricsFor } from "../../lib/pie";
 import { useDevices } from "../../lib/queries";
 import { Field, Select } from "../ui";
 import { EditorDialog } from "./PanelEditors";
@@ -24,17 +24,28 @@ export function PieForm({ initial, isNew, onSave, onClose }: { initial: PieConfi
   const devices = useDevices();
   const mods = useModules().data;
   const device = devices.data?.find((d) => d.id === cfg.device_id) ?? null;
-  const metrics = pieMetricsFor(device).filter((m) => isOn(mods, METRIC_MODULE[m] ?? null));
+  // Zapisany wcześniej wykres wszystkich portów (sprzed 0.40.0) zostaje na liście, dopóki go nie zmienisz
+  const metrics = [...pieMetricsFor(device), ...(pieMetricsFor(device).includes(cfg.metric) ? [] : [cfg.metric])].filter((m) => isOn(mods, METRIC_MODULE[m] ?? null));
   const disks = useCollection({ kind: "disks", device_id: cfg.device_id }, cfg.metric === "disk" && !!cfg.device_id);
+  const portPick = isPortMetric(cfg.metric);
+  const ports = useCollection({ kind: "ports", device_id: cfg.device_id }, portPick && !!cfg.device_id);
+  const [portError, setPortError] = useState<string>();
   const set = (patch: Partial<PieConfig>) => setCfg((c) => ({ ...c, ...patch }));
   const mode = PIE_METRICS[cfg.metric].mode;
+  const modeHint = portPick ? (`pe.pie.mode.${cfg.metric}` as "pe.pie.mode.port_load") : (`pe.pie.mode.${mode}` as const);
 
   const pickDevice = (value: string) => {
     const id = value ? Number(value) : null;
     const next = pieMetricsFor(devices.data?.find((d) => d.id === id) ?? null);
     set({ device_id: id, metric: next.includes(cfg.metric) ? cfg.metric : next[0], item: null });
   };
-  const submit = () => onSave({ ...cfg, title: cfg.title?.trim() || null, item: cfg.metric === "disk" ? cfg.item || null : null });
+  const submit = () => {
+    if (portPick && !cfg.item) {
+      setPortError(t("pe.pie.port.err"));
+      return;
+    }
+    onSave({ ...cfg, title: cfg.title?.trim() || null, item: cfg.metric === "disk" || portPick ? cfg.item || null : null });
+  };
 
   return (
     <EditorDialog title={t(isNew ? "pe.pie.new" : "pe.pie.edit")} onSave={submit} onClose={onClose} preview={<PieWidget config={cfg} />}>
@@ -47,7 +58,11 @@ export function PieForm({ initial, isNew, onSave, onClose }: { initial: PieConfi
             </option>
           ))}
         </Select>
-        <Select id="pe-pie-metric" label={t("pe.pie.metric")} value={cfg.metric} onChange={(e) => set({ metric: e.target.value as PieMetric, item: null })}>
+        <Select id="pe-pie-metric" label={t("pe.pie.metric")} value={cfg.metric} onChange={(e) => {
+            const metric = e.target.value as PieMetric;
+            // Między obciążeniem a odbierane / wysyłane ten sam port zostaje wybrany
+            set({ metric, item: isPortMetric(metric) && portPick ? cfg.item : null });
+          }}>
           {metrics.map((m) => (
             <option key={m} value={m}>
               {t(PIE_METRICS[m].label)}
@@ -64,7 +79,26 @@ export function PieForm({ initial, isNew, onSave, onClose }: { initial: PieConfi
             ))}
           </Select>
         )}
-        {mode === "share" && (
+        {portPick && (
+          <Select
+            id="pe-pie-port"
+            label={t("pe.pie.port")}
+            value={cfg.item ?? ""}
+            error={portError}
+            onChange={(e) => {
+              setPortError(undefined);
+              set({ item: e.target.value || null });
+            }}
+          >
+            <option value="">{t("ce.choose")}</option>
+            {(ports.data ?? []).map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label}
+              </option>
+            ))}
+          </Select>
+        )}
+        {mode === "share" && !portPick && (
           <Field
             id="pe-pie-limit"
             label={t("pe.pie.limit")}
@@ -77,7 +111,7 @@ export function PieForm({ initial, isNew, onSave, onClose }: { initial: PieConfi
           />
         )}
       </div>
-      <p className="-mt-2 text-xs text-text-2">{t(`pe.pie.mode.${mode}`)}</p>
+      <p className="-mt-2 text-xs text-text-2">{t(modeHint)}</p>
       <Field id="pe-title" label={t("ce.field.title")} hint={t("ce.field.title.hint")} value={cfg.title ?? ""} maxLength={80} onChange={(e) => set({ title: e.target.value })} />
     </EditorDialog>
   );

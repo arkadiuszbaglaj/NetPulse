@@ -323,7 +323,7 @@ createServer(async (req, res) => {
       kind === "devices"
         ? devices.map((d, i) => ({ key: String(d.id), label: d.name, device_id: d.id, values: { up: d.status === "up" ? 1 : 0, cpu_percent: d.status === "up" ? 15 + i * 22 : null, mem_used_percent: d.status === "up" ? 40 + i * 9 : null, poll_ms: 45, uptime_s: d.uptime_s } }))
         : kind === "ports"
-          ? [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ key: String(n), label: `Port ${n}`, device_id: 2, values: { up: n === 6 ? 0 : 1, in_bps: n * 3e6, out_bps: n * 1e6, speed_mbps: n === 7 ? 100 : 1000 } }))
+          ? [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ key: String(Number(url.searchParams.get("device_id") ?? 2) * 10 + n), label: `Port ${n}`, device_id: Number(url.searchParams.get("device_id") ?? 2), values: { up: n === 6 ? 0 : 1, in_bps: n * 3e6, out_bps: n * 1e6, speed_mbps: n === 7 ? 100 : 1000 } }))
           : [["/", 35], ["/boot", 22], ["/mnt/data", 91], ["/mnt/backup", 74]].map(([m, p]) => ({ key: m, label: m, device_id: 1, values: { used_percent: p, used_bytes: p * 1e10, free_bytes: (100 - p) * 1e10, total_bytes: 1e12 } }));
     return send(res, 200, { kind, rows });
   }
@@ -346,11 +346,11 @@ createServer(async (req, res) => {
   }
   send(res, 404, { detail: "Not Found" });
 })
-  // Tryb „Na żywo”: minimalny WebSocket (tylko ramki tekstowe serwer → przeglądarka), próbka co 1,5 s
+  // Dane na żywo wykresów kołowych: minimalny WebSocket (tylko ramki tekstowe serwer → przeglądarka), próbka co 1,5 s
   .on("upgrade", (req, socket) => {
     const url = new URL(req.url, "http://x");
     const device = Number(url.searchParams.get("device"));
-    if (url.pathname !== "/api/live/wan" && !(url.pathname === "/api/live/ports" && device)) return socket.destroy();
+    if (!(url.pathname === "/api/live/ports" && device)) return socket.destroy();
     const accept = createHash("sha1").update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
     socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
     const frame = (text) => {
@@ -363,17 +363,8 @@ createServer(async (req, res) => {
       i += 1;
       const rate = (k, scale) => Math.max(0, wave(i, k) * scale * (0.6 + Math.random() * 0.8));
       const time = new Date().toISOString();
-      if (url.pathname === "/api/live/wan") {
-        const ports = [
-          { id: 101, device_id: 1, name: "WAN 1", speed_mbps: 1000, in_bps: rate(0, 4e6), out_bps: rate(1, 3e6) },
-          { id: 102, device_id: 1, name: "WAN 2", speed_mbps: 100, in_bps: rate(0, 2e5), out_bps: rate(1, 1e5) },
-        ];
-        const sum = (key) => ports.reduce((a, p) => a + p[key], 0);
-        socket.write(frame(JSON.stringify({ time, in_bps: sum("in_bps"), out_bps: sum("out_bps"), ports })));
-      } else {
-        const ports = Array.from({ length: 8 }, (_, n) => ({ id: device * 10 + n + 1, in_bps: n < 6 ? rate(n % 2, 2e6 * (n + 1)) : null, out_bps: n < 6 ? rate(1, 4e5 * (n + 1)) : null }));
-        socket.write(frame(JSON.stringify({ time, ports })));
-      }
+      const ports = Array.from({ length: 8 }, (_, n) => ({ id: device * 10 + n + 1, in_bps: n < 6 ? rate(n % 2, 2e6 * (n + 1)) : null, out_bps: n < 6 ? rate(1, 4e5 * (n + 1)) : null }));
+      socket.write(frame(JSON.stringify({ time, ports })));
     };
     tick();
     const timer = setInterval(tick, 1500);

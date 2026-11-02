@@ -1,11 +1,10 @@
-import { IconBroadcast, IconFileSpreadsheet, IconPhoto } from "@tabler/icons-react";
+import { IconFileSpreadsheet, IconPhoto } from "@tabler/icons-react";
 import type * as echarts from "echarts/core";
-import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useContext, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { ApiError, type Series } from "../../lib/api";
-import { formatBps, formatRange, metricFormatter } from "../../lib/format";
+import { formatRange, metricFormatter } from "../../lib/format";
 import { useChartEvents } from "../../lib/events";
-import { useLivePorts, useLiveWan } from "../../lib/live";
 import { useDetailLinks } from "../../lib/publicMode";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
@@ -14,29 +13,12 @@ import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
 import { Card } from "../ui";
 import { defaultTitle, useChartQueries } from "./chartSource";
-import { WanPortsLive } from "./LiveLoad";
 import { WidgetActions, type WidgetAction } from "./WidgetActions";
 
 // ECharts jest duży – ładowany dopiero, gdy wykres jest na ekranie
 const PanelChart = lazy(() => import("../charts/PanelChart"));
 
 const HEIGHT = { sm: 180, md: 240, lg: 340 } as const;
-
-export function LiveToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
-        on ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:bg-surface-2 hover:text-text"
-      }`}
-    >
-      <IconBroadcast size={14} aria-hidden="true" />
-      {t("live.toggle")}
-    </button>
-  );
-}
 
 export function chartTitle(config: ChartConfig | LegacyChartConfig): string {
   const c = upgradeChartConfig(config);
@@ -50,39 +32,16 @@ const loading = (
 );
 
 /** Wykres w czasie skonfigurowany w widgecie: zapytania (źródła), osie, progi, legenda, zakres i odświeżanie.
- * `allowLive` dodaje przełącznik „Na żywo” (ruch WAN albo ruch jednego portu, bez porównań). */
-export function ChartWidget({ config: raw, className = "", allowLive = false }: { config: ChartConfig | LegacyChartConfig; className?: string; allowLive?: boolean }) {
+ * Od 0.40.0 bez trybu „Na żywo” – dane na żywo pokazują tylko wykresy kołowe. */
+export function ChartWidget({ config: raw, className = "" }: { config: ChartConfig | LegacyChartConfig; className?: string }) {
   const config = useMemo(() => upgradeChartConfig(raw), [raw]);
   // W komórce siatki pulpitu wykres wypełnia wysokość komórki; poza nią (strony szczegółów) – wysokość z konfiguracji
   const fill = useContext(GridCellContext);
   const first = config.queries[0];
-  const src = first.source;
-  const portTraffic = src.kind === "interface" && src.device_id != null && first.series.every((s) => s.key === "in_bps" || s.key === "out_bps");
-  const canLive = allowLive && config.queries.length === 1 && (src.kind === "wan" || portTraffic) && !first.offset_min;
-  const [live, setLive] = useState(false);
-  const wanStream = useLiveWan(live && canLive && src.kind === "wan");
-  const portStream = useLivePorts(src.kind === "interface" ? src.device_id : null, live && canLive && portTraffic);
-  const portId = src.kind === "interface" ? src.id : null;
-  const portSeries = useMemo(() => (portId == null ? null : portStream.series(portId)), [portStream.history, portId]);
-  const stream =
-    portId != null && portSeries
-      ? { status: portStream.status, series: portSeries, current: portStream.current(portId) ?? { in_bps: null, out_bps: null }, ports: [] }
-      : wanStream;
-  const lost = live && stream.status === "lost";
-  // Po utracie połączenia wracamy do zwykłego odświeżania i mówimy o tym użytkownikowi
-  useEffect(() => {
-    if (lost) setLive(false);
-  }, [lost]);
-  const [notice, setNotice] = useState(false);
-  useEffect(() => {
-    if (lost) setNotice(true);
-    else if (live) setNotice(false);
-  }, [lost, live]);
-  const showLive = live && canLive;
 
   const result = useChartQueries(config);
   // Zdarzenia tylko w zalogowanym panelu (pulpit publiczny nie dostaje historii alertów) i bez trybu „Na żywo”
-  const events = useChartEvents(config, useDetailLinks() && !showLive);
+  const events = useChartEvents(config, useDetailLinks());
   const bucketMs = (result.queries.find((q) => q.data)?.data?.interval_s ?? 30) * 1000;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -94,10 +53,8 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
     });
 
   const byQuery = useMemo(() => {
-    const map = new Map<string, Series | undefined>(result.queries.map((q) => [q.query.id, q.data]));
-    if (showLive) map.set(first.id, stream.series);
-    return map;
-  }, [result.queries, showLive, first.id, stream.series]);
+    return new Map<string, Series | undefined>(result.queries.map((q) => [q.query.id, q.data]));
+  }, [result.queries]);
   const lines = useMemo(() => buildLines(config, byQuery, defaultTitle), [config, byQuery]);
   const leftFormat = useMemo(() => metricFormatter(axisClass(config, "left") ?? axisClass(config, "right") ?? "count", config.unit), [config]);
   const rightCls = axisClass(config, "right");
@@ -123,8 +80,8 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
 
   const title = config.title || defaultTitle(first.source);
   const gone = result.error instanceof ApiError && result.error.status === 404;
-  const isLoading = showLive ? stream.status === "connecting" : result.isLoading && lines.every((l) => l.rows.length === 0);
-  const isError = showLive ? false : result.isError;
+  const isLoading = result.isLoading && lines.every((l) => l.rows.length === 0);
+  const isError = result.isError;
   const empty = !isLoading && !isError && lines.every((l) => l.rows.length === 0);
   const legend = config.legend ?? DEFAULT_LEGEND;
   const instance = useRef<echarts.ECharts | null>(null);
@@ -149,26 +106,9 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
         <div className="flex shrink-0 items-center gap-1">
-          {canLive && <LiveToggle on={showLive} onClick={() => setLive((v) => !v)} />}
           <WidgetActions actions={exports} />
         </div>
       </div>
-      {showLive && stream.status === "live" && (
-        <p className="mb-1 flex gap-4 text-lg font-medium" aria-live="off">
-          <span>
-            {t("chart.traffic.in")}: {formatBps(stream.current.in_bps)}
-          </span>
-          <span>
-            {t("chart.traffic.out")}: {formatBps(stream.current.out_bps)}
-          </span>
-        </p>
-      )}
-      {showLive && stream.status === "live" && <WanPortsLive ports={stream.ports} />}
-      {notice && !showLive && (
-        <p role="status" className="mb-1 text-xs text-danger">
-          {t("live.lost")}
-        </p>
-      )}
       {isError ? (
         <p role="alert" className="py-10 text-center text-sm text-danger">
           {gone ? t("chart.sourceGone") : t("chart.error")}
@@ -191,9 +131,9 @@ export function ChartWidget({ config: raw, className = "", allowLive = false }: 
                 thresholds={config.thresholds ?? []}
                 thresholdStyle={config.threshold_style ?? "line"}
                 height={fill ? "100%" : HEIGHT[config.height]}
-                ariaLabel={t("chart.summary", { title, range: formatRange(showLive ? 15 : result.minutes) })}
+                ariaLabel={t("chart.summary", { title, range: formatRange(result.minutes) })}
                 instanceRef={instance}
-                events={showLive ? [] : events}
+                events={events}
                 bucketMs={bucketMs}
               />
             </Suspense>

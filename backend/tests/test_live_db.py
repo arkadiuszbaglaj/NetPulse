@@ -17,7 +17,7 @@ from sqlalchemy import delete  # noqa: E402
 
 from netpulse.api.live import LiveHub  # noqa: E402
 from netpulse.db import Session, engine, init_db  # noqa: E402
-from netpulse.db.models import Device, Interface, WanLink  # noqa: E402
+from netpulse.db.models import Device, Interface  # noqa: E402
 
 
 def run(coro_fn):
@@ -43,7 +43,7 @@ def db():
     run(_clean)
 
 
-def test_targets_wan_everywhere_and_visible_ports_of_watched_devices(db):
+def test_targets_are_visible_ports_of_watched_snmp_devices(db):
     async def seed():
         async with Session() as s, s.begin():
             gw = Device(name="UCG", host="10.0.0.1", community="public", kind="gateway")
@@ -51,29 +51,21 @@ def test_targets_wan_everywhere_and_visible_ports_of_watched_devices(db):
             pve = Device(name="PVE", host="10.0.0.9", community="public", kind="server", driver="proxmox")
             s.add_all([gw, sw, pve])
             await s.flush()
-            wan = Interface(device_id=gw.id, if_index=5, name="eth4", role="wan", speed_mbps=1000)
             s.add_all(
                 [
-                    wan,
+                    Interface(device_id=gw.id, if_index=5, name="eth4", role="wan", speed_mbps=1000),
                     Interface(device_id=gw.id, if_index=1, name="eth0", role="lan"),
                     Interface(device_id=gw.id, if_index=9, name="lo", hidden=True),
-                    Interface(device_id=sw.id, if_index=1, name="0/1", label="Port 1"),
+                    Interface(device_id=sw.id, if_index=1, name="0/1"),
                     Interface(device_id=sw.id, if_index=2, name="0/2", hidden=True),
-                    Interface(device_id=pve.id, if_index=1, name="vmbr0", role="wan"),
+                    Interface(device_id=pve.id, if_index=1, name="vmbr0"),
                 ]
             )
-            await s.flush()
-            s.add(WanLink(device_id=gw.id, interface_id=wan.id, position=1, name="Światłowód"))
-            return gw.id, sw.id
+            return gw.id, sw.id, pve.id
 
-    gw_id, sw_id = run(seed)
+    gw_id, sw_id, pve_id = run(seed)
     hub = LiveHub()
-
-    only_wan = run(lambda: hub._load_targets(frozenset()))
-    assert [(t.device.id, [(p.name, p.wan, p.speed_mbps) for p in t.ports]) for t in only_wan] == [
-        (gw_id, [("Światłowód", True, 1000)])
-    ]
-
-    with_switch = run(lambda: hub._load_targets(frozenset({sw_id, gw_id})))
-    names = {t.device.id: [p.name for p in t.ports] for t in with_switch}
-    assert names == {gw_id: ["eth0", "Światłowód"], sw_id: ["Port 1"]}  # bez ukrytych i bez Proxmoksa
+    assert run(lambda: hub._load_targets(frozenset())) == []
+    targets = run(lambda: hub._load_targets(frozenset({gw_id, pve_id})))
+    # Tylko oglądane urządzenia, bez ukrytych portów i bez Proxmoksa (nie ma SNMP)
+    assert [(t.device.id, [(p.if_index, p.speed_mbps) for p in t.ports]) for t in targets] == [(gw_id, [(1, None), (5, 1000)])]
