@@ -46,10 +46,11 @@ def db():
 def test_targets_are_visible_ports_of_watched_snmp_devices(db):
     async def seed():
         async with Session() as s, s.begin():
-            gw = Device(name="UCG", host="10.0.0.1", community="public", kind="gateway")
+            gw = Device(name="UCG", host="10.0.0.1", community="public", kind="gateway", detected_driver="unifi")
+            ap = Device(name="AP", host="10.0.0.3", community="public", kind="ap", detected_driver="nie-ma-takiego")
             sw = Device(name="USW", host="10.0.0.2", community="public", kind="switch")
             pve = Device(name="PVE", host="10.0.0.9", community="public", kind="server", driver="proxmox")
-            s.add_all([gw, sw, pve])
+            s.add_all([gw, sw, pve, ap])
             await s.flush()
             s.add_all(
                 [
@@ -61,11 +62,14 @@ def test_targets_are_visible_ports_of_watched_snmp_devices(db):
                     Interface(device_id=pve.id, if_index=1, name="vmbr0"),
                 ]
             )
-            return gw.id, sw.id, pve.id
+            return gw.id, sw.id, pve.id, ap.id
 
-    gw_id, sw_id, pve_id = run(seed)
+    gw_id, sw_id, pve_id, ap_id = run(seed)
     hub = LiveHub()
     assert run(lambda: hub._load_targets(frozenset())) == []
-    targets = run(lambda: hub._load_targets(frozenset({gw_id, pve_id})))
-    # Tylko oglądane urządzenia, bez ukrytych portów i bez Proxmoksa (nie ma SNMP)
-    assert [(t.device.id, [(p.if_index, p.speed_mbps) for p in t.ports]) for t in targets] == [(gw_id, [(1, None), (5, 1000)])]
+    targets = run(lambda: hub._load_targets(frozenset({gw_id, pve_id, ap_id})))
+    # Tylko oglądane urządzenia, bez ukrytych portów i bez Proxmoksa (nie ma SNMP); urządzenie bez portów też (CPU, RAM)
+    assert [(t.device.id, t.driver, [(p.if_index, p.speed_mbps) for p in t.ports]) for t in targets] == [
+        (gw_id, "unifi", [(1, None), (5, 1000)]),
+        (ap_id, "generic", []),  # nieznany driver – ogólny
+    ]

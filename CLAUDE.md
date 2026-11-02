@@ -89,7 +89,7 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
    5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
-   5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – od 0.40.0 tylko w wykresach kołowych portów (WebSocket `/api/live/ports`, co ~1,5 s; przełączniki przy wykresach, tabeli portów i stronie portu usunięte; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
+   5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – od 0.40.0 tylko w wykresach kołowych (od 0.41.0 porty, CPU, RAM, dyski urządzeń SNMP; WebSocket `/api/live/device`, co ~1,5 s; przełączniki przy wykresach, tabeli portów i stronie portu usunięte; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
 6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`)
 7. ✅ Topologia LLDP – mapa sieci (od 0.35.0 obciążenie i prędkość kabli, przybliżanie; opis: `docs/22-wykresy.md`)
 8. ✅ Alerty (8a silnik, 8b panel, reguły dysku i błędów portów, powiadomienia: webhook/Telegram, od 0.25.0 ntfy i e-mail (SMTP), ciche godziny z podsumowaniem po ciszy, grupowanie po topologii LLDP; opis: `docs/21-powiadomienia.md`) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)

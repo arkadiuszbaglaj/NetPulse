@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { newWidget, type DashboardLayout, type PieConfig, type Widget } from "../lib/layout";
 import type { CollectionRow } from "../lib/panels";
-import { pieCollection, pieData, pieMetricsFor } from "../lib/pie";
+import { parseSample } from "../lib/live";
+import { applyLive, pieCollection, pieData, pieMetricsFor } from "../lib/pie";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
@@ -97,6 +98,26 @@ describe("wykres kołowy – dane", () => {
     expect(pieData(pie({ device_id: 1, metric: "port_load", item: "99" }), PORTS)).toBeNull();
   });
 
+  it("dane na żywo: CPU urządzenia, dyski z próbki, prędkość i stan portów; brak wartości – odczyt z bazy", () => {
+    const sample = parseSample({
+      time: "t",
+      ports: [{ id: 12, in_bps: null, out_bps: 9e6, up: 0 }],
+      cpu_percent: 64,
+      mem_used_percent: null,
+      disks: [{ mount: "/", used_percent: 50, used_bytes: 50, free_bytes: 50, total_bytes: 100 }],
+    });
+    const cpu = applyLive(pie({ device_id: 1, metric: "cpu" }), DEVICES, sample);
+    expect(cpu.applied).toBe(true);
+    expect(pieData(pie({ device_id: 1, metric: "cpu" }), cpu.rows)!.center).toBe("64%");
+    const mem = applyLive(pie({ device_id: 1, metric: "mem" }), DEVICES, sample);
+    expect(mem.rows[0].values.mem_used_percent).toBe(75); // próbka bez RAM-u – odczyt z bazy
+    const port = applyLive(pie({ device_id: 1, metric: "port_dir", item: "12" }), PORTS, sample).rows.find((r) => r.key === "12")!;
+    expect([port.values.in_bps, port.values.out_bps, port.values.up]).toEqual([20e6, 9e6, 0]);
+    const disks = applyLive(pie({ device_id: 5, metric: "disk" }), DISKS, sample);
+    expect(disks.rows.map((r) => r.key)).toEqual(["/"]);
+    expect(applyLive(pie({ device_id: 5, metric: "disk" }), DISKS, parseSample({ time: "t", ports: [] })).applied).toBe(false);
+  });
+
   it("stan: działa, nie działa i brak danych", () => {
     const data = pieData(pie({ metric: "devices_state" }), DEVICES)!;
     expect(data.center).toBe("1 z 3");
@@ -164,7 +185,7 @@ describe("wykres kołowy – pulpit", () => {
     renderApp();
     expect(await screen.findByRole("img", { name: /Zajęte 20 Mb\/s/ })).toBeInTheDocument(); // odczyt kolektora
     const ws = FakeSocket.instances.at(-1)!;
-    expect(ws.url).toMatch(/\/api\/live\/ports\?device=1$/);
+    expect(ws.url).toMatch(/\/api\/live\/device\?device=1$/);
 
     act(() => ws.onmessage?.({ data: JSON.stringify({ time: "t", ports: [{ id: 12, in_bps: 450_000_000, out_bps: 5e6 }] }) }));
     expect(await screen.findByRole("img", { name: /Zajęte 450 Mb\/s/ })).toBeInTheDocument();
@@ -176,14 +197,24 @@ describe("wykres kołowy – pulpit", () => {
     expect(screen.queryByText("Na żywo")).not.toBeInTheDocument();
   });
 
-  it("CPU i stany nie otwierają połączenia na żywo; inne wykresy nie mają przełącznika", async () => {
-    const w = newWidget("pie", "p1");
-    if (w.type !== "pie") throw new Error();
-    w.config = pie({ device_id: 1, metric: "cpu" });
-    mockApi({ layout: layoutWith(w, newWidget("chart", "c1")), collections: { devices: DEVICES } });
+  it("CPU na żywo; stany całej sieci i urządzenia z agentem bez połączenia; inne wykresy bez przełącznika", async () => {
+    const cpu = newWidget("pie", "p1");
+    const state = newWidget("pie", "p2");
+    const agent = newWidget("pie", "p3");
+    if (cpu.type !== "pie" || state.type !== "pie" || agent.type !== "pie") throw new Error();
+    cpu.config = pie({ device_id: 1, metric: "cpu" });
+    state.config = pie({ metric: "devices_state" });
+    agent.config = pie({ device_id: 5, metric: "mem" });
+    const api = mockApi({ layout: layoutWith(cpu, state, agent, newWidget("chart", "c1")), collections: { devices: DEVICES } });
+    api.state.devices = [...api.state.devices, { ...api.state.devices[0], id: 5, name: "NAS", kind: "server", driver: "agent" }];
     renderApp();
-    expect(await screen.findByRole("img", { name: /Procesor/ })).toBeInTheDocument();
-    expect(FakeSocket.instances).toHaveLength(0);
+    expect(await screen.findByRole("img", { name: /Procesor \(CPU\) · UCG Ultra: Zajęte 23%/ })).toBeInTheDocument();
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(1)); // tylko CPU urządzenia SNMP
+    const ws = FakeSocket.instances[0];
+    expect(ws.url).toMatch(/\/api\/live\/device\?device=1$/);
+    act(() => ws.onmessage?.({ data: JSON.stringify({ time: "t", ports: [], cpu_percent: 81, mem_used_percent: 50 }) }));
+    expect(await screen.findByRole("img", { name: /Procesor \(CPU\) · UCG Ultra: Zajęte 81%/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Na żywo")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Na żywo" })).not.toBeInTheDocument();
   });
 });

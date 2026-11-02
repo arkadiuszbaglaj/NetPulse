@@ -5,6 +5,7 @@ import type { Device } from "./api";
 import { formatSpeed } from "./details";
 import { formatBps, metricFormatter } from "./format";
 import { unitClassOf, type Collection, type CollectionKind, type PieConfig, type PieMetric } from "./layout";
+import type { LiveSample } from "./live";
 import type { CollectionRow } from "./panels";
 
 /** Zajętość (zajęte / wolne), udział (kawałek na wiersz) albo stan (działa / nie działa). */
@@ -58,8 +59,48 @@ export function pieMetricsFor(device: Pick<Device, "driver" | "kind"> | null): P
 
 /** Wykres jednego portu (wybór portu w edytorze) */
 export const isPortMetric = (m: PieMetric) => m === "port_load" || m === "port_dir";
-/** Wykres z ruchu portów – te pokazują dane na żywo */
-export const isLiveMetric = (m: PieMetric) => isPortMetric(m) || m === "ports_in" || m === "ports_out";
+/** Wykresy z danymi na żywo (urządzenia SNMP): porty, CPU, RAM i dyski. Stany urządzeń i sprawdzeń, agenci i Proxmox –
+ * odczyty z bazy (kolektor, agent co 30 s, Proxmox liczy co ~10 s). */
+const LIVE_METRICS = new Set<PieMetric>(["cpu", "mem", "disk", "disks_share", "port_load", "port_dir", "ports_in", "ports_out", "ports_state"]);
+export const isLiveMetric = (m: PieMetric) => LIVE_METRICS.has(m);
+/** Urządzenia bez SNMP – bez danych na żywo */
+export const NON_SNMP_DRIVERS = new Set(["agent", "proxmox"]);
+
+/** Wiersze kolekcji z wartościami z próbki na żywo; `applied` = próbka coś podmieniła (znacznik „Na żywo”).
+ * Brak wartości w próbce (pierwszy odczyt prędkości, urządzenie nie podało) – zostaje odczyt z bazy. */
+export function applyLive(config: PieConfig, rows: CollectionRow[], sample: LiveSample): { rows: CollectionRow[]; applied: boolean } {
+  const kind = PIE_METRICS[config.metric].kind;
+  if (kind === "disks") {
+    if (!sample.disks) return { rows, applied: false };
+    const live = sample.disks.map((d) => ({
+      key: d.mount,
+      label: d.mount,
+      device_id: config.device_id ?? null,
+      values: { used_percent: d.used_percent, used_bytes: d.used_bytes, free_bytes: d.free_bytes, total_bytes: d.total_bytes },
+    }));
+    return { rows: live, applied: true };
+  }
+  let applied = false;
+  const pick = (live: number | null | undefined, stored: number | null | undefined) => {
+    if (live == null) return stored ?? null;
+    applied = true;
+    return live;
+  };
+  if (kind === "devices") {
+    const next = rows.map((r) =>
+      r.key === String(config.device_id)
+        ? { ...r, values: { ...r.values, cpu_percent: pick(sample.cpu_percent, r.values.cpu_percent), mem_used_percent: pick(sample.mem_used_percent, r.values.mem_used_percent) } }
+        : r,
+    );
+    return { rows: next, applied };
+  }
+  const next = rows.map((r) => {
+    const p = sample.ports.get(Number(r.key));
+    if (!p) return r;
+    return { ...r, values: { ...r.values, in_bps: pick(p.in_bps, r.values.in_bps), out_bps: pick(p.out_bps, r.values.out_bps), up: pick(p.up, r.values.up) } };
+  });
+  return { rows: next, applied };
+}
 
 /** Kolekcja z danymi wykresu (CPU i RAM – wiersz urządzenia w kolekcji wszystkich urządzeń). */
 export function pieCollection(config: PieConfig): Collection {

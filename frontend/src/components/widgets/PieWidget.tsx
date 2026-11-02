@@ -1,14 +1,14 @@
 /** Wykres kołowy (0.39.0): pierścień w SVG z dużą liczbą w środku i legendą – bez ECharts.
- * Wykresy z ruchu portów biorą prędkość na żywo (co ~1,5 s) z WebSocketu; na pulpicie publicznym i po utracie
- * połączenia – odczyty kolektora. */
+ * Porty, CPU, RAM i dyski urządzeń SNMP biorą dane na żywo (co ~1,5 s) z WebSocketu; na pulpicie publicznym,
+ * po utracie połączenia i dla agentów / Proxmoksa – odczyty z bazy. */
 import { useQuery } from "@tanstack/react-query";
 import { useContext, useMemo } from "react";
 import { t } from "../../i18n";
 import { ApiError, get, type Device } from "../../lib/api";
 import type { PieConfig } from "../../lib/layout";
-import { useLivePorts } from "../../lib/live";
-import { useCollection, type CollectionRow } from "../../lib/panels";
-import { isLiveMetric, isPortMetric, pieCollection, pieData, pieTitle, type PieSlice } from "../../lib/pie";
+import { useLiveDevice } from "../../lib/live";
+import { useCollection } from "../../lib/panels";
+import { applyLive, isLiveMetric, isPortMetric, NON_SNMP_DRIVERS, pieCollection, pieData, pieTitle, type PieSlice } from "../../lib/pie";
 import { PublicModeContext } from "../../lib/publicMode";
 import { Card } from "../ui";
 import { WidgetActions } from "./WidgetActions";
@@ -47,25 +47,21 @@ function Ring({ slices, label }: { slices: PieSlice[]; label: string }) {
   );
 }
 
-/** Wiersze portów z prędkością na żywo (pierwsza próbka nie ma prędkości – wtedy zostaje odczyt kolektora). */
-function withLive(rows: CollectionRow[] | undefined, rates: Map<number, { in_bps: number | null; out_bps: number | null }>) {
-  return rows?.map((r) => {
-    const rate = rates.get(Number(r.key));
-    if (!rate) return r;
-    return { ...r, values: { ...r.values, in_bps: rate.in_bps ?? r.values.in_bps, out_bps: rate.out_bps ?? r.values.out_bps } };
-  });
-}
-
 export function PieWidget({ config }: { config: PieConfig }) {
   const query = useCollection(pieCollection(config));
-  // Nazwa urządzenia do tytułu – na pulpicie publicznym lista urządzeń nie jest dostępna
+  // Urządzenie: nazwa do tytułu i driver (bez SNMP – bez danych na żywo); na pulpicie publicznym lista urządzeń
+  // nie jest dostępna, a WebSocket wymaga logowania – tam zostają odczyty z bazy
   const isPublic = useContext(PublicModeContext);
-  const devices = useQuery({ queryKey: ["devices"], queryFn: () => get<Device[]>("/api/devices"), enabled: !isPublic && !!config.device_id && !config.title });
-  const deviceName = config.device_id ? devices.data?.find((d) => d.id === config.device_id)?.name : null;
-  // WebSocket wymaga logowania – pulpit publiczny zostaje przy odczytach kolektora
-  const live = useLivePorts(config.device_id, isLiveMetric(config.metric) && !isPublic);
-  const isLive = live.status === "live";
-  const rows = useMemo(() => (isLive ? withLive(query.data, live.rates) : query.data), [isLive, query.data, live.rates]);
+  const devices = useQuery({ queryKey: ["devices"], queryFn: () => get<Device[]>("/api/devices"), enabled: !isPublic && !!config.device_id });
+  const device = config.device_id ? devices.data?.find((d) => d.id === config.device_id) : undefined;
+  const deviceName = device?.name ?? null;
+  const live = useLiveDevice(config.device_id, isLiveMetric(config.metric) && !isPublic && !!device && !NON_SNMP_DRIVERS.has(device.driver));
+  const merged = useMemo(
+    () => (live.status === "live" && live.sample && query.data ? applyLive(config, query.data, live.sample) : { rows: query.data, applied: false }),
+    [live.status, live.sample, query.data, config],
+  );
+  const rows = merged.rows;
+  const isLive = merged.applied;
   const itemLabel = isPortMetric(config.metric) ? rows?.find((r) => r.key === config.item)?.label : null;
   const title = pieTitle(config, deviceName, itemLabel);
   const data = rows ? pieData(config, rows) : null;

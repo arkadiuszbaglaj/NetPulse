@@ -1,4 +1,4 @@
-"""Dane na żywo dla wykresów kołowych: wspólne odpytywanie portów i WebSocket (bez bazy – lista portów podstawiona)."""
+"""Dane na żywo dla wykresów kołowych: wspólne odpytywanie urządzeń i WebSocket (bez bazy – lista portów podstawiona)."""
 
 from __future__ import annotations
 
@@ -53,6 +53,10 @@ def test_rates_of_watched_device_ports():
         first = await asyncio.wait_for(q.get(), 5)
         assert [p["id"] for p in first["ports"]] == [80, 90]
         assert first["ports"][0]["in_bps"] is None  # pierwszy odczyt nie ma z czym porównać
+        # Stan portu, CPU i RAM tym samym driverem co w kolektorze (UCD-SNMP-MIB); router nie ma dysków
+        assert first["ports"][0]["up"] == 1.0
+        assert first["cpu_percent"] is not None and 0 < first["mem_used_percent"] < 100
+        assert "disks" not in first
         assert hub.loaded[-1] == frozenset({1})
         for oid, delta in ((PORT_IN, 1_000_000), (PORT_OUT, 500_000)):
             client.set(oid, (await client.get([oid]))[oid] + delta)
@@ -63,6 +67,49 @@ def test_rates_of_watched_device_ports():
         assert hub._task is None and hub.viewers == 0
 
     asyncio.run(scenario())
+
+
+def test_linux_server_disks_and_port_down():
+    client = SnmprecClient.from_file(FIXTURES / "linux-server.snmprec")
+    hub = LiveHub(client_factory=lambda _t: client, interval=0.2)
+
+    async def targets(device_ids):
+        return [LiveTarget(TARGET, (), "linux")]
+
+    hub._load_targets = targets  # type: ignore[method-assign]
+
+    async def scenario():
+        q = hub.subscribe(1)
+        msg = await asyncio.wait_for(q.get(), 5)
+        await hub.unsubscribe(q)
+        return msg
+
+    msg = asyncio.run(scenario())
+    assert msg["ports"] == [] and msg["cpu_percent"] is not None
+    assert msg["disks"] and all(d["total_bytes"] == d["used_bytes"] + d["free_bytes"] for d in msg["disks"])
+    assert "/" in {d["mount"] for d in msg["disks"]}
+
+
+def test_unreachable_device_sends_empty_values():
+    class Down(SnmprecClient):
+        async def get(self, oids):
+            raise TimeoutError
+
+    hub = LiveHub(client_factory=lambda _t: Down({}), interval=0.2)
+
+    async def targets(device_ids):
+        return [LiveTarget(TARGET, (LivePort(80, 8, 1000),))]
+
+    hub._load_targets = targets  # type: ignore[method-assign]
+
+    async def scenario():
+        q = hub.subscribe(1)
+        msg = await asyncio.wait_for(q.get(), 5)
+        await hub.unsubscribe(q)
+        return msg
+
+    msg = asyncio.run(scenario())
+    assert msg["cpu_percent"] is None and msg["ports"] == [{"id": 80, "in_bps": None, "out_bps": None, "up": None}]
 
 
 def test_device_without_ports_gets_empty_samples():
@@ -92,17 +139,18 @@ def test_viewer_limit_and_shared_polling():
 
 
 def test_websocket_requires_device_and_login():
-    for path in ("/api/live/ports", "/api/live/ports?device=x", "/api/live/ports?device=1"):
+    for path in ("/api/live/device", "/api/live/device?device=x", "/api/live/device?device=1"):
         with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect(path):
             pass
 
 
-def test_wan_stream_is_gone():
-    with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect("/api/live/wan"):
-        pass
+def test_old_streams_are_gone():
+    for path in ("/api/live/wan", "/api/live/ports?device=1"):
+        with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect(path):
+            pass
 
 
 def test_websocket_rejects_foreign_origin():
     headers = {"origin": "http://obca-strona.example"}
-    with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect("/api/live/ports?device=1", headers=headers):
+    with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect("/api/live/device?device=1", headers=headers):
         pass

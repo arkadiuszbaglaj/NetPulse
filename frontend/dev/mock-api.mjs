@@ -350,7 +350,7 @@ createServer(async (req, res) => {
   .on("upgrade", (req, socket) => {
     const url = new URL(req.url, "http://x");
     const device = Number(url.searchParams.get("device"));
-    if (!(url.pathname === "/api/live/ports" && device)) return socket.destroy();
+    if (!(url.pathname === "/api/live/device" && device)) return socket.destroy();
     const accept = createHash("sha1").update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
     socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
     const frame = (text) => {
@@ -363,8 +363,13 @@ createServer(async (req, res) => {
       i += 1;
       const rate = (k, scale) => Math.max(0, wave(i, k) * scale * (0.6 + Math.random() * 0.8));
       const time = new Date().toISOString();
-      const ports = Array.from({ length: 8 }, (_, n) => ({ id: device * 10 + n + 1, in_bps: n < 6 ? rate(n % 2, 2e6 * (n + 1)) : null, out_bps: n < 6 ? rate(1, 4e5 * (n + 1)) : null }));
-      socket.write(frame(JSON.stringify({ time, ports })));
+      const ports = Array.from({ length: 8 }, (_, n) => ({ id: device * 10 + n + 1, in_bps: n < 6 ? rate(n % 2, 2e6 * (n + 1)) : null, out_bps: n < 6 ? rate(1, 4e5 * (n + 1)) : null, up: n === 5 ? 0 : 1 }));
+      const cpu = Math.min(99, 10 + 25 * Math.abs(Math.sin(i / 5)) + Math.random() * 8);
+      const disks = [["/", 35], ["/mnt/data", 91]].map(([mount, p]) => {
+        const used = (p + Math.sin(i / 3)) * 1e10;
+        return { mount, used_percent: used / 1e10, used_bytes: used, free_bytes: 1e12 - used, total_bytes: 1e12 };
+      });
+      socket.write(frame(JSON.stringify({ time, ports, cpu_percent: cpu, mem_used_percent: 40 + Math.sin(i / 9) * 5, disks })));
     };
     tick();
     const timer = setInterval(tick, 1500);

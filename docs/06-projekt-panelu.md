@@ -82,12 +82,16 @@ Historia: 5f dodał przełącznik „Na żywo” przy wykresie ruchu WAN, 0.38.0
 tabelę portów urządzenia i wykres na stronie portu. Od 0.40.0 decyzją użytkownika **na żywo działają tylko wykresy
 kołowe**; przełączniki przy wykresach, w tabeli portów i na stronie portu zostały usunięte.
 
-- **Które wykresy:** wykres kołowy jednego portu („Obciążenie portu”, „Port: odbierane i wysyłane”) oraz zapisane
-  wykresy wszystkich portów sprzed 0.40.0. Prędkość co ~1,5 s, w nagłówku znacznik „Na żywo”. CPU, RAM, dyski i stany
-  biorą odczyty kolektora (co 30 s).
-- **API:** `/api/live/ports?device=<id>` (WebSocket, ta sama sesja co reszta API) – prędkość wszystkich widocznych
-  portów urządzenia; `api/live.py`. Wspólne odpytywanie: jedno zapytanie SNMP na urządzenie co ~1,5 s, niezależnie od
-  liczby wykresów; tylko gdy ktoś ogląda; bez zapisu do bazy. Limit 40 połączeń.
+- **Które wykresy (urządzenia SNMP):** jeden port („Obciążenie portu”, „Port: odbierane i wysyłane”), porty podłączone /
+  odłączone, od 0.41.0 także **CPU, RAM i dyski** (serwer Linux przez SNMP); zapisane wykresy wszystkich portów sprzed
+  0.40.0. Co ~1,5 s, w nagłówku znacznik „Na żywo” (tylko gdy próbka faktycznie coś podała).
+- **Bez danych na żywo:** serwery z agentem (agent wysyła co 30 s, najczęściej co 10 s), Proxmox (sam liczy statystyki
+  co ~10 s), stany urządzeń i sprawdzeń całej sieci (wynik cyklu kolektora i sprawdzeń) – odczyty z bazy.
+- **API:** `/api/live/device?device=<id>` (WebSocket, ta sama sesja co reszta API; od 0.41.0, wcześniej
+  `/api/live/ports`) – prędkość i stan (`ifOperStatus`) widocznych portów, CPU i RAM tym samym driverem co kolektor
+  (`read_health`), dyski (`read_disks`, driver `linux`); `api/live.py`. Wspólne odpytywanie co ~1,5 s, niezależnie od
+  liczby wykresów; tylko gdy ktoś ogląda; bez zapisu do bazy. Limit 40 połączeń. CPU z UCD-SNMP-MIB urządzenie
+  przelicza samo co kilka sekund, więc zmienia się rzadziej niż ruch.
 - **Bez połączenia** (pulpit publiczny – WebSocket wymaga logowania – albo zerwane połączenie) wykres pokazuje odczyty
   kolektora i nie ma znacznika.
 - **Uwagi:** jeśli switch odświeża liczniki SNMP rzadziej niż co sekundę, wartości mogą skakać. Obciążenie liczone

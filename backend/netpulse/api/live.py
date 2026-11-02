@@ -1,9 +1,12 @@
-"""Dane na żywo dla wykresów kołowych (od 0.40.0 tylko one): prędkość portów co ~1,5 s przez WebSocket.
+"""Dane na żywo dla wykresów kołowych (od 0.40.0 tylko one), co ~1,5 s przez WebSocket.
 
-`/api/live/ports?device=<id>` – wszystkie widoczne porty jednego urządzenia. Dopóki ktoś jest połączony, jedno
-wspólne odpytywanie (bez zapisu do bazy) portów urządzeń, które ktoś właśnie ogląda – jedno zapytanie SNMP na
-urządzenie, niezależnie od liczby wykresów. Gdy ostatni widz odejdzie, odpytywanie się kończy i klienty SNMP
-są zamykane."""
+`/api/live/device?device=<id>` – jedno urządzenie SNMP: prędkość i stan (podłączony / odłączony) każdego widocznego
+portu, CPU i RAM (od 0.41.0) oraz dyski serwera Linux. Odczyt tym samym driverem co w kolektorze, bez zapisu do bazy.
+Dopóki ktoś jest połączony, jedno wspólne odpytywanie urządzeń, które ktoś właśnie ogląda – niezależnie od liczby
+wykresów. Gdy ostatni widz odejdzie, odpytywanie się kończy i klienty SNMP są zamykane.
+
+Agenci (wysyłają dane co 30 s) i Proxmox (liczy statystyki co ~10 s) nie mają tu nic szybszego – panel bierze
+dla nich odczyty z bazy."""
 
 from __future__ import annotations
 
@@ -21,6 +24,7 @@ from sqlalchemy import select
 from ..collector import DeviceTarget, credentials_for, make_client
 from ..db import Session
 from ..db.models import Device, Interface
+from ..drivers import DRIVERS, GenericDriver
 from ..rates import CounterTracker
 from ..snmp import SnmpClient, SnmpError, as_int
 from ..snmp import oids as O
@@ -35,6 +39,7 @@ TARGETS_TTL = 30.0  # jak często odświeżać listę portów
 MAX_OIDS = 40  # liczników w jednym zapytaniu SNMP (duży switch = kilka zapytań)
 NON_SNMP_DRIVERS = ("agent", "proxmox")
 
+
 @dataclass(frozen=True)
 class LivePort:
     id: int  # interfaces.id
@@ -46,6 +51,7 @@ class LivePort:
 class LiveTarget:
     device: DeviceTarget
     ports: tuple[LivePort, ...]
+    driver: str = GenericDriver.name  # wykryty driver – CPU, RAM i dyski czyta tak samo jak kolektor
 
 
 class LiveHub:
@@ -89,27 +95,32 @@ class LiveHub:
     # --- odpytywanie ---------------------------------------------------------------
 
     async def _load_targets(self, device_ids: frozenset[int]) -> list[LiveTarget]:
-        """Widoczne porty urządzeń z `device_ids` (bez urządzeń bez SNMP)."""
+        """Urządzenia SNMP z `device_ids` z ich widocznymi portami (urządzenie bez portów też – ma CPU i RAM)."""
         async with Session() as session:
-            rows = (
-                await session.execute(
-                    select(Device, Interface)
-                    .join(Interface, Interface.device_id == Device.id)
-                    .where(
-                        Device.enabled,
-                        Device.driver.not_in(NON_SNMP_DRIVERS),
-                        Device.id.in_(device_ids),
-                        Interface.hidden.is_(False),
-                    )
-                    .order_by(Device.id, Interface.if_index)
+            devices = (
+                await session.scalars(
+                    select(Device)
+                    .where(Device.enabled, Device.driver.not_in(NON_SNMP_DRIVERS), Device.id.in_(device_ids))
+                    .order_by(Device.id)
                 )
             ).all()
-        grouped: dict[int, tuple[Device, list[LivePort]]] = {}
-        for device, iface in rows:
-            grouped.setdefault(device.id, (device, []))[1].append(LivePort(iface.id, iface.if_index, iface.speed_mbps))
+            ports = (
+                await session.scalars(
+                    select(Interface)
+                    .where(Interface.device_id.in_([d.id for d in devices] or [0]), Interface.hidden.is_(False))
+                    .order_by(Interface.if_index)
+                )
+            ).all()
+        by_device: dict[int, list[LivePort]] = {}
+        for p in ports:
+            by_device.setdefault(p.device_id, []).append(LivePort(p.id, p.if_index, p.speed_mbps))
         return [
-            LiveTarget(DeviceTarget(d.id, d.name, d.host, d.port, d.driver, credentials_for(d)), tuple(ports))
-            for d, ports in grouped.values()
+            LiveTarget(
+                DeviceTarget(d.id, d.name, d.host, d.port, d.driver, credentials_for(d)),
+                tuple(by_device.get(d.id, [])),
+                d.detected_driver if d.detected_driver in DRIVERS else GenericDriver.name,
+            )
+            for d in devices
         ]
 
     async def _client(self, target: DeviceTarget) -> SnmpClient:
@@ -128,27 +139,49 @@ class LiveHub:
             with contextlib.suppress(Exception):
                 await cached[1].close()
 
-    async def _sample_device(self, target: LiveTarget, ts: float) -> dict[int, tuple[float | None, float | None]]:
-        """Prędkość (in, out) w b/s każdego portu urządzenia; None przy pierwszym odczycie albo braku odpowiedzi."""
-        oids = [f"{O.IF_HC_IN_OCTETS}.{p.if_index}" for p in target.ports] + [
-            f"{O.IF_HC_OUT_OCTETS}.{p.if_index}" for p in target.ports
-        ]
+    async def _sample_device(self, target: LiveTarget, ts: float) -> dict:
+        """Próbka urządzenia: porty (prędkość w b/s – None przy pierwszym odczycie – i stan), CPU, RAM i dyski.
+        Bez odpowiedzi – same None (panel zostaje przy odczytach z bazy)."""
+        oids = (
+            [f"{O.IF_HC_IN_OCTETS}.{p.if_index}" for p in target.ports]
+            + [f"{O.IF_HC_OUT_OCTETS}.{p.if_index}" for p in target.ports]
+            + [f"{O.IF_OPER_STATUS}.{p.if_index}" for p in target.ports]
+        )
+        driver = DRIVERS[target.driver]()
         values: dict = {}
         try:
             client = await self._client(target.device)
             for i in range(0, len(oids), MAX_OIDS):
                 values.update(await client.get(oids[i : i + MAX_OIDS]))
+            health = await driver.read_health(client)
+            disks = await driver.read_disks(client) if hasattr(driver, "read_disks") else None
         except (SnmpError, TimeoutError, OSError) as exc:
             log.debug("%s: brak odpowiedzi na żywo – %s", target.device.name, exc)
             await self._drop(target.device.id)
-            return {p.id: (None, None) for p in target.ports}
-        rates: dict[int, tuple[float | None, float | None]] = {}
+            return {
+                "ports": [{"id": p.id, "in_bps": None, "out_bps": None, "up": None} for p in target.ports],
+                "cpu_percent": None,
+                "mem_used_percent": None,
+            }
+        ports = []
         for p in target.ports:
             key = (target.device.id, p.if_index)
-            i = self.tracker.bps(key + ("in",), ts, as_int(values.get(f"{O.IF_HC_IN_OCTETS}.{p.if_index}")), 64, p.speed_mbps)
-            o = self.tracker.bps(key + ("out",), ts, as_int(values.get(f"{O.IF_HC_OUT_OCTETS}.{p.if_index}")), 64, p.speed_mbps)
-            rates[p.id] = (i, o)
-        return rates
+            oper = as_int(values.get(f"{O.IF_OPER_STATUS}.{p.if_index}"))
+            ports.append(
+                {
+                    "id": p.id,
+                    "in_bps": self.tracker.bps(key + ("in",), ts, as_int(values.get(f"{O.IF_HC_IN_OCTETS}.{p.if_index}")), 64, p.speed_mbps),
+                    "out_bps": self.tracker.bps(key + ("out",), ts, as_int(values.get(f"{O.IF_HC_OUT_OCTETS}.{p.if_index}")), 64, p.speed_mbps),
+                    "up": None if oper is None else 1.0 if oper == 1 else 0.0,
+                }
+            )
+        sample: dict = {"ports": ports, "cpu_percent": health.cpu_percent, "mem_used_percent": health.mem_used_percent}
+        if disks is not None:
+            sample["disks"] = [
+                {"mount": d.mount, "used_percent": d.used_percent, "used_bytes": float(d.used_bytes), "free_bytes": float(d.total_bytes - d.used_bytes), "total_bytes": float(d.total_bytes)}
+                for d in disks
+            ]
+        return sample
 
     async def _refresh_targets(self, now: float) -> None:
         watched = self._watched_devices()
@@ -169,11 +202,8 @@ class LiveHub:
         targets = [t for t in self._targets if t.device.id in watched]
         results = await asyncio.gather(*(self._sample_device(t, now) for t in targets))
         stamp = datetime.now(UTC).isoformat()
-        out: dict[int, dict] = {
-            t.device.id: {"time": stamp, "ports": [{"id": p.id, "in_bps": r[p.id][0], "out_bps": r[p.id][1]} for p in t.ports]}
-            for t, r in zip(targets, results, strict=True)
-        }
-        for dev_id in watched - out.keys():  # urządzenie bez portów albo wyłączone – pusta próbka, żeby panel nie czekał
+        out: dict[int, dict] = {t.device.id: {"time": stamp, **r} for t, r in zip(targets, results, strict=True)}
+        for dev_id in watched - out.keys():  # urządzenie bez SNMP albo wyłączone – pusta próbka, żeby panel nie czekał
             out[dev_id] = {"time": stamp, "ports": []}
         return out
 
@@ -206,8 +236,8 @@ class LiveHub:
 hub = LiveHub()
 
 
-@router.websocket("/api/live/ports")
-async def live_ports(ws: WebSocket) -> None:
+@router.websocket("/api/live/device")
+async def live_device(ws: WebSocket) -> None:
     device = ws.query_params.get("device", "")
     if not device.isdigit():
         await ws.close(code=1008)
