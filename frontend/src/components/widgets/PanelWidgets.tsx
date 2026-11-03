@@ -9,9 +9,11 @@ import { formatRange, metricFormatter } from "../../lib/format";
 import { METRICS, unitClassOf, type BarGaugeConfig, type CollectionKind, type StatConfig, type StateTimelineConfig, type TableConfig } from "../../lib/layout";
 import { COLLECTION_LABEL, percentChange, reduceValues, rowLink, thresholdColor, useCollection, useStates, type CollectionRow, type StateSegment } from "../../lib/panels";
 import { useDetailLinks } from "../../lib/publicMode";
+import { useLiveDeviceSample, liveValue } from "../../lib/liveHub";
 import { useRefresh } from "../../lib/refresh";
 import { seriesName } from "../charts/panelData";
 import { StateBar } from "../charts/StateBar";
+import { LiveBadge } from "../LiveBadge";
 import { Card } from "../ui";
 import { defaultTitle, fetchSeries } from "./chartSource";
 import { WidgetActions } from "./WidgetActions";
@@ -19,12 +21,15 @@ import { WidgetActions } from "./WidgetActions";
 const metricName = (key: string) => (METRICS[key] ? t(METRICS[key].label) : key);
 const chartColor = (n: number) => `var(--chart-${n})`;
 
-function Shell({ title, children }: { title: string; children: ReactNode }) {
+function Shell({ title, live = false, children }: { title: string; live?: boolean; children: ReactNode }) {
   return (
     <Card className="flex flex-col p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="truncate text-sm font-medium">{title}</h2>
-        <WidgetActions />
+        <div className="flex shrink-0 items-center gap-2">
+          {live && <LiveBadge />}
+          <WidgetActions />
+        </div>
       </div>
       {children}
     </Card>
@@ -134,7 +139,11 @@ export function StatWidget({ config }: { config: StatConfig }) {
     retry: false,
   });
   const values = useMemo(() => (query.data?.points ?? []).map((p) => p.values[config.key] ?? null), [query.data, config.key]);
-  const value = reduceValues(values, config.reduce);
+  // CPU i RAM urządzenia SNMP (0.45.0): bieżąca wartość z kanału na żywo, mini-wykres i zmiana – z historii
+  const liveKey = config.source.kind === "device" && config.reduce === "last" && (config.key === "cpu_percent" || config.key === "mem_used_percent");
+  const live = useLiveDeviceSample(config.source.kind === "device" ? config.source.id : null, liveKey);
+  const liveNow = liveKey ? liveValue(live, (x) => (config.key === "cpu_percent" ? x.cpu_percent : x.mem_used_percent)) : null;
+  const value = liveNow ?? reduceValues(values, config.reduce);
   const previous = useMemo(() => (before.data?.points ?? []).map((p) => p.values[config.key] ?? null), [before.data, config.key]);
   const change = config.show_change ? percentChange(value, reduceValues(previous, config.reduce)) : null;
   const cls = unitClassOf(config.key);
@@ -156,7 +165,10 @@ export function StatWidget({ config }: { config: StatConfig }) {
       >
         <div className="relative z-10 flex items-center justify-between gap-2">
           <h2 className="truncate text-[13px] font-medium text-muted">{title}</h2>
-          <WidgetActions />
+          <div className="flex shrink-0 items-center gap-2">
+            {liveNow != null && <LiveBadge compact />}
+            <WidgetActions />
+          </div>
         </div>
         {query.isError && !query.data ? (
           <Status alert>{query.error instanceof ApiError && query.error.status === 404 ? t("chart.sourceGone") : t("chart.error")}</Status>
@@ -202,7 +214,23 @@ export function collectionTitle(kind: keyof typeof COLLECTION_LABEL, key?: strin
 function useRows(config: { collection: BarGaugeConfig["collection"] }) {
   const query = useCollection(config.collection);
   const gone = query.error instanceof ApiError && query.error.status === 404;
-  return { ...query, gone };
+  // Porty urządzenia SNMP (0.45.0): ruch i stan z kanału na żywo co ~1,5 s, reszta kolumn – z kolektora
+  const ports = config.collection.kind === "ports" ? config.collection.device_id : null;
+  const live = useLiveDeviceSample(ports, ports != null);
+  const data = useMemo(() => {
+    if (!query.data || live?.status !== "live" || !live.sample) return query.data;
+    const sample = live.sample;
+    return query.data.map((row) => {
+      const p = sample.ports.get(Number(row.key));
+      if (!p) return row;
+      const values = { ...row.values };
+      if (p.in_bps != null) values.in_bps = p.in_bps;
+      if (p.out_bps != null) values.out_bps = p.out_bps;
+      if (p.up != null) values.up = p.up;
+      return { ...row, values };
+    });
+  }, [query.data, live]);
+  return { ...query, data, gone, live: data !== query.data };
 }
 
 function sortRows(rows: CollectionRow[], key: string | null | undefined, desc: boolean): CollectionRow[] {
@@ -232,7 +260,7 @@ export function BarGaugeWidget({ config }: { config: BarGaugeConfig }) {
   const vertical = config.orientation === "vertical";
 
   return (
-    <Shell title={title}>
+    <Shell title={title} live={query.live}>
       {query.isError ? (
         <Status alert>{query.gone ? t("panel.gone") : t("chart.error")}</Status>
       ) : query.isLoading ? (
@@ -308,7 +336,7 @@ export function TableWidget({ config }: { config: TableConfig }) {
     );
   };
   return (
-    <Shell title={title}>
+    <Shell title={title} live={query.live}>
       {query.isError ? (
         <Status alert>{query.gone ? t("panel.gone") : t("chart.error")}</Status>
       ) : query.isLoading ? (

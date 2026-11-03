@@ -1633,6 +1633,15 @@ export const pl = {
   "tplt.wifiBars": "Sieci WiFi – {name}",
   "tplt.disks": "Dyski – {name}",
   "tplt.containers": "Kontenery – {name}",
+
+  // --- dane na żywo na pulpicie (0.45.0) ---
+  "live.badge": "Na żywo",
+  "live.hint": "Wartość z urządzenia co ok. 1,5 s (historia na wykresie – co 30 s)",
+  "live.toggle.label": "Dane na żywo",
+  "live.toggle.on": "Na żywo",
+  "live.toggle.off": "Wstrzymane",
+  "live.toggle.on.hint": "Bieżące wartości odświeżają się co ok. 1,5 s. Kliknij, żeby wstrzymać (zostaną odczyty co 30 s).",
+  "live.toggle.off.hint": "Dane na żywo wstrzymane – wartości z odczytów co 30 s. Kliknij, żeby włączyć.",
 } as const;
 
 export type TextKey = keyof typeof pl;

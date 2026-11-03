@@ -11,6 +11,9 @@ import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
 import { buildLines, lineStats, linesToCsv } from "../charts/panelData";
 import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
+import { useLiveDeviceSample, liveValue } from "../../lib/liveHub";
+import { useLiveWan } from "../../lib/liveWan";
+import { LiveBadge } from "../LiveBadge";
 import { Card } from "../ui";
 import { defaultTitle, useChartQueries } from "./chartSource";
 import { WidgetActions, type WidgetAction } from "./WidgetActions";
@@ -106,7 +109,28 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
   const lead = current[0];
   const stacked = (config.stack ?? false) && current.length > 1;
   const stackTotal = stacked ? current.filter((i) => i.line.axis === lead.line.axis).reduce((sum, i) => sum + (i.stats.last ?? 0), 0) : null;
-  const headline = !lead ? null : stackTotal != null ? { value: lead.format(stackTotal), label: t("chart.total") } : { value: lead.format(lead.stats.last ?? 0), label: lead.line.name };
+  // Bieżąca wartość z kanału na żywo (0.45.0): WAN, port i CPU/RAM urządzenia SNMP; historia wykresu – z bazy
+  const leadQuery = lead ? config.queries.find((q) => q.id === lead.line.id.split(".")[0]) : undefined;
+  const leadKey = lead?.line.id.split(".").slice(1).join(".");
+  const src = leadQuery?.source;
+  const liveDevice = src?.kind === "interface" ? (src.device_id ?? null) : src?.kind === "device" ? src.id : null;
+  const liveWan = useLiveWan(!stacked && src?.kind === "wan");
+  const liveDev = useLiveDeviceSample(liveDevice, !stacked && liveDevice != null);
+  const liveNow =
+    stacked || !src || !leadKey
+      ? null
+      : src.kind === "wan"
+        ? leadKey === "in_bps" ? (liveWan?.in_bps ?? null) : leadKey === "out_bps" ? (liveWan?.out_bps ?? null) : null
+        : src.kind === "interface" && (leadKey === "in_bps" || leadKey === "out_bps")
+          ? liveValue(liveDev, (x) => x.ports.get(src.id)?.[leadKey])
+          : src.kind === "device" && (leadKey === "cpu_percent" || leadKey === "mem_used_percent")
+            ? liveValue(liveDev, (x) => x[leadKey])
+            : null;
+  const headline = !lead
+    ? null
+    : stackTotal != null
+      ? { value: lead.format(stackTotal), label: t("chart.total"), live: false }
+      : { value: lead.format(liveNow ?? lead.stats.last ?? 0), label: lead.line.name, live: liveNow != null };
 
   return (
     <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>
@@ -116,7 +140,10 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
           {headline && (
             <p className="text-right leading-tight" title={headline.label}>
               <span className="block text-xl font-semibold tracking-tight">{headline.value}</span>
-              <span className="block max-w-40 truncate text-[11px] text-muted">{headline.label}</span>
+              <span className="flex max-w-40 items-center justify-end gap-1.5 truncate text-[11px] text-muted">
+                {headline.live && <LiveBadge compact />}
+                {headline.label}
+              </span>
             </p>
           )}
           <WidgetActions actions={exports} />

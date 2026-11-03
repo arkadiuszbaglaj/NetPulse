@@ -110,6 +110,15 @@ w bazie (nie w przeglądarce), więc działa na każdym urządzeniu.
 
 ## Dane na żywo – tylko wykresy kołowe (od 0.40.0)
 
+**Od 0.45.0 (decyzja użytkownika po przeglądzie „Dashboard - Network”):** na żywo są też bieżące wartości, na które
+patrzy się „teraz” – kafelki „Pobieranie / Wysyłanie WAN”, wartość w nagłówku wykresu (WAN, port, CPU/RAM urządzenia),
+tabele i paski portów (ruch i stan portu) oraz liczby i wskaźniki CPU/RAM urządzenia SNMP. Historia wykresów, mapy,
+SLA, oś stanów, ping, WiFi i PoE – dalej z bazy (co 30 s). Jeden wspólny kanał na stronę: `lib/liveHub.ts`
+(jedno połączenie na urządzenie, ponowne łączenie co 5 s, `useLiveSample`, `useLiveDeviceSample` – tylko urządzenia
+SNMP), ruch WAN – `lib/liveWan.ts` (suma portów łączy z `/api/wan/status`). Przełącznik „Na żywo / Wstrzymane”
+w pasku górnym (`LiveToggle`, zapamiętany w przeglądarce, `netpulse.live`), znacznik `LiveBadge` przy wartościach na
+żywo. Backend bez zmian (`api/live.py`). Na pulpicie publicznym – bez kanału (wymaga logowania).
+
 Historia: 5f dodał przełącznik „Na żywo” przy wykresie ruchu WAN, 0.38.0 (na próbę) – porty WAN z obciążeniem,
 tabelę portów urządzenia i wykres na stronie portu. Od 0.40.0 decyzją użytkownika **na żywo działają tylko wykresy
 kołowe**; przełączniki przy wykresach, w tabeli portów i na stronie portu zostały usunięte.

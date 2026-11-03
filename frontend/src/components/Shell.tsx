@@ -6,6 +6,7 @@ import { t } from "../i18n";
 import { useRefresh } from "../lib/refresh";
 import { useVisibleModules } from "../modules";
 import { AlertBell } from "./AlertBell";
+import { LiveToggle } from "./LiveToggle";
 import { RefreshControl } from "./RefreshControl";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
@@ -97,6 +98,7 @@ export function Shell() {
           <div className="ml-auto flex items-center gap-1.5">
             <UpdateBadge />
             <AlertBell />
+            <LiveToggle />
             <RefreshControl />
             <ThemeToggle />
             <UserMenu />

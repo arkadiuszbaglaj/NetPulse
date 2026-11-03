@@ -2,7 +2,9 @@ import type { SeriesPoint } from "../../lib/api";
 import { t } from "../../i18n";
 import { formatBps } from "../../lib/format";
 import type { SummaryTile } from "../../lib/layout";
+import { useLiveWan } from "../../lib/liveWan";
 import { useDashboardSummary, useSeries } from "../../lib/queries";
+import { LiveBadge } from "../LiveBadge";
 import { Card, ErrorNote } from "../ui";
 
 /** Mini-wykres (linia) z wartości w zakresie pulpitu; mniej niż 2 punkty – nic. */
@@ -39,17 +41,22 @@ function Metric({
   note,
   tone,
   spark,
+  live = false,
 }: {
   label: string;
   value: string | number;
   note?: string;
   tone?: "success" | "danger";
   spark?: (number | null)[];
+  live?: boolean;
 }) {
   const color = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-text";
   return (
     <Card className="flex h-full flex-col px-5 py-4">
-      <p className="text-[13px] font-medium text-muted">{label}</p>
+      <p className="flex items-center justify-between gap-2 text-[13px] font-medium text-muted">
+        {label}
+        {live && <LiveBadge compact />}
+      </p>
       <div className="mt-2 flex items-end justify-between gap-3">
         <p className={`whitespace-nowrap text-[28px] font-semibold leading-none tracking-tight ${color}`}>{value}</p>
         {spark && <Sparkline values={spark} />}
@@ -65,6 +72,8 @@ export function SummaryWidget({ tiles }: { tiles: SummaryTile[] }) {
   const wanTiles = tiles.includes("wan_down") || tiles.includes("wan_up");
   const traffic = useSeries("traffic", wanTiles).data?.points ?? [];
   const wifi = useSeries("wifi", tiles.includes("wifi_clients")).data?.points ?? [];
+  // Bieżący ruch WAN z kanału na żywo (0.45.0); bez niego – z ostatniego odczytu kolektora
+  const liveWan = useLiveWan(wanTiles);
   if (!s) return isError ? <ErrorNote>{t("dash.error")}</ErrorNote> : null;
   const peakNote = (key: string) => {
     const p = peakOf(traffic, key);
@@ -81,10 +90,10 @@ export function SummaryWidget({ tiles }: { tiles: SummaryTile[] }) {
       />
     ),
     wan_down: (
-      <Metric label={t("dash.wanDown")} value={formatBps(s.wan.in_bps)} note={peakNote("in_bps")} spark={traffic.map((p) => p.values.in_bps)} />
+      <Metric label={t("dash.wanDown")} value={formatBps(liveWan?.in_bps ?? s.wan.in_bps)} live={!!liveWan} note={peakNote("in_bps")} spark={traffic.map((p) => p.values.in_bps)} />
     ),
     wan_up: (
-      <Metric label={t("dash.wanUp")} value={formatBps(s.wan.out_bps)} note={peakNote("out_bps")} spark={traffic.map((p) => p.values.out_bps)} />
+      <Metric label={t("dash.wanUp")} value={formatBps(liveWan?.out_bps ?? s.wan.out_bps)} live={!!liveWan} note={peakNote("out_bps")} spark={traffic.map((p) => p.values.out_bps)} />
     ),
     wifi_clients: (
       <Metric

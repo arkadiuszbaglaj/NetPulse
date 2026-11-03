@@ -1,11 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+import { resetLiveHub } from "../lib/liveHub";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
+  resetLiveHub(); // wspólny kanał na żywo żyje w module – każdy test zaczyna bez połączeń
   delete document.documentElement.dataset.theme;
 });
 

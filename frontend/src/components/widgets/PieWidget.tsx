@@ -6,7 +6,7 @@ import { useContext, useMemo } from "react";
 import { t } from "../../i18n";
 import { ApiError, get, type Device } from "../../lib/api";
 import type { PieConfig } from "../../lib/layout";
-import { useLiveDevice } from "../../lib/live";
+import { useLiveSample } from "../../lib/liveHub";
 import { useCollection } from "../../lib/panels";
 import { applyLive, isLiveMetric, isPortMetric, NON_SNMP_DRIVERS, pieCollection, pieData, pieTitle, type PieSlice } from "../../lib/pie";
 import { PublicModeContext } from "../../lib/publicMode";
@@ -55,7 +55,8 @@ export function PieWidget({ config }: { config: PieConfig }) {
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => get<Device[]>("/api/devices"), enabled: !isPublic && !!config.device_id });
   const device = config.device_id ? devices.data?.find((d) => d.id === config.device_id) : undefined;
   const deviceName = device?.name ?? null;
-  const live = useLiveDevice(config.device_id, isLiveMetric(config.metric) && !isPublic && !!device && !NON_SNMP_DRIVERS.has(device.driver));
+  // Wspólny kanał na żywo (0.45.0): jedno połączenie na urządzenie, przełącznik w pasku górnym
+  const live = useLiveSample(config.device_id, isLiveMetric(config.metric) && !isPublic && !!device && !NON_SNMP_DRIVERS.has(device.driver)) ?? { status: "lost" as const, sample: null };
   const merged = useMemo(
     () => (live.status === "live" && live.sample && query.data ? applyLive(config, query.data, live.sample) : { rows: query.data, applied: false }),
     [live.status, live.sample, query.data, config],

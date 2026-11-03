@@ -185,17 +185,19 @@ describe("wykres kołowy – pulpit", () => {
     mockApi({ layout: layoutWith(w), collections: { ports: PORTS } });
     renderApp();
     expect(await screen.findByRole("img", { name: /Zajęte 20 Mb\/s/ })).toBeInTheDocument(); // odczyt kolektora
+    // Wspólny kanał na żywo (0.45.0): jedno połączenie na urządzenie dla całej strony
+    await waitFor(() => expect(FakeSocket.instances.length).toBeGreaterThan(0));
     const ws = FakeSocket.instances.at(-1)!;
     expect(ws.url).toMatch(/\/api\/live\/device\?device=1$/);
 
     act(() => ws.onmessage?.({ data: JSON.stringify({ time: "t", ports: [{ id: 12, in_bps: 450_000_000, out_bps: 5e6 }] }) }));
     expect(await screen.findByRole("img", { name: /Zajęte 450 Mb\/s/ })).toBeInTheDocument();
     expect(screen.getAllByText("45%").length).toBeGreaterThan(0);
-    expect(screen.getByText("Na żywo")).toBeInTheDocument();
+    expect(screen.getByTitle("Prędkość portu odświeżana co ok. 1,5 s")).toBeInTheDocument(); // znacznik przy wykresie
 
     act(() => ws.onclose?.());
     expect(await screen.findByRole("img", { name: /Zajęte 20 Mb\/s/ })).toBeInTheDocument();
-    expect(screen.queryByText("Na żywo")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Prędkość portu odświeżana co ok. 1,5 s")).not.toBeInTheDocument();
   });
 
   it("CPU na żywo; stany całej sieci i urządzenia z agentem bez połączenia; inne wykresy bez przełącznika", async () => {
@@ -215,7 +217,8 @@ describe("wykres kołowy – pulpit", () => {
     expect(ws.url).toMatch(/\/api\/live\/device\?device=1$/);
     act(() => ws.onmessage?.({ data: JSON.stringify({ time: "t", ports: [], cpu_percent: 81, mem_used_percent: 50 }) }));
     expect(await screen.findByRole("img", { name: /Procesor \(CPU\) · UCG Ultra: Zajęte 81%/ })).toBeInTheDocument();
-    expect(screen.getAllByText("Na żywo")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "Na żywo" })).not.toBeInTheDocument();
+    expect(screen.getAllByTitle("Prędkość portu odświeżana co ok. 1,5 s")).toHaveLength(1);
+    // Bez przełączników przy wykresach – jeden wspólny w pasku górnym (0.45.0)
+    expect(screen.getAllByRole("button", { name: /Na żywo|Dane na żywo/ })).toHaveLength(1);
   });
 });
