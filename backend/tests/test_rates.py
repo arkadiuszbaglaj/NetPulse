@@ -37,3 +37,17 @@ def test_tracker_forget():
     t.forget(lambda k: k[0] == 1)
     assert t.update((1, "a"), 1.0, 20) is None
     assert t.update((2, "a"), 1.0, 20) == (10, 1.0)
+
+
+def test_live_rate_holds_value_while_counter_is_stale():
+    """UniFi odświeża liczniki co kilka sekund: przy odczytach co 1,5 s szybkość nie spada co drugi raz do 0."""
+    from netpulse.rates import LiveRateTracker
+
+    t = LiveRateTracker(hold_s=6.0)
+    assert t.bps("p", 0.0, 1_000) is None  # pierwszy odczyt
+    assert t.bps("p", 1.5, 1_000) is None  # licznik jeszcze stoi, nie znamy szybkości
+    assert t.bps("p", 3.0, 4_000) == 3_000 * 8 / 3.0  # od ostatniej zmiany (0 s), nie od poprzedniego odczytu
+    assert t.bps("p", 4.5, 4_000) == 8_000  # stoi – poprzednia szybkość
+    assert t.bps("p", 6.0, 7_000) == 3_000 * 8 / 3.0
+    assert t.bps("p", 13.0, 7_000) == 0.0  # stoi dłużej niż 6 s – port nic nie przesyła
+    assert t.bps("p", 14.5, 100) is None  # reset licznika

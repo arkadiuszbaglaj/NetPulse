@@ -76,3 +76,40 @@ class CounterTracker:
         """Usuwa zapamiętane liczniki pasujące do predykatu (np. po restarcie urządzenia)."""
         for key in [k for k in self._last if predicate(k)]:
             del self._last[key]
+
+
+class LiveRateTracker:
+    """Przepływność dla danych na żywo (co ~1,5 s, od 0.45.1).
+
+    Część urządzeń (UniFi) odświeża liczniki SNMP co kilka sekund – przy częstych odczytach co drugi pokazywałby 0,
+    a następny podwójną wartość. Szybkość liczymy więc od ostatniej *zmiany* licznika; dopóki licznik stoi krócej niż
+    `hold_s`, zwracamy poprzednią szybkość, dłużej – 0 (port naprawdę nic nie przesyła)."""
+
+    def __init__(self, hold_s: float = 6.0) -> None:
+        self.hold_s = hold_s
+        self._last: dict[Hashable, tuple[float, int, float | None]] = {}  # czas zmiany, wartość, ostatnia szybkość
+
+    def bps(self, key: Hashable, ts: float, octets: int | None, bits: int = 64, max_mbps: int | None = None) -> float | None:
+        if octets is None:
+            return None
+        prev = self._last.get(key)
+        if prev is None:
+            self._last[key] = (ts, octets, None)
+            return None
+        changed_at, value, rate = prev
+        if octets == value:
+            if ts - changed_at < self.hold_s:
+                return rate
+            self._last[key] = (changed_at, value, 0.0)
+            return 0.0
+        delta = counter_delta(value, octets, bits)
+        dt = ts - changed_at
+        if delta is None or dt <= 0:
+            self._last[key] = (ts, octets, None)  # reset urządzenia – zaczynamy od nowa
+            return None
+        bps = delta * 8 / dt
+        if max_mbps and bps > max_mbps * 1_000_000 * 2:
+            self._last[key] = (ts, octets, rate)
+            return rate
+        self._last[key] = (ts, octets, bps)
+        return bps

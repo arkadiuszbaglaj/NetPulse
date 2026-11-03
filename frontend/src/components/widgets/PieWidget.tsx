@@ -56,7 +56,7 @@ export function PieWidget({ config }: { config: PieConfig }) {
   const device = config.device_id ? devices.data?.find((d) => d.id === config.device_id) : undefined;
   const deviceName = device?.name ?? null;
   // Wspólny kanał na żywo (0.45.0): jedno połączenie na urządzenie, przełącznik w pasku górnym
-  const live = useLiveSample(config.device_id, isLiveMetric(config.metric) && !isPublic && !!device && !NON_SNMP_DRIVERS.has(device.driver)) ?? { status: "lost" as const, sample: null };
+  const live = useLiveSample(config.device_id, isLiveMetric(config.metric) && !isPublic && !!device && device.status === "up" && !NON_SNMP_DRIVERS.has(device.driver)) ?? { status: "lost" as const, sample: null };
   const merged = useMemo(
     () => (live.status === "live" && live.sample && query.data ? applyLive(config, query.data, live.sample) : { rows: query.data, applied: false }),
     [live.status, live.sample, query.data, config],

@@ -165,12 +165,13 @@ export function liveValue(state: LiveState | null, pick: (s: LiveSample) => numb
 /** Urządzenia bez SNMP (agent wysyła co 30 s, Proxmox liczy co ~10 s) – kanał na żywo nic dla nich nie ma. */
 const NON_SNMP = new Set(["agent", "proxmox"]);
 
-/** Jak `useLiveSample`, ale tylko dla urządzeń odpytywanych przez SNMP (lista urządzeń z pamięci podręcznej). */
+/** Jak `useLiveSample`, ale tylko dla działających urządzeń odpytywanych przez SNMP (lista urządzeń z pamięci podręcznej). */
 export function useLiveDeviceSample(deviceId: number | null | undefined, want = true): LiveState | null {
   const on = useLiveEnabled();
   const devices = useQuery({ queryKey: ["devices"], queryFn: () => get<Device[]>("/api/devices"), enabled: on && want && deviceId != null });
   const device = devices.data?.find((d) => d.id === deviceId);
-  return useLiveSample(deviceId, want && !!device && device.enabled && !NON_SNMP.has(device.driver));
+  // Tylko urządzenia, które odpowiadają – do wyłączonego nie ma sensu pytać co 1,5 s (wróci po następnym cyklu kolektora)
+  return useLiveSample(deviceId, want && !!device && device.enabled && device.status === "up" && !NON_SNMP.has(device.driver));
 }
 
 /** Testy: zamyka wszystkie połączenia i zapomina stan (moduł żyje między testami). */

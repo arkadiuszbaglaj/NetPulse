@@ -25,7 +25,7 @@ from ..collector import DeviceTarget, credentials_for, make_client
 from ..db import Session
 from ..db.models import Device, Interface
 from ..drivers import DRIVERS, GenericDriver
-from ..rates import CounterTracker
+from ..rates import LiveRateTracker
 from ..snmp import SnmpClient, SnmpError, as_int
 from ..snmp import oids as O
 from .security import allowed_hosts, user_from_request
@@ -59,7 +59,7 @@ class LiveHub:
         self.client_factory = client_factory
         self.interval = interval
         self.max_viewers = max_viewers
-        self.tracker = CounterTracker()
+        self.tracker = LiveRateTracker()
         self._queues: dict[asyncio.Queue[dict], int] = {}  # kolejka widza → urządzenie
         self._task: asyncio.Task | None = None
         self._clients: dict[int, tuple[DeviceTarget, SnmpClient]] = {}
@@ -228,7 +228,7 @@ class LiveHub:
         finally:
             for dev_id in list(self._clients):
                 await self._drop(dev_id)
-            self.tracker = CounterTracker()
+            self.tracker = LiveRateTracker()
             self._targets_at = 0.0
             self._targets_for = frozenset()
 

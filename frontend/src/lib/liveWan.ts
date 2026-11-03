@@ -1,5 +1,5 @@
 /** Ruch WAN na żywo (0.45.0): suma portów łączy WAN z kanału na żywo routerów (najwyżej dwa routery). */
-import { liveValue, useLiveSample } from "./liveHub";
+import { liveValue, useLiveDeviceSample } from "./liveHub";
 import { useWanStatus } from "./wan";
 
 export interface LiveWan {
@@ -10,8 +10,8 @@ export interface LiveWan {
 export function useLiveWan(want = true): LiveWan | null {
   const links = useWanStatus().data?.links ?? [];
   const routers = [...new Set(links.map((l) => l.device_id))];
-  const first = useLiveSample(routers[0], want && routers.length > 0);
-  const second = useLiveSample(routers[1], want && routers.length > 1);
+  const first = useLiveDeviceSample(routers[0], want && routers.length > 0);
+  const second = useLiveDeviceSample(routers[1], want && routers.length > 1);
   if (!links.length) return null;
   let inBps = 0;
   let outBps = 0;

@@ -117,7 +117,9 @@ SLA, oś stanów, ping, WiFi i PoE – dalej z bazy (co 30 s). Jeden wspólny ka
 (jedno połączenie na urządzenie, ponowne łączenie co 5 s, `useLiveSample`, `useLiveDeviceSample` – tylko urządzenia
 SNMP), ruch WAN – `lib/liveWan.ts` (suma portów łączy z `/api/wan/status`). Przełącznik „Na żywo / Wstrzymane”
 w pasku górnym (`LiveToggle`, zapamiętany w przeglądarce, `netpulse.live`), znacznik `LiveBadge` przy wartościach na
-żywo. Backend bez zmian (`api/live.py`). Na pulpicie publicznym – bez kanału (wymaga logowania).
+żywo. Na pulpicie publicznym – bez kanału (wymaga logowania). Od 0.45.1: kanał łączy się tylko z działającymi
+urządzeniami, a szybkość na żywo liczy `LiveRateTracker` (`rates.py`) od ostatniej *zmiany* licznika – UniFi odświeża
+liczniki SNMP co kilka sekund i przy odczycie co 1,5 s co drugi pokazywał 0 (sprawdzone na prawdziwym UCG i USW).
 
 Historia: 5f dodał przełącznik „Na żywo” przy wykresie ruchu WAN, 0.38.0 (na próbę) – porty WAN z obciążeniem,
 tabelę portów urządzenia i wykres na stronie portu. Od 0.40.0 decyzją użytkownika **na żywo działają tylko wykresy
