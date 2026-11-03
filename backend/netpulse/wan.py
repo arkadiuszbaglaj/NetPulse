@@ -217,38 +217,35 @@ class Switch:
     to_ids: tuple[int, ...]
 
 
-def switches(
-    samples: dict[int, Iterable[Sample]], max_gap: timedelta = timedelta(seconds=90), settle: timedelta = timedelta(seconds=45)
-) -> list[Switch]:
+def switches(samples: dict[int, Iterable[Sample]], max_gap: timedelta = timedelta(seconds=90)) -> list[Switch]:
     """Momenty przełączenia ruchu między łączami (także łączami różnych routerów).
 
     Próbki różnych routerów mają różne znaczniki czasu, więc stan łącza obowiązuje od jego próbki do następnej
-    (najdłużej `max_gap`). Zmiany w odstępie krótszym niż `settle` (routery dowiadują się o sobie w kolejnym
-    cyklu) to jedno przełączenie – od stanu sprzed pierwszej zmiany do stanu po ostatniej."""
+    (najdłużej `max_gap`), a stan wyjściowy liczy się dopiero, gdy są próbki wszystkich łączy. Zmiany, między
+    którymi nie minął pełny cykl odczytu (któreś łącze ma od poprzedniej zmiany mniej niż dwie próbki – drugi
+    router dowiaduje się o przełączeniu w kolejnym cyklu), to jedno przełączenie: od stanu sprzed pierwszej
+    zmiany do stanu po ostatniej."""
     by_time: dict[datetime, list[tuple[int, bool]]] = {}
     for link_id, items in samples.items():
         for s in items:
             by_time.setdefault(s.time, []).append((link_id, s.active))
+    links = {k for v in by_time.values() for k, _ in v}
     latest: dict[int, tuple[datetime, bool]] = {}
-    raw: list[Switch] = []
+    since_change: dict[int, int] = {}
+    out: list[Switch] = []
     previous: frozenset[int] | None = None
-    times = sorted(by_time)
-    for t in times:
+    for t in sorted(by_time):
         for link_id, active in by_time[t]:
             latest[link_id] = (t, active)
+            since_change[link_id] = since_change.get(link_id, 0) + 1
         current = frozenset(k for k, (ts, active) in latest.items() if active and t - ts <= max_gap)
-        if not current:
-            continue  # żadne łącze nie działa – przełączenie liczymy dopiero, gdy ruch gdzieś wróci
-        # Pierwsze sekundy okresu: próbki routerów z pierwszego cyklu jeszcze się zbierają – to stan wyjściowy
-        if previous is not None and current != previous and t - times[0] >= settle / 3:
-            raw.append(Switch(t, tuple(sorted(previous)), tuple(sorted(current))))
+        if not current or len(latest) < len(links):
+            continue  # żadne łącze nie działa (przełączenie liczymy, gdy ruch gdzieś wróci) albo brak stanu wyjściowego
+        if previous is not None and current != previous:
+            if out and min(since_change.values()) < 2:
+                out[-1] = Switch(out[-1].time, out[-1].from_ids, tuple(sorted(current)))
+            else:
+                out.append(Switch(t, tuple(sorted(previous)), tuple(sorted(current))))
+            since_change = {}
         previous = current
-    out: list[Switch] = []
-    last_change: datetime | None = None
-    for sw in raw:
-        if out and last_change is not None and sw.time - last_change < settle:
-            out[-1] = Switch(out[-1].time, out[-1].from_ids, sw.to_ids)
-        else:
-            out.append(sw)
-        last_change = sw.time
     return [sw for sw in out if sw.from_ids != sw.to_ids]

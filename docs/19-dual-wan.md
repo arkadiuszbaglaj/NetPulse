@@ -55,7 +55,7 @@ jest w użyciu, a WAN 2 na drugim routerze jest zapasem (źródło decyzji `prio
 (brak linku, awaria wg kontrolera albo router nie odpowiada), w następnym cyklu ruch przejmuje WAN 2; po powrocie
 WAN 1 ruch wraca na nie. Przełączenie między routerami widać na wykresie i w zdarzeniach jak każde inne.
 Próbki dwóch routerów mają różne znaczniki czasu, więc przełączenie liczy się ze stanu łączy w czasie, a zmiany
-w odstępie krótszym niż pół okna próbki (45 s) to jedno przełączenie (od 0.46.1) – na wykresie jedna kreska.
+bez pełnego cyklu odczytu pomiędzy (drugi router dowiaduje się o przełączeniu w kolejnym cyklu) to jedno przełączenie (od 0.46.1) – na wykresie jedna kreska.
 
 Stany łącza: **w użyciu** (zielony), **nieaktywne – zapas** (czerwony pusty), **nie działa** (czerwony pełny),
 **brak danych** (szary – router nie odpowiada na SNMP albo kolektor nie działa).

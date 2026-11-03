@@ -110,7 +110,7 @@ async def events(minutes: int = MinutesQuery, offset: int = OffsetQuery) -> list
                 owner = {x.id: x.device_id for x in links}
                 gap = wan_links.stale_after()
                 # Kolejność łączy jest wspólna dla routerów – ruch może przejść z routera na router
-                for sw in switches({x.id: [s for s in samples.get(x.id, []) if s.time < until] for x in links}, gap, gap / 2):
+                for sw in switches({x.id: [s for s in samples.get(x.id, []) if s.time < until] for x in links}, gap):
                     title = f"{_names(sw.from_ids, names)} → {_names(sw.to_ids, names)}"
                     out.append(EventOut(time=sw.time, kind="wan_switch", title=title, device_id=owner[sw.to_ids[0]]))
 

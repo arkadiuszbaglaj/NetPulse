@@ -177,7 +177,7 @@ async def history(minutes: int = MinutesQuery):
         for s in segments(items, since, now, max_gap)
     ]
     # Jedna kolejność łączy dla wszystkich routerów, więc przełączenie może też przejść z routera na router
-    events = switches({x.id: [s for s in samples.get(x.id, []) if s.time >= since] for x in links}, max_gap, max_gap / 2)
+    events = switches({x.id: [s for s in samples.get(x.id, []) if s.time >= since] for x in links}, max_gap)
     return WanHistoryOut(
         interval_s=stride,
         links=links,
