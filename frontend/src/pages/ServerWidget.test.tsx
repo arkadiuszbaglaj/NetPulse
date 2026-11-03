@@ -4,6 +4,7 @@ import { formatBytes, metricFormatter } from "../lib/format";
 import { newChartConfig, newWidget, SOURCE_METRICS, toggleMetric, unitClassOf } from "../lib/layout";
 import { usageTone, type SystemInfo } from "../lib/system";
 import { mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const SYSTEM: SystemInfo = {
@@ -86,8 +87,8 @@ describe("widget Serwer", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    const picker = await screen.findByRole("dialog", { name: "Dodaj widget" });
-    await user.click(within(picker).getByRole("button", { name: /Serwer/ }));
+    const picker = await customWidgets(user);
+    await user.click(within(picker).getByRole("button", { name: /^Serwer(?!\s*\d)/ })); // nie grupa „Serwer” w menu okna
     const info = await screen.findByRole("dialog", { name: "Serwer" });
     await user.click(within(info).getByRole("button", { name: "Dodaj widget" }));
     await user.click(screen.getByRole("button", { name: "Zapisz" }));

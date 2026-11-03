@@ -741,6 +741,33 @@ export function addWidget(l: DashboardLayout, widget: Widget): DashboardLayout {
   return { ...l, widgets: [{ ...widget, x: 0, y: 0, h }, ...shifted] };
 }
 
+/** Kilka widgetów naraz (szablony, cała sekcja urządzenia – 0.44.0): ułożone ciasno w bloku na górze pulpitu,
+ * każdy możliwie wysoko; reszta zjeżdża w dół o wysokość bloku. Sekcja zaczyna nowy pas. */
+export function addWidgets(l: DashboardLayout, added: Widget[]): DashboardLayout {
+  const room = MAX_WIDGETS - l.widgets.length;
+  const list = added.slice(0, Math.max(0, room));
+  if (list.length === 0) return l;
+  if (!l.widgets.some(placed)) return { ...l, widgets: [...list, ...l.widgets] };
+  const heights = Array<number>(GRID_COLS).fill(0);
+  const block = list.map((w) => {
+    const width = Math.min(GRID_COLS, Math.max(1, w.w));
+    const h = w.h ?? defaultHeight(w);
+    let x = 0;
+    let y = Math.max(...heights);
+    if (w.type !== "section") {
+      for (let c = 0; c + width <= GRID_COLS; c++) {
+        const top = Math.max(...heights.slice(c, c + width));
+        if (top < y) [x, y] = [c, top];
+      }
+    }
+    for (let c = x; c < x + width; c++) heights[c] = y + h;
+    return { ...w, w: width, x, y, h };
+  });
+  const blockH = Math.max(...heights);
+  const shifted = placeWidgets(l.widgets).map((w) => ({ ...w, y: (w.y ?? 0) + blockH }));
+  return { ...l, widgets: [...block, ...shifted] };
+}
+
 /** Podmienia widget o tym samym id (np. po edycji konfiguracji). */
 export function replaceWidget(l: DashboardLayout, widget: Widget): DashboardLayout {
   return { ...l, widgets: l.widgets.map((x) => (x.id === widget.id ? widget : x)) };

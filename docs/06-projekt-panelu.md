@@ -39,6 +39,13 @@ Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu
   „Sieć działa prawidłowo”), `alerts` (ostatnie alerty, aktywne na górze, bez pulpitu publicznego),
   `checks` (sprawdzenia z paskami dzień po dniu, 7 albo 30 dni); urządzenia mają `display: "cards" | "table"`
   (stare pulpity – karty). Kod: `components/widgets/OverviewWidgets.tsx`, `DevicesWidget.tsx`, `SummaryWidget.tsx`.
+- **Dodawanie widgetu (od 0.44.0, makiety A + B):** okno z zakładkami *Według rodzaju* (grupy Przegląd, Internet i WAN,
+  Urządzenie, Port, WiFi, Serwer, Dostępność, Własny) i *Według urządzenia* (pasujące widgety, kilka naraz albo „Cała sekcja”
+  urządzenia), wyszukiwarka bez polskich znaków. Szablon pyta tylko o urządzenie, port albo sprawdzenie, ma opcje
+  (linia prędkości łącza, porównanie z wczoraj), rozmiar i podgląd na żywo; „Więcej opcji” otwiera pełny edytor.
+  Katalog: `frontend/src/lib/widgetTemplates.ts` (każdy szablon buduje zwykły widget – nowy szablon = wpis tam i teksty
+  `tpl.<id>` w `pl.ts`), okno: `components/widgets/AddWidgetDialog.tsx`, miniatury `WidgetThumb.tsx`, kilka widgetów
+  naraz na górze pulpitu – `addWidgets` w `layout.ts`. Typy do pełnego edytora są w grupie „Własny”.
 - Zapisane pulpity zostają jak były – nowy układ pojawia się na pulpicie bez zapisanego układu,
   po „Przywróć domyślny” albo przy nowym pulpicie z szablonu „Pełny”.
 

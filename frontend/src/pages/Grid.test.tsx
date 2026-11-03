@@ -16,6 +16,7 @@ import {
 import { fullWidthInColumns } from "../components/DashboardGrid";
 import { CLASSIC_LAYOUT } from "../test/layouts";
 import { mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const section = (id: string, y: number, title: string, collapsed = false): Widget => ({ id, type: "section", w: 12, h: 1, x: 0, y, config: { title, collapsed } });
@@ -147,7 +148,7 @@ describe("pulpit na szerokim ekranie", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /Sekcja/ }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name: /Sekcja/ }));
     const form = await screen.findByRole("dialog", { name: "Nowa sekcja" });
     await user.click(within(form).getByRole("button", { name: "Zapisz" }));
     expect(within(form).getByText("Podaj nazwę sekcji.")).toBeInTheDocument();

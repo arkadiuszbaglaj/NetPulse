@@ -4,12 +4,13 @@ import { Link, useNavigate, useParams } from "react-router";
 import { DashboardGrid, type EditPlace } from "../components/DashboardGrid";
 import { Dialog } from "../components/Dialog";
 import { RangePicker } from "../components/RangePicker";
-import { WIDGET_TYPES, WidgetView, widgetTitle } from "../components/widgets/registry";
+import { WidgetView, widgetTitle } from "../components/widgets/registry";
 import { Button, Card, ErrorNote, PageHeader } from "../components/ui";
 import { t } from "../i18n";
 import {
   MAX_WIDGETS,
   addWidget,
+  addWidgets,
   applyPositions,
   newWidget,
   nudgeWidget,
@@ -20,13 +21,13 @@ import {
   swapInReadingOrder,
   type DashboardLayout,
   type Widget,
-  type WidgetType,
 } from "../lib/layout";
 import { useDashboards } from "../lib/dashboards";
 import { useDashboardLayout, useResetLayout, useSaveLayout } from "../lib/layoutApi";
 import { useDashboardSummary, useDevices } from "../lib/queries";
 
 // Edytory widgetów (wykres, panele) są duże – pobierane dopiero przy edycji
+const AddWidgetDialog = lazy(() => import("../components/widgets/AddWidgetDialog").then((m) => ({ default: m.AddWidgetDialog })));
 const WidgetEditDialog = lazy(() => import("../components/widgets/WidgetEditDialog").then((m) => ({ default: m.WidgetEditDialog })));
 
 function IconButton({ label, onClick, disabled, danger, children }: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: React.ReactNode }) {
@@ -104,30 +105,6 @@ function EditBar({
         <IconTrash size={16} aria-hidden="true" />
       </IconButton>
     </div>
-  );
-}
-
-function AddWidgetDialog({ onPick, onClose }: { onPick: (type: WidgetType) => void; onClose: () => void }) {
-  return (
-    <Dialog title={t("widget.add.title")} size="sm" onClose={onClose}>
-      <ul className="flex flex-col gap-2">
-        {WIDGET_TYPES.map(({ type, label, description, icon: Icon }) => (
-          <li key={type}>
-            <button
-              type="button"
-              onClick={() => onPick(type)}
-              className="flex w-full items-start gap-3 rounded-xl border border-border p-3 text-left hover:bg-surface-2"
-            >
-              <Icon size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
-              <span>
-                <span className="block text-sm font-medium">{t(label)}</span>
-                <span className="block text-xs text-text-2">{t(description)}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Dialog>
   );
 }
 
@@ -308,13 +285,25 @@ export function DashboardPage() {
       )}
 
       {adding && (
-        <AddWidgetDialog
-          onClose={() => setAdding(false)}
-          onPick={(type) => {
-            setAdding(false);
-            setEditing({ widget: newWidget(type), isNew: true });
-          }}
-        />
+        <Suspense fallback={null}>
+          <AddWidgetDialog
+            onClose={() => setAdding(false)}
+            onCustom={(type) => {
+              setAdding(false);
+              setEditing({ widget: newWidget(type), isNew: true });
+            }}
+            onAdvanced={(widget) => {
+              setAdding(false);
+              setEditing({ widget, isNew: true });
+            }}
+            onAdd={(widgets) => {
+              setAdding(false);
+              update((l) => addWidgets(l, widgets));
+              // Nowe widgety są na górze pulpitu – przewiń do nich
+              document.querySelector("main")?.scrollTo?.({ top: 0, behavior: "smooth" });
+            }}
+          />
+        </Suspense>
       )}
       {editing && (
         <Suspense fallback={null}>

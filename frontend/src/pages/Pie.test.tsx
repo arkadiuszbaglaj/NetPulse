@@ -6,6 +6,7 @@ import type { CollectionRow } from "../lib/panels";
 import { parseSample } from "../lib/live";
 import { applyLive, pieCollection, pieData, pieMetricsFor } from "../lib/pie";
 import { mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const layoutWith = (...widgets: Widget[]): DashboardLayout => ({ version: 1, widgets });
@@ -149,7 +150,7 @@ describe("wykres kołowy – pulpit", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /Wykres kołowy/ }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name: /Wykres kołowy/ }));
     const form = await screen.findByRole("dialog", { name: "Nowy wykres kołowy" });
 
     // Bez urządzenia – cała sieć

@@ -182,7 +182,9 @@ Wariant A „klasyczny jasny” (szarości i biel, grafitowy akcent, Inter w pac
 domyślny z widgetami `status`, `alerts`, `checks` oraz tabelą urządzeń (`display: "table"`). Nowy widget = też
 wpis w `layout_schemas.py` i ścieżki w `resolve()` (pulpit publiczny). Opis: `docs/06-projekt-panelu.md`
 („Nowy wygląd”). Wykresy w stylu B (0.43.0): akcent niebieski + szary, dalej stonowana paleta, tokeny `--state-*`
-dla stanów. Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkownik sam się w nim zaloguje.
+dla stanów. Od 0.44.0 okno „Dodaj widget” z szablonami (według rodzaju i według urządzenia, cała sekcja urządzenia):
+`lib/widgetTemplates.ts` – nowy szablon = wpis tam (zbudowany widget musi przejść schemat `layout_schemas.py`).
+Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkownik sam się w nim zaloguje.
 
 ## Do sprawdzenia później
 

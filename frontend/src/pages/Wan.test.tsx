@@ -4,6 +4,7 @@ import { t } from "../i18n";
 import { newWidget, type Widget } from "../lib/layout";
 import { availabilityTone, formatAvailability, formatDuration, type WanHistory, type WanLink, type WanSla } from "../lib/wan";
 import { mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
@@ -181,7 +182,7 @@ describe("pulpit i ustawienia łączy WAN", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    const picker = await screen.findByRole("dialog", { name: "Dodaj widget" });
+    const picker = await customWidgets(user);
     await user.click(within(picker).getByRole("button", { name: /SLA łączy WAN/ }));
     const form = await screen.findByRole("dialog", { name: "SLA łączy WAN" });
     await user.selectOptions(within(form).getByLabelText("Okres"), "30");

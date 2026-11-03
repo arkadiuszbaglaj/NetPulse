@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { autoColor, COLOR_INDEXES, newChartConfig, toggleMetric } from "../lib/layout";
 import { mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 describe("kolory wykresów", () => {
@@ -24,7 +25,7 @@ describe("kolory wykresów", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
     const form = await screen.findByRole("dialog", { name: "Nowy wykres" });
     const group = within(form).getAllByRole("group", { name: /^Kolor:/ })[0];
     const buttons = within(group).getAllByRole("button");

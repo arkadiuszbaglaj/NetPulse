@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { defaultTitle, sourcePath } from "../components/widgets/chartSource";
 import type { DashboardLayout } from "../lib/layout";
 import { DEVICE, mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const AGENT_DEVICE = { ...DEVICE, id: 7, name: "NAS", host: "nas", port: 0, driver: "agent", detected_driver: "agent", kind: "server" };
@@ -21,7 +22,7 @@ describe("wykresy z danych agenta", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
 
     const form = await screen.findByRole("dialog", { name: "Nowy wykres" });
     await user.selectOptions(within(form).getByLabelText("Źródło danych"), "agent_container");

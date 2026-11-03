@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ServerStatus } from "../components/widgets/ServerDetails";
 import type { ProxmoxGuest, ProxmoxStorage } from "../lib/proxmox";
 import { DEVICE, PVE_SERVER, mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const GiB = 1024 ** 3;
@@ -149,7 +150,7 @@ describe("strona Proxmox", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
     const form = await screen.findByRole("dialog", { name: "Nowy wykres" });
     await user.selectOptions(within(form).getByLabelText("Źródło danych"), "pve_guest");
     const devices = within(form).getByLabelText("Urządzenie");

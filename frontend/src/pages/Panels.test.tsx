@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { newWidget, type DashboardLayout, type Widget } from "../lib/layout";
 import { collectionPath, percentChange, reduceValues, rowLink, statesPath, thresholdColor, type CollectionRow } from "../lib/panels";
 import { mockApi } from "../test/mockApi";
+import { customWidgets } from "../test/addWidget";
 import { renderApp } from "../test/renderApp";
 
 const layoutWith = (...widgets: Widget[]): DashboardLayout => ({ version: 1, widgets });
@@ -172,7 +173,7 @@ describe("edytory paneli", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
     await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
-    await user.click(within(await screen.findByRole("dialog", { name: "Dodaj widget" })).getByRole("button", { name }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name }));
     return user;
   }
 
