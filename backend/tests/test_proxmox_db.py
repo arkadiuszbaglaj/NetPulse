@@ -302,6 +302,17 @@ def test_guests_collection_with_backup_age_and_node_filter(client):
     assert [r["label"] for r in on_pve2] == ["pihole (106)"]
     assert client.get("/api/collections/guests", params={"device_id": 999999}).status_code == 404
 
+    # Węzeł bez odpowiedzi: stan maszyn z ostatniego odczytu jest nieaktualny – brak danych, wiek kopii zostaje (0.43.3)
+    async def node_down():
+        async with Session() as s, s.begin():
+            await s.execute(update(Device).where(Device.id == devices["pve2"]).values(status="down"))
+
+    run(node_down)
+    pihole = {r["label"]: r for r in client.get("/api/collections/guests").json()["rows"]}["pihole (106)"]["values"]
+    assert pihole["up"] is None and pihole["cpu_percent"] is None and pihole["uptime_s"] is None and pihole["backup_age_h"] >= 71
+    guests = {g["key"]: g for g in client.get("/api/proxmox/guests").json()}
+    assert guests["pihole (106)"]["status"] == "unknown" and guests["homeassistant (100)"]["status"] == "running"
+
     assert client.put("/api/modules", json={"proxmox": False}).status_code == 200
     try:
         assert client.get("/api/collections/guests").status_code == 404

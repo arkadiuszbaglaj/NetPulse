@@ -9,7 +9,8 @@
 #   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
 #   netpulse reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
 #   netpulse cleanup         zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje)
-#   netpulse backup          kopia bazy do katalogu backups (przywracanie: panel → Ustawienia → Kopia zapasowa)
+#   netpulse backup          kopia bazy do katalogu backups (przywracanie: panel → Ustawienia → Kopia zapasowa);
+#                            użytkownik z grupy docker nie potrzebuje sudo
 #
 # Pozostałe polecenia trafiają do aplikacji w kontenerze, np.:
 #   netpulse probe 192.168.1.1 --community public
@@ -145,7 +146,24 @@ db_running() {
   compose ps --status running --services 2>/dev/null | grep -qx db
 }
 
+# Kopia bez roota (od 0.43.3): użytkownik z grupy docker zleca ją usłudze updater – tak samo jak panel
+# (Ustawienia → Kopia zapasowa). Wynik: ta sama nazwa i ten sam katalog backups.
+backup_via_updater() {
+  local container out
+  container=$(docker ps -q --filter label=com.docker.compose.service=updater --filter status=running 2>/dev/null | head -n1)
+  [ -n "$container" ] || return 1
+  c_info "Tworzę kopię bazy (przez usługę updater)..."
+  if ! out=$(docker exec "$container" python -c 'from netpulse_updater.backups import Backups; from netpulse_updater.config import Settings; s = Settings.from_env(); b = Backups(s).create("manual"); print(s.backups_dir / b["name"], b["size_bytes"])'); then
+    c_err "Nie udało się wykonać kopii bazy."
+    exit 1
+  fi
+  c_ok "Kopia: ${out% *} ($(numfmt --to=iec "${out##* }" 2>/dev/null || echo "${out##* } B"))"
+}
+
 cmd_backup() {
+  if [ "$(id -u)" -ne 0 ] && docker info >/dev/null 2>&1 && backup_via_updater; then
+    return 0
+  fi
   need_root backup "$@"
   db_running || { c_err "Baza nie działa – uruchom NetPulse: netpulse start"; exit 1; }
   c_info "Tworzę kopię bazy..."

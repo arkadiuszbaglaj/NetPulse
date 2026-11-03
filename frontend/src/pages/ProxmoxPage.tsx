@@ -20,7 +20,7 @@ function StatusBadge({ status }: { status: string }) {
   const running = status === "running";
   return (
     <span className={`rounded-md px-2 py-0.5 text-xs ${running ? "bg-success-soft text-success" : "bg-surface-2 text-text-2"}`}>
-      {t(running ? "pve.guest.running" : status === "paused" ? "pve.guest.paused" : "pve.guest.stopped")}
+      {t(running ? "pve.guest.running" : status === "paused" ? "pve.guest.paused" : status === "unknown" ? "pve.guest.unknown" : "pve.guest.stopped")}
     </span>
   );
 }

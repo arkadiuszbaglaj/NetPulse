@@ -231,9 +231,13 @@ async def list_guests(device_id: int | None = Query(None, description="tylko mas
         servers = {s.id: s.name for s in (await session.scalars(select(ProxmoxServer))).all()}
         nodes = {(n.server_id, n.node): n.device_id for n in (await session.scalars(select(ProxmoxNode))).all()}
         guests = (await session.scalars(select(ProxmoxGuest).order_by(ProxmoxGuest.template, ProxmoxGuest.vmid))).all()
+        # Węzeł bez odpowiedzi – stan maszyn z ostatniego odczytu jest nieaktualny
+        node_ids = set(nodes.values()) - {None}
+        down = set((await session.scalars(select(Device.id).where(Device.id.in_(node_ids), Device.status != "up"))).all()) if node_ids else set()
     out = [
         GuestOut(
-            **{c: getattr(g, c) for c in GuestOut.model_fields if hasattr(g, c) and c not in ("server", "device_id", "key")},
+            **{c: getattr(g, c) for c in GuestOut.model_fields if hasattr(g, c) and c not in ("server", "device_id", "key", "status")},
+            status="unknown" if nodes.get((g.server_id, g.node)) in down else g.status,
             server=servers.get(g.server_id, "?"),
             device_id=nodes.get((g.server_id, g.node)),
             key=f"{g.name} ({g.vmid})",

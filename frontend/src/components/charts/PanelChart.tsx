@@ -100,6 +100,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
     // Oś Y skalowana do widocznego fragmentu, nie do całego zakresu
     const inZoom = (rows: ChartRow[]) => (zoom ? rows.filter(([time]) => time >= zoom.from && time <= zoom.to) : rows);
 
+    const plotHeight = el.current?.clientHeight ?? 300;
     const axis = (a: AxisView, position: "left" | "right", withThreshold: boolean) => ({
       type: "value",
       position,
@@ -108,7 +109,9 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       min: a.min ?? (position === "left" && !a.autoMin ? 0 : undefined),
       // Próg ponad danymi też ma być widoczny
       max: a.max ?? (withThreshold && topThreshold != null ? (v: { max: number }) => Math.max(v.max, topThreshold * 1.05) : undefined),
-      axisLabel: { color: text, formatter: (v: number) => a.format(v) },
+      // Niski wykres (np. 5 wierszy siatki): mniej podziałek, a nachodzące na siebie opisy chowane
+      splitNumber: plotHeight < 170 ? 2 : plotHeight < 240 ? 3 : 5,
+      axisLabel: { color: text, formatter: (v: number) => a.format(v), hideOverlap: true },
       splitLine: { show: position === "left", lineStyle: { color: grid } },
     });
 

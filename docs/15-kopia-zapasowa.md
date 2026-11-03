@@ -24,8 +24,11 @@ Przywracanie i aktualizacja się wykluczają. Gdy trwa jedno, drugie dostaje kom
 ## Z konsoli
 
 ```bash
-sudo netpulse backup
+netpulse backup
 ```
+
+Od 0.43.3 wystarczy użytkownik z grupy `docker` (bez sudo): polecenie zleca kopię usłudze `updater`, tak jak panel.
+Bez dostępu do Dockera (albo gdy updater nie działa) poprosi o sudo i zrobi kopię jak dawniej.
 
 `netpulse update` też robi kopię bazy przed zmianą kodu, tak samo jak aktualizacja z panelu. Jeśli kopia się
 nie uda, aktualizacja nie startuje i nic się nie zmienia.

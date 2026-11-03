@@ -1494,6 +1494,7 @@ export const pl = {
   "dash.peak": "szczyt {value} o {time}",
   "dash.wifiPeak": "maks. {n} w zakresie",
   "chart.total": "Razem",
+  "pve.guest.unknown": "brak danych (węzeł nie odpowiada)",
 } as const;
 
 export type TextKey = keyof typeof pl;

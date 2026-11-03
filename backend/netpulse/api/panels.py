@@ -290,9 +290,24 @@ async def _guest_rows(session, node_device: int | None) -> list[Row]:
             )
         ).all():
             rates[(dev, name, key)] = value
+    # Węzeł bez odpowiedzi: ostatni odczyt maszyn jest nieaktualny – stan i bieżące wartości jako brak danych
+    down = set((await session.scalars(select(Device.id).where(Device.id.in_(devices), Device.status != "up"))).all()) if devices else set()
     rows = []
     for g in guests:
         dev, key = nodes.get((g.server_id, g.node)), f"{g.name} ({g.vmid})"
+        if dev in down:
+            rows.append(
+                Row(
+                    key=f"{g.server_id}:{g.vmid}",
+                    label=key,
+                    device_id=dev,
+                    values={
+                        "up": None, "cpu_percent": None, "mem_bytes": None, "mem_percent": None, "rx_bps": None, "tx_bps": None, "uptime_s": None,
+                        "backup_age_h": round((now - g.last_backup_at).total_seconds() / 3600, 1) if g.last_backup_at else None,
+                    },
+                )
+            )  # fmt: skip
+            continue
         rows.append(
             Row(
                 key=f"{g.server_id}:{g.vmid}",
