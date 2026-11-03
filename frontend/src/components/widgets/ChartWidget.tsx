@@ -101,8 +101,12 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
     : [];
   const legendRight = legend.placement === "right" && legend.mode !== "hidden";
   // Bieżąca wartość pierwszej widocznej serii w nagłówku karty (od 0.43.0) – bez porównań z przeszłością
-  const lead = hasData ? legendItems.find((i) => !i.hidden && !i.line.dashed && i.stats.last != null) : undefined;
-  const headline = lead && lead.stats.last != null ? { value: lead.format(lead.stats.last), label: lead.line.name } : null;
+  // Przy stosie – suma ostatnich wartości warstw (pierwsza warstwa sama w sobie myli)
+  const current = hasData ? legendItems.filter((i) => !i.hidden && !i.line.dashed && i.stats.last != null) : [];
+  const lead = current[0];
+  const stacked = (config.stack ?? false) && current.length > 1;
+  const stackTotal = stacked ? current.filter((i) => i.line.axis === lead.line.axis).reduce((sum, i) => sum + (i.stats.last ?? 0), 0) : null;
+  const headline = !lead ? null : stackTotal != null ? { value: lead.format(stackTotal), label: t("chart.total") } : { value: lead.format(lead.stats.last ?? 0), label: lead.line.name };
 
   return (
     <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>

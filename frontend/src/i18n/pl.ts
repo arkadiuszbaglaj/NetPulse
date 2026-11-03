@@ -1493,6 +1493,7 @@ export const pl = {
   "devTable.disabled": "wyłączone",
   "dash.peak": "szczyt {value} o {time}",
   "dash.wifiPeak": "maks. {n} w zakresie",
+  "chart.total": "Razem",
 } as const;
 
 export type TextKey = keyof typeof pl;

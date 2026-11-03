@@ -172,7 +172,7 @@ function DevicesTable({ list }: { list: Device[] }) {
                   <td className="px-3 py-3">
                     <PercentBar value={v?.mem_used_percent} />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.uptime_s != null ? formatUptime(d.uptime_s) : "–"}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.status === "up" && d.uptime_s != null ? formatUptime(d.uptime_s) : "–"}</td>
                   <td className="whitespace-nowrap py-3 pl-3 pr-5">
                     <span className="inline-flex items-center gap-1.5 text-[13px] text-text-2" title={status === "down" ? (d.last_error ?? undefined) : undefined}>
                       <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} aria-hidden="true" />
