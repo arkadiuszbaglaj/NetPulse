@@ -34,6 +34,7 @@ def run(coro_fn):
 
 async def drop_everything() -> None:
     async with engine.begin() as conn:
+        await aggregates.delete_jobs(conn)  # zadania w tle nie mogą ruszyć w trakcie usuwania („tuple concurrently deleted”)
         await aggregates.drop_all(conn)  # agregaty zależą od hypertables
         await conn.run_sync(Base.metadata.drop_all)
         await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))

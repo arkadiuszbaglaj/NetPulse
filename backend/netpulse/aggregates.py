@@ -8,6 +8,7 @@ godzina jest liczona z surowych danych, więc zapytanie zawsze widzi komplet.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -124,7 +125,38 @@ async def ensure(engine: AsyncEngine, raw_days: int, keep_days: int) -> list[str
     return created
 
 
+async def _retrying(conn, sql: str, params: dict | None = None, attempts: int = 5) -> None:
+    """Polecenie w punkcie zapisu, ponawiane, gdy zadanie TimescaleDB w tle (odświeżanie agregatu, retencja) w tej
+    samej chwili zmienia katalog – wtedy PostgreSQL zgłasza „tuple concurrently deleted/updated”."""
+    for attempt in range(attempts):
+        try:
+            async with conn.begin_nested():
+                await conn.execute(text(sql), params or {})
+            return
+        except DBAPIError as exc:
+            if "concurrently" not in str(exc.orig) or attempt == attempts - 1:
+                raise
+            await asyncio.sleep(0.2 * (attempt + 1))
+
+
+async def delete_jobs(conn) -> None:
+    """Usuwa zadania TimescaleDB w tle (odświeżanie agregatów, retencja; id ≥ 1000 to zadania użytkownika) – przed
+    usunięciem tabel w testach, żeby żadne nie ruszyło w trakcie. `init_db` zakłada je ponownie."""
+    if (await conn.execute(text("SELECT to_regclass('timescaledb_information.jobs')"))).scalar() is None:
+        return  # baza bez TimescaleDB
+    jobs = await conn.execute(text("SELECT job_id FROM timescaledb_information.jobs WHERE job_id >= 1000"))
+    for (job_id,) in jobs.all():
+        await _retrying(conn, "SELECT delete_job(:j)", {"j": job_id})
+
+
 async def drop_all(conn) -> None:
-    """Usuwa agregaty (np. przed usunięciem tabel w testach – widok zależy od hypertable)."""
+    """Usuwa agregaty (np. przed usunięciem tabel w testach – widok zależy od hypertable).
+
+    Najpierw zasady odświeżania i retencji – bez nich zadania w tle nie wystartują w trakcie usuwania widoku."""
     for a in AGGREGATES:
-        await conn.execute(text(f"DROP MATERIALIZED VIEW IF EXISTS {a.view} CASCADE"))
+        if not await _exists(conn, a.view):
+            continue
+        await _retrying(conn, "SELECT remove_continuous_aggregate_policy(:v, if_exists => TRUE)", {"v": a.view})
+        await _retrying(conn, "SELECT remove_retention_policy(:v, if_exists => TRUE)", {"v": a.view})
+        # Nazwa widoku to stała z AGGREGATES, nie dane od użytkownika
+        await _retrying(conn, f"DROP MATERIALIZED VIEW IF EXISTS {a.view} CASCADE")
