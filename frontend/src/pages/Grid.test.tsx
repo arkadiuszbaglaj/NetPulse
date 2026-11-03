@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
-  DEFAULT_LAYOUT,
   addWidget,
   applyPositions,
   hiddenBySections,
@@ -15,6 +14,7 @@ import {
   type Widget,
 } from "../lib/layout";
 import { fullWidthInColumns } from "../components/DashboardGrid";
+import { CLASSIC_LAYOUT } from "../test/layouts";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
@@ -31,7 +31,7 @@ describe("dwie kolumny (tablet)", () => {
 
 describe("model swobodnej siatki", () => {
   it("pulpit sprzed 0.28.0 układa się po kolei jak dawne kolumny", () => {
-    expect(pos(placeWidgets(DEFAULT_LAYOUT.widgets))).toEqual([
+    expect(pos(placeWidgets(CLASSIC_LAYOUT.widgets))).toEqual([
       ["podsumowanie", 0, 0, 12, 3],
       ["ruch-wan", 0, 3, 8, 8],
       ["klienci-wifi", 8, 3, 4, 8],
@@ -41,17 +41,17 @@ describe("model swobodnej siatki", () => {
   });
 
   it("nowy widget trafia na dół, klawiatura przesuwa i zmienia rozmiar w granicach siatki", () => {
-    const placed: DashboardLayout = { version: 1, widgets: placeWidgets(DEFAULT_LAYOUT.widgets) };
+    const placed: DashboardLayout = { version: 1, widgets: placeWidgets(CLASSIC_LAYOUT.widgets) };
     const added = addWidget(placed, newWidget("stat", "nowy"));
     expect(pos(added.widgets).at(-1)).toEqual(["nowy", 0, 19, 3, 4]);
     // Bez zapisanych pozycji nowy widget też nie dostaje pozycji – ułoży się po kolei
-    expect(addWidget(DEFAULT_LAYOUT, newWidget("stat", "n")).widgets.at(-1)?.x).toBeUndefined();
+    expect(addWidget(CLASSIC_LAYOUT, newWidget("stat", "n")).widgets.at(-1)?.x).toBeUndefined();
 
     const moved = nudgeWidget(placed, "ruch-wan", { dx: 10 });
     expect(pos(moved.widgets)[1]).toEqual(["ruch-wan", 4, 3, 8, 8]); // dalej niż do krawędzi się nie da
     const wider = nudgeWidget(placed, "klienci-wifi", { dw: 3, dh: -20 });
     expect(pos(wider.widgets)[2]).toEqual(["klienci-wifi", 5, 3, 7, 1]); // szerszy przy prawej krawędzi przesuwa się w lewo
-    const fromGrid = applyPositions(DEFAULT_LAYOUT, [{ i: "urzadzenia", x: 2, y: 30, w: 6, h: 5 }]);
+    const fromGrid = applyPositions(CLASSIC_LAYOUT, [{ i: "urzadzenia", x: 2, y: 30, w: 6, h: 5 }]);
     expect(pos(fromGrid.widgets)[3]).toEqual(["urzadzenia", 2, 30, 6, 5]);
   });
 

@@ -5,8 +5,9 @@ import type { Device } from "../../lib/api";
 import { useDevicesAvailability } from "../../lib/details";
 import { useDetailLinks } from "../../lib/publicMode";
 import { formatAvailability } from "../../lib/wan";
-import { relativeTime } from "../../lib/format";
-import type { DeviceKind } from "../../lib/layout";
+import { formatUptime, relativeTime } from "../../lib/format";
+import type { DeviceKind, DevicesDisplay } from "../../lib/layout";
+import { useCollection } from "../../lib/panels";
 import { useDevices } from "../../lib/queries";
 import { Card } from "../ui";
 import { ServerDetails } from "./ServerDetails";
@@ -86,12 +87,94 @@ function DeviceCard({ device, availability }: { device: Device; availability: nu
   );
 }
 
-/** Karty urządzeń (opcjonalnie tylko wybrane typy). */
-export function DevicesWidget({ kinds }: { kinds?: DeviceKind[] | null }) {
+const STATUS_DOT: Record<string, string> = { up: "bg-success", down: "bg-danger", unknown: "bg-border-strong" };
+
+/** Procent z paskiem (CPU, RAM w tabeli urządzeń). */
+function PercentBar({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span className="text-muted">–</span>;
+  const v = Math.max(0, Math.min(100, value));
+  return (
+    <span className="flex items-center gap-2">
+      <span className="w-10 text-right">{Math.round(v)} %</span>
+      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+        <span className={`block h-full rounded-full ${v >= 90 ? "bg-danger" : v >= 75 ? "bg-warning" : "bg-text-2"}`} style={{ width: `${v}%` }} />
+      </span>
+    </span>
+  );
+}
+
+/** Tabela urządzeń (od 0.42.0): stan, adres, CPU i RAM z ostatniego odczytu, czas pracy. */
+function DevicesTable({ list }: { list: Device[] }) {
+  const linked = useDetailLinks();
+  const { data: rows } = useCollection({ kind: "devices" });
+  const byId = new Map((rows ?? []).map((r) => [r.key, r.values]));
+  const th = "whitespace-nowrap px-3 py-2.5 text-left text-xs font-medium text-muted";
+  return (
+    <Card className="flex flex-col pt-5">
+      <h2 id="devices-heading" className="flex items-baseline gap-2 px-5 pb-2 text-base font-semibold">
+        {t("dash.devicesTitle")} <span className="text-sm font-medium text-muted">{list.length}</span>
+      </h2>
+      <div className="overflow-x-auto">
+        <table aria-labelledby="devices-heading" className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className={`${th} pl-5`}>{t("devTable.name")}</th>
+              <th className={th}>{t("devTable.host")}</th>
+              <th className={th}>CPU</th>
+              <th className={th}>RAM</th>
+              <th className={th}>{t("devTable.uptime")}</th>
+              <th className={`${th} pr-5`}>{t("devTable.state")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((d) => {
+              const v = byId.get(String(d.id));
+              const status = d.status in STATUS_STYLE ? d.status : "unknown";
+              return (
+                <tr key={d.id} className="border-b border-border/60 last:border-b-0">
+                  <td className="whitespace-nowrap py-3 pl-5 pr-3">
+                    <p className="font-medium">
+                      {linked ? (
+                        <Link to={`/devices/${d.id}`} className="hover:underline">
+                          {d.name}
+                        </Link>
+                      ) : (
+                        d.name
+                      )}
+                    </p>
+                    <p className="text-xs text-muted">{[t(KIND_LABEL[d.kind] ?? "dash.kind.other"), d.model].filter(Boolean).join(" · ")}</p>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.host || "–"}</td>
+                  <td className="px-3 py-3">
+                    <PercentBar value={v?.cpu_percent} />
+                  </td>
+                  <td className="px-3 py-3">
+                    <PercentBar value={v?.mem_used_percent} />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.uptime_s != null ? formatUptime(d.uptime_s) : "–"}</td>
+                  <td className="whitespace-nowrap py-3 pl-3 pr-5">
+                    <span className="inline-flex items-center gap-1.5 text-[13px] text-text-2" title={status === "down" ? (d.last_error ?? undefined) : undefined}>
+                      <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} aria-hidden="true" />
+                      {t(STATUS_LABEL[status])}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+/** Urządzenia (opcjonalnie tylko wybrane typy): karty albo tabela. */
+export function DevicesWidget({ kinds, display = "cards" }: { kinds?: DeviceKind[] | null; display?: DevicesDisplay }) {
   const { data } = useDevices();
-  const availability = useDevicesAvailability(30);
+  const availability = useDevicesAvailability(30, display === "cards");
   const list = (data ?? []).filter((d) => !kinds?.length || kinds.includes((d.kind as DeviceKind) ?? "other"));
   if (list.length === 0) return null;
+  if (display === "table") return <DevicesTable list={list} />;
   return (
     <section aria-labelledby="devices-heading">
       <h2 id="devices-heading" className="mb-3 text-sm font-medium text-text-2">

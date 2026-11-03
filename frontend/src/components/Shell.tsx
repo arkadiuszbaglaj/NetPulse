@@ -32,7 +32,7 @@ function PageLoading() {
   );
 }
 
-/** Układ aplikacji: pasek górny (konto, motyw), menu po lewej, treść. */
+/** Układ aplikacji: menu po lewej na całą wysokość (z logo), nad treścią pasek z kontem, motywem i odświeżaniem. */
 export function Shell() {
   const { status } = useAuth();
   // Trasy tylko dla włączonych modułów – adres wyłączonego modułu przekierowuje na pulpit
@@ -61,51 +61,49 @@ export function Shell() {
   }, [drawer]);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-3 sm:px-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setDrawer((v) => !v)}
-            aria-label={drawer ? t("nav.close") : t("nav.open")}
-            aria-expanded={drawer}
-            className="flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 lg:hidden"
-          >
-            {drawer ? <IconX size={20} aria-hidden="true" /> : <IconMenu2 size={20} aria-hidden="true" />}
-          </button>
-          <Logo size={28} />
-          <span className="text-base font-medium">{t("app.name")}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <UpdateBadge />
-          <AlertBell />
-          <RefreshControl />
-          <ThemeToggle />
-          <UserMenu />
-        </div>
-      </header>
+    <div className="flex h-full">
+      {drawer && <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setDrawer(false)} aria-hidden="true" />}
+      <aside
+        className={[
+          "z-30 shrink-0 border-r border-border bg-surface transition-[width,transform] duration-200",
+          "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-64",
+          drawer ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
+          collapsed ? "lg:w-[72px]" : "lg:w-60",
+        ].join(" ")}
+      >
+        <Sidebar
+          version={status?.version}
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed((v) => !v)}
+          onNavigate={() => setDrawer(false)}
+        />
+      </aside>
 
-      <div className="relative flex min-h-0 flex-1">
-        {drawer && (
-          <div className="fixed inset-0 top-14 z-20 bg-black/40 lg:hidden" onClick={() => setDrawer(false)} aria-hidden="true" />
-        )}
-        <aside
-          className={[
-            "z-30 shrink-0 border-r border-border bg-surface transition-[width,transform] duration-200",
-            "max-lg:fixed max-lg:inset-y-0 max-lg:top-14 max-lg:w-64",
-            drawer ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
-            collapsed ? "lg:w-16" : "lg:w-60",
-          ].join(" ")}
-        >
-          <Sidebar
-            version={status?.version}
-            collapsed={collapsed}
-            onToggleCollapsed={() => setCollapsed((v) => !v)}
-            onNavigate={() => setDrawer(false)}
-          />
-        </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-3 sm:px-6 lg:border-transparent lg:bg-bg">
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setDrawer((v) => !v)}
+              aria-label={drawer ? t("nav.close") : t("nav.open")}
+              aria-expanded={drawer}
+              className="flex size-10 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2"
+            >
+              {drawer ? <IconX size={20} aria-hidden="true" /> : <IconMenu2 size={20} aria-hidden="true" />}
+            </button>
+            <Logo size={28} />
+            <span className="hidden text-base font-bold tracking-tight sm:inline">{t("app.name")}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5">
+            <UpdateBadge />
+            <AlertBell />
+            <RefreshControl />
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+        </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-10 pt-2 sm:px-6 lg:px-8">
           <Suspense fallback={<PageLoading />}>
             <Routes>
               {visible.flatMap((m) => {

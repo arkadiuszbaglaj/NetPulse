@@ -17,6 +17,25 @@ Decyzje zapadły wspólnie z autorem projektu; zmiany zapisujemy tutaj.
 - Główny ekran: **pulpit z kartami** – pasek podsumowania i karty urządzeń z mini-wykresami.
 - Menu nawigacji **po lewej**, zwijane do ikon; na telefonie chowane pod przyciskiem.
 
+### Nowy wygląd (od 0.42.0, wariant A „klasyczny jasny”)
+
+Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu u góry).
+
+- **Kolory:** szarości i biel (Tailwind `zinc`), grafit jako akcent (przyciski, logo, zaznaczenia).
+  Kolor tylko dla stanów: zielony – działa, bursztynowy – ostrzeżenie, czerwony – błąd. Ciemny motyw –
+  te same zasady w odcieniach grafitu. Tokeny w `frontend/src/index.css`; paleta wykresów (`--chart-*`)
+  na razie bez zmian – dojdzie przy porządkowaniu wykresów.
+- **Font:** Inter dołączony do panelu (`@fontsource-variable/inter`, działa bez internetu), cyfry równej szerokości.
+- **Menu:** na całą wysokość, logo na górze, grupy „Monitorowanie” i „System” (`Sidebar.tsx`, `SYSTEM_MODULES`).
+  Pasek górny bez ramki, w kolorze tła; na telefonie przycisk menu z logo.
+- **Pulpit domyślny** (`DEFAULT_LAYOUT`, szablon „Pełny”): pasek stanu → kafelki z mini-wykresem i szczytem →
+  ruch WAN (8) + alerty (4) → tabela urządzeń (8) + dostępność (4). Nowe widgety: `status` (pasek
+  „Sieć działa prawidłowo”), `alerts` (ostatnie alerty, aktywne na górze, bez pulpitu publicznego),
+  `checks` (sprawdzenia z paskami dzień po dniu, 7 albo 30 dni); urządzenia mają `display: "cards" | "table"`
+  (stare pulpity – karty). Kod: `components/widgets/OverviewWidgets.tsx`, `DevicesWidget.tsx`, `SummaryWidget.tsx`.
+- Zapisane pulpity zostają jak były – nowy układ pojawia się na pulpicie bez zapisanego układu,
+  po „Przywróć domyślny” albo przy nowym pulpicie z szablonu „Pełny”.
+
 ## Układ aplikacji
 
 ```

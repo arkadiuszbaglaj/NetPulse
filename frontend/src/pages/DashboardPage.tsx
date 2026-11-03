@@ -182,7 +182,7 @@ function DashboardSwitcher({ currentId }: { currentId?: number }) {
 export function DashboardPage() {
   const param = useParams().dashboardId;
   const dashboardId = param !== undefined ? Number(param) : undefined;
-  const { layout: saved, isCustom, name, missing } = useDashboardLayout(dashboardId);
+  const { layout: saved, isCustom, name, missing, isPending: layoutPending } = useDashboardLayout(dashboardId);
   const save = useSaveLayout(dashboardId);
   const reset = useResetLayout();
   const summary = useDashboardSummary();
@@ -282,7 +282,7 @@ export function DashboardPage() {
         </Card>
       )}
 
-      {layout.widgets.length === 0 ? (
+      {layoutPending && !edit ? null : layout.widgets.length === 0 ? (
         <p className="py-10 text-center text-sm text-text-2">{t(edit ? "dash.edit.empty" : "dash.empty.layout")}</p>
       ) : (
         !(noDevices && !edit) && (

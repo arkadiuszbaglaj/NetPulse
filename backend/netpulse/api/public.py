@@ -191,7 +191,7 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
 
     if path == "/api/modules":
         return mods
-    if path == "/api/dashboard/summary" and "summary" in types:
+    if path == "/api/dashboard/summary" and types & {"summary", "status"}:
         return await dashboard.summary()
     if path == "/api/devices" and types & {"devices", "poe"}:
         return [_public_device(d, opts) for d in await visible_devices()]
@@ -225,6 +225,11 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         return await wan.sla(days)
     if m := re.fullmatch(r"/api/collections/(\w+)", path):
         device_id = _int(query.get("device_id"), 0) or None
+        # Tabela urządzeń (CPU, RAM) i paski dostępności sprawdzeń (od 0.42.0)
+        if device_id is None and m.group(1) == "devices" and any(w.type == "devices" and w.config.display == "table" for w in widgets):
+            return await panels.collection("devices", None)
+        if device_id is None and m.group(1) == "checks" and "checks" in types:
+            return await panels.collection("checks", None)
         for w in widgets:
             if w.type in ("bargauge", "table") and w.config.collection.kind == m.group(1) and w.config.collection.device_id == device_id:
                 return await panels.collection(m.group(1), device_id)
@@ -242,6 +247,16 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
                 return await panels.states(query.get("devices"), query.get("interfaces"), minutes(), query.get("checks"))
         raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     offset = _int(query.get("offset"), 0)
+    # Mini-wykresy w kafelkach podsumowania: ruch WAN i klienci WiFi w zakresie pulpitu
+    if "summary" in types and offset == 0:
+        if path == "/api/dashboard/traffic":
+            return await dashboard.traffic(minutes(), 0)
+        if path == "/api/dashboard/wifi":
+            return await dashboard.wifi(minutes(), 0)
+    # Paski dostępności sprawdzeń: dni z widgetu, bez przesunięcia
+    if (m := re.fullmatch(r"/api/checks/(\d+)/metrics", path)) and offset == 0:
+        if any(w.type == "checks" and query.get("minutes") == str(w.config.days * 1440) for w in widgets):
+            return await checks.check_series(int(m.group(1)), minutes(), 0)
     # Źródła wykresów: zapytania wykresów i panele „liczba”
     chart_queries = [(q.source, q.offset_min) for w in widgets if w.type == "chart" for q in w.config.queries]
     chart_queries += [(w.config.source, 0) for w in widgets if w.type == "stat"]

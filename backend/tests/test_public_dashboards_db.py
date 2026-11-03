@@ -184,6 +184,34 @@ def test_public_pie_serves_only_its_collection(client):
         assert data("/api/collections/checks").status_code == 403
 
 
+def test_public_overview_widgets(client):
+    """Pasek stanu, kafelki z mini-wykresami, tabela urządzeń i paski dostępności – bez alertów i adresów sprawdzeń."""
+    widgets = [
+        {"id": "st", "type": "status", "w": 12},
+        {"id": "sum", "type": "summary", "w": 12, "config": {"tiles": ["wan_down", "wifi_clients"]}},
+        {"id": "dev", "type": "devices", "w": 8, "config": {"display": "table"}},
+        {"id": "ch", "type": "checks", "w": 4, "config": {"days": 7}},
+        {"id": "al", "type": "alerts", "w": 4},
+    ]
+    wall = client.post("/api/dashboards", json={"name": "Przegląd", "layout": {"version": 1, "widgets": widgets}}).json()
+    token = share(client, wall["id"], options={"refresh_s": 30, "range_min": 60})["public"]["token"]
+    with anon() as tv:
+        data = lambda path: tv.get(f"/api/public/dashboards/{token}/data", params={"path": path})  # noqa: E731
+        assert data("/api/dashboard/summary").status_code == 200
+        assert data("/api/dashboard/traffic?minutes=60").status_code == 200
+        assert data("/api/dashboard/wifi?minutes=60").status_code == 200
+        assert data("/api/dashboard/traffic?minutes=60&offset=60").status_code == 403
+        assert data("/api/collections/devices").status_code == 200
+        assert data("/api/collections/checks").status_code == 200
+        # Paski: tylko okres z widgetu (7 dni); nieistniejące sprawdzenie – 404
+        assert data("/api/checks/999999/metrics?minutes=10080").status_code == 404
+        assert data("/api/checks/999999/metrics?minutes=43200").status_code == 403
+        # Alerty i lista sprawdzeń z adresami – nigdy
+        assert data("/api/alerts/summary").status_code == 403
+        assert data("/api/alerts?state=all&limit=5").status_code == 403
+        assert data("/api/checks").status_code == 403
+
+
 def test_pin_rotate_disable_and_expiry(client):
     wall = client.post("/api/dashboards", json={"name": "Ściana", "layout": LAYOUT}).json()
     # PIN tylko z cyfr

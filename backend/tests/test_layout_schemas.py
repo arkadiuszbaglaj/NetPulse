@@ -152,6 +152,31 @@ def test_summary_tiles_rules():
         DashboardLayout.model_validate(layout({"id": "s", "type": "summary", "w": 12, "config": {"tiles": ["cos"]}}))
 
 
+def test_overview_widgets():
+    """Od 0.42.0: pasek stanu, alerty, dostępność i tabela urządzeń."""
+    parsed = DashboardLayout.model_validate(
+        layout(
+            {"id": "st", "type": "status", "w": 12},
+            {"id": "al", "type": "alerts", "w": 4, "config": {"limit": 8}},
+            {"id": "ch", "type": "checks", "w": 4},
+            {"id": "d", "type": "devices", "w": 8, "config": {"display": "table"}},
+        )
+    )
+    assert parsed.widgets[1].config.limit == 8
+    assert parsed.widgets[2].config.days == 30
+    assert parsed.widgets[3].config.display == "table"
+    # Stare pulpity bez pola `display` – karty jak dotąd
+    assert DashboardLayout.model_validate(layout({"id": "d", "type": "devices", "w": 12})).widgets[0].config.display == "cards"
+    for bad in (
+        {"id": "al", "type": "alerts", "w": 4, "config": {"limit": 50}},
+        {"id": "ch", "type": "checks", "w": 4, "config": {"days": 365}},
+        {"id": "st", "type": "status", "w": 12, "config": {"cos": 1}},
+        {"id": "d", "type": "devices", "w": 8, "config": {"display": "lista"}},
+    ):
+        with pytest.raises(ValidationError):
+            DashboardLayout.model_validate(layout(bad))
+
+
 def test_only_schema_version_one_is_accepted():
     with pytest.raises(ValidationError):
         DashboardLayout.model_validate({"version": 2, "widgets": []})

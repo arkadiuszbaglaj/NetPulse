@@ -14,7 +14,8 @@ interface DashboardById {
   updated_at: string;
 }
 
-/** Zapisany układ albo układ domyślny (gdy użytkownik niczego nie zapisał). `id` – konkretny pulpit zamiast domyślnego. */
+/** Zapisany układ albo układ domyślny (gdy użytkownik niczego nie zapisał). `id` – konkretny pulpit zamiast domyślnego.
+ * Do czasu odpowiedzi API (`isPending`) pulpit nic nie rysuje – bez mignięcia układu domyślnego przed zapisanym. */
 export function useDashboardLayout(id?: number) {
   const byDefault = useQuery({
     queryKey: LAYOUT_KEY,

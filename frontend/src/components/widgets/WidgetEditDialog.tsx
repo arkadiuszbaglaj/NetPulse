@@ -1,13 +1,17 @@
-/** Okna edycji widgetów: wykres (ChartEditor), podsumowanie (kafelki), karty urządzeń (filtr), PoE i łącza WAN. */
+/** Okna edycji widgetów: wykres (ChartEditor), podsumowanie (kafelki), urządzenia (wygląd, filtr), PoE, łącza WAN, alerty i dostępność. */
 import { useState } from "react";
 import { PieForm } from "./PieEditor";
 import { t, type TextKey } from "../../i18n";
 import { type Device } from "../../lib/api";
 import {
+  ALERTS_LIMITS,
   DEVICE_KINDS,
   SUMMARY_TILES,
+  type AlertsLimit,
   type ChartHeight,
+  type ChecksDays,
   type DeviceKind,
+  type DevicesDisplay,
   type SummaryTile,
   type WanChartWidgetModel,
   type WanMetric,
@@ -111,8 +115,19 @@ function SummaryForm({ initial, onSave, onClose }: { initial: SummaryTile[]; onS
   );
 }
 
-function DevicesForm({ initial, onSave, onClose }: { initial: DeviceKind[] | null | undefined; onSave: (kinds: DeviceKind[] | null) => void; onClose: () => void }) {
+function DevicesForm({
+  initial,
+  initialDisplay,
+  onSave,
+  onClose,
+}: {
+  initial: DeviceKind[] | null | undefined;
+  initialDisplay: DevicesDisplay | undefined;
+  onSave: (kinds: DeviceKind[] | null, display: DevicesDisplay) => void;
+  onClose: () => void;
+}) {
   const [kinds, setKinds] = useState<DeviceKind[]>(initial ?? []);
+  const [display, setDisplay] = useState<DevicesDisplay>(initialDisplay ?? "cards");
   const toggle = (k: DeviceKind, on: boolean) => setKinds(DEVICE_KINDS.filter((x) => (x === k ? on : kinds.includes(x))));
   return (
     <Dialog
@@ -124,13 +139,17 @@ function DevicesForm({ initial, onSave, onClose }: { initial: DeviceKind[] | nul
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" onClick={() => onSave(kinds.length === 0 ? null : kinds)}>
+          <Button variant="primary" onClick={() => onSave(kinds.length === 0 ? null : kinds, display)}>
             {t("common.save")}
           </Button>
         </>
       }
     >
-      <fieldset className="flex flex-col gap-2">
+      <Select id="dev-display" label={t("widget.devices.display")} value={display} onChange={(e) => setDisplay(e.target.value as DevicesDisplay)}>
+        <option value="table">{t("widget.devices.display.table")}</option>
+        <option value="cards">{t("widget.devices.display.cards")}</option>
+      </Select>
+      <fieldset className="mt-4 flex flex-col gap-2">
         <legend className="mb-1 text-sm font-medium">{t("widget.devices.filter")}</legend>
         {DEVICE_KINDS.map((k) => (
           <Checkbox key={k} id={`dk-${k}`} label={t(KIND_LABEL[k])} checked={kinds.includes(k)} onChange={(on) => toggle(k, on)} />
@@ -173,10 +192,10 @@ function PoeForm({ initial, onSave, onClose }: { initial: number | null | undefi
 }
 
 /** Karta serwera nie ma ustawień – okno tylko wyjaśnia, skąd bierze dane. */
-function ServerInfo({ isNew, onSave, onClose }: { isNew: boolean; onSave: () => void; onClose: () => void }) {
+function InfoDialog({ title, text, isNew, onSave, onClose }: { title: TextKey; text: TextKey; isNew: boolean; onSave: () => void; onClose: () => void }) {
   return (
     <Dialog
-      title={t("widget.type.server")}
+      title={t(title)}
       size="sm"
       onClose={onClose}
       footer={
@@ -196,10 +215,58 @@ function ServerInfo({ isNew, onSave, onClose }: { isNew: boolean; onSave: () => 
         )
       }
     >
-      <p className="text-sm text-text-2">{t("widget.server.info")}</p>
+      <p className="text-sm text-text-2">{t(text)}</p>
     </Dialog>
   );
 }
+
+/** Jedno pole wyboru (alerty: ile pokazać, dostępność: okres). */
+function ChoiceForm<V extends number>({
+  title,
+  label,
+  options,
+  initial,
+  isNew,
+  onSave,
+  onClose,
+}: {
+  title: TextKey;
+  label: TextKey;
+  options: { value: V; label: string }[];
+  initial: V;
+  isNew: boolean;
+  onSave: (value: V) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState<V>(initial);
+  return (
+    <Dialog
+      title={t(title)}
+      size="sm"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" onClick={() => onSave(value)}>
+            {isNew ? t("widget.add.title") : t("common.save")}
+          </Button>
+        </>
+      }
+    >
+      <Select id="choice" label={t(label)} value={value} onChange={(e) => setValue(Number(e.target.value) as V)}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </Select>
+    </Dialog>
+  );
+}
+
+const CHECKS_DAYS: ChecksDays[] = [7, 30];
 
 // --- łącza WAN ----------------------------------------------------------------------------------
 
@@ -293,9 +360,42 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
     case "summary":
       return <SummaryForm initial={widget.config.tiles} onClose={onClose} onSave={(tiles) => onSave({ ...widget, config: { tiles } })} />;
     case "devices":
-      return <DevicesForm initial={widget.config.kinds} onClose={onClose} onSave={(kinds) => onSave({ ...widget, config: { kinds } })} />;
+      return (
+        <DevicesForm
+          initial={widget.config.kinds}
+          initialDisplay={widget.config.display}
+          onClose={onClose}
+          onSave={(kinds, display) => onSave({ ...widget, config: { kinds, display } })}
+        />
+      );
     case "server":
-      return <ServerInfo isNew={isNew} onClose={onClose} onSave={() => onSave(widget)} />;
+      return <InfoDialog title="widget.type.server" text="widget.server.info" isNew={isNew} onClose={onClose} onSave={() => onSave(widget)} />;
+    case "status":
+      return <InfoDialog title="widget.type.status" text="widget.status.info" isNew={isNew} onClose={onClose} onSave={() => onSave(widget)} />;
+    case "alerts":
+      return (
+        <ChoiceForm<AlertsLimit>
+          title="widget.type.alerts"
+          label="widget.alerts.limit"
+          options={ALERTS_LIMITS.map((n) => ({ value: n, label: String(n) }))}
+          initial={widget.config.limit}
+          isNew={isNew}
+          onClose={onClose}
+          onSave={(limit) => onSave({ ...widget, config: { limit } })}
+        />
+      );
+    case "checks":
+      return (
+        <ChoiceForm<ChecksDays>
+          title="widget.type.checks"
+          label="widget.checks.days"
+          options={CHECKS_DAYS.map((d) => ({ value: d, label: t(`widget.checks.days.${d}`) }))}
+          initial={widget.config.days}
+          isNew={isNew}
+          onClose={onClose}
+          onSave={(days) => onSave({ ...widget, config: { days } })}
+        />
+      );
     case "poe":
       return <PoeForm initial={widget.config.device_id} onClose={onClose} onSave={(device_id) => onSave({ ...widget, config: { device_id } })} />;
     case "wan_status":

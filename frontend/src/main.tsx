@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
+import "@fontsource-variable/inter";
 import "./index.css";
 import { createQueryClient } from "./lib/queryClient";
 import { RefreshProvider } from "./lib/refresh";

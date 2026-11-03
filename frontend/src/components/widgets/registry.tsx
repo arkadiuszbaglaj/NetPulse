@@ -1,7 +1,10 @@
 /** Rejestr widgetów: typ → nazwa, opis, ikona i widok. Nowy typ widgetu = jeden wpis tutaj. */
 import {
+  IconActivityHeartbeat,
   IconArrowsExchange,
+  IconBell,
   IconBolt,
+  IconCircleCheck,
   IconChartBar,
   IconChartLine,
   IconChartPie,
@@ -24,6 +27,7 @@ import { DevicesWidget } from "./DevicesWidget";
 import { HeatmapWidget, heatmapTitle } from "./HeatmapWidget";
 import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget, collectionTitle, statTitle, stateTimelineTitle } from "./PanelWidgets";
 import { SectionHeader } from "../DashboardGrid";
+import { AlertsWidget, ChecksWidget, StatusWidget } from "./OverviewWidgets";
 import { PieWidget } from "./PieWidget";
 import { pieTitle } from "../../lib/pie";
 import { PoeWidget } from "./PoeWidget";
@@ -34,6 +38,7 @@ import { WanSlaWidget } from "./WanSlaWidget";
 import { WanStatusWidget } from "./WanStatusWidget";
 
 export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: TextKey; icon: Icon }[] = [
+  { type: "status", label: "widget.type.status", description: "widget.type.status.desc", icon: IconCircleCheck },
   { type: "chart", label: "widget.type.chart", description: "widget.type.chart.desc", icon: IconChartLine },
   { type: "stat", label: "widget.type.stat", description: "widget.type.stat.desc", icon: IconNumber },
   { type: "pie", label: "widget.type.pie", description: "widget.type.pie.desc", icon: IconChartPie },
@@ -44,6 +49,8 @@ export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: Text
   { type: "section", label: "widget.type.section", description: "widget.type.section.desc", icon: IconHeading },
   { type: "summary", label: "widget.type.summary", description: "widget.type.summary.desc", icon: IconLayoutGrid },
   { type: "devices", label: "widget.type.devices", description: "widget.type.devices.desc", icon: IconListDetails },
+  { type: "alerts", label: "widget.type.alerts", description: "widget.type.alerts.desc", icon: IconBell },
+  { type: "checks", label: "widget.type.checks", description: "widget.type.checks.desc", icon: IconActivityHeartbeat },
   { type: "poe", label: "widget.type.poe", description: "widget.type.poe.desc", icon: IconBolt },
   { type: "server", label: "widget.type.server", description: "widget.type.server.desc", icon: IconServer },
   { type: "wan_status", label: "widget.type.wan_status", description: "widget.type.wan_status.desc", icon: IconWorld },
@@ -83,6 +90,12 @@ export function widgetTitle(w: Widget): string {
       return pieTitle(w.config);
     case "section":
       return w.config.title || t("widget.type.section");
+    case "status":
+      return t("widget.type.status");
+    case "alerts":
+      return t("widget.type.alerts");
+    case "checks":
+      return t("widget.type.checks");
   }
 }
 
@@ -94,7 +107,7 @@ export function WidgetView({ widget }: { widget: Widget }) {
     case "summary":
       return <SummaryWidget tiles={widget.config.tiles} />;
     case "devices":
-      return <DevicesWidget kinds={widget.config.kinds} />;
+      return <DevicesWidget kinds={widget.config.kinds} display={widget.config.display} />;
     case "poe":
       return <PoeWidget deviceId={widget.config.device_id} />;
     case "server":
@@ -119,5 +132,11 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <PieWidget config={widget.config} />;
     case "section":
       return <SectionHeader title={widget.config.title} />;
+    case "status":
+      return <StatusWidget />;
+    case "alerts":
+      return <AlertsWidget limit={widget.config.limit} />;
+    case "checks":
+      return <ChecksWidget days={widget.config.days} />;
   }
 }

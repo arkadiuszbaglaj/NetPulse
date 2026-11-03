@@ -125,13 +125,18 @@ function wanChart(w: Widget["w"], height: ChartHeight = "md"): ChartWidgetModel 
 export function templateWidgets(id: TemplateId): Widget[] {
   switch (id) {
     case "full":
-      return [...DEFAULT_LAYOUT.widgets.map((w) => ({ ...w, id: newId() })), sized("wan_status", 4), sized("server", 4)];
+      return [
+        ...DEFAULT_LAYOUT.widgets.map((w) => ({ ...w, id: newId() })),
+        { id: newId(), type: "chart", w: 4, config: newChartConfig({ kind: "wifi_total" }) },
+        sized("wan_status", 4),
+        sized("server", 4),
+      ];
     case "wan":
       return [sized("wan_status", 4), sized("wan_chart", 8), wanChart(12), newWidget("wan_sla")];
     case "devices":
-      return [{ id: newId(), type: "summary", w: 12, config: { tiles: ["devices"] } }, newWidget("devices"), newWidget("poe")];
+      return [{ id: newId(), type: "summary", w: 12, config: { tiles: ["devices"] } }, sized("devices", 12), newWidget("poe")];
     case "wall":
-      return [newWidget("summary"), wanChart(8, "lg"), sized("wan_status", 4), newWidget("devices")];
+      return [newWidget("summary"), wanChart(8, "lg"), sized("wan_status", 4), sized("devices", 12)];
     case "empty":
       return [];
   }

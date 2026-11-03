@@ -153,13 +153,13 @@ export function SuccessNote({ children }: { children: ReactNode }) {
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-border bg-surface ${className}`}>{children}</div>;
+  return <div className={`rounded-xl border border-border bg-surface shadow-[var(--shadow-card)] ${className}`}>{children}</div>;
 }
 
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-xl font-medium">{title}</h1>
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       {children}
     </div>
   );

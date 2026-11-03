@@ -384,6 +384,19 @@ class SummaryConfig(Strict):
 
 class DevicesConfig(Strict):
     kinds: list[Literal["gateway", "switch", "ap", "server", "other"]] | None = Field(None, max_length=4)  # puste = wszystkie
+    display: Literal["cards", "table"] = "cards"  # od 0.42.0 tabela z CPU i RAM
+
+
+class StatusConfig(Strict):
+    """Pasek „Sieć działa prawidłowo” (od 0.42.0) – bez ustawień."""
+
+
+class AlertsConfig(Strict):
+    limit: Literal[3, 5, 8, 10] = 5  # ostatnie alerty, aktywne na górze
+
+
+class ChecksConfig(Strict):
+    days: Literal[7, 30] = 30  # paski dostępności dzień po dniu
 
 
 class ServerConfig(Strict):
@@ -438,6 +451,36 @@ class DevicesWidget(Strict):
     y: int | None = Field(None, ge=0, le=MAX_ROW)
     h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: DevicesConfig = DevicesConfig()
+
+
+class StatusWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["status"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: StatusConfig = StatusConfig()
+
+
+class AlertsWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["alerts"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: AlertsConfig = AlertsConfig()
+
+
+class ChecksWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["checks"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: ChecksConfig = ChecksConfig()
 
 
 class PoeWidget(Strict):
@@ -673,7 +716,10 @@ Widget = Annotated[
     | StateTimelineWidget
     | HeatmapWidget
     | PieWidget
-    | SectionWidget,
+    | SectionWidget
+    | StatusWidget
+    | AlertsWidget
+    | ChecksWidget,
     Field(discriminator="type"),
 ]
 

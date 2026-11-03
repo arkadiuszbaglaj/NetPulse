@@ -316,7 +316,29 @@ createServer(async (req, res) => {
     }
     return send(res, 200, points);
   }
+  // Alerty (pasek stanu i widget „Alerty”, od 0.42.0)
+  if (route === "GET /api/alerts/summary") return send(res, 200, { firing: 1, unacked: 1, unacked_critical: 0, critical: 0, warning: 1, info: 0 });
+  if (route === "GET /api/alerts") {
+    const a = (id, state, severity, title, start, end) => ({ id, rule_id: 1, state, severity, title, message: null, device_id: null, value: null, peak: null, started_at: ago(start), resolved_at: end == null ? null : ago(end), acked_at: null, acked_by: null });
+    const all = [
+      a(4, "firing", "warning", "Dysk /mnt/data zajęty w 91 %", 720, null),
+      a(3, "resolved", "critical", "Garaż (test) nie odpowiada", 11000, 10800),
+      a(2, "resolved", "warning", "Ping 8.8.8.8 – utrata 20 %", 30000, 29800),
+      a(1, "resolved", "info", "Kopia vzdump LXC 101 gotowa", 50000, 49990),
+    ];
+    const state = url.searchParams.get("state") ?? "firing";
+    return send(res, 200, all.filter((x) => state === "all" || x.state === state).slice(0, Number(url.searchParams.get("limit") ?? 100)));
+  }
+  if (route === "GET /api/availability") return send(res, 200, devices.map((d) => ({ device_id: d.id, percent: d.status === "up" ? 99.9 : 61.2 })));
   const coll = /^\/api\/collections\/(\w+)$/.exec(url.pathname);
+  if (req.method === "GET" && coll && coll[1] === "checks") {
+    const rows = [
+      ["1", "Internet – Google DNS", 1, 15.2, 99.8],
+      ["2", "Brama UCG", 1, 0.9, 100],
+      ["3", "Pi-hole", 0, 41, 96.4],
+    ].map(([key, label, up, latency_ms, availability_percent]) => ({ key, label, device_id: null, values: { up, latency_ms, loss_percent: 0, availability_percent, cert_days: null } }));
+    return send(res, 200, { kind: "checks", rows });
+  }
   if (req.method === "GET" && coll) {
     const kind = coll[1];
     const rows =

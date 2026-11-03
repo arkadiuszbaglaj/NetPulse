@@ -1,27 +1,30 @@
 @import "tailwindcss";
 
 /* Kolory jako zmienne – motyw przełącza atrybut data-theme na <html> (patrz lib/theme.tsx) */
+/* Kolory jako zmienne – motyw przełącza atrybut data-theme na <html> (patrz lib/theme.tsx).
+   Styl od 0.42.0: szarości i biel (wariant A „klasyczny jasny”), grafit jako akcent, kolor tylko dla stanów. */
 :root {
   color-scheme: light;
-  --bg: #f6f6f3;
+  --bg: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f0f0ec;
-  --border: rgb(0 0 0 / 0.1);
-  --border-strong: rgb(0 0 0 / 0.2);
-  --text: #1c1c1a;
-  --text-2: #5f5e5a;
-  --text-muted: #8a8983;
-  --accent: #185fa5;
-  --accent-hover: #124d87;
-  --accent-soft: #e6f1fb;
+  --surface-2: #f4f4f5;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --text: #18181b;
+  --text-2: #52525b;
+  --text-muted: #71717a;
+  --accent: #27272a;
+  --accent-hover: #09090b;
+  --accent-soft: #f4f4f5;
   --on-accent: #ffffff;
-  --success: #3b6d11;
-  --success-soft: #eaf3de;
-  --warning: #854f0b;
-  --warning-soft: #faeeda;
-  --danger: #a32d2d;
-  --danger-soft: #fcebeb;
-  --ring: rgb(24 95 165 / 0.35);
+  --success: #15803d;
+  --success-soft: #f0fdf4;
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --ring: rgb(39 39 42 / 0.3);
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
   --chart-1: #185fa5;
   --chart-2: #1d9e75;
   --chart-3: #7f77dd;
@@ -34,25 +37,26 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121211;
-  --surface: #1c1c1a;
-  --surface-2: #272725;
-  --border: rgb(255 255 255 / 0.1);
-  --border-strong: rgb(255 255 255 / 0.22);
-  --text: #ecece8;
-  --text-2: #b4b2a9;
-  --text-muted: #888780;
-  --accent: #85b7eb;
-  --accent-hover: #b5d4f4;
-  --accent-soft: #0c447c;
-  --on-accent: #042c53;
-  --success: #97c459;
-  --success-soft: #173404;
-  --warning: #fac775;
-  --warning-soft: #412402;
-  --danger: #f09595;
-  --danger-soft: #501313;
-  --ring: rgb(133 183 235 / 0.45);
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface-2: #27272a;
+  --border: #2e2e33;
+  --border-strong: #3f3f46;
+  --text: #fafafa;
+  --text-2: #a1a1aa;
+  --text-muted: #8e8e97;
+  --accent: #f4f4f5;
+  --accent-hover: #ffffff;
+  --accent-soft: #27272a;
+  --on-accent: #18181b;
+  --success: #4ade80;
+  --success-soft: #052e16;
+  --warning: #fbbf24;
+  --warning-soft: #3b2405;
+  --danger: #f87171;
+  --danger-soft: #450a0a;
+  --ring: rgb(244 244 245 / 0.35);
+  --shadow-card: none;
   --chart-1: #85b7eb;
   --chart-2: #5dcaa5;
   --chart-3: #afa9ec;
@@ -82,7 +86,7 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
@@ -100,6 +104,8 @@ body {
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Cyfry równej szerokości – liczby w tabelach i kafelkach nie skaczą przy odświeżaniu */
+  font-variant-numeric: tabular-nums;
 }
 
 :focus-visible {

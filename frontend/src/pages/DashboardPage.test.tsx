@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -37,8 +37,8 @@ describe("dashboard", () => {
   it("rysuje wykresy ruchu WAN i klientów WiFi z danymi z API", async () => {
     mockApi();
     renderApp();
-    const charts = await screen.findAllByTestId("chart");
-    expect(charts).toHaveLength(2);
+    await waitFor(() => expect(screen.getAllByTestId("chart")).toHaveLength(2));
+    const charts = screen.getAllByTestId("chart");
     expect(charts[0]).toHaveTextContent("Pobieranie, Wysyłanie");
     expect(charts[0]).toHaveAttribute("data-points", "2");
     expect(charts[1]).toHaveTextContent("Klienci");

@@ -99,8 +99,9 @@ export function useAvailability(kind: AvailabilityKind, id: number, days: number
 }
 
 /** Dostępność wszystkich urządzeń (karty na pulpicie): {id urządzenia: %}. */
-export function useDevicesAvailability(days = 30) {
+export function useDevicesAvailability(days = 30, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["availability", "all", days],
     queryFn: () => get<DeviceAvailability[]>(`/api/availability?days=${days}`),
     select: (rows) => Object.fromEntries(rows.map((r) => [r.device_id, r.percent])) as Record<number, number | null>,

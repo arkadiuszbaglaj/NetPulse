@@ -19,6 +19,7 @@ import type { Modules } from "../lib/modules";
 import type { ProxmoxGuest, ProxmoxServer, ProxmoxStorage } from "../lib/proxmox";
 import type { Alert, AlertRule } from "../lib/alerts";
 import type { DashboardLayout } from "../lib/layout";
+import { CLASSIC_LAYOUT } from "./layouts";
 import type { NotificationChannel } from "../lib/notifications";
 import type { ServerStatus } from "../components/widgets/ServerDetails";
 import type { SystemInfo } from "../lib/system";
@@ -339,7 +340,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     wifi: { interval_s: 30, points: [{ time: "2026-10-24T20:00:00Z", values: { clients: 5 } }] },
     probe: PROBE,
     admin: true,
-    layout: null,
+    // Zapisany pulpit sprzed 0.42.0; `layout: null` = nic nie zapisano (układ domyślny z panelu)
+    layout: CLASSIC_LAYOUT,
     controllers: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },

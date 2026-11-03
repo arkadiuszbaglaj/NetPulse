@@ -175,6 +175,13 @@ pełny ekran (`WidgetExpandContext`), menu „⋯” z eksportem CSV/PNG (`Widge
 wykresów: `ChartCard` też rysuje `PanelChart` (stary `TimeSeriesChart` usunięty). Mapa cieplna ✅ (0.37.0): widget `heatmap`
 (godzina × dzień tygodnia albo data, `lib/heatmap.ts`, dane tydzień po tygodniu z API metryk). Wykres kołowy ✅ (0.39.0): widget `pie` – urządzenie, potem co monitorować (zajętość, udział, stan; `lib/pie.ts`); od 0.40.0 jeden wybrany port (obciążenie albo odbierane / wysyłane) z danymi na żywo. Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
 
+## Nowy wygląd panelu (0.42.0)
+
+Wariant A „klasyczny jasny” (szarości i biel, grafitowy akcent, Inter w paczce, menu z grupami) i nowy pulpit
+domyślny z widgetami `status`, `alerts`, `checks` oraz tabelą urządzeń (`display: "table"`). Nowy widget = też
+wpis w `layout_schemas.py` i ścieżki w `resolve()` (pulpit publiczny). Opis: `docs/06-projekt-panelu.md`
+(„Nowy wygląd”). Następny krok uzgodniony z użytkownikiem: uporządkowanie wykresów (kolory, czytelność).
+
 ## Do sprawdzenia później
 
 - **Wykrywanie urządzeń i zgłaszanie specyfikacji** – propozycja w `docs/24-wykrywanie-propozycja.md` (tylko

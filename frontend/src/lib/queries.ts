@@ -21,9 +21,10 @@ export function useDevices() {
   });
 }
 
-export function useSeries(kind: "traffic" | "wifi") {
+export function useSeries(kind: "traffic" | "wifi", enabled = true) {
   const { refetchInterval, rangeMinutes } = useRefresh();
   return useQuery({
+    enabled,
     queryKey: ["dashboard", kind, rangeMinutes],
     queryFn: () => get<Series>(`/api/dashboard/${kind}?minutes=${rangeMinutes}`),
     refetchInterval,

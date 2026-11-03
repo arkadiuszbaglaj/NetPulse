@@ -77,13 +77,14 @@ export interface RuleMetric {
 export const ALERTS_KEY = ["alerts"] as const;
 export const RULES_KEY = ["alert-rules"] as const;
 
-export function useAlertSummary() {
+export function useAlertSummary(enabled = true) {
   const { refetchInterval } = useRefresh();
   return useQuery({
     queryKey: [...ALERTS_KEY, "summary"],
     queryFn: () => get<AlertSummary>("/api/alerts/summary"),
     refetchInterval,
     retry: false,
+    enabled,
   });
 }
 

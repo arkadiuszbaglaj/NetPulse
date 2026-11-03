@@ -154,7 +154,15 @@ interface WidgetBase {
 }
 export type SummaryWidgetModel = WidgetBase & { type: "summary"; config: { tiles: SummaryTile[] } };
 export type ChartWidgetModel = WidgetBase & { type: "chart"; config: ChartConfig };
-export type DevicesWidgetModel = WidgetBase & { type: "devices"; config: { kinds?: DeviceKind[] | null } };
+export type DevicesDisplay = "cards" | "table";
+export type DevicesWidgetModel = WidgetBase & { type: "devices"; config: { kinds?: DeviceKind[] | null; display?: DevicesDisplay } };
+/** Od 0.42.0: pasek stanu sieci, ostatnie alerty i paski dostępności sprawdzeń (dzień po dniu). */
+export type StatusWidgetModel = WidgetBase & { type: "status"; config: Record<string, never> };
+export type AlertsLimit = 3 | 5 | 8 | 10;
+export const ALERTS_LIMITS: AlertsLimit[] = [3, 5, 8, 10];
+export type AlertsWidgetModel = WidgetBase & { type: "alerts"; config: { limit: AlertsLimit } };
+export type ChecksDays = 7 | 30;
+export type ChecksWidgetModel = WidgetBase & { type: "checks"; config: { days: ChecksDays } };
 export type PoeWidgetModel = WidgetBase & { type: "poe"; config: { device_id?: number | null } };
 export type ServerWidgetModel = WidgetBase & { type: "server"; config: Record<string, never> };
 /** Łącza WAN (dual WAN): `device_id` – router, puste = wszystkie routery. */
@@ -291,7 +299,10 @@ export type Widget =
   | StateTimelineWidgetModel
   | SectionWidgetModel
   | HeatmapWidgetModel
-  | PieWidgetModel;
+  | PieWidgetModel
+  | StatusWidgetModel
+  | AlertsWidgetModel
+  | ChecksWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -471,7 +482,13 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
     case "chart":
       return { id, type, w: 6, config: newChartConfig() };
     case "devices":
-      return { id, type, w: 12, config: { kinds: null } };
+      return { id, type, w: 8, config: { kinds: null, display: "table" } };
+    case "status":
+      return { id, type, w: 12, config: {} };
+    case "alerts":
+      return { id, type, w: 4, config: { limit: 5 } };
+    case "checks":
+      return { id, type, w: 4, config: { days: 30 } };
     case "poe":
       return { id, type, w: 12, config: { device_id: null } };
     case "server":
@@ -539,7 +556,15 @@ export function defaultHeight(w: Widget): number {
     case "section":
       return 1;
     case "summary":
-      return 3;
+      return 4;
+    case "status":
+      return 2;
+    case "alerts":
+      return 10;
+    case "checks":
+      return 11;
+    case "devices":
+      return w.config.display === "table" ? 11 : 8;
     case "stat":
       return 4;
     case "chart":
@@ -650,10 +675,11 @@ export function applyPositions(l: DashboardLayout, items: { i: string; x: number
   };
 }
 
-/** Układ domyślny: to samo, co pokazywał pulpit przed personalizacją. */
+/** Układ domyślny (od 0.42.0, wariant A): stan sieci, liczby, ruch WAN z alertami, urządzenia z dostępnością. */
 export const DEFAULT_LAYOUT: DashboardLayout = {
   version: 1,
   widgets: [
+    { id: "stan-sieci", type: "status", w: 12, config: {} },
     { id: "podsumowanie", type: "summary", w: 12, config: { tiles: [...SUMMARY_TILES] } },
     {
       id: "ruch-wan",
@@ -661,13 +687,9 @@ export const DEFAULT_LAYOUT: DashboardLayout = {
       w: 8,
       config: newChartConfig({ kind: "wan" }),
     },
-    {
-      id: "klienci-wifi",
-      type: "chart",
-      w: 4,
-      config: newChartConfig({ kind: "wifi_total" }),
-    },
-    { id: "urzadzenia", type: "devices", w: 12, config: { kinds: null } },
+    { id: "alerty", type: "alerts", w: 4, config: { limit: 5 } },
+    { id: "urzadzenia", type: "devices", w: 8, config: { kinds: null, display: "table" } },
+    { id: "dostepnosc", type: "checks", w: 4, config: { days: 30 } },
   ],
 };
 

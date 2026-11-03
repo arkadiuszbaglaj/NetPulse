@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
-  DEFAULT_LAYOUT,
   addWidget,
   dropOn,
   moveWidget,
@@ -17,45 +16,46 @@ import {
   valueFromRaw,
   valueToRaw,
 } from "../lib/layout";
+import { CLASSIC_LAYOUT } from "../test/layouts";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
-const ids = (l: typeof DEFAULT_LAYOUT) => l.widgets.map((w) => w.id);
+const ids = (l: typeof CLASSIC_LAYOUT) => l.widgets.map((w) => w.id);
 
 describe("operacje na układzie pulpitu", () => {
   it("przestawia widgety w kolejności czytania (telefon i tablet)", () => {
-    const order = (l: typeof DEFAULT_LAYOUT) => readingOrder(placeWidgets(l.widgets)).map((w) => w.id);
+    const order = (l: typeof CLASSIC_LAYOUT) => readingOrder(placeWidgets(l.widgets)).map((w) => w.id);
     // W tym samym wierszu widgety zamieniają się kolumnami i nie wychodzą poza siatkę
-    const sameRow = swapInReadingOrder(DEFAULT_LAYOUT, "ruch-wan", 1);
+    const sameRow = swapInReadingOrder(CLASSIC_LAYOUT, "ruch-wan", 1);
     expect(order(sameRow)).toEqual(["podsumowanie", "klienci-wifi", "ruch-wan", "urzadzenia"]);
     expect(sameRow.widgets.every((w) => (w.x ?? 0) + w.w <= 12)).toBe(true);
-    expect(order(swapInReadingOrder(DEFAULT_LAYOUT, "urzadzenia", -1))).toEqual(["podsumowanie", "ruch-wan", "urzadzenia", "klienci-wifi"]);
-    expect(order(swapInReadingOrder(DEFAULT_LAYOUT, "ruch-wan", -1))).toEqual(["ruch-wan", "podsumowanie", "klienci-wifi", "urzadzenia"]);
+    expect(order(swapInReadingOrder(CLASSIC_LAYOUT, "urzadzenia", -1))).toEqual(["podsumowanie", "ruch-wan", "urzadzenia", "klienci-wifi"]);
+    expect(order(swapInReadingOrder(CLASSIC_LAYOUT, "ruch-wan", -1))).toEqual(["ruch-wan", "podsumowanie", "klienci-wifi", "urzadzenia"]);
     // Pierwszy w górę i ostatni w dół – bez zmian
-    expect(swapInReadingOrder(DEFAULT_LAYOUT, "podsumowanie", -1)).toBe(DEFAULT_LAYOUT);
-    expect(swapInReadingOrder(DEFAULT_LAYOUT, "urzadzenia", 1)).toBe(DEFAULT_LAYOUT);
+    expect(swapInReadingOrder(CLASSIC_LAYOUT, "podsumowanie", -1)).toBe(CLASSIC_LAYOUT);
+    expect(swapInReadingOrder(CLASSIC_LAYOUT, "urzadzenia", 1)).toBe(CLASSIC_LAYOUT);
   });
 
   it("przesuwa widget i nie mutuje wejścia", () => {
-    const moved = shiftWidget(DEFAULT_LAYOUT, "podsumowanie", 1);
+    const moved = shiftWidget(CLASSIC_LAYOUT, "podsumowanie", 1);
     expect(ids(moved)).toEqual(["ruch-wan", "podsumowanie", "klienci-wifi", "urzadzenia"]);
-    expect(ids(DEFAULT_LAYOUT)[0]).toBe("podsumowanie");
+    expect(ids(CLASSIC_LAYOUT)[0]).toBe("podsumowanie");
   });
 
   it("nie wychodzi poza zakres przy przesuwaniu", () => {
-    expect(shiftWidget(DEFAULT_LAYOUT, "podsumowanie", -1)).toBe(DEFAULT_LAYOUT);
-    expect(moveWidget(DEFAULT_LAYOUT, "podsumowanie", 99).widgets.at(-1)?.id).toBe("podsumowanie");
+    expect(shiftWidget(CLASSIC_LAYOUT, "podsumowanie", -1)).toBe(CLASSIC_LAYOUT);
+    expect(moveWidget(CLASSIC_LAYOUT, "podsumowanie", 99).widgets.at(-1)?.id).toBe("podsumowanie");
   });
 
   it("upuszczenie na inny widget zajmuje jego miejsce", () => {
-    expect(ids(dropOn(DEFAULT_LAYOUT, "urzadzenia", "ruch-wan"))).toEqual(["podsumowanie", "urzadzenia", "ruch-wan", "klienci-wifi"]);
-    expect(dropOn(DEFAULT_LAYOUT, "urzadzenia", "urzadzenia")).toBe(DEFAULT_LAYOUT);
+    expect(ids(dropOn(CLASSIC_LAYOUT, "urzadzenia", "ruch-wan"))).toEqual(["podsumowanie", "urzadzenia", "ruch-wan", "klienci-wifi"]);
+    expect(dropOn(CLASSIC_LAYOUT, "urzadzenia", "urzadzenia")).toBe(CLASSIC_LAYOUT);
   });
 
   it("zmienia szerokość, usuwa i dodaje widgety", () => {
-    expect(resizeWidget(DEFAULT_LAYOUT, "ruch-wan", 12).widgets[1].w).toBe(12);
-    expect(ids(removeWidget(DEFAULT_LAYOUT, "ruch-wan"))).not.toContain("ruch-wan");
-    expect(addWidget(DEFAULT_LAYOUT, newWidget("chart", "nowy")).widgets.at(-1)?.id).toBe("nowy");
+    expect(resizeWidget(CLASSIC_LAYOUT, "ruch-wan", 12).widgets[1].w).toBe(12);
+    expect(ids(removeWidget(CLASSIC_LAYOUT, "ruch-wan"))).not.toContain("ruch-wan");
+    expect(addWidget(CLASSIC_LAYOUT, newWidget("chart", "nowy")).widgets.at(-1)?.id).toBe("nowy");
   });
 
   it("metryka w innej jednostce niż oś lewa trafia na oś prawą", () => {
@@ -79,9 +79,12 @@ describe("operacje na układzie pulpitu", () => {
 
 describe("edycja pulpitu", () => {
   it("pokazuje układ domyślny, gdy nic nie zapisano", async () => {
-    mockApi();
+    mockApi({ layout: null });
     renderApp();
-    expect(await screen.findAllByTestId("chart")).toHaveLength(2);
+    // Od 0.42.0: pasek stanu, liczby, ruch WAN z alertami, tabela urządzeń i dostępność
+    expect(await screen.findAllByTestId("chart")).toHaveLength(1);
+    expect(await screen.findByRole("heading", { name: "Alerty" })).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: /Urządzenia/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edytuj pulpit" })).toBeInTheDocument();
   });
 
@@ -111,7 +114,7 @@ describe("edycja pulpitu", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Odrzucić zmiany?" });
     await user.click(within(dialog).getByRole("button", { name: "Odrzuć zmiany" }));
-    expect(state.layout).toBeNull();
+    expect(state.layout).toEqual(CLASSIC_LAYOUT);
     expect(await screen.findAllByTestId("chart")).toHaveLength(2);
   });
 
@@ -163,7 +166,7 @@ describe("edycja pulpitu", () => {
 
     await waitFor(() => expect(state.layout).toBeNull());
     expect(calls.some((c) => c.method === "DELETE" && c.path === "/api/dashboards/default")).toBe(true);
-    expect(await screen.findAllByTestId("chart")).toHaveLength(2);
+    expect(await screen.findAllByTestId("chart")).toHaveLength(1);
   });
 
   it("pokazuje błąd, gdy zapis się nie uda, i zostaje w trybie edycji", async () => {
