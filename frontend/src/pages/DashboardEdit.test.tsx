@@ -55,7 +55,7 @@ describe("operacje na układzie pulpitu", () => {
   it("zmienia szerokość, usuwa i dodaje widgety", () => {
     expect(resizeWidget(CLASSIC_LAYOUT, "ruch-wan", 12).widgets[1].w).toBe(12);
     expect(ids(removeWidget(CLASSIC_LAYOUT, "ruch-wan"))).not.toContain("ruch-wan");
-    expect(addWidget(CLASSIC_LAYOUT, newWidget("chart", "nowy")).widgets.at(-1)?.id).toBe("nowy");
+    expect(addWidget(CLASSIC_LAYOUT, newWidget("chart", "nowy")).widgets[0]?.id).toBe("nowy"); // od 0.43.4 na górze
   });
 
   it("metryka w innej jednostce niż oś lewa trafia na oś prawą", () => {
@@ -133,7 +133,7 @@ describe("edycja pulpitu", () => {
     await user.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await waitFor(() => expect(state.layout?.widgets).toHaveLength(5));
-    const added = state.layout?.widgets.at(-1);
+    const added = state.layout?.widgets[0];
     expect(added?.type).toBe("chart");
     expect(added && added.type === "chart" && added.config.title).toBe("Mój ruch");
   });

@@ -166,15 +166,16 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
     if (w.type === "section") {
       const count = edit ? 0 : hiddenBySections(all, new Set([w.id])).size;
       return (
-        <div className="flex h-full flex-col">
-          {edit && renderEditBar?.(w, placeOf(w))}
+        <div className="relative flex h-full flex-col">
+          {edit && <div className="absolute bottom-1 right-0 z-20">{renderEditBar?.(w, placeOf(w))}</div>}
           <SectionHeader title={w.config.title} collapsed={!edit && collapsed.has(w.id)} onToggle={edit ? undefined : () => toggle(w.id)} hiddenCount={count} />
         </div>
       );
     }
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        {edit && renderEditBar?.(w, placeOf(w))}
+      // W trybie edycji pasek narzędzi leży nad kartą (w rogu), a nie w niej – widget ma tę samą wysokość co w podglądzie
+      <div className={`relative flex h-full min-h-0 flex-col ${edit ? "rounded-xl outline-2 outline-offset-2 outline-dashed outline-border-strong" : ""}`}>
+        {edit && <div className="absolute right-2 top-2 z-20">{renderEditBar?.(w, placeOf(w))}</div>}
         <div className="flex min-h-0 flex-1 flex-col overflow-auto *:flex-1">
           <WidgetExpandContext.Provider value={edit ? null : () => setExpanded(w.id)}>
             <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
@@ -222,7 +223,7 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       ) : (
         <div className={columns ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
           {ordered.map((w) => (
-            <div key={w.id} className={`min-w-0 ${full.has(w.id) ? "col-span-2" : ""}`} style={w.type === "section" ? { height: rowsToPx(1) + 8 } : FIXED_ON_MOBILE.has(w.type) ? { height: rowsToPx(w.h ?? 8) + (edit ? 44 : 0) } : undefined}>
+            <div key={w.id} className={`min-w-0 ${full.has(w.id) ? "col-span-2" : ""}`} style={w.type === "section" ? { height: rowsToPx(1) + 8 } : FIXED_ON_MOBILE.has(w.type) ? { height: rowsToPx(w.h ?? 8) } : undefined}>
               {cell(w)}
             </div>
           ))}

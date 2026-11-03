@@ -47,6 +47,7 @@ import {
 import { isOn, sourceModule, useModules } from "../../lib/modules";
 import { useDevices } from "../../lib/queries";
 import { RANGE_OPTIONS, REFRESH_OPTIONS, type RangeMinutes, type RefreshSeconds } from "../../lib/refresh";
+import { seriesName } from "../charts/panelData";
 import { Dialog } from "../Dialog";
 import { refreshLabel } from "../RefreshControl";
 import { Button, Field, Select } from "../ui";
@@ -371,7 +372,8 @@ function QueryCard({
         <p className="text-xs text-muted">{t("ce.metrics.hint")}</p>
         {SOURCE_METRICS[query.source.kind].map((key) => {
           const selected = query.series.find((s) => s.key === key);
-          const name = t(METRICS[key].label);
+          // Ta sama nazwa co w legendzie (dla WAN „Pobieranie/Wysyłanie”) – bez własnej etykiety i przesunięcia
+          const name = seriesName(query.source, { key, color: 1 });
           return (
             <div key={key} className="flex flex-col gap-2 rounded-lg py-1">
               <Checkbox

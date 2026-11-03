@@ -40,12 +40,16 @@ describe("model swobodnej siatki", () => {
     expect(rowsToPx(8)).toBe(324);
   });
 
-  it("nowy widget trafia na dół, klawiatura przesuwa i zmienia rozmiar w granicach siatki", () => {
+  it("nowy widget trafia na górę, klawiatura przesuwa i zmienia rozmiar w granicach siatki", () => {
     const placed: DashboardLayout = { version: 1, widgets: placeWidgets(CLASSIC_LAYOUT.widgets) };
     const added = addWidget(placed, newWidget("stat", "nowy"));
-    expect(pos(added.widgets).at(-1)).toEqual(["nowy", 0, 19, 3, 4]);
-    // Bez zapisanych pozycji nowy widget też nie dostaje pozycji – ułoży się po kolei
-    expect(addWidget(CLASSIC_LAYOUT, newWidget("stat", "n")).widgets.at(-1)?.x).toBeUndefined();
+    // Od 0.43.4 na górze – reszta zjeżdża o jego wysokość
+    expect(pos(added.widgets).slice(0, 2)).toEqual([
+      ["nowy", 0, 0, 3, 4],
+      ["podsumowanie", 0, 4, 12, 3],
+    ]);
+    // Bez zapisanych pozycji nowy widget też nie dostaje pozycji – ułoży się po kolei, jako pierwszy
+    expect(addWidget(CLASSIC_LAYOUT, newWidget("stat", "n")).widgets[0]?.x).toBeUndefined();
 
     const moved = nudgeWidget(placed, "ruch-wan", { dx: 10 });
     expect(pos(moved.widgets)[1]).toEqual(["ruch-wan", 4, 3, 8, 8]); // dalej niż do krawędzi się nie da
@@ -137,7 +141,7 @@ describe("pulpit na szerokim ekranie", () => {
     expect(screen.queryByText("Klienci WiFi")).not.toBeInTheDocument();
   });
 
-  it("nowa sekcja z kreatora trafia na dół pulpitu", async () => {
+  it("nowa sekcja z kreatora trafia na górę pulpitu", async () => {
     const { state } = mockApi();
     renderApp();
     const user = userEvent.setup();
@@ -151,7 +155,7 @@ describe("pulpit na szerokim ekranie", () => {
     await user.click(within(form).getByRole("button", { name: "Zapisz" }));
     await user.click(screen.getByRole("button", { name: "Zapisz" }));
     await waitFor(() => expect(state.layout).not.toBeNull());
-    const last = (state.layout as DashboardLayout).widgets.at(-1);
-    expect(last).toMatchObject({ type: "section", w: 12, h: 1, x: 0, y: 19, config: { title: "Serwery", collapsed: false } });
+    const first = (state.layout as DashboardLayout).widgets[0];
+    expect(first).toMatchObject({ type: "section", w: 12, h: 1, x: 0, y: 0, config: { title: "Serwery", collapsed: false } });
   });
 });

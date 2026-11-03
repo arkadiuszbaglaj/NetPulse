@@ -731,11 +731,14 @@ export function removeWidget(l: DashboardLayout, id: string): DashboardLayout {
 }
 
 /** Nowy widget trafia na dół pulpitu, od lewej. */
+/** Nowy widget trafia na górę pulpitu (od 0.43.4) – widać go od razu, bez szukania na końcu długiego pulpitu.
+ * Przy zapisanych pozycjach reszta zjeżdża w dół o jego wysokość. */
 export function addWidget(l: DashboardLayout, widget: Widget): DashboardLayout {
   if (l.widgets.length >= MAX_WIDGETS) return l;
-  const widgets = placeWidgets(l.widgets);
-  const y = l.widgets.some(placed) ? bottomOf(widgets) : null;
-  return { ...l, widgets: [...(y == null ? l.widgets : widgets), y == null ? widget : { ...widget, x: 0, y, h: widget.h ?? defaultHeight(widget) }] };
+  if (!l.widgets.some(placed)) return { ...l, widgets: [widget, ...l.widgets] };
+  const h = widget.h ?? defaultHeight(widget);
+  const shifted = placeWidgets(l.widgets).map((w) => ({ ...w, y: (w.y ?? 0) + h }));
+  return { ...l, widgets: [{ ...widget, x: 0, y: 0, h }, ...shifted] };
 }
 
 /** Podmienia widget o tym samym id (np. po edycji konfiguracji). */

@@ -48,8 +48,9 @@ function IconButton({ label, onClick, disabled, danger, children }: { label: str
 
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 
-/** Pasek narzędzi widgetu w trybie edycji: uchwyt (przeciąganie myszką, strzałki z klawiatury; Shift – rozmiar),
- * edycja, usuwanie. Na telefonie i tablecie zamiast uchwytu przyciski w górę i w dół. */
+/** Pasek narzędzi widgetu w trybie edycji (od 0.43.4 nad kartą, w prawym górnym rogu): uchwyt (przeciąganie myszką,
+ * strzałki z klawiatury; Shift – rozmiar), rozmiar, edycja, usuwanie. Na telefonie i tablecie zamiast uchwytu przyciski
+ * w górę i w dół. Nazwa widgetu jest w etykietach przycisków (karta pokazuje swój tytuł). */
 function EditBar({
   widget,
   place,
@@ -67,7 +68,7 @@ function EditBar({
 }) {
   const name = widgetTitle(widget);
   return (
-    <div className="mb-1 flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-border-strong bg-surface-2 px-1.5 py-1">
+    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface/95 p-0.5 shadow-md backdrop-blur-sm" role="toolbar" aria-label={name}>
       {place.stacked ? (
         <>
           <IconButton label={t("widget.moveUp", { name })} onClick={() => onMove(-1)} disabled={place.first}>
@@ -93,8 +94,7 @@ function EditBar({
           <IconGripVertical size={18} aria-hidden="true" />
         </button>
       )}
-      <span className="min-w-0 flex-1 truncate text-xs font-medium">{name}</span>
-      <span className="hidden shrink-0 text-xs tabular-nums text-muted lg:inline" aria-hidden="true">
+      <span className="hidden shrink-0 px-1 text-xs tabular-nums text-muted lg:inline" title={name} aria-hidden="true">
         {widget.w}×{widget.h ?? "?"}
       </span>
       <IconButton label={t("widget.edit", { name })} onClick={onEdit}>
@@ -324,6 +324,8 @@ export function DashboardPage() {
             onClose={() => setEditing(null)}
             onSave={(widget) => {
               update((l) => (editing.isNew ? addWidget(l, widget) : replaceWidget(l, widget)));
+              // Nowy widget jest na górze pulpitu – przewiń do niego
+              if (editing.isNew) document.querySelector("main")?.scrollTo?.({ top: 0, behavior: "smooth" });
               setEditing(null);
             }}
           />
