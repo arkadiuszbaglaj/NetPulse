@@ -120,7 +120,8 @@ function SetupStep({
   const port = portList.find((p) => p.id === portId) ?? portList[0] ?? null;
   const [checkId, setCheckId] = useState<number | null>(null);
   const check = checks.find((c) => c.id === checkId) ?? checks[0] ?? null;
-  const [options, setOptions] = useState<Partial<Record<TemplateOption, boolean>>>({ limitLine: true, compare: tpl.id === "wan_traffic" });
+  // Linia prędkości łącza domyślnie wyłączona: rozciąga oś do 1 Gb/s i zwykły ruch domowy wygląda jak zero
+  const [options, setOptions] = useState<Partial<Record<TemplateOption, boolean>>>({ limitLine: false, compare: tpl.id === "wan_traffic" });
   const [w, setW] = useState(tpl.sizes[0]);
   const [title, setTitle] = useState("");
 

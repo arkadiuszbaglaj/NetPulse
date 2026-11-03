@@ -84,6 +84,8 @@ describe("okno „Dodaj widget”", () => {
     await user.click(within(dialog).getByRole("button", { name: /^Ruch na porcie/ }));
     expect(await within(dialog).findByLabelText("1. Urządzenie")).toHaveValue("1");
     await waitFor(() => expect(within(dialog).getByLabelText("2. Port")).toHaveValue("11"));
+    // Linia prędkości łącza domyślnie wyłączona (oś do 1 Gb/s spłaszczyłaby zwykły ruch) – włączamy ręcznie
+    await user.click(within(dialog).getByLabelText(/Linia prędkości łącza/));
     await user.click(within(dialog).getByRole("button", { name: "Dodaj na pulpit" }));
     await user.click(screen.getByRole("button", { name: "Zapisz" }));
     await waitFor(() => expect(state.layout).not.toBeNull());
