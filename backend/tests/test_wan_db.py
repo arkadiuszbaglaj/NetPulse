@@ -179,6 +179,52 @@ def test_router_offline_makes_links_unknown(ucg):
     assert [x["state"] for x in client.get("/api/wan/status").json()["links"]] == ["unknown"]
 
 
+def test_priority_is_shared_between_routers(ucg):
+    """WAN 1 na jednym routerze, WAN 2 na drugim: WAN 1 jest główne, WAN 2 przejmuje ruch, gdy WAN 1 padnie."""
+    client, snmp = ucg
+    second = SnmprecClient.from_file(FIXTURES / "ucg-ultra.snmprec")
+
+    async def add_second():
+        async with Session() as s, s.begin():
+            s.add(Device(name="Zapasowy", host="10.0.0.2", community="public"))
+
+    run(add_second)
+    collector = Collector(client_factory=lambda t: snmp if t.host == HOST else second)
+    poll(snmp, collector)
+
+    async def eth4_ids():
+        async with Session() as s:
+            rows = await s.execute(select(Device.name, Interface.id).join(Interface).where(Interface.name == "eth4"))
+            return dict(rows.all())
+
+    ids = run(eth4_ids)
+    # Kolejność jak w ustawieniach: WAN 1 to router „Zapasowy” (nazwa nie decyduje, decyduje pozycja)
+    links = [{"interface_id": ids["Zapasowy"], "name": "WAN 1"}, {"interface_id": ids["UCG"], "name": "WAN 2"}]
+    saved = client.put("/api/wan/links", json={"links": links})
+    assert [(x["name"], x["position"]) for x in saved.json()] == [("WAN 1", 1), ("WAN 2", 2)]
+
+    poll(snmp, collector)
+    poll(snmp, collector)
+    status = client.get("/api/wan/status").json()
+    assert [(x["name"], x["state"]) for x in status["links"]] == [("WAN 1", "active"), ("WAN 2", "standby")]
+
+    # Awaria WAN 1 – w następnym cyklu ruch przejmuje WAN 2 na drugim routerze
+    second.set(f"{OPER}.{ETH4}", 2)
+    poll(snmp, collector)
+    poll(snmp, collector)
+    status = client.get("/api/wan/status").json()
+    assert [(x["name"], x["state"]) for x in status["links"]] == [("WAN 1", "down"), ("WAN 2", "active")]
+    wan1, wan2 = (x["id"] for x in status["links"])
+    history = client.get("/api/wan/history", params={"minutes": 60}).json()
+    assert (history["switches"][-1]["from_ids"], history["switches"][-1]["to_ids"]) == ([wan1], [wan2])
+
+    # WAN 1 wraca – ruch wraca na łącze główne
+    second.set(f"{OPER}.{ETH4}", 1)
+    poll(snmp, collector)
+    poll(snmp, collector)
+    assert [x["state"] for x in client.get("/api/wan/status").json()["links"]] == ["active", "standby"]
+
+
 def test_links_validation_and_login(ucg):
     client, snmp = ucg
     poll(snmp)

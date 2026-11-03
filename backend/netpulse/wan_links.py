@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from .config import settings
@@ -48,17 +48,29 @@ async def set_manual(session) -> None:
 
 
 async def _auto_links(session, dev_id: int, result: PollResult, if_ids: dict[int, int]) -> list[WanLink]:
-    """Pierwsza konfiguracja: porty, które driver rozpoznał jako WAN (np. eth4 na UCG Ultra), stają się WAN 1, WAN 2 …"""
+    """Pierwsza konfiguracja: porty, które driver rozpoznał jako WAN (np. eth4 na UCG Ultra), stają się WAN 1, WAN 2 …
+
+    Kolejność jest wspólna dla wszystkich routerów – łącza kolejnego routera dostają następne numery."""
     if await is_manual(session):
         return []
     wans = sorted(i.if_index for i in result.interfaces if i.role == "wan" and i.if_index in if_ids)[:MAX_LINKS]
+    last = await session.scalar(select(func.coalesce(func.max(WanLink.position), 0)))
     links = [
         WanLink(device_id=dev_id, interface_id=if_ids[idx], position=n, name=f"WAN {n}", state="unknown")
-        for n, idx in enumerate(wans, start=1)
+        for n, idx in enumerate(wans, start=last + 1)
     ]
     session.add_all(links)
     await session.flush()
     return links
+
+
+async def _best_elsewhere(session, dev_id: int, fresh: datetime) -> int | None:
+    """Pozycja najważniejszego działającego łącza na innych routerach (stan z ich ostatniego, świeżego cyklu)."""
+    return await session.scalar(
+        select(func.min(WanLink.position)).where(
+            WanLink.device_id != dev_id, WanLink.state.in_(("active", "standby")), WanLink.updated_at >= fresh
+        )
+    )
 
 
 async def record(
@@ -91,7 +103,7 @@ async def record(
                 prev_state=link.state,
             )
         )
-    decisions = decide(readings)
+    decisions = decide(readings, await _best_elsewhere(session, dev_id, fresh))
     for link, reading in zip(links, readings, strict=True):
         d = decisions[link.id]
         if d.state != link.state or link.state_since is None:

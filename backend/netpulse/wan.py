@@ -7,6 +7,9 @@ Skąd wiadomo, że łącze działa i jest w użyciu (szczegóły: docs/19-dual-w
    decyduje ruch: jedno sprawne łącze jest aktywne zawsze; z kilku sprawnych aktywne jest to, którym idzie ruch
    (łącze zapasowe w trybie failover przenosi tylko pingi kontrolne). Przy znikomym ruchu na wszystkich łączach
    zostaje poprzednio aktywne.
+3. Kolejność (priorytet) jest wspólna dla wszystkich łączy, także na różnych routerach: WAN 1 to łącze główne.
+   Gdy łącza są na kilku routerach, ruch niesie router z działającym łączem o najwyższym priorytecie – łącza
+   pozostałych routerów są zapasem (`standby`), dopóki tamto łącze działa.
 
 Funkcje są czyste (bez bazy) – kolektor i API tylko podają im dane.
 """
@@ -49,7 +52,7 @@ class LinkDecision:
     up: bool
     active: bool
     state: str  # active | standby | down | unknown
-    source: str | None  # controller | traffic | None (nie było czego rozstrzygać)
+    source: str | None  # controller | traffic | priority | None (nie było czego rozstrzygać)
 
 
 def _state(r: LinkReading, up: bool, active: bool) -> str:
@@ -70,13 +73,18 @@ def _by_traffic(ups: list[LinkReading]) -> set[int]:
     return previous or {min(ups, key=lambda r: r.position).link_id}
 
 
-def decide(readings: Sequence[LinkReading]) -> dict[int, LinkDecision]:
-    """Stan łączy jednego routera w jednym cyklu."""
+def decide(readings: Sequence[LinkReading], outranked_by: int | None = None) -> dict[int, LinkDecision]:
+    """Stan łączy jednego routera w jednym cyklu.
+
+    `outranked_by` – pozycja najważniejszego działającego łącza na innym routerze (None = brak). Jeśli jest wyżej
+    w kolejności niż każde działające łącze tego routera, ruch idzie tamtędy, a łącza tego routera są zapasem."""
     up = {r.link_id: bool(r.oper_up) and r.ctrl_up is not False for r in readings}
     ups = [r for r in readings if up[r.link_id]]
     active: set[int] = set()
     source: str | None = None
-    if any(r.ctrl_active is not None for r in readings):
+    if ups and outranked_by is not None and outranked_by < min(r.position for r in ups):
+        ups, source = [], "priority"
+    elif any(r.ctrl_active is not None for r in readings):
         active = {r.link_id for r in ups if r.ctrl_active}
         source = "controller"
     if not active and ups:

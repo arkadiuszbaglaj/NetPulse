@@ -18,7 +18,8 @@ export interface WanLink {
   speed_mbps: number | null;
   state: WanState;
   state_since: string | null;
-  source: "controller" | "traffic" | null;
+  /** priority – zapas, bo działa łącze o wyższym priorytecie na innym routerze */
+  source: "controller" | "traffic" | "priority" | null;
   in_bps: number | null;
   out_bps: number | null;
   sampled_at: string | null;

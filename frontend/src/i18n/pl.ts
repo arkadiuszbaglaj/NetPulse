@@ -1222,7 +1222,7 @@ export const pl = {
   "wan.sla.last": "Ostatnia przerwa: {start}, trwała {duration}",
   "wan.sla.ongoing": "Przerwa trwa od {start} ({duration})",
   "wan.sla.noData": "Bez danych przez {duration} (router nie odpowiadał albo kolektor nie działał) – ten czas nie jest liczony.",
-  "wan.cfg.intro": "Wybierz porty routera, przez które idzie internet. Kolejność to priorytet: WAN 1 to łącze główne, WAN 2 – zapasowe (failover). Port WAN rozpoznany przez NetPulse (np. eth4 na UCG Ultra) jest dodawany sam jako WAN 1. Port ustawiony tutaj liczy się też do ruchu WAN na pulpicie, w trybie „Na żywo” i w alertach.",
+  "wan.cfg.intro": "Wybierz porty routera, przez które idzie internet. Kolejność to priorytet, wspólny dla wszystkich routerów: WAN 1 to łącze główne – gdy działa, ruch idzie nim; gdy przestanie działać, ruch przejmuje WAN 2 (failover), także na innym routerze. Port WAN rozpoznany przez NetPulse (np. eth4 na UCG Ultra) jest dodawany sam jako WAN 1. Port ustawiony tutaj liczy się też do ruchu WAN na pulpicie, w trybie „Na żywo” i w alertach.",
   "wan.cfg.empty": "Nie ma jeszcze łączy WAN. Dodaj port, przez który router łączy się z internetem.",
   "wan.cfg.position": "WAN {n}",
   "wan.cfg.device": "Router",

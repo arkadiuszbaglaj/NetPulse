@@ -70,6 +70,19 @@ def test_missing_interface_is_unknown():
     assert states([LinkReading(1, 1, None), LinkReading(2, 2, True)]) == {1: "unknown", 2: "active"}
 
 
+def test_router_with_higher_priority_link_takes_traffic():
+    # WAN 1 działa na innym routerze – łącze tego routera (WAN 2) jest zapasem, nawet z ruchem i wg kontrolera
+    readings = [LinkReading(5, 2, True, 40_000_000, 0, ctrl_up=True, ctrl_active=True)]
+    r = decide(readings, outranked_by=1)
+    assert r[5].state == "standby" and r[5].up and r[5].source == "priority"
+    # WAN 1 nie działa (brak go wśród działających łączy innych routerów) – ruch przejmuje WAN 2
+    assert decide(readings)[5].state == "active"
+    # Inny router ma tylko łącze o niższym priorytecie (WAN 3) – WAN 2 zostaje główne
+    assert decide(readings, outranked_by=3)[5].state == "active"
+    # Łącze bez linku zostaje „nie działa”
+    assert decide([LinkReading(5, 2, False)], outranked_by=1)[5].state == "down"
+
+
 # --- historia i SLA -------------------------------------------------------------------------------
 
 

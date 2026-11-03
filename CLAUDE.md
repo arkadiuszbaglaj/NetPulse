@@ -133,7 +133,8 @@ w driverze zostaje sam WAN 1; kolejne porty ustawia się w Ustawienia → Łącz
 do ruchu WAN, „Na żywo” i alertów). „Aktywne” = informacja z kontrolera UniFi (`wan1`/`wan2`, `uplink`, `is_uplink`),
 bez kontrolera – link (`ifOperStatus`) i ruch. Logika: `backend/netpulse/wan.py` (czysta), zapis: `wan_links.py`,
 API: `api/wan.py` (`/api/wan/status|history|sla|links`), widgety `wan_status`, `wan_chart`, `wan_sla`.
-Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
+Od 0.46.0 kolejność łączy jest wspólna dla wszystkich routerów (migracja 0011): WAN 1 główne, łącza innych routerów
+są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outranked_by)`). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
 
 ## Szczegóły, dostępność i pulpity
 

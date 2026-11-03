@@ -9,7 +9,6 @@ dla roku byłyby to miliony wierszy; alerty są w każdym zakresie.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Literal
 
@@ -107,13 +106,11 @@ async def events(minutes: int = MinutesQuery, offset: int = OffsetQuery) -> list
             if links:
                 names = {x.id: x.name for x in links}
                 samples = await _samples(session, list(names), since)
-                by_device: dict[int, dict] = defaultdict(dict)
-                for x in links:
-                    by_device[x.device_id][x.id] = [s for s in samples.get(x.id, []) if s.time < until]
-                for device_id, group in by_device.items():
-                    for sw in switches(group):
-                        title = f"{_names(sw.from_ids, names)} → {_names(sw.to_ids, names)}"
-                        out.append(EventOut(time=sw.time, kind="wan_switch", title=title, device_id=device_id))
+                owner = {x.id: x.device_id for x in links}
+                # Kolejność łączy jest wspólna dla routerów – ruch może przejść z routera na router
+                for sw in switches({x.id: [s for s in samples.get(x.id, []) if s.time < until] for x in links}):
+                    title = f"{_names(sw.from_ids, names)} → {_names(sw.to_ids, names)}"
+                    out.append(EventOut(time=sw.time, kind="wan_switch", title=title, device_id=owner[sw.to_ids[0]]))
 
     out.sort(key=lambda e: e.time)
     return out[-MAX_EVENTS:]

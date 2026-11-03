@@ -42,7 +42,7 @@ class WanLinkOut(BaseModel):
     speed_mbps: int | None
     state: str  # active | standby | down | unknown
     state_since: datetime | None
-    source: str | None  # controller | traffic
+    source: str | None  # controller | traffic | priority
     in_bps: float | None = None
     out_bps: float | None = None
     sampled_at: datetime | None = None
@@ -59,7 +59,7 @@ async def _links(session) -> list[WanLinkOut]:
             select(WanLink, Device.name, Interface)
             .join(Device, Device.id == WanLink.device_id)
             .join(Interface, Interface.id == WanLink.interface_id)
-            .order_by(Device.name, WanLink.device_id, WanLink.position)
+            .order_by(WanLink.position, Device.name, WanLink.id)
         )
     ).all()
     return [
@@ -176,10 +176,8 @@ async def history(minutes: int = MinutesQuery):
         for link_id, items in samples.items()
         for s in segments(items, since, now, max_gap)
     ]
-    by_device: dict[int, dict[int, list[Sample]]] = defaultdict(dict)
-    for x in links:
-        by_device[x.device_id][x.id] = [s for s in samples.get(x.id, []) if s.time >= since]
-    events = sorted((sw for group in by_device.values() for sw in switches(group)), key=lambda sw: sw.time)
+    # Jedna kolejność łączy dla wszystkich routerów, więc przełączenie może też przejść z routera na router
+    events = switches({x.id: [s for s in samples.get(x.id, []) if s.time >= since] for x in links})
     return WanHistoryOut(
         interval_s=stride,
         links=links,
@@ -265,7 +263,8 @@ class WanLinkIn(BaseModel):
 
 
 class WanLinksIn(BaseModel):
-    """Pełna lista łączy w kolejności (pierwsze = WAN 1). Pominięte łącza są usuwane razem z historią."""
+    """Pełna lista łączy w kolejności (pierwsze = WAN 1, łącze główne; kolejność wspólna dla wszystkich routerów).
+    Pominięte łącza są usuwane razem z historią."""
 
     links: list[WanLinkIn] = Field(max_length=wan_links.MAX_LINKS * 4)
 
@@ -302,15 +301,13 @@ async def save_links(body: WanLinksIn):
         existing = {link.interface_id: link for link in (await session.scalars(select(WanLink))).all()}
         keep = {x.interface_id for x in body.links}
         await session.execute(delete(WanLink).where(WanLink.interface_id.not_in(keep or {0})))
-        position: dict[int, int] = defaultdict(int)
-        for x in body.links:
-            device_id = ifaces[x.interface_id].device_id
-            position[device_id] += 1
+        for position, x in enumerate(body.links, start=1):
             link = existing.get(x.interface_id)
             if link is None:
-                session.add(WanLink(device_id=device_id, interface_id=x.interface_id, position=position[device_id], name=x.name, state="unknown"))
+                device_id = ifaces[x.interface_id].device_id
+                session.add(WanLink(device_id=device_id, interface_id=x.interface_id, position=position, name=x.name, state="unknown"))
             else:
-                link.name, link.position = x.name, position[device_id]
+                link.name, link.position = x.name, position
         # Od teraz porty WAN wybiera użytkownik – kolektor nie dopisze już sam portów z rolą WAN
         await wan_links.set_manual(session)
     async with Session() as session:

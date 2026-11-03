@@ -49,6 +49,12 @@ jest podłączony i link jest „up”.
    obciążonego łącza. Dlatego przy równoważeniu obciążenia (load balance) aktywne są oba łącza naraz. Gdy w sieci
    jest cisza, zostaje łącze, które było aktywne wcześniej.
 
+**Kilka routerów.** Kolejność łączy jest wspólna dla wszystkich routerów (od 0.46.0). Gdy WAN 1 jest na jednym
+routerze, a WAN 2 na drugim, ruch niesie router z działającym łączem o najwyższym priorytecie: dopóki WAN 1 działa,
+jest w użyciu, a WAN 2 na drugim routerze jest zapasem (źródło decyzji `priority`). Gdy WAN 1 przestanie działać
+(brak linku, awaria wg kontrolera albo router nie odpowiada), w następnym cyklu ruch przejmuje WAN 2; po powrocie
+WAN 1 ruch wraca na nie. Przełączenie między routerami widać na wykresie i w zdarzeniach jak każde inne.
+
 Stany łącza: **w użyciu** (zielony), **nieaktywne – zapas** (czerwony pusty), **nie działa** (czerwony pełny),
 **brak danych** (szary – router nie odpowiada na SNMP albo kolektor nie działa).
 
@@ -69,7 +75,7 @@ Historia jest trzymana tak długo jak inne metryki (`NETPULSE_RETENTION_DAYS`, d
 
 | Metoda i adres | Co zwraca |
 |----------------|-----------|
-| `GET /api/wan/status` | łącza z bieżącym stanem (`active`, `standby`, `down`, `unknown`), ruchem, czasem zmiany stanu i źródłem decyzji (`controller`/`traffic`); `active_ids` – łącza w użyciu |
+| `GET /api/wan/status` | łącza z bieżącym stanem (`active`, `standby`, `down`, `unknown`), ruchem, czasem zmiany stanu i źródłem decyzji (`controller`/`traffic`/`priority`); `active_ids` – łącza w użyciu |
 | `GET /api/wan/history?minutes=60` | punkty wykresu (`in_<id>`, `out_<id>` – ruch łącza tylko wtedy, gdy było aktywne), odcinki stanów (`segments`) i przełączenia (`switches`) |
 | `GET /api/wan/sla?days=7` | dla każdego łącza: `availability`, `outages`, `down_s`, `longest_outage_s`, `active_s`, `unknown_s`, `recent_outages` |
 | `GET /api/wan/links` | konfiguracja łączy |
