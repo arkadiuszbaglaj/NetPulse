@@ -27,7 +27,8 @@ export function useEvents(minutes: number, back: number, refetchInterval: number
   });
 }
 
-/** Zdarzenia dla wykresu. „auto”: wykres urządzenia, portu albo z agenta – zdarzenia tych urządzeń i portów;
+/** Zdarzenia dla wykresu. „auto”: wykres urządzenia, portu albo z agenta – zdarzenia tych urządzeń; alert portu
+ * (np. „Port WAN jest wyłączony”) tylko na wykresie tego portu, nie na wykresach całego urządzenia;
  * wykres ogólny (WAN, WiFi, serwer NetPulse, sprawdzenie) – przełączenia WAN i alerty bez urządzenia. */
 export function eventsFor(events: ChartEvent[], config: ChartConfig, mode: Annotations = config.annotations ?? "auto"): ChartEvent[] {
   if (mode === "off") return [];
@@ -43,9 +44,7 @@ export function eventsFor(events: ChartEvent[], config: ChartConfig, mode: Annot
   }
   if (devices.size === 0 && ports.size === 0) return events.filter((e) => e.kind === "wan_switch" || e.device_id == null);
   return events.filter((e) =>
-    e.interface_id != null
-      ? ports.has(e.interface_id) || (ports.size === 0 && e.device_id != null && devices.has(e.device_id))
-      : e.device_id != null && devices.has(e.device_id),
+    e.interface_id != null ? ports.has(e.interface_id) : e.device_id != null && devices.has(e.device_id),
   );
 }
 

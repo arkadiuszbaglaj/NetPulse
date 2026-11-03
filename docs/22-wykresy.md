@@ -155,7 +155,7 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   progi), kolor: alert krytyczny/ostrzeżenie/info, koniec – zielony, restart – fiolet (`--chart-6`), przełączenie WAN
   – akcent. Opis w podpowiedzi osi, gdy kursor jest bliżej zdarzenia niż pół kubełka (też we wspólnym kursorze).
 - **Które zdarzenia** (`annotations` w konfiguracji wykresu, edytor → Wygląd, `eventsFor` w `lib/events.ts`):
-  `auto` (domyślnie) – wykres urządzenia lub z agenta: jego restarty i alerty (też portów), wykres portu: ten port
+  `auto` (domyślnie) – wykres urządzenia lub z agenta: jego restarty i alerty (bez alertów portów – od 0.47.1 tylko na wykresie danego portu), wykres portu: ten port
   i restarty jego urządzenia; wykres ogólny (WAN, WiFi, serwer, sprawdzenie): przełączenia WAN i alerty bez
   urządzenia. `all` – wszystkie, `off` – żadne. W trybie „Na żywo” bez zdarzeń.
 

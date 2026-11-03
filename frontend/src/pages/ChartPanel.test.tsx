@@ -19,16 +19,16 @@ describe("zdarzenia na wykresie (0.34.0)", () => {
     device_id,
     interface_id,
   });
-  const all = [ev("restart", 2), ev("alert", 2, 15), ev("alert", 2, 16), ev("alert", 3), ev("wan_switch", 1), ev("alert", null)];
+  const all = [ev("restart", 2), ev("alert", 2), ev("alert", 2, 15), ev("alert", 2, 16), ev("alert", 3), ev("wan_switch", 1), ev("alert", null)];
   const titles = (list: ChartEvent[]) => list.map((e) => e.title);
 
   it("auto: wykres ogólny – przełączenia WAN i alerty bez urządzenia", () => {
     expect(titles(eventsFor(all, newChartConfig({ kind: "wan" })))).toEqual(["wan_switch 1 -", "alert - -"]);
   });
 
-  it("auto: wykres urządzenia – jego restarty i alerty (też portów), wykres portu – tylko ten port", () => {
-    expect(titles(eventsFor(all, newChartConfig({ kind: "device", id: 2 })))).toEqual(["restart 2 -", "alert 2 15", "alert 2 16"]);
-    expect(titles(eventsFor(all, newChartConfig({ kind: "interface", id: 15, device_id: 2 })))).toEqual(["restart 2 -", "alert 2 15"]);
+  it("auto: wykres urządzenia – jego restarty i alerty bez alertów portów, wykres portu – też alerty tego portu", () => {
+    expect(titles(eventsFor(all, newChartConfig({ kind: "device", id: 2 })))).toEqual(["restart 2 -", "alert 2 -"]);
+    expect(titles(eventsFor(all, newChartConfig({ kind: "interface", id: 15, device_id: 2 })))).toEqual(["restart 2 -", "alert 2 -", "alert 2 15"]);
   });
 
   it("wszystkie albo żadne", () => {
