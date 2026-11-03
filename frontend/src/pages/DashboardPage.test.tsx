@@ -62,11 +62,14 @@ describe("dashboard", () => {
     const user = userEvent.setup();
     const { calls } = mockApi();
     renderApp();
-    const group = await screen.findByRole("group", { name: "Zakres czasu" });
-    expect(within(group).getByRole("button", { name: "1 godz." })).toHaveAttribute("aria-pressed", "true");
+    // Rozwijane menu (od 0.42.1): przycisk pokazuje bieżący zakres
+    await user.click(await screen.findByRole("button", { name: "Zakres czasu: 1 godz." }));
+    const menu = screen.getByRole("menu", { name: "Zakres czasu" });
+    expect(within(menu).getByRole("menuitemradio", { name: "1 godz." })).toHaveAttribute("aria-checked", "true");
 
-    await user.click(within(group).getByRole("button", { name: "24 godz." }));
-    expect(within(group).getByRole("button", { name: "24 godz." })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(menu).getByRole("menuitemradio", { name: "24 godz." }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zakres czasu: 24 godz." })).toBeInTheDocument();
     await screen.findAllByTestId("chart");
     expect(calls.some((c) => c.path === "/api/dashboard/traffic?minutes=1440")).toBe(true);
     expect(calls.some((c) => c.path === "/api/dashboard/wifi?minutes=1440")).toBe(true);

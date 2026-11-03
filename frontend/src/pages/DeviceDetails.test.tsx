@@ -21,7 +21,7 @@ describe("strona urządzenia", () => {
     await waitFor(() => expect(screen.getAllByText("99,50%")).toHaveLength(4));
     expect(screen.getByRole("list", { name: /dzień po dniu/ }).children).toHaveLength(30);
     expect(screen.getByText("Procesor i pamięć")).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Zakres czasu" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Zakres czasu:/ })).toBeInTheDocument();
 
     const port = await screen.findByRole("link", { name: "Port 1" });
     expect(port).toHaveAttribute("href", "/devices/1/ports/11");

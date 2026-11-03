@@ -82,7 +82,8 @@ describe("edycja pulpitu", () => {
     mockApi({ layout: null });
     renderApp();
     // Od 0.42.0: pasek stanu, liczby, ruch WAN z alertami, tabela urządzeń i dostępność
-    expect(await screen.findAllByTestId("chart")).toHaveLength(1);
+    // Więcej czasu: pulpit domyślny ma sporo widgetów, przy pełnym przebiegu testów bywa wolniej
+    expect(await screen.findAllByTestId("chart", {}, { timeout: 3000 })).toHaveLength(1);
     expect(await screen.findByRole("heading", { name: "Alerty" })).toBeInTheDocument();
     expect(await screen.findByRole("table", { name: /Urządzenia/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edytuj pulpit" })).toBeInTheDocument();
