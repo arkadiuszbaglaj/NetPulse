@@ -320,7 +320,7 @@ export function TableWidget({ config }: { config: TableConfig }) {
   const [sort, setSort] = useState<{ by: string | null; desc: boolean }>({ by: config.sort_by ?? null, desc: config.sort_desc });
   const rows = useMemo(() => {
     const list = query.data ?? [];
-    const sorted = sort.by ? sortRows(list, sort.by, sort.desc) : [...list].sort((a, b) => a.label.localeCompare(b.label, "pl") * (sort.desc ? -1 : 1));
+    const sorted = sort.by ? sortRows(list, sort.by, sort.desc) : [...list].sort((a, b) => a.label.localeCompare(b.label, "pl", { numeric: true }) * (sort.desc ? -1 : 1));
     return sorted.slice(0, config.limit);
   }, [query.data, sort, config.limit]);
   const title = config.title || collectionTitle(config.collection.kind);
