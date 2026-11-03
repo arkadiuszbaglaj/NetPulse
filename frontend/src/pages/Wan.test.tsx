@@ -214,6 +214,22 @@ describe("pulpit i ustawienia łączy WAN", () => {
     expect(state.wanLinks.map((l) => [l.name, l.position])).toEqual([["LTE", 1], ["WAN 1", 2]]);
   });
 
+  it("podpowiedź: łącze WAN zgłoszone przez kontroler, którego nie ma na liście", async () => {
+    const hint = { device_id: 1, device_name: "UCG Ultra", interface_id: 12, interface_name: "eth3", interface_label: "LAN 4", slot: 2, up: true, active: false };
+    const { calls } = mockApi({ wanLinks: [{ ...FIBER, name: "WAN 1", interface_id: 11 }], wanSuggestions: [hint] });
+    renderApp("/settings/wan");
+    const user = userEvent.setup();
+    expect(await screen.findByText(/Kontroler UniFi zgłasza WAN 2 na porcie LAN 4 \(eth3\) routera UCG Ultra/)).toBeInTheDocument();
+    expect(screen.getByText("Łącze działa i czeka jako zapasowe.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dodaj LAN 4 (eth3)" }));
+    expect(screen.queryByText(/Kontroler UniFi zgłasza/)).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("WAN 2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zapisz" }));
+    expect(await screen.findByText(/Zapisano/)).toBeInTheDocument();
+    const put = calls.find((c) => c.method === "PUT" && c.path === "/api/wan/links");
+    expect(put?.body).toEqual({ links: [{ interface_id: 11, name: "WAN 1" }, { interface_id: 12, name: "WAN 2" }] });
+  });
+
   it("ten sam port dwa razy to błąd", async () => {
     mockApi({ wanLinks: [{ ...FIBER, name: "WAN 1", interface_id: 11 }] });
     renderApp("/settings/wan");

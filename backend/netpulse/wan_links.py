@@ -20,6 +20,9 @@ from .wan import LinkReading, decide
 # nie dodaje już sam portów z rolą WAN (użytkownik mógł któryś celowo usunąć)
 SETTINGS_KEY = "wan"
 MAX_LINKS = 4
+# Porty WAN bramy według kontrolera UniFi (`wan_detected:<id routera>`) – podpowiedź w Ustawienia → Łącza WAN,
+# gdy kontroler zna łącze, którego nie ma na liście (np. nowy internet mobilny jako WAN 2)
+DETECTED_PREFIX = "wan_detected:"
 
 
 def stale_after() -> timedelta:
@@ -150,3 +153,27 @@ async def apply_controller(session, dev_id: int, wans: Iterable, now: datetime) 
             )
         )
     return len(rows)
+
+
+async def save_detected(session, dev_id: int, wans: Iterable) -> None:
+    """Zapamiętuje porty WAN bramy zgłoszone przez kontroler (zapis tylko przy zmianie, nie co cykl)."""
+    value = {"ports": [{"ifname": w.ifname, "slot": w.slot, "up": w.up, "active": w.active} for w in wans]}
+    key = f"{DETECTED_PREFIX}{dev_id}"
+    row = await session.get(AppSetting, key)
+    if row is not None and row.value == value:
+        return
+    stmt = insert(AppSetting).values(key=key, value=value)
+    await session.execute(
+        stmt.on_conflict_do_update(index_elements=[AppSetting.key], set_={"value": stmt.excluded.value, "updated_at": func.now()})
+    )
+
+
+async def detected(session) -> dict[int, list[dict]]:
+    """Porty WAN zgłoszone przez kontroler: {id routera: [{ifname, slot, up, active}, …]}."""
+    rows = await session.scalars(select(AppSetting).where(AppSetting.key.startswith(DETECTED_PREFIX)))
+    out: dict[int, list[dict]] = {}
+    for row in rows:
+        suffix = row.key.removeprefix(DETECTED_PREFIX)
+        if suffix.isdigit():
+            out[int(suffix)] = list((row.value or {}).get("ports") or [])
+    return out

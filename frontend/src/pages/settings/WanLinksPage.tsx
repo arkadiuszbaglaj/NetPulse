@@ -1,4 +1,4 @@
-import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconArrowDown, IconArrowUp, IconBulb, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthProvider";
@@ -6,7 +6,7 @@ import { Button, Card, ErrorNote, Field, PageHeader, Select, SuccessNote } from 
 import { t } from "../../i18n";
 import { ApiError, get, request, type Device } from "../../lib/api";
 import { useDevices } from "../../lib/queries";
-import { useWanLinks, WAN_LINKS_KEY, type WanLink } from "../../lib/wan";
+import { useWanLinks, useWanSuggestions, WAN_LINKS_KEY, type WanLink, type WanSuggestion } from "../../lib/wan";
 
 const MAX_LINKS = 4;
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-40";
@@ -101,12 +101,34 @@ function LinkRow({
   );
 }
 
+/** Podpowiedź: kontroler UniFi zna łącze WAN bramy, którego nie ma na liście (np. nowy internet mobilny jako WAN 2). */
+function SuggestionNote({ hint, admin, onAdd }: { hint: WanSuggestion; admin: boolean; onAdd: () => void }) {
+  const port = `${hint.interface_label} (${hint.interface_name})`;
+  const state = hint.up === false ? "wan.hint.down" : hint.active ? "wan.hint.active" : "wan.hint.standby";
+  return (
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm sm:flex-row sm:items-center">
+      <IconBulb size={20} aria-hidden="true" className="shrink-0 text-accent" />
+      <p className="flex-1">
+        {t("wan.hint.text", { wan: hint.slot ? `WAN ${hint.slot}` : t("wan.hint.anyWan"), port, device: hint.device_name })}{" "}
+        <span className="text-text-2">{t(state)}</span>
+      </p>
+      {admin && (
+        <Button onClick={onAdd}>
+          <IconPlus size={16} aria-hidden="true" />
+          {t("wan.hint.add", { port })}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 /** Ustawienia → Łącza WAN: które porty routera są WAN 1, WAN 2 … (kolejność = priorytet w failoverze). */
 export function WanLinksPage() {
   const qc = useQueryClient();
   const { status } = useAuth();
   const admin = status?.user?.is_admin ?? false;
   const links = useWanLinks();
+  const suggestions = useWanSuggestions();
   const devices = useDevices();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +165,15 @@ export function WanLinksPage() {
       return [...list, { key: `n${Date.now()}`, device_id: device, interface_id: null, name: `WAN ${list.length + 1}` }];
     });
   };
+  const addSuggested = (hint: WanSuggestion) => {
+    save.reset();
+    setRows((rs) => {
+      const list = rs ?? [];
+      return [...list, { key: `s${hint.interface_id}`, device_id: hint.device_id, interface_id: hint.interface_id, name: `WAN ${list.length + 1}` }];
+    });
+  };
+  // Podpowiedź znika, gdy port jest już na liście (także przed zapisem)
+  const hints = (suggestions.data ?? []).filter((h) => !rows?.some((r) => r.interface_id === h.interface_id));
   const submit = () => {
     const list = rows ?? [];
     if (list.some((r) => r.interface_id == null)) return setError(t("wan.cfg.err.port"));
@@ -157,6 +188,13 @@ export function WanLinksPage() {
       <PageHeader title={t("settings.wan.title")} />
       <p className="mb-4 max-w-prose text-sm text-text-2">{t("wan.cfg.intro")}</p>
       {links.isError && <ErrorNote>{t("wan.error")}</ErrorNote>}
+      {rows && hints.length > 0 && (
+        <div className="mb-3 flex flex-col gap-2">
+          {hints.map((h) => (
+            <SuggestionNote key={h.interface_id} hint={h} admin={admin} onAdd={() => addSuggested(h)} />
+          ))}
+        </div>
+      )}
       {rows && (
         <Card>
           {rows.length === 0 ? (

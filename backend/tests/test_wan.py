@@ -170,6 +170,7 @@ def test_gateway_dual_wan_failover():
         "uplink": {"name": "eth3", "up": True, "type": "wire"},
     }
     assert parse_wans(raw) == (WanPort("eth3", True, True), WanPort("eth4", False, False))
+    assert [w.slot for w in parse_wans(raw)] == [2, 1]
     assert parse_wans({"type": "usw", "port_table": raw["port_table"]}) == ()
     # Wyłączone łącze w ustawieniach UniFi nie jest WAN-em
     assert parse_wans({"type": "udm", "wan2": {"ifname": "eth3", "enable": False, "up": False}}) == ()

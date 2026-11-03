@@ -108,6 +108,23 @@ export function useWanSla(days: SlaDays) {
   });
 }
 
+/** Łącze WAN, które zgłasza kontroler UniFi, a nie ma go na liście łączy (podpowiedź w ustawieniach). */
+export interface WanSuggestion {
+  device_id: number;
+  device_name: string;
+  interface_id: number;
+  interface_name: string;
+  interface_label: string;
+  /** Numer łącza w UniFi (2 = WAN 2) */
+  slot: number | null;
+  up: boolean | null;
+  active: boolean;
+}
+
+export function useWanSuggestions() {
+  return useQuery({ queryKey: ["wan", "suggestions"], queryFn: () => get<WanSuggestion[]>("/api/wan/suggestions") });
+}
+
 export function useWanLinks() {
   return useQuery({ queryKey: WAN_LINKS_KEY, queryFn: () => get<WanLink[]>("/api/wan/links") });
 }

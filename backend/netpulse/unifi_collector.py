@@ -27,7 +27,7 @@ from .db.models import (
     TopologyLink,
 )
 from .modules import is_enabled
-from .unifi import UnifiApi, UnifiClient, UnifiDevice, UnifiError
+from .unifi import GATEWAY_TYPES, UnifiApi, UnifiClient, UnifiDevice, UnifiError
 
 log = logging.getLogger("netpulse.unifi")
 
@@ -208,6 +208,8 @@ class UnifiCollector:
                 # Brama: który port WAN działa i którym idzie ruch – kolektor SNMP użyje tego w następnym cyklu
                 if d.wans:
                     await wan_links.apply_controller(session, dev_id, d.wans, now)
+                if d.type in GATEWAY_TYPES:
+                    await wan_links.save_detected(session, dev_id, d.wans)
 
             # Topologia: zdjęcie stanu połączeń LLDP urządzeń, które znamy z SNMP
             links = [

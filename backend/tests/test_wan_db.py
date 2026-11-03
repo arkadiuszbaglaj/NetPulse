@@ -48,6 +48,7 @@ async def _clean():
         await s.execute(delete(Device))
         await s.execute(delete(User))
         await s.execute(delete(AppSetting).where(AppSetting.key == wan_links.SETTINGS_KEY))
+        await s.execute(delete(AppSetting).where(AppSetting.key.startswith(wan_links.DETECTED_PREFIX)))
 
 
 @pytest.fixture
@@ -165,6 +166,32 @@ def test_controller_decides_active_link(ucg):
     by_name = {x["name"]: x for x in client.get("/api/wan/status").json()["links"]}
     assert (by_name["WAN 1"]["state"], by_name["WAN 2"]["state"]) == ("down", "active")
     assert by_name["WAN 2"]["source"] == "controller"
+
+
+def test_controller_suggests_missing_wan_link(ucg):
+    """Kontroler zna WAN 2 (np. internet mobilny na porcie 4), którego nie ma na liście – podpowiedź w ustawieniach."""
+    client, snmp = ucg
+    poll(snmp)
+    assert client.get("/api/wan/suggestions").json() == []
+
+    async def controller_says(wans):
+        async with Session() as s, s.begin():
+            dev_id = await s.scalar(select(Device.id))
+            await wan_links.save_detected(s, dev_id, wans)
+
+    wans = [WanPort("eth3", True, False, slot=2), WanPort("eth4", True, True, slot=1)]
+    run(lambda: controller_says(wans))
+    (hint,) = client.get("/api/wan/suggestions").json()
+    assert (hint["interface_name"], hint["interface_label"], hint["slot"], hint["up"], hint["active"]) == ("eth3", "LAN 4", 2, True, False)
+
+    # Po dodaniu łącza podpowiedź znika
+    links = [{"interface_id": interface_id("eth4"), "name": "WAN 1"}, {"interface_id": hint["interface_id"], "name": "LTE"}]
+    assert client.put("/api/wan/links", json={"links": links}).status_code == 200
+    assert client.get("/api/wan/suggestions").json() == []
+    # Kontroler przestał zgłaszać WAN 2 i łącza nie ma na liście – bez podpowiedzi
+    assert client.put("/api/wan/links", json={"links": links[:1]}).status_code == 200
+    run(lambda: controller_says(wans[1:]))
+    assert client.get("/api/wan/suggestions").json() == []
 
 
 def test_router_offline_makes_links_unknown(ucg):

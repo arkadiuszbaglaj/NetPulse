@@ -28,6 +28,12 @@ Widgety dodaje się jak inne: Dashboard → Edytuj pulpit → Dodaj widget. W us
 4. Od pierwszego zapisu w panelu NetPulse nie dodaje już sam portów WAN, bo możesz celowo usunąć któryś port z listy.
    Usunięcie łącza kasuje jego historię i SLA.
 
+**Podpowiedź z kontrolera (od 0.47.0).** Gdy kontroler UniFi zgłasza łącze WAN bramy, którego nie ma na liście
+(np. nowo podłączony internet mobilny ustawiony w UniFi jako WAN 2 na porcie 4), na stronie Łącza WAN pojawia się
+podpowiedź z numerem łącza w UniFi, portem i stanem oraz przyciskiem **Dodaj**. Port trafia na listę; potem sprawdź
+kolejność i kliknij **Zapisz**. NetPulse zapamiętuje porty WAN zgłoszone przez kontroler (`app_settings`, klucz
+`wan_detected:<id routera>`), API: `GET /api/wan/suggestions`.
+
 Zmiany zapisuje tylko administrator. Stan łączy odświeża się w następnym cyklu kolektora (co 30 s).
 
 ## Skąd wiadomo, że łącze działa i że jest aktywne

@@ -3,7 +3,8 @@
 - GET /api/wan/status – łącza i ich bieżący stan (active | standby | down | unknown), ruch, od kiedy w tym stanie,
 - GET /api/wan/history?minutes= – ruch aktywnego łącza w kubełkach, odcinki stanów i momenty przełączenia,
 - GET /api/wan/sla?days= – dostępność w %, czas i liczba przerw dla każdego łącza,
-- GET/PUT /api/wan/links – które porty są WAN 1, WAN 2 … (zapis: administrator).
+- GET/PUT /api/wan/links – które porty są WAN 1, WAN 2 … (zapis: administrator),
+- GET /api/wan/suggestions – łącza WAN, które zgłasza kontroler UniFi, a nie ma ich na liście.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from .. import wan_links
 from ..db import Session
 from ..db.models import Device, Interface, WanLink, WanLinkMetric
+from ..modules import is_enabled
 from ..wan import Sample, compute_sla, segments, switches
 from .metrics import MinutesQuery, _bucket_seconds
 from .schemas import Point
@@ -312,3 +314,52 @@ async def save_links(body: WanLinksIn):
         await wan_links.set_manual(session)
     async with Session() as session:
         return await _links(session)
+
+
+class WanSuggestionOut(BaseModel):
+    device_id: int
+    device_name: str
+    interface_id: int
+    interface_name: str
+    interface_label: str
+    slot: int | None  # numer łącza w UniFi (WAN 2 …)
+    up: bool | None
+    active: bool
+
+
+@router.get("/suggestions", response_model=list[WanSuggestionOut])
+async def suggestions():
+    """Porty, które kontroler UniFi zna jako WAN bramy, a nie są ustawione jako łącza WAN w NetPulse."""
+    if not await is_enabled("unifi"):
+        return []
+    async with Session() as session:
+        found = await wan_links.detected(session)
+        if not found:
+            return []
+        configured = set(await session.scalars(select(WanLink.interface_id)))
+        rows = (
+            await session.execute(
+                select(Interface, Device.name).join(Device, Device.id == Interface.device_id).where(Interface.device_id.in_(list(found)))
+            )
+        ).all()
+    by_name = {(iface.device_id, iface.name): (iface, device_name) for iface, device_name in rows}
+    out = []
+    for device_id, ports in found.items():
+        for p in ports:
+            match = by_name.get((device_id, p.get("ifname")))
+            if match is None or match[0].id in configured:
+                continue
+            iface, device_name = match
+            out.append(
+                WanSuggestionOut(
+                    device_id=device_id,
+                    device_name=device_name,
+                    interface_id=iface.id,
+                    interface_name=iface.name,
+                    interface_label=iface.label,
+                    slot=p.get("slot"),
+                    up=p.get("up"),
+                    active=bool(p.get("active")),
+                )
+            )
+    return sorted(out, key=lambda x: (x.device_name, x.slot or 99, x.interface_name))

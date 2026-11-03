@@ -25,7 +25,7 @@ import type { ServerStatus } from "../components/widgets/ServerDetails";
 import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
-import type { WanHistory, WanLink, WanSla, WanStatus } from "../lib/wan";
+import type { WanHistory, WanLink, WanSla, WanStatus, WanSuggestion } from "../lib/wan";
 import type { Availability, InterfaceDetail } from "../lib/details";
 import type { DashboardFull, PublicDashboard, PublicPayload } from "../lib/dashboards";
 
@@ -313,6 +313,7 @@ interface MockState {
   wanHistory: WanHistory;
   wanSla: WanSla;
   wanLinks: WanLink[];
+  wanSuggestions: WanSuggestion[];
   /** Dostępność (ta sama odpowiedź dla każdego okresu, urządzenia i portu) */
   availability: Availability;
   /** Port z GET /api/interfaces/{id} */
@@ -374,6 +375,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     wanHistory: { interval_s: 30, links: [], points: [], segments: [], switches: [] },
     wanSla: { days: 7, start: "2026-10-18T12:00:00Z", end: "2026-10-25T12:00:00Z", links: [] },
     wanLinks: [],
+    wanSuggestions: [],
     updates: UPDATES,
     availability: AVAILABILITY,
     port: PORT,
@@ -724,6 +726,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, { ...state.wanSla, days });
       }
       if (key === "GET /api/wan/links") return json(200, state.wanLinks);
+      if (key === "GET /api/wan/suggestions") return json(200, state.wanSuggestions.filter((h) => !state.wanLinks.some((l) => l.interface_id === h.interface_id)));
       if (key === "PUT /api/wan/links") {
         if (!state.admin) return json(403, { detail: "Wymagane uprawnienia administratora" });
         const items = (body as { links: { interface_id: number; name: string }[] }).links;

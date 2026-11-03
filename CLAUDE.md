@@ -134,7 +134,8 @@ do ruchu WAN, „Na żywo” i alertów). „Aktywne” = informacja z kontroler
 bez kontrolera – link (`ifOperStatus`) i ruch. Logika: `backend/netpulse/wan.py` (czysta), zapis: `wan_links.py`,
 API: `api/wan.py` (`/api/wan/status|history|sla|links`), widgety `wan_status`, `wan_chart`, `wan_sla`.
 Od 0.46.0 kolejność łączy jest wspólna dla wszystkich routerów (migracja 0011): WAN 1 główne, łącza innych routerów
-są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outranked_by)`). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
+są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outranked_by)`). Od 0.47.0 podpowiedź w Łączach WAN: łącze WAN zgłoszone przez kontroler, którego nie ma na liście
+(`wan_links.save_detected`, `GET /api/wan/suggestions`). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
 
 ## Szczegóły, dostępność i pulpity
 
