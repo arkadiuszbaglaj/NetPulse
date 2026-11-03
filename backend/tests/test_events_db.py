@@ -66,7 +66,7 @@ def test_events_alerts_restarts_and_wan_switch(client):
             # Switch: uptime rośnie, o 30 min temu spada do 120 s – restart 2 minuty wcześniej
             for m, uptime in ((50, 9000), (40, 9600), (30, 120), (20, 720)):
                 s.add(DeviceMetric(time=ago(m), device_id=sw.id, reachable=True, uptime_s=uptime))
-            # Alert o porcie: zaczął się i skończył w oknie; stary alert (sprzed okna) – pominięty
+            # Alerty nie są zdarzeniami wykresów (lista alertów i dzwonek) – pomijane
             s.add(Alert(subject="i15", state="resolved", severity="critical", title="USW: port 7 nie działa", device_id=sw.id, started_at=ago(25), resolved_at=ago(10)))
             s.add(Alert(subject="wan", state="resolved", severity="warning", title="Stary alert", started_at=ago(500), resolved_at=ago(400)))
             # Dwa łącza WAN: ruch przechodzi z WAN 1 na WAN 2 o 15 min temu
@@ -84,18 +84,13 @@ def test_events_alerts_restarts_and_wan_switch(client):
     sw_id, gw_id = run(seed)
     res = client.get("/api/events", params={"minutes": 60})
     assert res.status_code == 200, res.text
-    events = [(e["kind"], e["title"], e["device_id"], e["interface_id"], e["severity"]) for e in res.json()]
-    assert events == [
-        ("restart", "USW", sw_id, None, None),
-        ("alert", "USW: port 7 nie działa", sw_id, 15, "critical"),
-        ("wan_switch", "WAN 1 → WAN 2", gw_id, None, None),
-        ("alert_end", "USW: port 7 nie działa", sw_id, 15, "critical"),
-    ]
+    events = [(e["kind"], e["title"], e["device_id"]) for e in res.json()]
+    assert events == [("restart", "USW", sw_id), ("wan_switch", "WAN 1 → WAN 2", gw_id)]
     restart = datetime.fromisoformat(res.json()[0]["time"])
     assert restart == ago(32)
 
     # Okno przesunięte wstecz (powiększony fragment): tylko to, co w nim
-    old = client.get("/api/events", params={"minutes": 30, "offset": 390}).json()
-    assert [(e["kind"], e["title"]) for e in old] == [("alert_end", "Stary alert")]
+    old = client.get("/api/events", params={"minutes": 30, "offset": 20}).json()
+    assert [(e["kind"], e["title"]) for e in old] == [("restart", "USW")]
     with TestClient(app) as anon:
         assert anon.get("/api/events", params={"minutes": 60}).status_code == 401

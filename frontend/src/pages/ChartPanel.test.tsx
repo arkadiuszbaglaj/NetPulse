@@ -11,24 +11,23 @@ import { renderApp } from "../test/renderApp";
 const layoutWith = (config: ChartConfig): DashboardLayout => ({ version: 1, widgets: [{ id: "c1", type: "chart", w: 12, config }] });
 
 describe("zdarzenia na wykresie (0.34.0)", () => {
-  const ev = (kind: ChartEvent["kind"], device_id: number | null, interface_id: number | null = null): ChartEvent => ({
+  const ev = (kind: ChartEvent["kind"], device_id: number | null): ChartEvent => ({
     time: "2026-10-29T12:00:00Z",
     kind,
-    severity: kind === "alert" ? "warning" : null,
-    title: `${kind} ${device_id ?? "-"} ${interface_id ?? "-"}`,
+    title: `${kind} ${device_id ?? "-"}`,
     device_id,
-    interface_id,
   });
-  const all = [ev("restart", 2), ev("alert", 2), ev("alert", 2, 15), ev("alert", 2, 16), ev("alert", 3), ev("wan_switch", 1), ev("alert", null)];
+  const all = [ev("restart", 2), ev("restart", 3), ev("wan_switch", 1)];
   const titles = (list: ChartEvent[]) => list.map((e) => e.title);
 
-  it("auto: wykres ogólny – przełączenia WAN i alerty bez urządzenia", () => {
-    expect(titles(eventsFor(all, newChartConfig({ kind: "wan" })))).toEqual(["wan_switch 1 -", "alert - -"]);
+  it("auto: wykres ogólny – tylko przełączenia WAN", () => {
+    expect(titles(eventsFor(all, newChartConfig({ kind: "wan" })))).toEqual(["wan_switch 1"]);
   });
 
-  it("auto: wykres urządzenia – jego restarty i alerty bez alertów portów, wykres portu – też alerty tego portu", () => {
-    expect(titles(eventsFor(all, newChartConfig({ kind: "device", id: 2 })))).toEqual(["restart 2 -", "alert 2 -"]);
-    expect(titles(eventsFor(all, newChartConfig({ kind: "interface", id: 15, device_id: 2 })))).toEqual(["restart 2 -", "alert 2 -", "alert 2 15"]);
+  it("auto: wykres urządzenia i portu – zdarzenia tego urządzenia", () => {
+    expect(titles(eventsFor(all, newChartConfig({ kind: "device", id: 2 })))).toEqual(["restart 2"]);
+    expect(titles(eventsFor(all, newChartConfig({ kind: "interface", id: 15, device_id: 2 })))).toEqual(["restart 2"]);
+    expect(titles(eventsFor(all, newChartConfig({ kind: "device", id: 1 })))).toEqual(["wan_switch 1"]);
   });
 
   it("wszystkie albo żadne", () => {

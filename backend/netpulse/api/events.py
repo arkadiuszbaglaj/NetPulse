@@ -1,10 +1,12 @@
-"""Zdarzenia na osi czasu wykresów (adnotacje): alerty (początek i koniec), restarty urządzeń, przełączenia WAN.
+"""Zdarzenia na osi czasu wykresów (adnotacje): restarty urządzeń i przełączenia WAN.
+
+Alertów na wykresach nie ma (od 0.48.0) – są na liście alertów i pod dzwonkiem.
 
 - GET /api/events?minutes=&offset= – zdarzenia w oknie wykresu (to samo okno co metryki), najnowsze na końcu.
 
 Restart = spadek `uptime_s` między kolejnymi próbkami urządzenia; czas restartu to chwila próbki minus nowy
 uptime. Restarty i przełączenia WAN liczymy z surowych próbek, więc tylko do `DETAIL_MAX_MINUTES` wstecz –
-dla roku byłyby to miliony wierszy; alerty są w każdym zakresie.
+dla roku byłyby to miliony wierszy.
 """
 
 from __future__ import annotations
@@ -14,11 +16,11 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import and_, or_, select, text
+from sqlalchemy import select, text
 
 from .. import wan_links
 from ..db import Session
-from ..db.models import Alert, Device, WanLink
+from ..db.models import Device, WanLink
 from ..modules import hidden_drivers, read_modules
 from ..wan import switches
 from .metrics import MinutesQuery, OffsetQuery, window
@@ -30,18 +32,14 @@ router = APIRouter(prefix="/api", tags=["zdarzenia"], dependencies=[Depends(requ
 DETAIL_MAX_MINUTES = 31 * 24 * 60
 MAX_EVENTS = 300
 
-EventKind = Literal["alert", "alert_end", "restart", "wan_switch"]
+EventKind = Literal["restart", "wan_switch"]
 
 
 class EventOut(BaseModel):
     time: datetime
     kind: EventKind
-    # Alert: info | warning | critical; pozostałe – None
-    severity: str | None = None
     title: str
     device_id: int | None = None
-    # Alert o porcie (podmiot „i15”) – wykres portu pokazuje tylko swoje
-    interface_id: int | None = None
 
 
 _RESTARTS_SQL = text(
@@ -55,10 +53,6 @@ _RESTARTS_SQL = text(
     WHERE prev IS NOT NULL AND uptime_s < prev AND time >= :since
     """
 )
-
-
-def _interface_id(subject: str) -> int | None:
-    return int(subject[1:]) if subject.startswith("i") and subject[1:].isdigit() else None
 
 
 def _names(ids, names: dict[int, str]) -> str:
@@ -75,25 +69,6 @@ async def events(minutes: int = MinutesQuery, offset: int = OffsetQuery) -> list
             d.id: d.name
             for d in (await session.scalars(select(Device).where(Device.driver.not_in(hidden or ("",))))).all()
         }
-
-        alerts = (
-            await session.scalars(
-                select(Alert).where(
-                    or_(
-                        and_(Alert.started_at >= since, Alert.started_at < until),
-                        and_(Alert.resolved_at >= since, Alert.resolved_at < until),
-                    )
-                )
-            )
-        ).all()
-        for a in alerts:
-            if a.device_id is not None and a.device_id not in devices:
-                continue  # urządzenie wyłączonego modułu
-            base = {"severity": a.severity, "device_id": a.device_id, "interface_id": _interface_id(a.subject)}
-            if since <= a.started_at < until:
-                out.append(EventOut(time=a.started_at, kind="alert", title=a.title, **base))
-            if a.resolved_at is not None and since <= a.resolved_at < until:
-                out.append(EventOut(time=a.resolved_at, kind="alert_end", title=a.title, **base))
 
         if minutes <= DETAIL_MAX_MINUTES and devices:
             rows = await session.execute(

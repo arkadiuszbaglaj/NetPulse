@@ -174,7 +174,7 @@ przepuszcza `offset` tylko taki, jaki ma zapytanie. Etap B ✅ (0.27.0): widgety
 pulpity), sekcje zwijane (`type: "section"`). Etap D ✅ (0.32.0): powiększanie zaznaczeniem (`ZoomLayer.tsx`, `zoom` w `lib/refresh.tsx`,
 API pyta o samo okno), wspólny kursor (`charts/chartSync.ts`), linki z tabel, pasków i mapy (`rowLink`). Etap E ✅ (0.33.0): liczba jako wskaźnik i ze zmianą (`display`, `max`, `show_change`),
 pełny ekran (`WidgetExpandContext`), menu „⋯” z eksportem CSV/PNG (`WidgetActions.tsx`, `linesToCsv`). Etap F ✅ (0.34.0): zdarzenia na osi czasu
-(`api/events.py`: alerty, restarty z `uptime_s`, przełączenia WAN; `lib/events.ts`, pole `annotations`). Od 0.36.0 jeden silnik
+(`api/events.py`: restarty z `uptime_s`, przełączenia WAN – od 0.48.0 bez alertów; `lib/events.ts`, pole `annotations`). Od 0.36.0 jeden silnik
 wykresów: `ChartCard` też rysuje `PanelChart` (stary `TimeSeriesChart` usunięty). Mapa cieplna ✅ (0.37.0): widget `heatmap`
 (godzina × dzień tygodnia albo data, `lib/heatmap.ts`, dane tydzień po tygodniu z API metryk). Wykres kołowy ✅ (0.39.0): widget `pie` – urządzenie, potem co monitorować (zajętość, udział, stan; `lib/pie.ts`); od 0.40.0 jeden wybrany port (obciążenie albo odbierane / wysyłane) z danymi na żywo. Podgląd panelu bez serwera: atrapa `frontend/dev/mock-api.mjs` + `.claude/launch.json`.
 

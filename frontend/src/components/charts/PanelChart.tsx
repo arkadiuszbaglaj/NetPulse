@@ -49,13 +49,8 @@ export interface PanelChartProps {
   bucketMs?: number;
 }
 
-const EVENT_COLOR: Record<EventKind, (e: ChartEvent) => string> = {
-  alert: (e) => (e.severity === "critical" ? "--danger" : e.severity === "warning" ? "--warning" : "--accent"),
-  alert_end: () => "--success",
-  restart: () => "--chart-6",
-  wan_switch: () => "--accent",
-};
-const EVENT_ICON: Record<EventKind, string> = { alert: "⚠", alert_end: "✓", restart: "↻", wan_switch: "⇄" };
+const EVENT_COLOR: Record<EventKind, string> = { restart: "--chart-6", wan_switch: "--accent" };
+const EVENT_ICON: Record<EventKind, string> = { restart: "↻", wan_switch: "⇄" };
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -136,7 +131,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
             // Zdarzenia przy kursorze (pół kubełka w każdą stronę) – tekst z API, więc bez HTML
             const near = events.filter((e) => Math.abs(new Date(e.time).getTime() - params[0].axisValue) <= bucketMs / 2);
             const notes = near
-              .map((e) => `<div style="color:${css(EVENT_COLOR[e.kind](e))}">${EVENT_ICON[e.kind]} ${t(`event.${e.kind}`)}: ${escapeHtml(e.title)}</div>`)
+              .map((e) => `<div style="color:${css(EVENT_COLOR[e.kind])}">${EVENT_ICON[e.kind]} ${t(`event.${e.kind}`)}: ${escapeHtml(e.title)}</div>`)
               .join("");
             return `<div style="font-size:12px;color:${text}">${head}</div>${rows}${notes ? `<div style="margin-top:4px;font-size:12px">${notes}</div>` : ""}`;
           },
@@ -210,7 +205,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
                     symbol: ["none", "circle"],
                     symbolSize: 6,
                     label: { show: false },
-                    data: events.map((e) => ({ xAxis: new Date(e.time).getTime(), lineStyle: { color: css(EVENT_COLOR[e.kind](e)), type: "dashed", width: 1, opacity: 0.8 } })),
+                    data: events.map((e) => ({ xAxis: new Date(e.time).getTime(), lineStyle: { color: css(EVENT_COLOR[e.kind]), type: "dashed", width: 1, opacity: 0.8 } })),
                   },
                 },
               ]
