@@ -247,11 +247,12 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
                 return await panels.states(query.get("devices"), query.get("interfaces"), minutes(), query.get("checks"))
         raise HTTPException(403, "Tych danych nie ma na tym pulpicie")
     offset = _int(query.get("offset"), 0)
-    # Mini-wykresy w kafelkach podsumowania: ruch WAN i klienci WiFi w zakresie pulpitu
-    if "summary" in types and offset == 0:
-        if path == "/api/dashboard/traffic":
+    # Mini-wykresy w kafelkach podsumowania: ruch WAN i klienci WiFi w zakresie pulpitu – tylko dla pokazanych kafelków
+    tiles = {tile for w in widgets if w.type == "summary" for tile in w.config.tiles}
+    if offset == 0:
+        if path == "/api/dashboard/traffic" and tiles & {"wan_down", "wan_up"}:
             return await dashboard.traffic(minutes(), 0)
-        if path == "/api/dashboard/wifi":
+        if path == "/api/dashboard/wifi" and "wifi_clients" in tiles:
             return await dashboard.wifi(minutes(), 0)
     # Paski dostępności sprawdzeń: dni z widgetu, bez przesunięcia
     if (m := re.fullmatch(r"/api/checks/(\d+)/metrics", path)) and offset == 0:
