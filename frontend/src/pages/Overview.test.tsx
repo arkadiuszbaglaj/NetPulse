@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyBars, networkStatus, plural, sortAlerts } from "../components/widgets/OverviewWidgets";
+import { dailyBars, networkStatus, plural, recentAlerts, sortAlerts } from "../components/widgets/OverviewWidgets";
 import { peakOf } from "../components/widgets/SummaryWidget";
 import type { Alert } from "../lib/alerts";
 
@@ -58,6 +58,13 @@ describe("alerty i szczyty", () => {
     const a = (id: number, state: Alert["state"], started_at: string) => ({ id, state, started_at }) as Alert;
     const sorted = sortAlerts([a(1, "resolved", "2026-11-03T10:00:00Z"), a(2, "firing", "2026-11-01T10:00:00Z"), a(3, "resolved", "2026-11-03T12:00:00Z")]);
     expect(sorted.map((x) => x.id)).toEqual([2, 3, 1]);
+  });
+
+  it("starsze aktywne nie giną za świeżo rozwiązanymi", () => {
+    const a = (id: number, state: Alert["state"], started_at: string) => ({ id, state, started_at }) as Alert;
+    const firing = [a(1, "firing", "2026-10-29T16:00:00Z"), a(2, "firing", "2026-10-28T02:00:00Z")];
+    const resolved = [5, 6, 7].map((id) => a(id, "resolved", `2026-11-0${id - 4}T10:00:00Z`));
+    expect(recentAlerts(firing, resolved, 3).map((x) => x.id)).toEqual([1, 2, 7]);
   });
 
   it("szczyt serii pomija puste punkty", () => {

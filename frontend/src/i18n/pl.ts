@@ -1490,6 +1490,7 @@ export const pl = {
   "devTable.host": "Adres IP",
   "devTable.uptime": "Czas pracy",
   "devTable.state": "Stan",
+  "devTable.disabled": "wyłączone",
   "dash.peak": "szczyt {value} o {time}",
   "dash.wifiPeak": "maks. {n} w zakresie",
 } as const;

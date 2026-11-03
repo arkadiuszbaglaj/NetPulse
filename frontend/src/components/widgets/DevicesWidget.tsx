@@ -127,9 +127,30 @@ function DevicesTable({ list }: { list: Device[] }) {
             </tr>
           </thead>
           <tbody>
-            {list.map((d) => {
+            {[...list.filter((d) => d.enabled), ...list.filter((d) => !d.enabled)].map((d) => {
               const v = byId.get(String(d.id));
               const status = d.status in STATUS_STYLE ? d.status : "unknown";
+              if (!d.enabled) {
+                // Wyłączone (bez odpytywania) – na końcu, wyszarzone; pasek stanu ich nie liczy
+                return (
+                  <tr key={d.id} className="border-b border-border/60 text-muted last:border-b-0">
+                    <td className="whitespace-nowrap py-3 pl-5 pr-3">
+                      <p className="font-medium">{d.name}</p>
+                      <p className="text-xs">{t(KIND_LABEL[d.kind] ?? "dash.kind.other")}</p>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3">{d.host || "–"}</td>
+                    <td className="px-3 py-3">–</td>
+                    <td className="px-3 py-3">–</td>
+                    <td className="px-3 py-3">–</td>
+                    <td className="whitespace-nowrap py-3 pl-3 pr-5">
+                      <span className="inline-flex items-center gap-1.5 text-[13px]">
+                        <span className="size-2 rounded-full border border-border-strong" aria-hidden="true" />
+                        {t("devTable.disabled")}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              }
               return (
                 <tr key={d.id} className="border-b border-border/60 last:border-b-0">
                   <td className="whitespace-nowrap py-3 pl-5 pr-3">

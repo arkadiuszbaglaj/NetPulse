@@ -98,16 +98,25 @@ export function sortAlerts(list: Alert[]): Alert[] {
   return [...list].sort((a, b) => (a.state === b.state ? b.started_at.localeCompare(a.started_at) : a.state === "firing" ? -1 : 1));
 }
 
+/** Aktywne mają pierwszeństwo nawet wtedy, gdy są starsze od świeżo rozwiązanych – resztę miejsc dopełniają rozwiązane. */
+export function recentAlerts(firing: Alert[], resolved: Alert[], limit: number): Alert[] {
+  return sortAlerts([...firing, ...resolved]).slice(0, limit);
+}
+
 export function AlertsWidget({ limit }: { limit: AlertsLimit }) {
   const linked = useDetailLinks();
   const { refetchInterval } = useRefresh();
-  const { data, isError } = useQuery({
-    queryKey: [...ALERTS_KEY, "recent", limit],
-    queryFn: () => get<Alert[]>(`/api/alerts?state=all&limit=${limit}`),
+  const query = (state: "firing" | "resolved") => ({
+    queryKey: [...ALERTS_KEY, "recent", state, limit],
+    queryFn: () => get<Alert[]>(`/api/alerts?state=${state}&limit=${limit}`),
     refetchInterval,
     enabled: linked,
     retry: false,
   });
+  const firingQ = useQuery(query("firing"));
+  const resolvedQ = useQuery(query("resolved"));
+  const isError = firingQ.isError || resolvedQ.isError;
+  const data = firingQ.data && resolvedQ.data ? recentAlerts(firingQ.data, resolvedQ.data, limit) : undefined;
   if (!linked) {
     return (
       <Card className="flex flex-col p-5">
@@ -116,14 +125,14 @@ export function AlertsWidget({ limit }: { limit: AlertsLimit }) {
       </Card>
     );
   }
-  const list = sortAlerts(data ?? []);
-  const firing = list.filter((a) => a.state === "firing").length;
+  const list = data ?? [];
+  const firing = firingQ.data?.length ?? 0;
   return (
     <Card className="flex flex-col p-5">
       <CardTitle title={t("widget.type.alerts")}>
         {firing > 0 && (
           <span className="rounded-full border border-warning/30 bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-            {t("alertsWidget.active", { n: firing })}
+            {t("alertsWidget.active", { n: firing >= limit ? `${limit}+` : firing })}
           </span>
         )}
       </CardTitle>
