@@ -66,7 +66,7 @@ function Sparkline({ values, color }: { values: (number | null)[]; color: string
     .join(" ");
   return (
     <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-12 w-full">
-      <polygon points={`0,40 ${pts} 100,40`} fill={color} opacity={0.15} />
+      <polygon points={`0,40 ${pts} 100,40`} fill={color} opacity={0.08} />
       <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -139,8 +139,11 @@ export function StatWidget({ config }: { config: StatConfig }) {
   const change = config.show_change ? percentChange(value, reduceValues(previous, config.reduce)) : null;
   const cls = unitClassOf(config.key);
   const format = metricFormatter(cls, config.unit);
-  const color = chartColor(thresholdColor(value, config.thresholds, config.color));
+  const colorIndex = thresholdColor(value, config.thresholds, config.color);
+  const color = chartColor(colorIndex);
   const background = config.color_mode === "background" && value != null;
+  // Liczba w kolorze tekstu; kolor progu tylko wtedy, gdy wartość przekroczyła próg (styl od 0.43.0)
+  const valueColor = background || colorIndex === config.color ? undefined : color;
   const gauge = config.display === "gauge";
   const max = config.max ?? (cls === "percent" ? 100 : Math.max(0, ...values.filter((v): v is number => v != null)));
   const title = statTitle(config);
@@ -152,7 +155,7 @@ export function StatWidget({ config }: { config: StatConfig }) {
         style={background ? { background: `color-mix(in srgb, ${color} 22%, var(--surface))` } : undefined}
       >
         <div className="relative z-10 flex items-center justify-between gap-2">
-          <h2 className="truncate text-sm font-medium">{title}</h2>
+          <h2 className="truncate text-[13px] font-medium text-muted">{title}</h2>
           <WidgetActions />
         </div>
         {query.isError && !query.data ? (
@@ -170,14 +173,14 @@ export function StatWidget({ config }: { config: StatConfig }) {
             className="flex flex-1 flex-col items-center justify-center"
           >
             <Gauge fraction={value == null || max <= 0 ? 0 : Math.min(1, Math.max(0, value / max))} color={color} />
-            <p className="-mt-5 text-2xl font-semibold tabular-nums" style={{ color: background ? undefined : color }}>
+            <p className="-mt-5 text-2xl font-semibold tabular-nums" style={{ color: valueColor }}>
               {text}
             </p>
             {change != null && <Change value={change} minutes={minutes} />}
           </div>
         ) : (
           <>
-            <p className="relative z-10 mt-2 text-3xl font-semibold tabular-nums" style={{ color: background ? undefined : color }} aria-label={`${title}: ${text}`}>
+            <p className="relative z-10 mt-2 text-3xl font-semibold tracking-tight tabular-nums" style={{ color: valueColor }} aria-label={`${title}: ${text}`}>
               {text}
               {config.reduce !== "last" && <span className="ml-2 text-xs font-normal text-text-2">{t(`panel.reduce.${config.reduce}` as const)}</span>}
             </p>
@@ -350,7 +353,7 @@ export function TableWidget({ config }: { config: TableConfig }) {
 
 // --- oś stanów --------------------------------------------------------------------------------
 
-const BAND: Record<StateSegment["state"], string> = { up: "bg-success", down: "bg-danger", unknown: "bg-surface-2" };
+const BAND: Record<StateSegment["state"], string> = { up: "bg-[var(--state-up)]", down: "bg-[var(--state-down)]", unknown: "bg-[var(--state-unknown)]" };
 const STATE_LABEL = { up: "panel.state.up", down: "panel.state.down", unknown: "panel.state.unknown" } as const;
 const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
 

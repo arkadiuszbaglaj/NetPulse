@@ -173,9 +173,9 @@ export function pieData(config: PieConfig, rows: CollectionRow[]): PieData | nul
     if (rows.length === 0) return null;
     const count = (n: number) => String(n);
     const slices: PieSlice[] = [
-      { key: "up", label: t("pie.state.up"), value: up, color: chartColor(2), text: count(up) },
-      { key: "down", label: t("pie.state.down"), value: down, color: chartColor(5), text: count(down) },
-      { key: "unknown", label: t("pie.state.unknown"), value: unknown, color: chartColor(8), text: count(unknown) },
+      { key: "up", label: t("pie.state.up"), value: up, color: "var(--state-up)", text: count(up) },
+      { key: "down", label: t("pie.state.down"), value: down, color: "var(--state-down)", text: count(down) },
+      { key: "unknown", label: t("pie.state.unknown"), value: unknown, color: "var(--state-unknown)", text: count(unknown) },
     ];
     return { slices: slices.filter((s) => s.value > 0), center: t("pie.state.center", { up, total: rows.length }), sub: t("pie.state.sub") };
   }

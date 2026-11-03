@@ -23,8 +23,12 @@ Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu
 
 - **Kolory:** szarości i biel (Tailwind `zinc`), grafit jako akcent (przyciski, logo, zaznaczenia).
   Kolor tylko dla stanów: zielony – działa, bursztynowy – ostrzeżenie, czerwony – błąd. Ciemny motyw –
-  te same zasady w odcieniach grafitu. Tokeny w `frontend/src/index.css`; paleta wykresów (`--chart-*`)
-  na razie bez zmian – dojdzie przy porządkowaniu wykresów.
+  te same zasady w odcieniach grafitu. Tokeny w `frontend/src/index.css`.
+- **Wykresy – styl B (od 0.43.0, wybrany z makiet A grafit / B grafit + akcent / C stonowana paleta):**
+  `--chart-1` stonowany niebieski (pierwsza seria), `--chart-2` szary (druga seria, porównania), dalej
+  przygaszone kolory (3 szałwia, 4 piaskowy = próg ostrzeżenia, 5 ceglasty = próg krytyczny, 6 róż, 7 łupek, 8 grafit).
+  Stany (oś stanów, koło „działa/nie działa”) – osobne tokeny `--state-up|down|unknown`. Liczba w widgecie „liczba”
+  w kolorze tekstu, kolor progu tylko po przekroczeniu. Karta wykresu: tytuł i bieżąca wartość pierwszej serii w nagłówku.
 - **Font:** Inter dołączony do panelu (`@fontsource-variable/inter`, działa bez internetu), cyfry równej szerokości.
 - **Menu:** na całą wysokość, logo na górze, grupy „Monitorowanie” i „System” (`Sidebar.tsx`, `SYSTEM_MODULES`).
   Pasek górny bez ramki, w kolorze tła; na telefonie przycisk menu z logo.

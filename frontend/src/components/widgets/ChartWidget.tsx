@@ -100,12 +100,21 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
       ]
     : [];
   const legendRight = legend.placement === "right" && legend.mode !== "hidden";
+  // Bieżąca wartość pierwszej widocznej serii w nagłówku karty (od 0.43.0) – bez porównań z przeszłością
+  const lead = hasData ? legendItems.find((i) => !i.hidden && !i.line.dashed && i.stats.last != null) : undefined;
+  const headline = lead && lead.stats.last != null ? { value: lead.format(lead.stats.last), label: lead.line.name } : null;
 
   return (
     <Card className={`p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""} ${className}`}>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="truncate text-sm font-medium">{title}</h2>
-        <div className="flex shrink-0 items-center gap-1">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <h2 className="min-w-0 truncate pt-0.5 text-[15px] font-semibold">{title}</h2>
+        <div className="flex shrink-0 items-start gap-2">
+          {headline && (
+            <p className="text-right leading-tight" title={headline.label}>
+              <span className="block text-xl font-semibold tracking-tight">{headline.value}</span>
+              <span className="block max-w-40 truncate text-[11px] text-muted">{headline.label}</span>
+            </p>
+          )}
           <WidgetActions actions={exports} />
         </div>
       </div>

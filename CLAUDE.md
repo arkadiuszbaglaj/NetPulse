@@ -180,7 +180,8 @@ wykresów: `ChartCard` też rysuje `PanelChart` (stary `TimeSeriesChart` usunię
 Wariant A „klasyczny jasny” (szarości i biel, grafitowy akcent, Inter w paczce, menu z grupami) i nowy pulpit
 domyślny z widgetami `status`, `alerts`, `checks` oraz tabelą urządzeń (`display: "table"`). Nowy widget = też
 wpis w `layout_schemas.py` i ścieżki w `resolve()` (pulpit publiczny). Opis: `docs/06-projekt-panelu.md`
-(„Nowy wygląd”). Następny krok uzgodniony z użytkownikiem: uporządkowanie wykresów (kolory, czytelność).
+(„Nowy wygląd”). Wykresy w stylu B (0.43.0): akcent niebieski + szary, dalej stonowana paleta, tokeny `--state-*`
+dla stanów. Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkownik sam się w nim zaloguje.
 
 ## Do sprawdzenia później
 
