@@ -25,16 +25,17 @@
   --danger-soft: #fef2f2;
   --ring: rgb(39 39 42 / 0.3);
   --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
-  /* Wykresy (styl B, od 0.43.0): pierwsza seria w jednym akcencie, druga szara, dalej stonowane kolory.
-     4 i 5 – progi (ostrzeżenie, krytyczny). Stany na osi i w kołach – osobne tokeny --state-*. */
+  /* Wykresy (styl B, od 0.43.0): stonowane kolory o dawnym znaczeniu numerów (1 niebieski akcent, 2 zielony,
+     3 fiolet, 4 piaskowy = próg ostrzeżenia, 5 ceglasty = próg krytyczny, 6 róż, 7 łupek, 8 szary).
+     Druga seria nowych wykresów – szary 8. Stany (oś stanów, koło) – osobne tokeny --state-*. */
   --chart-1: #2f5bd3;
-  --chart-2: #8e8e96;
-  --chart-3: #5f9486;
+  --chart-2: #4f9a7e;
+  --chart-3: #7e6bb5;
   --chart-4: #c0883a;
   --chart-5: #c2564b;
-  --chart-6: #a0607a;
+  --chart-6: #c77da8;
   --chart-7: #3e5c76;
-  --chart-8: #52525b;
+  --chart-8: #8e8e96;
   --state-up: #a9bdef;
   --state-down: #dc2626;
   --state-unknown: #e4e4e7;
@@ -63,11 +64,11 @@
   --ring: rgb(244 244 245 / 0.35);
   --shadow-card: none;
   --chart-1: #7b9cf0;
-  --chart-2: #9f9fa8;
-  --chart-3: #7fb8a9;
+  --chart-2: #6fbf9f;
+  --chart-3: #a897d9;
   --chart-4: #d9a65c;
   --chart-5: #e07a6e;
-  --chart-6: #c98aa3;
+  --chart-6: #e0a3c6;
   --chart-7: #8aa8c4;
   --chart-8: #a1a1aa;
   --state-up: #4a67b8;

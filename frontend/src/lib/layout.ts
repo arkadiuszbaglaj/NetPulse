@@ -388,14 +388,15 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
 
 export const unitClassOf = (key: string): UnitClass => METRICS[key]?.unitClass ?? "count";
 
-/** Domyślne serie dla źródła: dla przepustowości wejście i wyjście, dla reszty pierwsza metryka. */
+/** Domyślne serie dla źródła: dla przepustowości wejście i wyjście, dla reszty pierwsza metryka.
+ * Styl B (0.43.0): pierwsza seria w akcencie (1), druga szara (8). */
 export function defaultSeries(kind: SourceKind): SeriesConfig[] {
   switch (kind) {
     case "wan":
     case "interface":
       return [
         { key: "in_bps", color: 1 },
-        { key: "out_bps", color: 2 },
+        { key: "out_bps", color: 8 },
       ];
     case "device":
       return [{ key: "cpu_percent", color: 1 }];
@@ -405,22 +406,22 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
     case "server":
       return [
         { key: "cpu_percent", color: 1 },
-        { key: "mem_used_percent", color: 2 },
+        { key: "mem_used_percent", color: 8 },
       ];
     case "agent_cpu":
       return [
         { key: "core_max_percent", color: 1 },
-        { key: "core_avg_percent", color: 2 },
+        { key: "core_avg_percent", color: 8 },
       ];
     case "agent_net":
       return [
         { key: "rx_bps", color: 1 },
-        { key: "tx_bps", color: 2 },
+        { key: "tx_bps", color: 8 },
       ];
     case "agent_disk":
       return [
         { key: "read_bps", color: 1 },
-        { key: "write_bps", color: 2 },
+        { key: "write_bps", color: 8 },
       ];
     case "agent_temp":
       return [{ key: "temp_c", color: 3 }];

@@ -121,7 +121,7 @@ function MetricsCharts({ mac, wired }: { mac: string; wired: boolean }) {
         title={t("client.chart.rate")}
         series={[
           { key: "rx_rate_kbps", name: t("client.chart.rx"), color: 1 },
-          { key: "tx_rate_kbps", name: t("client.chart.tx"), color: 2 },
+          { key: "tx_rate_kbps", name: t("client.chart.tx"), color: 8 },
         ]}
         format={(v) => formatLinkRate(Math.round(v))}
       />

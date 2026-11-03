@@ -203,7 +203,7 @@ function portData(metric: PieMetric, row: CollectionRow | undefined): PieData | 
     return {
       slices: [
         { key: "in", label: t("port.in"), value: rx, color: chartColor(1), text: formatBps(rx) },
-        { key: "out", label: t("port.out"), value: tx, color: chartColor(2), text: formatBps(tx) },
+        { key: "out", label: t("port.out"), value: tx, color: chartColor(8), text: formatBps(tx) },
       ],
       center: formatBps(rx + tx),
       sub: t("pie.total"),

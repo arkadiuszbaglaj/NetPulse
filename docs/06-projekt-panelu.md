@@ -25,8 +25,10 @@ Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu
   Kolor tylko dla stanów: zielony – działa, bursztynowy – ostrzeżenie, czerwony – błąd. Ciemny motyw –
   te same zasady w odcieniach grafitu. Tokeny w `frontend/src/index.css`.
 - **Wykresy – styl B (od 0.43.0, wybrany z makiet A grafit / B grafit + akcent / C stonowana paleta):**
-  `--chart-1` stonowany niebieski (pierwsza seria), `--chart-2` szary (druga seria, porównania), dalej
-  przygaszone kolory (3 szałwia, 4 piaskowy = próg ostrzeżenia, 5 ceglasty = próg krytyczny, 6 róż, 7 łupek, 8 grafit).
+  stonowane kolory o dawnym znaczeniu numerów – 1 niebieski akcent (pierwsza seria), 2 zielony, 3 fiolet,
+  4 piaskowy = próg ostrzeżenia, 5 ceglasty = próg krytyczny, 6 róż, 7 łupek, 8 szary. Zapisane wykresy zachowują sens
+  kolorów (0.43.1: w 0.43.0 kolor 2 był szary i „dobre” wartości wyglądały na wyłączone); nowe wykresy mają drugą serię
+  w szarym 8.
   Stany (oś stanów, koło „działa/nie działa”) – osobne tokeny `--state-up|down|unknown`. Liczba w widgecie „liczba”
   w kolorze tekstu, kolor progu tylko po przekroczeniu. Karta wykresu: tytuł i bieżąca wartość pierwszej serii w nagłówku.
 - **Font:** Inter dołączony do panelu (`@fontsource-variable/inter`, działa bez internetu), cyfry równej szerokości.

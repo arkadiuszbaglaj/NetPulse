@@ -151,7 +151,7 @@ function DeviceCharts({ deviceId }: { deviceId: number }) {
       {
         ...newChartConfig(source, [
           { key: "cpu_percent", color: 1 },
-          { key: "mem_used_percent", color: 2 },
+          { key: "mem_used_percent", color: 8 },
         ]),
         title: t("device.chart.usage"),
         chart: "line",
