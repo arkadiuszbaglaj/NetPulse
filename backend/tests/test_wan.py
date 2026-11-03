@@ -133,6 +133,20 @@ def test_switch_after_total_outage_counts_once():
     assert [(e.from_ids, e.to_ids) for e in switches({1: wan1, 2: wan2})] == [((1,), (2,))]
 
 
+def test_links_of_two_routers_with_own_timestamps_do_not_flap():
+    # Dwa routery: próbki co 30 s, ale z przesunięciem o ułamek sekundy – oba łącza stale aktywne, to nie przełączenie
+    wan1 = series([(0, True, True), (30, True, True), (60, True, True)])
+    wan2 = series([(0.2, True, True), (30.2, True, True), (60.2, True, True)])
+    assert switches({1: wan1, 2: wan2}) == []
+
+
+def test_switch_between_routers_is_one_event():
+    # Powrót WAN 1: najpierw oba aktywne (drugi router dowie się w kolejnym cyklu), potem samo WAN 1 – jedno przełączenie
+    wan1 = series([(0, False, False), (30, True, True), (60, True, True), (90, True, True)])
+    wan2 = series([(0.2, True, True), (30.2, True, True), (60.2, True, False), (90.2, True, False)])
+    assert [(e.time, e.from_ids, e.to_ids) for e in switches({1: wan1, 2: wan2})] == [(at(30), (2,), (1,))]
+
+
 # --- kontroler UniFi ------------------------------------------------------------------------------
 
 

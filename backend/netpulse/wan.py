@@ -217,21 +217,38 @@ class Switch:
     to_ids: tuple[int, ...]
 
 
-def switches(samples: dict[int, Iterable[Sample]]) -> list[Switch]:
-    """Momenty przełączenia ruchu między łączami jednego routera (próbki łączy mają wspólne znaczniki czasu cyklu)."""
-    by_time: dict[datetime, set[int]] = {}
+def switches(
+    samples: dict[int, Iterable[Sample]], max_gap: timedelta = timedelta(seconds=90), settle: timedelta = timedelta(seconds=45)
+) -> list[Switch]:
+    """Momenty przełączenia ruchu między łączami (także łączami różnych routerów).
+
+    Próbki różnych routerów mają różne znaczniki czasu, więc stan łącza obowiązuje od jego próbki do następnej
+    (najdłużej `max_gap`). Zmiany w odstępie krótszym niż `settle` (routery dowiadują się o sobie w kolejnym
+    cyklu) to jedno przełączenie – od stanu sprzed pierwszej zmiany do stanu po ostatniej."""
+    by_time: dict[datetime, list[tuple[int, bool]]] = {}
     for link_id, items in samples.items():
         for s in items:
-            active = by_time.setdefault(s.time, set())
-            if s.active:
-                active.add(link_id)
-    out: list[Switch] = []
-    previous: set[int] | None = None
-    for t in sorted(by_time):
-        current = by_time[t]
+            by_time.setdefault(s.time, []).append((link_id, s.active))
+    latest: dict[int, tuple[datetime, bool]] = {}
+    raw: list[Switch] = []
+    previous: frozenset[int] | None = None
+    times = sorted(by_time)
+    for t in times:
+        for link_id, active in by_time[t]:
+            latest[link_id] = (t, active)
+        current = frozenset(k for k, (ts, active) in latest.items() if active and t - ts <= max_gap)
         if not current:
             continue  # żadne łącze nie działa – przełączenie liczymy dopiero, gdy ruch gdzieś wróci
-        if previous is not None and current != previous:
-            out.append(Switch(t, tuple(sorted(previous)), tuple(sorted(current))))
+        # Pierwsze sekundy okresu: próbki routerów z pierwszego cyklu jeszcze się zbierają – to stan wyjściowy
+        if previous is not None and current != previous and t - times[0] >= settle / 3:
+            raw.append(Switch(t, tuple(sorted(previous)), tuple(sorted(current))))
         previous = current
-    return out
+    out: list[Switch] = []
+    last_change: datetime | None = None
+    for sw in raw:
+        if out and last_change is not None and sw.time - last_change < settle:
+            out[-1] = Switch(out[-1].time, out[-1].from_ids, sw.to_ids)
+        else:
+            out.append(sw)
+        last_change = sw.time
+    return [sw for sw in out if sw.from_ids != sw.to_ids]
