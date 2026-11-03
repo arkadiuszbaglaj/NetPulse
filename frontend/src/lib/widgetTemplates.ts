@@ -96,6 +96,7 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
   { id: "status", group: "overview", thumb: "status", asks: [], sizes: [12], recommended: true, build: (ctx) => sized(newWidget("status"), ctx, 12) },
   { id: "summary", group: "overview", thumb: "stat", asks: [], sizes: [12], build: (ctx) => sized(newWidget("summary"), ctx, 12) },
   { id: "alerts", group: "overview", thumb: "list", asks: [], sizes: [4, 6], build: (ctx) => sized(newWidget("alerts"), ctx, 4) },
+  { id: "events", group: "overview", thumb: "list", asks: [], sizes: [4, 6], build: (ctx) => sized(newWidget("events"), ctx, 4) },
   {
     id: "devices_table",
     group: "overview",

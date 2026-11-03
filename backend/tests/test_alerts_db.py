@@ -30,6 +30,8 @@ from netpulse.db.models import (  # noqa: E402
     Interface,
     InterfaceMetric,
     User,
+    WanLink,
+    WanLinkMetric,
 )
 
 ADMIN = {"username": "admin", "password": "haslo-testowe-1"}
@@ -309,6 +311,65 @@ def test_deleted_rule_ends_its_alerts_but_keeps_history(client):
     assert a["state"] == "resolved" and a["rule_id"] is None
 
 
+def evaluate_events(now):
+    async def go():
+        return await AlertEngine(now_fn=lambda: now).evaluate()
+
+    return run(go)
+
+
+def test_device_restart_is_a_short_alert_without_end_notice(client):
+    dev = add_device(name="USW", status="up")
+    add_rule(name="Restart", kind="device_restart", duration_s=0, severity="info")
+
+    async def samples():
+        async with Session() as s, s.begin():
+            # Czas pracy rośnie, 2 min temu spada do 60 s – restart
+            for m, uptime in ((6, 9000), (4, 9120), (2, 60), (0, 180)):
+                s.add(DeviceMetric(time=NOW - timedelta(minutes=m), device_id=dev, reachable=True, uptime_s=uptime))
+
+    run(samples)
+    events = evaluate_events(NOW)
+    assert [(e.kind, e.title) for e in events] == [("firing", "USW: restart urządzenia")]
+    (a,) = alerts(client)
+    assert a["state"] == "firing" and a["severity"] == "info" and a["message"] == "Czas pracy po restarcie: 1 min"
+    # Kolejny cykl: ten sam restart, bez nowego alertu
+    assert evaluate_events(NOW + timedelta(seconds=30)) == []
+    # Po 10 minutach alert się kończy – bez powiadomienia o końcu
+    assert evaluate_events(NOW + timedelta(minutes=11)) == []
+    (a,) = alerts(client)
+    assert a["state"] == "resolved"
+
+
+def test_wan_switch_alert(client):
+    gw = add_device(name="UCG", status="up")
+    add_rule(name="WAN", kind="wan_switch", duration_s=0, severity="warning")
+
+    async def seed():
+        async with Session() as s, s.begin():
+            ports = [Interface(device_id=gw, if_index=i, name=f"eth{i}") for i in (4, 3)]
+            s.add_all(ports)
+            await s.flush()
+            links = [WanLink(device_id=gw, interface_id=p.id, position=n, name=n == 1 and "Światłowód" or "LTE") for n, p in enumerate(ports, 1)]
+            s.add_all(links)
+            await s.flush()
+            # WAN 1 niesie ruch, 2 min temu pada – ruch przejmuje LTE
+            for m in (5, 4, 3, 2, 1, 0):
+                t = NOW - timedelta(minutes=m)
+                s.add(WanLinkMetric(time=t, wan_link_id=links[0].id, up=m > 2, active=m > 2))
+                s.add(WanLinkMetric(time=t, wan_link_id=links[1].id, up=True, active=m <= 2))
+
+    run(seed)
+    events = evaluate_events(NOW)
+    assert [(e.kind, e.title, e.device_name) for e in events] == [("firing", "Przełączenie WAN: Światłowód → LTE", "UCG")]
+    assert evaluate_events(NOW + timedelta(seconds=30)) == []
+    assert evaluate_events(NOW + timedelta(minutes=13)) == []
+    assert [a["state"] for a in alerts(client)] == ["resolved"]
+    # Reguła przełączenia dotyczy wszystkich łączy – bez urządzenia
+    bad = {"name": "x", "kind": "wan_switch", "device_id": gw}
+    assert client.post("/api/alert-rules", json=bad).status_code == 422
+
+
 def test_default_rules_created_once(client):
     async def go():
         await AlertEngine().ensure_default_rules()
@@ -319,6 +380,7 @@ def test_default_rules_created_once(client):
     assert kinds == [
         "device_offline", "port_down", "container_stopped", "service_failed", "smart_failed", "metric",
         "guest_stopped", "backup_failed", "metric", "check_down", "metric", "default_community",
+        "wan_switch", "device_restart",
     ]  # fmt: skip
 
 
@@ -331,12 +393,12 @@ def test_default_rules_for_existing_install_and_deleted_rules_stay_deleted(clien
 
     run(go)
     rules = client.get("/api/alert-rules").json()
-    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 11
+    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 13
     temp = next(r for r in rules if r["metric"] == "temp_c")
     assert temp["threshold"] == 85 and temp["op"] == ">"
     assert client.delete(f"/api/alert-rules/{rules[1]['id']}").status_code == 204
     run(go)
-    assert len(client.get("/api/alert-rules").json()) == 10
+    assert len(client.get("/api/alert-rules").json()) == 12
 
 
 def test_rules_api_validation(client):

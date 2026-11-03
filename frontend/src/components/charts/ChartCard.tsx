@@ -9,7 +9,6 @@ import { lazy, Suspense, useContext, useMemo, useRef, useState, type ReactNode }
 import { t } from "../../i18n";
 import type { Series } from "../../lib/api";
 import { download, fileName } from "../../lib/download";
-import type { ChartEvent } from "../../lib/events";
 import { formatRange } from "../../lib/format";
 import { autoColor, DEFAULT_LEGEND, type ColorIndex } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
@@ -52,8 +51,6 @@ export interface ChartCardProps {
   actions?: ReactNode;
   /** Dodatkowa treść pod tytułem (np. bieżące wartości) */
   children?: ReactNode;
-  /** Zdarzenia na osi czasu (pionowe kreski) */
-  events?: ChartEvent[];
 }
 
 const loading = (
@@ -79,7 +76,6 @@ export function ChartCard({
   errorText,
   actions,
   children,
-  events = [],
 }: ChartCardProps) {
   const global = useRefresh();
   const range = rangeMinutes ?? global.rangeMinutes;
@@ -165,8 +161,6 @@ export function ChartCard({
                 height={fill ? "100%" : height}
                 ariaLabel={t("chart.summary", { title, range: formatRange(range) })}
                 instanceRef={instance}
-                events={events}
-                bucketMs={data.interval_s * 1000}
               />
             </Suspense>
           </div>

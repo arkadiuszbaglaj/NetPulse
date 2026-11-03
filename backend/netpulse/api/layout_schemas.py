@@ -199,7 +199,7 @@ class ChartConfig(Strict):
     refresh_s: RefreshSeconds | None = None  # puste = interwał globalny
     height: Literal["sm", "md", "lg"] = "md"
     # Zdarzenia na osi czasu (0.34.0): auto – dotyczące urządzeń i portów wykresu, all – wszystkie, off – żadne
-    annotations: Literal["auto", "all", "off"] = "auto"
+    annotations: Literal["auto", "all", "off"] = "auto"  # dawne zdarzenia na wykresie (do 0.48.0) – bez znaczenia
 
     @model_validator(mode="before")
     @classmethod
@@ -399,6 +399,13 @@ class ChecksConfig(Strict):
     days: Literal[7, 30] = 30  # paski dostępności dzień po dniu
 
 
+class EventsConfig(Strict):
+    """Kafelek „Zdarzenia” (od 0.49.0): przełączenia WAN i restarty urządzeń z ostatnich `days` dni."""
+
+    days: Literal[1, 7, 30] = 7
+    limit: Literal[3, 5, 8, 10] = 8
+
+
 class ServerConfig(Strict):
     pass  # karta stanu serwera NetPulse nie ma ustawień
 
@@ -481,6 +488,16 @@ class ChecksWidget(Strict):
     y: int | None = Field(None, ge=0, le=MAX_ROW)
     h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: ChecksConfig = ChecksConfig()
+
+
+class EventsWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["events"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: EventsConfig = EventsConfig()
 
 
 class PoeWidget(Strict):
@@ -719,7 +736,8 @@ Widget = Annotated[
     | SectionWidget
     | StatusWidget
     | AlertsWidget
-    | ChecksWidget,
+    | ChecksWidget
+    | EventsWidget,
     Field(discriminator="type"),
 ]
 

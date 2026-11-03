@@ -27,7 +27,19 @@ from ..auth import hash_token, verify_password
 from ..db import Session
 from ..db.models import Dashboard
 from ..modules import get_modules
-from . import availability, checks, controllers, dashboard, devices, metrics, panels, servers, system, wan
+from . import (
+    availability,
+    checks,
+    controllers,
+    dashboard,
+    devices,
+    events,
+    metrics,
+    panels,
+    servers,
+    system,
+    wan,
+)
 from .dashboards import _parse, public_options
 from .layout_schemas import AgentSource, DashboardLayout, PublicOptions, RangeMinutes, Source
 from .schemas import DeviceOut
@@ -214,6 +226,12 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
             return await controllers.device_poe(device_id)
     if path == "/api/system" and "server" in types:
         return await system.current()
+    if path == "/api/events" and "events" in types:
+        # Kafelek „Zdarzenia”: tylko okres ustawiony w którymś kafelku pulpitu
+        wanted = _int(query.get("minutes"), 0)
+        if wanted not in {w.config.days * 24 * 60 for w in widgets if w.type == "events"} or query.get("offset"):
+            raise HTTPException(403, "Niedozwolony zakres czasu")
+        return await events.events(wanted, 0)
     if path == "/api/wan/status" and "wan_status" in types:
         return await wan.status()
     if path == "/api/wan/history" and "wan_chart" in types:

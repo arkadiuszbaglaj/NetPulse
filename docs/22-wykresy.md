@@ -13,7 +13,7 @@ Decyzje użytkownika (2026-10-25): wszystkie funkcje wykresu w czasie, nowe pane
 | C ✅ | 0.28.0 | Swobodna siatka: przeciąganie i rozciąganie paneli myszką (szerokość i wysokość), sekcje z nagłówkami do zwijania. Migracja obecnych układów kolumnowych. |
 | D ✅ | 0.32.0 | Powiększanie zaznaczeniem myszą (wszystkie wykresy strony, „Wróć”), wspólny kursor wykresów, klikalne wiersze tabel i pasków oraz węzły mapy sieci. |
 | E ✅ | 0.33.0 | Liczba jako wskaźnik kołowy i ze zmianą względem poprzedniego okresu, pełny ekran widgetu, eksport wykresu do CSV i PNG. |
-| F ✅ | 0.34.0 | Zdarzenia na osi czasu (adnotacje): restarty urządzeń i przełączenia WAN jako pionowe kreski z opisem w podpowiedzi (alerty usunięte z wykresów w 0.48.0). |
+| F ✅ | 0.34.0 | Zdarzenia na osi czasu (adnotacje): restarty urządzeń i przełączenia WAN jako pionowe kreski z opisem w podpowiedzi (od 0.49.0 bez kresek na wykresach – kafelek „Zdarzenia” i alerty). |
 
 Każdy etap to osobna wersja do sprawdzenia na serwerze.
 
@@ -142,22 +142,21 @@ dokładnie tego zestawu pozycji, liczba – ścieżka jej źródła (`public.py`
   z jednostką w nagłówku, wiersz na każdą chwilę dowolnej serii) i **PNG** (`getDataURL` ECharts, tło karty,
   2× rozdzielczość). Nazwa pliku z tytułu i chwili (`lib/download.ts`). Jedna akcja = sam przycisk z ikoną.
 
-## Etap F – zdarzenia na osi czasu (0.34.0)
+## Etap F – zdarzenia (0.34.0, od 0.49.0 poza wykresami)
 
-- **API** `GET /api/events?minutes=&offset=` (`api/events.py`, to samo okno co metryki, także powiększony fragment):
-  alert (początek, `alert`) i jego koniec (`alert_end`) z historii `alerts` (z `severity`, `device_id` i
-  `interface_id` z podmiotu `i<id>`), **restart** urządzenia – spadek `uptime_s` między próbkami `device_metrics`
-  (czas = próbka minus nowy uptime) i **przełączenie WAN** – ta sama logika co historia łączy (`wan.switches`).
-  Restarty i przełączenia tylko do 31 dni wstecz (liczone z surowych próbek); najwyżej
-  300 najnowszych. Urządzenia wyłączonych modułów pomijane. Pulpit publiczny tego nie dostaje (403 z `resolve`,
-  panel nie pyta – `useDetailLinks`).
-- **Wykres** (`PanelChart`): pionowe przerywane kreski w osobnej pustej serii (markLine pierwszej serii zajmują
-  progi), kolor: restart – fiolet (`--chart-6`), przełączenie WAN
-  – akcent. Opis w podpowiedzi osi, gdy kursor jest bliżej zdarzenia niż pół kubełka (też we wspólnym kursorze).
-- **Które zdarzenia** (`annotations` w konfiguracji wykresu, edytor → Wygląd, `eventsFor` w `lib/events.ts`):
-  `auto` (domyślnie) – wykres urządzenia lub z agenta: jego restarty (i przełączenia WAN bramy), wykres portu: restarty jego urządzenia; wykres ogólny (WAN, WiFi,
-  serwer, sprawdzenie): przełączenia WAN. **Od 0.48.0 alertów na wykresach nie ma** (były uciążliwe przy testach
-  failoveru i wyłączanych urządzeniach) – są na liście alertów i pod dzwonkiem. `all` – wszystkie, `off` – żadne. W trybie „Na żywo” bez zdarzeń.
+Do 0.48.0 zdarzenia były pionowymi kreskami na wykresach. Użytkownik uznał je za uciążliwe (testy failoveru,
+wyłączane maszyny testowe), więc **od 0.49.0 wykresy nie rysują żadnych zdarzeń**. Pole `annotations` zostaje
+w zapisanych pulpitach (schemat je przyjmuje), ale nic nie znaczy.
+
+- **API** `GET /api/events?minutes=&offset=` (`api/events.py`, logika w `netpulse/timeline.py`): **restart**
+  urządzenia – spadek `uptime_s` między próbkami `device_metrics` (czas = próbka minus nowy uptime) i
+  **przełączenie WAN** – ta sama logika co historia łączy (`wan.switches`). Do 31 dni wstecz (surowe próbki),
+  najwyżej 300 najnowszych, bez urządzeń wyłączonych modułów.
+- **Kafelek „Zdarzenia”** (widget `events`, `components/widgets/EventsWidget.tsx`): lista z ostatniej doby, 7 albo
+  30 dni (`days`), najnowsze na górze (`limit`). Pulpit publiczny: `resolve()` przepuszcza tylko okres z kafelka.
+- **Alerty** „Przełączenie łącza WAN” (`wan_switch`, ostrzeżenie) i „Restart urządzenia” (`device_restart`,
+  informacja) – zestaw reguł domyślnych w 0.49.0. Alert trwa 10 min od zdarzenia (`EVENT_HOLD`), osobny na każde
+  zdarzenie (podmiot z czasem), z powiadomieniem o początku i bez powiadomienia o końcu.
 
 ## Mapa sieci: obciążenie kabli i powiększanie (0.35.0)
 

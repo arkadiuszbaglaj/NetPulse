@@ -6,6 +6,7 @@ import { t, type TextKey } from "../../i18n";
 import { ApiError } from "../../lib/api";
 import {
   AGENT_KINDS,
+  EVENT_KINDS,
   RULE_KINDS,
   SEVERITIES,
   formatDuration,
@@ -36,6 +37,8 @@ const KIND_LABEL: Record<RuleKind, TextKey> = {
   backup_failed: "rules.kind.backup_failed",
   check_down: "rules.kind.check_down",
   default_community: "rules.kind.default_community",
+  wan_switch: "rules.kind.wan_switch",
+  device_restart: "rules.kind.device_restart",
 };
 const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
   container_stopped: "rules.match.hint.container",
@@ -95,9 +98,10 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
   const isMetric = values.kind === "metric";
   const checkKind = values.kind === "check_down";
   // Stan bez czasu trwania: port przeszedł w down, fabryczne community (trwa, dopóki się nie zmieni)
-  const noDuration = values.kind === "port_down" || values.kind === "default_community";
+  const eventKind = EVENT_KINDS.includes(values.kind);
+  const noDuration = values.kind === "port_down" || values.kind === "default_community" || eventKind;
   // WAN to suma po routerach, sprawdzenia dostępności nie są urządzeniami – bez wyboru urządzenia
-  const perDevice = !checkKind && (!isMetric || meta?.per_device !== false);
+  const perDevice = !checkKind && values.kind !== "wan_switch" && (!isMetric || meta?.per_device !== false);
   const unitHint = meta ? (meta.unit === "b/s" ? "Mb/s" : meta.unit || "") : "";
   const agentKind = AGENT_KINDS.includes(values.kind);
   const matchable = agentKind || checkKind || (isMetric && meta?.matchable === true);
@@ -202,7 +206,9 @@ function RuleForm({ rule, metrics: allMetrics, onClose }: { rule?: AlertRule; me
             ))}
           </Select>
         ) : (
-          <p className="text-xs text-text-2">{t(values.kind === "port_down" ? "rules.portdown.hint" : "rules.community.hint")}</p>
+          <p className="text-xs text-text-2">
+            {t(eventKind ? "rules.event.hint" : values.kind === "port_down" ? "rules.portdown.hint" : "rules.community.hint")}
+          </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -234,6 +240,8 @@ function describe(rule: AlertRule, metrics: RuleMetric[]): string {
   if (rule.kind === "device_offline") return t("rules.sum.offline", { after: durationLabel(rule.duration_s) });
   if (rule.kind === "port_down") return t("rules.sum.portdown");
   if (rule.kind === "default_community") return t("rules.sum.community");
+  if (rule.kind === "wan_switch") return t("rules.sum.wan_switch");
+  if (rule.kind === "device_restart") return t("rules.sum.device_restart");
   const only = rule.match ? ` (${rule.match})` : "";
   if (AGENT_KINDS.includes(rule.kind) || rule.kind === "check_down") return `${t(KIND_LABEL[rule.kind])}${only}, ${durationLabel(rule.duration_s)}`;
   const meta = metrics.find((m) => m.metric === rule.metric);

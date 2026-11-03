@@ -105,7 +105,7 @@ export interface ChartConfig {
   range_min?: RangeMinutes | null;
   refresh_s?: RefreshSeconds | null;
   height: ChartHeight;
-  /** Zdarzenia na osi czasu (0.34.0): auto – dotyczące urządzeń i portów wykresu, all – wszystkie, off – żadne */
+  /** Dawne zdarzenia na osi czasu (0.34.0–0.48.0) – zostaje w zapisanych pulpitach, od 0.49.0 bez znaczenia */
   annotations?: Annotations;
 }
 export type Annotations = "auto" | "all" | "off";
@@ -161,6 +161,10 @@ export type StatusWidgetModel = WidgetBase & { type: "status"; config: Record<st
 export type AlertsLimit = 3 | 5 | 8 | 10;
 export const ALERTS_LIMITS: AlertsLimit[] = [3, 5, 8, 10];
 export type AlertsWidgetModel = WidgetBase & { type: "alerts"; config: { limit: AlertsLimit } };
+/** Kafelek „Zdarzenia” (od 0.49.0): przełączenia WAN i restarty urządzeń z ostatnich `days` dni. */
+export type EventsDays = 1 | 7 | 30;
+export const EVENTS_DAYS: EventsDays[] = [1, 7, 30];
+export type EventsWidgetModel = WidgetBase & { type: "events"; config: { days: EventsDays; limit: AlertsLimit } };
 export type ChecksDays = 7 | 30;
 export type ChecksWidgetModel = WidgetBase & { type: "checks"; config: { days: ChecksDays } };
 export type PoeWidgetModel = WidgetBase & { type: "poe"; config: { device_id?: number | null } };
@@ -302,7 +306,8 @@ export type Widget =
   | PieWidgetModel
   | StatusWidgetModel
   | AlertsWidgetModel
-  | ChecksWidgetModel;
+  | ChecksWidgetModel
+  | EventsWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -490,6 +495,8 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 4, config: { limit: 5 } };
     case "checks":
       return { id, type, w: 4, config: { days: 30 } };
+    case "events":
+      return { id, type, w: 4, config: { days: 7, limit: 8 } };
     case "poe":
       return { id, type, w: 12, config: { device_id: null } };
     case "server":
@@ -561,6 +568,7 @@ export function defaultHeight(w: Widget): number {
     case "status":
       return 2;
     case "alerts":
+    case "events":
       return 10;
     case "checks":
       return 11;

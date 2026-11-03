@@ -192,6 +192,7 @@ def test_public_overview_widgets(client):
         {"id": "dev", "type": "devices", "w": 8, "config": {"display": "table"}},
         {"id": "ch", "type": "checks", "w": 4, "config": {"days": 7}},
         {"id": "al", "type": "alerts", "w": 4},
+        {"id": "ev", "type": "events", "w": 4, "config": {"days": 1}},
     ]
     wall = client.post("/api/dashboards", json={"name": "Przegląd", "layout": {"version": 1, "widgets": widgets}}).json()
     token = share(client, wall["id"], options={"refresh_s": 30, "range_min": 60})["public"]["token"]
@@ -206,6 +207,10 @@ def test_public_overview_widgets(client):
         # Paski: tylko okres z widgetu (7 dni); nieistniejące sprawdzenie – 404
         assert data("/api/checks/999999/metrics?minutes=10080").status_code == 404
         assert data("/api/checks/999999/metrics?minutes=43200").status_code == 403
+        # Zdarzenia: tylko okres z kafelka (doba)
+        assert data("/api/events?minutes=1440").status_code == 200
+        assert data("/api/events?minutes=10080").status_code == 403
+        assert data("/api/events?minutes=1440&offset=60").status_code == 403
         # Alerty i lista sprawdzeń z adresami – nigdy
         assert data("/api/alerts/summary").status_code == 403
         assert data("/api/alerts?state=all&limit=5").status_code == 403

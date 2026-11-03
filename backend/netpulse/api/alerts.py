@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["alerty"], dependencies=[Depends(require
 Severity = Literal["info", "warning", "critical"]
 Kind = Literal[
     "device_offline", "port_down", "metric", "container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed",
-    "check_down", "default_community",
+    "check_down", "default_community", "wan_switch", "device_restart",
 ]
 
 
@@ -52,6 +52,8 @@ class RuleBase(BaseModel):
             self.metric = self.op = self.threshold = None
             if self.kind not in AGENT_STATES and self.kind != "check_down":
                 self.match = None
+        if self.kind == "wan_switch" and self.device_id is not None:
+            raise ValueError("Przełączenie WAN dotyczy wszystkich łączy – nie wybieraj urządzenia")
         if self.kind == "check_down" or self.metric in CHECK_METRICS:
             if self.device_id is not None:
                 raise ValueError("Reguła sprawdzeń dostępności nie dotyczy urządzenia – zawęź ją nazwą sprawdzenia")

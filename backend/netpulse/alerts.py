@@ -16,6 +16,7 @@ from fnmatch import fnmatchcase
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 
+from . import wan_links
 from .config import settings
 from .db import Session
 from .db.models import (
@@ -35,13 +36,17 @@ from .db.models import (
 )
 from .modules import hidden_drivers, read_modules
 from .notifications import AlertEvent, Notifier
+from .timeline import restarts, wan_switches
 
 log = logging.getLogger("netpulse.alerts")
 
 SEVERITIES = ("info", "warning", "critical")
 # Rodzaje na ogólnej tabeli `metrics`: z agenta (kontener, usługa systemd, SMART) i z Proxmoxa (maszyna, kopia)
 AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed")
-KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS, "check_down", "default_community")
+# Zdarzenia chwilowe (od 0.49.0): alert trwa EVENT_HOLD od zdarzenia i kończy się bez powiadomienia o końcu
+EVENT_KINDS = ("wan_switch", "device_restart")
+EVENT_HOLD = timedelta(minutes=10)
+KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS, "check_down", "default_community", *EVENT_KINDS)
 OPS = (">", "<")
 
 # Metryki reguł typu „metric”: nazwa → (opis, jednostka). Pierwsze trzy są per urządzenie, WAN to suma po routerach.
@@ -120,6 +125,10 @@ DEFAULT_RULE_SETS = (
         dict(name="Certyfikat HTTPS wkrótce wygaśnie", kind="metric", metric="check_cert_days", op="<", threshold=14.0, duration_s=0, severity="warning"),
     ),
     (dict(name="Fabryczne community SNMP", kind="default_community", duration_s=0, severity="warning"),),
+    (
+        dict(name="Przełączenie łącza WAN", kind="wan_switch", duration_s=0, severity="warning"),
+        dict(name="Restart urządzenia", kind="device_restart", duration_s=0, severity="info"),
+    ),
 )
 DEFAULTS_KEY = "alert_defaults"
 DEFAULT_COMMUNITY_HINT = (
@@ -178,6 +187,16 @@ def sustained(
     if not window or window[0][0] > start + timedelta(seconds=interval_s * 1.5):
         return False  # dane zaczynają się później niż początek okna
     return all(breaches(op, v, threshold) for t, v in window if t >= start)
+
+
+def format_uptime(seconds: float) -> str:
+    """Czas pracy po restarcie: „45 s”, „3 min”, „2 h 5 min”."""
+    s = int(seconds)
+    if s < 60:
+        return f"{s} s"
+    if s < 3600:
+        return f"{s // 60} min"
+    return f"{s // 3600} h {s % 3600 // 60} min"
 
 
 def format_value(metric: str, value: float) -> str:
@@ -279,6 +298,7 @@ class AlertEngine:
             firing = (await session.scalars(select(Alert).where(Alert.state == "firing"))).all()
             by_key = {(a.rule_id, a.subject): a for a in firing}
             active_rules = {r.id for r in rules}
+            rule_kind = {r.id: r.kind for r in rules}
 
             # Grupowanie: urządzenie za niedziałającym urządzeniem (np. AP za switchem) nie dostaje osobnego
             # powiadomienia – wymieniamy je w wiadomości o przyczynie. Alert w panelu powstaje normalnie.
@@ -350,8 +370,8 @@ class AlertEngine:
                     alert.state = "resolved"
                     alert.resolved_at = now
                     log.info("Alert zakończony: %s", alert.title)
-                    if alert.muted:
-                        continue  # nie było powiadomienia o początku, więc nie ma i o końcu
+                    if alert.muted or rule_kind.get(alert.rule_id) in EVENT_KINDS:
+                        continue  # nie było powiadomienia o początku albo to zdarzenie chwilowe – bez „zakończony”
                     device = devices.get(alert.device_id) if alert.device_id is not None else None
                     events.append(
                         AlertEvent(
@@ -375,9 +395,44 @@ class AlertEngine:
             return await self._agent_state(session, rule, scope, now)
         if rule.kind == "check_down":
             return await self._check_down(session, rule, now)
+        if rule.kind == "device_restart":
+            return await self._restarts(session, scope, now)
+        if rule.kind == "wan_switch":
+            return await self._wan_switches(session, devices, now)
         if rule.kind == "metric" and rule.metric in METRICS and rule.op in OPS and rule.threshold is not None:
             return await self._metric(session, rule, scope, now)
         return []
+
+    async def _restarts(self, session, scope: list[Device], now: datetime) -> list[Hit]:
+        """Urządzenie uruchomiło się ponownie (spadek czasu pracy) w ostatnich EVENT_HOLD – osobny alert na restart."""
+        names = {d.id: d.name for d in scope}
+        return [
+            Hit(
+                f"r{r.device_id}:{int(r.detected.timestamp())}",
+                f"{names[r.device_id]}: restart urządzenia",
+                f"Czas pracy po restarcie: {format_uptime(r.uptime_s)}",
+                r.device_id,
+                r.uptime_s,
+            )
+            for r in await restarts(session, names, now - EVENT_HOLD, now + timedelta(seconds=1))
+        ]
+
+    async def _wan_switches(self, session, devices: dict[int, Device], now: datetime) -> list[Hit]:
+        """Ruch przeszedł na inne łącze WAN w ostatnich EVENT_HOLD – osobny alert na przełączenie."""
+        since = now - EVENT_HOLD
+        # Próbki sprzed okna: stan wyjściowy łączy, bez niego przełączenia nie widać
+        found = await wan_switches(session, devices, since - 3 * wan_links.stale_after(), now + timedelta(seconds=1))
+        return [
+            Hit(
+                f"wan:{int(sw.time.timestamp())}",
+                f"Przełączenie WAN: {sw.from_names} → {sw.to_names}",
+                f"Ruch idzie teraz łączem {sw.to_names}.",
+                sw.device_id,
+                None,
+            )
+            for sw in found
+            if sw.time >= since
+        ]
 
     def _default_community(self, scope: list[Device]) -> list[Hit]:
         """Urządzenie SNMP v1/v2c z community „public” albo „private” – trwa, dopóki community się nie zmieni."""

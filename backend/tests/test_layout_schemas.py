@@ -159,17 +159,20 @@ def test_overview_widgets():
             {"id": "st", "type": "status", "w": 12},
             {"id": "al", "type": "alerts", "w": 4, "config": {"limit": 8}},
             {"id": "ch", "type": "checks", "w": 4},
+            {"id": "ev", "type": "events", "w": 4},
             {"id": "d", "type": "devices", "w": 8, "config": {"display": "table"}},
         )
     )
     assert parsed.widgets[1].config.limit == 8
     assert parsed.widgets[2].config.days == 30
-    assert parsed.widgets[3].config.display == "table"
+    assert (parsed.widgets[3].config.days, parsed.widgets[3].config.limit) == (7, 8)
+    assert parsed.widgets[4].config.display == "table"
     # Stare pulpity bez pola `display` – karty jak dotąd
     assert DashboardLayout.model_validate(layout({"id": "d", "type": "devices", "w": 12})).widgets[0].config.display == "cards"
     for bad in (
         {"id": "al", "type": "alerts", "w": 4, "config": {"limit": 50}},
         {"id": "ch", "type": "checks", "w": 4, "config": {"days": 365}},
+        {"id": "ev", "type": "events", "w": 4, "config": {"days": 2}},
         {"id": "st", "type": "status", "w": 12, "config": {"cos": 1}},
         {"id": "d", "type": "devices", "w": 8, "config": {"display": "lista"}},
     ):

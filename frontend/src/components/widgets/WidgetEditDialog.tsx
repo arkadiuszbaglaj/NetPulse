@@ -6,10 +6,12 @@ import { type Device } from "../../lib/api";
 import {
   ALERTS_LIMITS,
   DEVICE_KINDS,
+  EVENTS_DAYS,
   SUMMARY_TILES,
   type AlertsLimit,
   type ChartHeight,
   type ChecksDays,
+  type EventsDays,
   type DeviceKind,
   type DevicesDisplay,
   type SummaryTile,
@@ -394,6 +396,18 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
           isNew={isNew}
           onClose={onClose}
           onSave={(days) => onSave({ ...widget, config: { days } })}
+        />
+      );
+    case "events":
+      return (
+        <ChoiceForm<EventsDays>
+          title="widget.type.events"
+          label="widget.events.days"
+          options={EVENTS_DAYS.map((d) => ({ value: d, label: t(`widget.events.days.${d}`) }))}
+          initial={widget.config.days}
+          isNew={isNew}
+          onClose={onClose}
+          onSave={(days) => onSave({ ...widget, config: { ...widget.config, days } })}
         />
       );
     case "poe":

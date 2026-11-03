@@ -4,8 +4,6 @@ import { lazy, Suspense, useContext, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { ApiError, type Series } from "../../lib/api";
 import { formatRange, metricFormatter } from "../../lib/format";
-import { useChartEvents } from "../../lib/events";
-import { useDetailLinks } from "../../lib/publicMode";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
 import { buildLines, lineStats, linesToCsv } from "../charts/panelData";
@@ -44,8 +42,6 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
 
   const result = useChartQueries(config);
   // Zdarzenia tylko w zalogowanym panelu (pulpit publiczny nie dostaje historii alertów) i bez trybu „Na żywo”
-  const events = useChartEvents(config, useDetailLinks());
-  const bucketMs = (result.queries.find((q) => q.data)?.data?.interval_s ?? 30) * 1000;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
     setHidden((h) => {
@@ -173,8 +169,6 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
                 height={fill ? "100%" : HEIGHT[config.height]}
                 ariaLabel={t("chart.summary", { title, range: formatRange(result.minutes) })}
                 instanceRef={instance}
-                events={events}
-                bucketMs={bucketMs}
               />
             </Suspense>
           </div>
