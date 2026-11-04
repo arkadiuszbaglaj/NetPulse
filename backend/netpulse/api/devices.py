@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..collector import credentials_for
 from ..db import Session
-from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
+from ..db.models import Device, Interface, InterfaceMetric, Metric, WifiNetwork
 from ..drivers import PollResult
 from ..modules import hidden_drivers, read_modules
 from ..probe import probe as snmp_probe
@@ -22,9 +22,13 @@ from .schemas import (
     DeviceUpdate,
     InterfaceDetailOut,
     InterfaceOut,
+    PoeOut,
     ProbeInterface,
     ProbeOut,
     ProbeWifi,
+    SensorOut,
+    SensorsOut,
+    SfpOut,
     SnmpTarget,
     WifiOut,
     credential_error,
@@ -286,3 +290,74 @@ async def device_wifi(device_id: int, include_hidden: bool = False):
         if not include_hidden:
             stmt = stmt.where(WifiNetwork.hidden.is_(False))
         return (await session.scalars(stmt)).all()
+
+
+SENSOR_METRICS = ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "sensor_state")
+POE_METRICS = {"poe_state": "state", "poe_power_w": "power_w", "poe_voltage_v": "voltage_v"}
+SFP_METRICS = {
+    "sfp_rx_dbm": "rx_dbm",
+    "sfp_tx_dbm": "tx_dbm",
+    "sfp_temp_c": "temp_c",
+    "sfp_voltage_v": "voltage_v",
+    "sfp_rx_loss": "rx_loss",
+    "sfp_tx_fault": "tx_fault",
+}
+
+
+def _natural(text: str) -> list:
+    """„ether2” przed „ether10”."""
+    return [int(p) if p.isdigit() else p.lower() for p in re.split(r"(\d+)", text)]
+
+
+def _flag(value: float | None) -> bool | None:
+    return None if value is None else value >= 1
+
+
+@router.get("/devices/{device_id}/sensors", response_model=SensorsOut)
+async def device_sensors(device_id: int):
+    """Czujniki, PoE i SFP urządzenia SNMP (od 0.50.0: MikroTik) – ostatnia wartość każdego z ostatnich 10 minut."""
+    since = datetime.now(UTC) - timedelta(minutes=10)
+    names = (*SENSOR_METRICS, *POE_METRICS, *SFP_METRICS)
+    async with Session() as session:
+        device = await _get_device(session, device_id)
+        if device.driver in ("agent", "proxmox"):  # temperatury serwera z agentem pokazuje karta serwera
+            return SensorsOut(sensors=[], poe=[], sfp=[])
+        rows = (
+            await session.execute(
+                select(Metric.name, Metric.key, Metric.value)
+                .ext(distinct_on(Metric.name, Metric.key))
+                .where(Metric.device_id == device_id, Metric.name.in_(names), Metric.time >= since)
+                .order_by(Metric.name, Metric.key, Metric.time.desc())
+            )
+        ).all()
+    sensors: list[SensorOut] = []
+    poe: dict[str, dict] = {}
+    sfp: dict[str, dict] = {}
+    for name, key, value in rows:
+        if name in POE_METRICS:
+            poe.setdefault(key, {})[POE_METRICS[name]] = value
+        elif name in SFP_METRICS:
+            sfp.setdefault(key, {})[SFP_METRICS[name]] = value
+        elif value is not None:
+            sensors.append(SensorOut(key=key, metric=name, value=value))
+    poe_out = [
+        PoeOut(port=port, state=None if (st := p.get("state")) is None else int(st), power_w=p.get("power_w"), voltage_v=p.get("voltage_v"))
+        for port, p in poe.items()
+    ]
+    sfp_out = [
+        SfpOut(
+            port=port,
+            rx_dbm=v.get("rx_dbm"),
+            tx_dbm=v.get("tx_dbm"),
+            temp_c=v.get("temp_c"),
+            voltage_v=v.get("voltage_v"),
+            rx_loss=_flag(v.get("rx_loss")),
+            tx_fault=_flag(v.get("tx_fault")),
+        )
+        for port, v in sfp.items()
+    ]
+    return SensorsOut(
+        sensors=sorted(sensors, key=lambda s: (SENSOR_METRICS.index(s.metric), _natural(s.key))),
+        poe=sorted(poe_out, key=lambda p: _natural(p.port)),
+        sfp=sorted(sfp_out, key=lambda p: _natural(p.port)),
+    )

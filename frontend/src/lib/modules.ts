@@ -27,7 +27,7 @@ export function sourceModule(kind: string): ModuleId | null {
 export function ruleModule(kind: string, metric?: string | null): ModuleId | null {
   if (kind === "container_stopped" || kind === "service_failed" || kind === "smart_failed") return "agents";
   if (kind === "guest_stopped" || kind === "backup_failed") return "proxmox";
-  if (kind === "metric" && (metric === "temp_c" || metric === "smart_reallocated")) return "agents";
+  if (kind === "metric" && metric === "smart_reallocated") return "agents"; // temperatura: też czujniki MikroTika (SNMP)
   if (kind === "metric" && metric === "backup_age_h") return "proxmox";
   return null;
 }

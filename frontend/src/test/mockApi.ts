@@ -26,7 +26,7 @@ import type { SystemInfo } from "../lib/system";
 import type { Topology } from "../lib/topology";
 import type { Controller, NetworkClient, PoeInfo } from "../lib/unifi";
 import type { WanHistory, WanLink, WanSla, WanStatus, WanSuggestion } from "../lib/wan";
-import type { Availability, InterfaceDetail } from "../lib/details";
+import type { Availability, InterfaceDetail, SensorsData } from "../lib/details";
 import type { DashboardFull, PublicDashboard, PublicPayload } from "../lib/dashboards";
 
 export const USER: User = {
@@ -295,6 +295,8 @@ interface MockState {
   rules: AlertRule[];
   clients: NetworkClient[];
   poe: PoeInfo;
+  /** Czujniki, PoE i SFP urządzenia SNMP (MikroTik) – GET /api/devices/{id}/sensors */
+  sensors: SensorsData;
   topology: Topology;
   /** Ostatnia próbka stanu serwera (null = kolektor jeszcze jej nie zapisał) */
   system: SystemInfo | null;
@@ -356,6 +358,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     rules: [],
     clients: [],
     poe: { budget: null, ports: [] },
+    sensors: { sensors: [], poe: [], sfp: [] },
     topology: { nodes: [], edges: [] },
     system: null,
     server: null,
@@ -507,7 +510,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, [
           { metric: "cpu_percent", label: "CPU", unit: "%", per_device: true },
           { metric: "wan_in_bps", label: "Pobieranie WAN", unit: "b/s", per_device: false },
-          { metric: "temp_c", label: "Temperatura (każdy czujnik serwera z agentem)", unit: "°C", per_device: true, matchable: true },
+          { metric: "temp_c", label: "Temperatura (każdy czujnik: serwer z agentem, MikroTik)", unit: "°C", per_device: true, matchable: true },
+          { metric: "smart_reallocated", label: "SMART: realokowane sektory", unit: "", per_device: true, matchable: true },
         ]);
       }
       if (key === "POST /api/alert-rules") {
@@ -663,6 +667,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, state.clients.filter((c) => !kind || c.is_wired === (kind === "wired")));
       }
       if (/^GET \/api\/devices\/\d+\/poe$/.test(key)) return json(200, state.poe);
+      if (/^GET \/api\/devices\/\d+\/sensors$/.test(key)) return json(200, state.sensors);
       if (key === "GET /api/topology") return json(200, state.topology);
       if (/^GET \/api\/devices\/\d+\/server$/.test(key)) return json(200, state.server);
       if (/^GET \/api\/devices\/\d+\/agent-keys$/.test(key)) {
@@ -672,6 +677,9 @@ export function mockApi(initial: Partial<MockState> = {}) {
           agent_temp: ["coretemp/Core 0"],
           agent_container: ["nextcloud", "db"],
           pve_guest: ["homeassistant (100)", "nextcloud (105)"],
+          snmp_sensor: ["cpu-temperature"],
+          snmp_poe: ["ether5"],
+          snmp_sfp: ["sfp1"],
         });
       }
       if (/^GET \/api\/devices\/\d+\/agent-metrics$/.test(key)) return json(200, state.traffic.points);

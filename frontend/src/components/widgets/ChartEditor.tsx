@@ -21,12 +21,14 @@ import {
   defaultSeries,
   freeColor,
   isAgentSource,
+  isSnmpSensorSource,
   newQuery,
   nextQueryId,
   toggleMetric,
   upgradeChartConfig,
   valueFromRaw,
   valueToRaw,
+  type AgentSourceKind,
   type Axis,
   type ChartConfig,
   type ChartKind,
@@ -77,15 +79,21 @@ export const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   agent_temp: "ce.source.agent_temp",
   agent_container: "ce.source.agent_container",
   pve_guest: "ce.source.pve_guest",
+  snmp_sensor: "ce.source.snmp_sensor",
+  snmp_poe: "ce.source.snmp_poe",
+  snmp_sfp: "ce.source.snmp_sfp",
 };
-/** Lista do wyboru w edytorze dla źródła z agenta (odpowiedź /api/devices/{id}/agent-keys). */
-type AgentKeys = Record<"agent_net" | "agent_disk" | "agent_temp" | "agent_container" | "pve_guest", string[]>;
+/** Lista do wyboru w edytorze dla źródła z tabeli `metrics` (odpowiedź /api/devices/{id}/agent-keys). */
+type AgentKeys = Record<Exclude<AgentSourceKind, "agent_cpu">, string[]>;
 const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
   agent_net: "ce.agent.key.net",
   agent_disk: "ce.agent.key.disk",
   agent_temp: "ce.agent.key.temp",
   agent_container: "ce.agent.key.container",
   pve_guest: "ce.agent.key.guest",
+  snmp_sensor: "ce.agent.key.sensor",
+  snmp_poe: "ce.agent.key.port",
+  snmp_sfp: "ce.agent.key.port",
 };
 const KIND_OPTIONS: ChartKind[] = ["area", "line", "bar"];
 const LEGEND_MODES: LegendMode[] = ["list", "table", "hidden"];
@@ -160,9 +168,12 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
     queryFn: () => get<AgentKeys>(`/api/devices/${deviceId}/agent-keys`),
     enabled: agentKind != null && agentKind !== "agent_cpu" && deviceId != null,
   });
-  // Dla źródeł z agenta tylko serwery z agentem, dla maszyn Proxmox – węzły Proxmox
-  const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind ? "agent" : null;
-  const deviceOptions = (devices.data ?? []).filter((d: Device) => !wantedDriver || d.driver === wantedDriver);
+  // Dla źródeł z agenta tylko serwery z agentem, dla maszyn Proxmox – węzły Proxmox, dla czujników – urządzenia SNMP
+  const snmpSensor = agentKind != null && isSnmpSensorSource(agentKind);
+  const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind && !snmpSensor ? "agent" : null;
+  const deviceOptions = (devices.data ?? []).filter((d: Device) =>
+    snmpSensor ? d.driver !== "agent" && d.driver !== "proxmox" : !wantedDriver || d.driver === wantedDriver,
+  );
   const interfaces = useQuery({
     queryKey: ["device-interfaces", deviceId],
     queryFn: () => get<InterfaceItem[]>(`/api/devices/${deviceId}/interfaces`),
@@ -431,6 +442,16 @@ function unitHint(cls: UnitClass | null, unit: ChartUnit): string {
       return "°C";
     case "size":
       return "GB";
+    case "volt":
+      return "V";
+    case "amp":
+      return "A";
+    case "watt":
+      return "W";
+    case "rpm":
+      return "obr/min";
+    case "dbm":
+      return "dBm";
     default:
       return t("ce.unit.hint.other");
   }

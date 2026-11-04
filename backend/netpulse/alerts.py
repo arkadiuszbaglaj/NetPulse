@@ -61,7 +61,8 @@ METRICS: dict[str, tuple[str, str]] = {
     "system_cpu_percent": ("Serwer NetPulse: CPU", "%"),
     "system_mem_used_percent": ("Serwer NetPulse: RAM", "%"),
     "system_disk_used_percent": ("Serwer NetPulse: dysk", "%"),
-    "temp_c": ("Temperatura (każdy czujnik serwera z agentem)", "°C"),
+    "temp_c": ("Temperatura (każdy czujnik: serwer z agentem, MikroTik)", "°C"),
+    "sfp_rx_dbm": ("SFP: moc odbierana (każdy moduł SFP MikroTika)", " dBm"),
     "smart_reallocated": ("SMART: realokowane sektory (każdy dysk serwera z agentem)", ""),
     "backup_age_h": ("Proxmox: godziny od ostatniej kopii (każda VM i LXC)", " h"),
     "check_latency_ms": ("Sprawdzenie dostępności: opóźnienie", " ms"),
@@ -77,10 +78,16 @@ SYSTEM_METRICS = {
     "system_mem_used_percent": "mem_used_percent",
     "system_disk_used_percent": "disk_used_percent",
 }
-# Metryki z agenta: nazwa reguły → nazwa w tabeli `metrics` (jeden alert na klucz, np. czujnik albo dysk)
-AGENT_METRICS = {"temp_c": "temp_c", "smart_reallocated": "smart_reallocated", "backup_age_h": "backup_age_h"}
-# Tytuł alertu progu z agenta/Proxmoxa: „<urządzenie>: <co> <klucz> <wartość>”
-AGENT_METRIC_WHAT = {"temp_c": "temperatura", "smart_reallocated": "realokowane sektory", "backup_age_h": "ostatnia kopia"}
+# Metryki z ogólnej tabeli `metrics` (agent, Proxmox, czujniki SNMP): nazwa reguły → nazwa w tabeli
+# (jeden alert na klucz, np. czujnik, dysk albo port SFP)
+AGENT_METRICS = {"temp_c": "temp_c", "smart_reallocated": "smart_reallocated", "backup_age_h": "backup_age_h", "sfp_rx_dbm": "sfp_rx_dbm"}
+# Tytuł alertu progu: „<urządzenie>: <co> <klucz> <wartość>”
+AGENT_METRIC_WHAT = {
+    "temp_c": "temperatura",
+    "smart_reallocated": "realokowane sektory",
+    "backup_age_h": "ostatnia kopia",
+    "sfp_rx_dbm": "SFP moc odbierana",
+}
 # Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer NetPulse) są globalne
 PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS + tuple(AGENT_METRICS)
 # Sprawdzenia dostępności (od 0.30.0): metryka reguły → kolumna `check_metrics`; alert na każde sprawdzenie
@@ -142,7 +149,8 @@ KIND_MODULE = {
     "container_stopped": "agents", "service_failed": "agents", "smart_failed": "agents",
     "guest_stopped": "proxmox", "backup_failed": "proxmox",
 }  # fmt: skip
-METRIC_MODULE = {"temp_c": "agents", "smart_reallocated": "agents", "backup_age_h": "proxmox"}
+# Temperatura nie zależy od modułu: czujniki ma też MikroTik przez SNMP (od 0.50.0)
+METRIC_MODULE = {"smart_reallocated": "agents", "backup_age_h": "proxmox"}
 
 
 def rule_module(rule) -> str | None:

@@ -18,11 +18,34 @@ rozpoznawany jest automatycznie, więc przy dodawaniu zostaw sterownik „Automa
 | CPU i RAM | średnia z rdzeni i pamięć główna (HOST-RESOURCES-MIB) | tylko jeśli urządzenie udostępnia (zwykle nie) |
 | Porty | `ether1` bez komentarza = WAN; komentarz albo nazwa portu ze słowem „wan" lub „internet" (np. przemianowany port „WAN”, „wan1”, „ether1-wan”) oznacza WAN na dowolnym porcie; pozostałe `ether`/`sfp` i przemianowane porty Ethernet (np. „LAN”) = LAN; komentarz portu jest jego nazwą | „Port N" z numeru na końcu nazwy (`gi1/0/12` to Port 12); LAG jako „LAG N" |
 | Ukryte | `bridge`, `vlan`, `pppoe-out`, tunele, `lo`, radia `wlan` | `vlan`, `loopback`, `null`, radia |
+| Czujniki (od 0.50.0) | temperatury, wentylatory, napięcie, prąd, moc, stan zasilaczy | – |
+| PoE (od 0.50.0) | stan, moc i napięcie na porcie | – |
+| SFP (od 0.50.0) | moc odbierana i nadawana (dBm), temperatura, napięcie, utrata sygnału, błąd nadajnika | – |
 
 Tunel PPPoE jest ukryty celowo: ten sam ruch przechodzi przez fizyczny port WAN, więc zliczenie obu podwoiłoby ruch WAN na pulpicie.
 
-Czego jeszcze nie ma: temperatury i napięć MikroTik (wymagają nowych kolumn w bazie, czyli migracji Alembic), danych z kontrolera
-Omada (klienci, PoE) oraz API RouterOS.
+Czego jeszcze nie ma: danych z kontrolera Omada (klienci, PoE) oraz API RouterOS.
+
+## Czujniki, PoE i SFP MikroTika (od 0.50.0)
+
+Źródło: **oficjalny MIKROTIK-MIB** dla RouterOS 7.25.1 (`https://download.mikrotik.com/routeros/7.25.1/mikrotik.mib`,
+link na mikrotik.com/download/tools). Wartości trafiają do ogólnej tabeli `metrics` (bez migracji), klucz = nazwa czujnika albo portu.
+
+| Tabela MIB | OID | Metryki w `metrics` | Przeliczenie |
+|---|---|---|---|
+| `mtxrGaugeTable` | `…14988.1.1.3.100.1` (nazwa .2, wartość .3, jednostka .4) | `temp_c`, `fan_rpm`, `voltage_v`, `current_a`, `power_w`, `sensor_state` | jednostka: 1 °C, 2 rpm, 3 dV, 4 dA, 5 dW (÷10), 6 stan (surowa wartość) |
+| `mtxrHealth` (starsze płyty, gdy brak tabeli) | `…14988.1.1.3.N.0` | jak wyżej, klucze np. `temperature`, `cpu-temperature`, `fan1-speed`, `psu1-state` | temperatury i napięcia ÷10, prąd mA ÷1000; zera pomijane (brak czujnika, np. CHR) |
+| `mtxrPOETable` | `…14988.1.1.15.1.1` (nazwa .2, stan .3, napięcie .4, moc .6) | `poe_state`, `poe_voltage_v`, `poe_power_w` | napięcie i moc ÷10; stan: 1 wyłączone, 2 czeka, 3 zasila, 4 przeciążenie, 5 zwarcie, … |
+| `mtxrOpticalTable` | `…14988.1.1.19.1.1` (nazwa .2, utrata .3, błąd .4, temp. .6, napięcie .7, TX .9, RX .10, moduł .13) | `sfp_rx_dbm`, `sfp_tx_dbm`, `sfp_temp_c`, `sfp_voltage_v`, `sfp_rx_loss`, `sfp_tx_fault` | moc ÷1000 (dBm), napięcie mV ÷1000; pusta klatka (moduł = 0) pomijana |
+
+W panelu: strona urządzenia → karty **Czujniki**, **PoE** (moc także w kolumnie PoE tabeli portów) i **Moduły SFP**; w edytorze
+wykresu źródła „Czujnik urządzenia”, „PoE na porcie urządzenia” i „Moduł SFP” (`snmp_sensor`, `snmp_poe`, `snmp_sfp`);
+alerty: „Temperatura” (każdy czujnik, niezależnie od modułu agentów) i „SFP: moc odbierana” (np. `<` −25 dBm).
+API: `GET /api/devices/{id}/sensors`.
+
+**Do sprawdzenia na fizycznym routerboardzie** (testy są na zrzucie syntetycznym zgodnym z MIB): czy temperatura w tabeli
+czujników jest w pełnych °C, jakie nazwy czujników zwraca dany model i co oznaczają wartości „stanu” (`sensor_state`, np.
+zasilacz) – dlatego panel pokazuje je jako surową liczbę i nie ma na nie alertu.
 
 ## Włączenie SNMP
 

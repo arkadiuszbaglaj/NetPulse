@@ -48,4 +48,31 @@ describe("wykresy z danych agenta", () => {
       ["container_mem_bytes", "right"],
     ]);
   });
+
+  it("edytor: czujnik SFP MikroTika – urządzenia SNMP bez serwerów z agentem", async () => {
+    const mikrotik = { ...DEVICE, id: 5, name: "hEX S", driver: "auto", detected_driver: "mikrotik" };
+    const { state } = mockApi({ devices: [mikrotik, AGENT_DEVICE] });
+    renderApp();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Edytuj pulpit" }));
+    await user.click(screen.getByRole("button", { name: "Dodaj widget" }));
+    await user.click(within(await customWidgets(user)).getByRole("button", { name: /^Wykres(?! kołowy)/ }));
+
+    const form = await screen.findByRole("dialog", { name: "Nowy wykres" });
+    await user.selectOptions(within(form).getByLabelText("Źródło danych"), "snmp_sfp");
+    const deviceSelect = within(form).getByLabelText("Urządzenie");
+    expect(within(deviceSelect).getAllByRole("option").map((o) => o.textContent)).toEqual(["Wybierz…", "hEX S"]);
+    await user.selectOptions(deviceSelect, "5");
+    await user.selectOptions(await within(form).findByLabelText("Port"), "sfp1");
+    await user.click(within(form).getByRole("button", { name: "Zapisz" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nowy wykres" })).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    await waitFor(() => expect(state.layout).not.toBeNull());
+    const chart = (state.layout as DashboardLayout).widgets.find((w) => w.type === "chart" && w.config.queries[0].source.kind === "snmp_sfp");
+    const query = chart?.type === "chart" ? chart.config.queries[0] : null;
+    expect(query?.source).toEqual({ kind: "snmp_sfp", id: 5, key: "sfp1" });
+    expect(query?.series.map((s) => s.key)).toEqual(["sfp_rx_dbm", "sfp_tx_dbm"]);
+    expect(defaultTitle({ kind: "snmp_sfp", id: 5, key: "sfp1" })).toBe("Moduł SFP (moc optyczna, temperatura): sfp1");
+  });
 });

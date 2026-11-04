@@ -37,6 +37,50 @@ describe("strona urządzenia", () => {
     expect(within(table).queryByText("Inny")).not.toBeInTheDocument();
   });
 
+  it("czujniki MikroTika: temperatura, PoE z mocą w tabeli portów i moduł SFP bez sygnału", async () => {
+    mockApi({
+      sensors: {
+        sensors: [
+          { key: "cpu-temperature", metric: "temp_c", value: 46 },
+          { key: "fan1-speed", metric: "fan_rpm", value: 4200 },
+          { key: "psu1-state", metric: "sensor_state", value: 1 },
+        ],
+        poe: [
+          { port: "eth0", state: 3, power_w: 3.6, voltage_v: 23.8 },
+          { port: "ether9", state: 5, power_w: null, voltage_v: null },
+        ],
+        sfp: [{ port: "sfp1", rx_dbm: -31, tx_dbm: -5.871, temp_c: 41, voltage_v: 3.29, rx_loss: true, tx_fault: false }],
+      },
+    });
+    renderApp("/devices/1");
+    const sensors = (await screen.findByRole("heading", { name: "Czujniki" })).closest("div")!;
+    expect(within(sensors).getByText("46 °C")).toBeInTheDocument();
+    expect(within(sensors).getByText("4200 obr/min")).toBeInTheDocument();
+    expect(within(sensors).getByText("stan 1")).toBeInTheDocument();
+
+    const poe = screen.getByRole("heading", { name: "PoE" }).closest("div")!;
+    expect(within(poe).getByText("zasila")).toBeInTheDocument();
+    expect(within(poe).getByText("zwarcie")).toHaveClass("text-danger");
+    expect(within(poe).getByText("23,8 V")).toBeInTheDocument();
+
+    const sfp = screen.getByRole("heading", { name: "Moduły SFP" }).closest("div")!;
+    expect(within(sfp).getByText("brak sygnału")).toHaveClass("text-danger");
+    expect(within(sfp).getByText("-31 dBm")).toBeInTheDocument();
+    expect(within(sfp).getByText("-5,9 dBm")).toBeInTheDocument();
+
+    // Moc PoE z SNMP trafia też do tabeli portów (port „eth0” = Port 1)
+    const ports = (await screen.findByRole("heading", { name: /^Porty/ })).closest("div")!;
+    expect(within(ports).getByText("3,6 W")).toBeInTheDocument();
+  });
+
+  it("urządzenie bez czujników nie pokazuje sekcji", async () => {
+    mockApi();
+    renderApp("/devices/1");
+    expect(await screen.findByRole("heading", { level: 1, name: "UCG Ultra" })).toBeInTheDocument();
+    await screen.findByRole("link", { name: "Port 1" });
+    expect(screen.queryByRole("heading", { name: "Czujniki" })).not.toBeInTheDocument();
+  });
+
   it("usunięte urządzenie: komunikat zamiast strony", async () => {
     mockApi({ devices: [] });
     renderApp("/devices/42");

@@ -209,6 +209,37 @@ class InterfaceDetailOut(InterfaceOut):
     poe_port_idx: int | None = None
 
 
+class SensorOut(BaseModel):
+    key: str  # nazwa czujnika z urządzenia, np. „cpu-temperature”
+    metric: str  # temp_c | fan_rpm | voltage_v | current_a | power_w | sensor_state
+    value: float
+
+
+class PoeOut(BaseModel):
+    port: str
+    state: int | None  # mtxrPOEStatus: 1 wyłączony, 2 czeka na odbiornik, 3 zasila, 4+ błąd
+    power_w: float | None
+    voltage_v: float | None
+
+
+class SfpOut(BaseModel):
+    port: str
+    rx_dbm: float | None
+    tx_dbm: float | None
+    temp_c: float | None
+    voltage_v: float | None
+    rx_loss: bool | None
+    tx_fault: bool | None
+
+
+class SensorsOut(BaseModel):
+    """Ostatnie wartości czujników, PoE i SFP urządzenia SNMP (tabela `metrics`, ostatnie 10 minut)."""
+
+    sensors: list[SensorOut]
+    poe: list[PoeOut]
+    sfp: list[SfpOut]
+
+
 class WifiOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

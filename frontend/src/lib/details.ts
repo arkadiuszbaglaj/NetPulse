@@ -84,6 +84,26 @@ export function useWifiNetworks(deviceId: number) {
   return useQuery({ queryKey: ["device-wifi", deviceId], queryFn: () => get<WifiItem[]>(`/api/devices/${deviceId}/wifi`), refetchInterval });
 }
 
+/** Czujniki, PoE i SFP urządzenia SNMP (od 0.50.0: MikroTik), ostatnie wartości. */
+export interface SensorsData {
+  sensors: { key: string; metric: string; value: number }[];
+  poe: { port: string; state: number | null; power_w: number | null; voltage_v: number | null }[];
+  sfp: {
+    port: string;
+    rx_dbm: number | null;
+    tx_dbm: number | null;
+    temp_c: number | null;
+    voltage_v: number | null;
+    rx_loss: boolean | null;
+    tx_fault: boolean | null;
+  }[];
+}
+
+export function useSensors(deviceId: number) {
+  const { refetchInterval } = useRefresh();
+  return useQuery({ queryKey: ["device-sensors", deviceId], queryFn: () => get<SensorsData>(`/api/devices/${deviceId}/sensors`), refetchInterval });
+}
+
 export function useInterface(id: number) {
   const { refetchInterval } = useRefresh();
   return useQuery({ queryKey: ["interface", id], queryFn: () => get<InterfaceDetail>(`/api/interfaces/${id}`), refetchInterval, retry: false });

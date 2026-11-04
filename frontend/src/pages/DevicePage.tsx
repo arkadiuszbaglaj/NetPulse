@@ -8,11 +8,11 @@ import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { ChartWidget } from "../components/widgets/ChartWidget";
 import { KIND_LABEL, STATUS_LABEL, STATUS_STYLE, deviceIcon } from "../components/widgets/DevicesWidget";
 import { ServerDetails } from "../components/widgets/ServerDetails";
-import { t } from "../i18n";
+import { t, type TextKey } from "../i18n";
 import { ApiError, type Device } from "../lib/api";
-import { formatSpeed, useDevice, useInterfaces, useWifiNetworks, type InterfaceItem } from "../lib/details";
-import { formatBps, formatDateTime, formatUptime, relativeTime } from "../lib/format";
-import { newChartConfig, type ChartConfig } from "../lib/layout";
+import { formatSpeed, useDevice, useInterfaces, useSensors, useWifiNetworks, type InterfaceItem, type SensorsData } from "../lib/details";
+import { formatBps, formatDateTime, formatUptime, metricFormatter, relativeTime } from "../lib/format";
+import { METRICS, newChartConfig, unitClassOf, type ChartConfig } from "../lib/layout";
 import { isOn, useModules } from "../lib/modules";
 import { formatWatts, usePoe, type PoePort } from "../lib/unifi";
 import { ClientList } from "./ClientList";
@@ -72,7 +72,7 @@ function InfoCard({ device }: { device: Device }) {
   );
 }
 
-function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces: InterfaceItem[]; poe: Map<string, PoePort> }) {
+function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces: InterfaceItem[]; poe: Map<string, Pick<PoePort, "power_w">> }) {
   const withPoe = poe.size > 0;
   return (
     <Card className="overflow-x-auto">
@@ -144,6 +144,108 @@ function WifiCard({ deviceId }: { deviceId: number }) {
   );
 }
 
+const formatSensor = (metric: string, value: number) =>
+  metric === "sensor_state" ? t("device.sensors.state", { n: value }) : metricFormatter(unitClassOf(metric), "bits")(value);
+const dbm = metricFormatter("dbm", "bits");
+const volt = metricFormatter("volt", "bits");
+const temp = metricFormatter("temp", "bits");
+
+function poeState(state: number | null): string {
+  if (state == null) return "–";
+  return state <= 5 ? t(`device.poe.state.${state}` as TextKey) : t("device.poe.state.fault", { n: state });
+}
+
+const TH = "px-4 py-2 font-medium";
+const TH_NUM = "px-4 py-2 text-right font-medium";
+const TD_NUM = "px-4 py-2 text-right tabular-nums";
+
+/** Czujniki sprzętu, PoE i moduły SFP urządzenia SNMP (MikroTik): ostatnie wartości. */
+function SensorsCard({ data }: { data: SensorsData }) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {data.sensors.length > 0 && (
+        <Card className="overflow-x-auto">
+          <h2 className="px-4 pt-4 text-sm font-medium">{t("device.sensors.title")}</h2>
+          <table className="mt-2 w-full text-left text-sm">
+            <thead className="text-xs text-text-2">
+              <tr>
+                <th scope="col" className={TH}>{t("device.sensors.name")}</th>
+                <th scope="col" className={TH_NUM}>{t("device.sensors.value")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sensors.map((s) => (
+                <tr key={`${s.metric}:${s.key}`} className="border-t border-border">
+                  <td className="px-4 py-2">
+                    {s.key}
+                    {METRICS[s.metric] && <span className="ml-1.5 text-xs text-muted">{t(METRICS[s.metric].label)}</span>}
+                  </td>
+                  <td className={TD_NUM}>{formatSensor(s.metric, s.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+      {data.poe.length > 0 && (
+        <Card className="overflow-x-auto">
+          <h2 className="px-4 pt-4 text-sm font-medium">{t("device.poe.title")}</h2>
+          <table className="mt-2 w-full text-left text-sm">
+            <thead className="text-xs text-text-2">
+              <tr>
+                <th scope="col" className={TH}>{t("device.poe.port")}</th>
+                <th scope="col" className={TH}>{t("device.poe.state")}</th>
+                <th scope="col" className={TH_NUM}>{t("device.poe.power")}</th>
+                <th scope="col" className={TH_NUM}>{t("device.poe.voltage")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.poe.map((p) => (
+                <tr key={p.port} className="border-t border-border">
+                  <td className="px-4 py-2 font-medium">{p.port}</td>
+                  <td className={`px-4 py-2 ${p.state != null && p.state > 3 ? "text-danger" : "text-text-2"}`}>{poeState(p.state)}</td>
+                  <td className={TD_NUM}>{formatWatts(p.power_w)}</td>
+                  <td className={TD_NUM}>{p.voltage_v == null ? "–" : volt(p.voltage_v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+      {data.sfp.length > 0 && (
+        <Card className="overflow-x-auto lg:col-span-2">
+          <h2 className="px-4 pt-4 text-sm font-medium">{t("device.sfp.title")}</h2>
+          <table className="mt-2 w-full min-w-[32rem] text-left text-sm">
+            <thead className="text-xs text-text-2">
+              <tr>
+                <th scope="col" className={TH}>{t("device.sfp.port")}</th>
+                <th scope="col" className={TH}>{t("device.sfp.signal")}</th>
+                <th scope="col" className={TH_NUM}>{t("device.sfp.rx")}</th>
+                <th scope="col" className={TH_NUM}>{t("device.sfp.tx")}</th>
+                <th scope="col" className={TH_NUM}>{t("device.sfp.temp")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sfp.map((s) => {
+                const problem = s.rx_loss ? "device.sfp.loss" : s.tx_fault ? "device.sfp.fault" : null;
+                return (
+                  <tr key={s.port} className="border-t border-border">
+                    <td className="px-4 py-2 font-medium">{s.port}</td>
+                    <td className={`px-4 py-2 ${problem ? "text-danger" : "text-text-2"}`}>{t(problem ?? "device.sfp.ok")}</td>
+                    <td className={TD_NUM}>{s.rx_dbm == null ? "–" : dbm(s.rx_dbm)}</td>
+                    <td className={TD_NUM}>{s.tx_dbm == null ? "–" : dbm(s.tx_dbm)}</td>
+                    <td className={TD_NUM}>{s.temp_c == null ? "–" : temp(s.temp_c)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function DeviceCharts({ deviceId }: { deviceId: number }) {
   const [usage, poll] = useMemo((): [ChartConfig, ChartConfig] => {
     const source = { kind: "device", id: deviceId } as const;
@@ -174,8 +276,18 @@ export function DevicePage() {
   const interfaces = useInterfaces(id);
   const unifi = isOn(useModules().data, "unifi");
   const poe = usePoe(unifi && device.data?.kind === "switch" ? id : null);
-  // Porty PoE z kontrolera mają nazwy 0/1, 0/2… jak ifName switcha UniFi w SNMP
-  const poeByName = useMemo(() => new Map((poe.data?.ports ?? []).map((p) => [`0/${p.port_idx}`, p])), [poe.data]);
+  const sensors = useSensors(id);
+  // Porty PoE z kontrolera mają nazwy 0/1, 0/2… jak ifName switcha UniFi w SNMP; PoE z SNMP (MikroTik) – nazwa portu
+  const poeByName = useMemo(
+    () =>
+      new Map<string, Pick<PoePort, "power_w">>([
+        ...(sensors.data?.poe ?? []).map((p) => [p.port, p] as const),
+        ...(poe.data?.ports ?? []).map((p) => [`0/${p.port_idx}`, p] as const),
+      ]),
+    [poe.data, sensors.data],
+  );
+  const sensorData = sensors.data;
+  const hasSensors = !!sensorData && sensorData.sensors.length + sensorData.poe.length + sensorData.sfp.length > 0;
 
   if (device.isError) {
     const missing = device.error instanceof ApiError && device.error.status === 404;
@@ -238,6 +350,7 @@ export function DevicePage() {
         </div>
         <DeviceCharts deviceId={id} />
 
+        {hasSensors && <SensorsCard data={sensorData} />}
         {ports.length > 0 && <PortsCard deviceId={id} interfaces={ports} poe={poeByName} />}
         <WifiCard deviceId={id} />
         {unifi && <ClientList deviceId={id} title={t("device.clients")} />}

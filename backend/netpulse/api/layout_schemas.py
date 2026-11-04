@@ -62,17 +62,20 @@ class ServerSource(Strict):
 
 
 class AgentSource(Strict):
-    """Dane z agenta serwera (tabela `metrics`): CPU na rdzeniach, sieć, dysk, czujnik albo kontener."""
+    """Dane z tabeli `metrics`: agent serwera (CPU na rdzeniach, sieć, dysk, czujnik, kontener), maszyna Proxmox
+    i czujniki urządzeń SNMP (`snmp_*`, od 0.50.0: czujnik, PoE i SFP portu MikroTika)."""
 
-    kind: Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"]
-    id: int = Field(ge=1)  # urządzenie (serwer z agentem albo węzeł Proxmox)
-    key: str = Field("", max_length=255)  # interfejs, dysk, czujnik albo kontener; dla agent_cpu puste
+    kind: Literal[
+        "agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest", "snmp_sensor", "snmp_poe", "snmp_sfp"
+    ]
+    id: int = Field(ge=1)  # urządzenie (serwer z agentem, węzeł Proxmox albo urządzenie SNMP)
+    key: str = Field("", max_length=255)  # interfejs, dysk, czujnik, kontener albo port; dla agent_cpu puste
 
     @model_validator(mode="after")
     def _key_required(self) -> AgentSource:
         self.key = self.key.strip()
         if self.kind != "agent_cpu" and not self.key:
-            raise ValueError("Wybierz interfejs, dysk, czujnik, kontener albo maszynę")
+            raise ValueError("Wybierz interfejs, dysk, czujnik, kontener, port albo maszynę")
         if self.kind == "agent_cpu":
             self.key = ""
         return self
@@ -97,6 +100,9 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "agent_temp": ("temp_c",),
     "agent_container": ("container_cpu_percent", "container_mem_bytes"),
     "pve_guest": ("guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"),
+    "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w"),
+    "snmp_poe": ("poe_power_w", "poe_voltage_v"),
+    "snmp_sfp": ("sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"),
     "check": ("latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"),
 }
 

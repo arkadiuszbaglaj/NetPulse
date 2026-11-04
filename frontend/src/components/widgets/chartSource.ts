@@ -45,6 +45,9 @@ const AGENT_TITLE = {
   agent_temp: "ce.source.agent_temp",
   agent_container: "ce.source.agent_container",
   pve_guest: "ce.source.pve_guest",
+  snmp_sensor: "ce.source.snmp_sensor",
+  snmp_poe: "ce.source.snmp_poe",
+  snmp_sfp: "ce.source.snmp_sfp",
 } as const;
 
 /** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów.

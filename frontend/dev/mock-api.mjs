@@ -18,6 +18,7 @@ const devices = [
   { id: 1, name: "UCG Ultra", host: "192.168.1.1", kind: "gateway", vendor: "Ubiquiti", model: "UCG-Ultra", status: "up", polled: 12 },
   { id: 2, name: "USW Lite 8 PoE", host: "192.168.1.2", kind: "switch", vendor: "Ubiquiti", model: "UniFi Switch", status: "up", polled: 12, default_community: true },
   { id: 3, name: "U6+", host: "192.168.1.3", kind: "ap", vendor: "Ubiquiti", model: "U6+", status: "up", polled: 12 },
+  { id: 5, name: "hEX S", host: "192.168.1.5", kind: "gateway", vendor: "MikroTik", model: "RB760iGS", status: "up", polled: 12, detected_driver: "mikrotik", firmware: "7.25.1" },
   { id: 4, name: "Garaż (testowy)", host: "192.168.1.9", kind: "other", vendor: null, model: null, status: "down", polled: 95, error: "192.168.1.9: No SNMP response received before timeout" },
 ].map((d) => ({
   port: 161, enabled: true, driver: "auto", detected_driver: "unifi", snmp_version: "2c", firmware: null, sys_name: d.name,
@@ -264,6 +265,21 @@ createServer(async (req, res) => {
   if (req.method === "GET" && one) {
     const d = devices.find((x) => x.id === Number(one[1]));
     return d ? send(res, 200, d) : send(res, 404, { detail: "Nie ma takiego urządzenia" });
+  }
+  // Czujniki, PoE i SFP (MikroTik, od 0.50.0) – tylko hEX S
+  const sensors = /^\/api\/devices\/(\d+)\/sensors$/.exec(url.pathname);
+  if (req.method === "GET" && sensors) {
+    if (Number(sensors[1]) !== 5) return send(res, 200, { sensors: [], poe: [], sfp: [] });
+    return send(res, 200, {
+      sensors: [
+        { key: "cpu-temperature", metric: "temp_c", value: 47 },
+        { key: "board-temperature1", metric: "temp_c", value: 39 },
+        { key: "voltage", metric: "voltage_v", value: 24.1 },
+        { key: "poe-out-consumption", metric: "power_w", value: 3.6 },
+      ],
+      poe: [{ port: "ether5", state: 3, power_w: 3.6, voltage_v: 23.8 }],
+      sfp: [{ port: "sfp1", rx_dbm: -7.34, tx_dbm: -5.87, temp_c: 41, voltage_v: 3.29, rx_loss: false, tx_fault: false }],
+    });
   }
   const ifaces = /^\/api\/devices\/(\d+)\/interfaces$/.exec(url.pathname);
   if (req.method === "GET" && ifaces) {

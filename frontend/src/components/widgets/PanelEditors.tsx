@@ -55,6 +55,14 @@ function unitOf(cls: UnitClass, unit: ChartUnit): string {
       return "ms";
     case "dbm":
       return "dBm";
+    case "volt":
+      return "V";
+    case "amp":
+      return "A";
+    case "watt":
+      return "W";
+    case "rpm":
+      return "obr/min";
     case "linkrate":
       return "kb/s";
     case "mbps":

@@ -40,8 +40,29 @@ export type Source =
   | { kind: AgentSourceKind; id: number; key: string };
 export type SourceKind = Source["kind"];
 /** Źródła z agenta serwera: urządzenie (`id`) i wybrany interfejs, dysk, czujnik albo kontener (`key`). */
-export type AgentSourceKind = "agent_cpu" | "agent_net" | "agent_disk" | "agent_temp" | "agent_container" | "pve_guest";
-export const AGENT_SOURCE_KINDS: AgentSourceKind[] = ["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"];
+export type AgentSourceKind =
+  | "agent_cpu"
+  | "agent_net"
+  | "agent_disk"
+  | "agent_temp"
+  | "agent_container"
+  | "pve_guest"
+  | "snmp_sensor"
+  | "snmp_poe"
+  | "snmp_sfp";
+export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
+  "agent_cpu",
+  "agent_net",
+  "agent_disk",
+  "agent_temp",
+  "agent_container",
+  "pve_guest",
+  "snmp_sensor",
+  "snmp_poe",
+  "snmp_sfp",
+];
+/** Czujniki urządzeń SNMP (od 0.50.0: MikroTik) – te same endpointy co agent, inne urządzenia do wyboru. */
+export const isSnmpSensorSource = (kind: SourceKind): boolean => kind === "snmp_sensor" || kind === "snmp_poe" || kind === "snmp_sfp";
 export const isAgentSource = (kind: SourceKind): kind is AgentSourceKind => (AGENT_SOURCE_KINDS as string[]).includes(kind);
 export const SOURCE_KINDS: SourceKind[] = ["wan", "interface", "device", "wifi_total", "wifi_network", "server", "check", ...AGENT_SOURCE_KINDS];
 
@@ -323,7 +344,25 @@ export interface DashboardResponse {
 // --- metryki ---------------------------------------------------------------------------
 
 /** Klasa jednostki: metryki w jednym wykresie muszą należeć do tej samej klasy (wspólna oś Y). */
-export type UnitClass = "rate" | "count" | "percent" | "load" | "ms" | "temp" | "size" | "state" | "duration" | "dbm" | "linkrate" | "mbps" | "days" | "hours";
+export type UnitClass =
+  | "rate"
+  | "count"
+  | "percent"
+  | "load"
+  | "ms"
+  | "temp"
+  | "size"
+  | "state"
+  | "duration"
+  | "dbm"
+  | "linkrate"
+  | "mbps"
+  | "days"
+  | "hours"
+  | "volt"
+  | "amp"
+  | "watt"
+  | "rpm";
 
 export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> = {
   in_bps: { label: "metric.in_bps", unitClass: "rate" },
@@ -342,6 +381,17 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   swap_used_percent: { label: "metric.swap_used_percent", unitClass: "percent" },
   disk_used_percent: { label: "metric.disk_used_percent", unitClass: "percent" },
   temp_c: { label: "metric.temp_c", unitClass: "temp" },
+  // Czujniki urządzeń SNMP (MikroTik): sprzęt, PoE, SFP
+  fan_rpm: { label: "metric.fan_rpm", unitClass: "rpm" },
+  voltage_v: { label: "metric.voltage_v", unitClass: "volt" },
+  current_a: { label: "metric.current_a", unitClass: "amp" },
+  power_w: { label: "metric.power_w", unitClass: "watt" },
+  poe_power_w: { label: "metric.poe_power_w", unitClass: "watt" },
+  poe_voltage_v: { label: "metric.poe_voltage_v", unitClass: "volt" },
+  sfp_rx_dbm: { label: "metric.sfp_rx_dbm", unitClass: "dbm" },
+  sfp_tx_dbm: { label: "metric.sfp_tx_dbm", unitClass: "dbm" },
+  sfp_temp_c: { label: "metric.sfp_temp_c", unitClass: "temp" },
+  sfp_voltage_v: { label: "metric.sfp_voltage_v", unitClass: "volt" },
   db_size_bytes: { label: "metric.db_size_bytes", unitClass: "size" },
   core_max_percent: { label: "metric.core_max_percent", unitClass: "percent" },
   core_avg_percent: { label: "metric.core_avg_percent", unitClass: "percent" },
@@ -388,6 +438,9 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   agent_temp: ["temp_c"],
   agent_container: ["container_cpu_percent", "container_mem_bytes"],
   pve_guest: ["guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"],
+  snmp_sensor: ["temp_c", "fan_rpm", "voltage_v", "current_a", "power_w"],
+  snmp_poe: ["poe_power_w", "poe_voltage_v"],
+  snmp_sfp: ["sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"],
   check: ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"],
 };
 
@@ -434,6 +487,15 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
       return [{ key: "container_cpu_percent", color: 1 }];
     case "pve_guest":
       return [{ key: "guest_cpu_percent", color: 1 }];
+    case "snmp_sensor":
+      return [{ key: "temp_c", color: 3 }];
+    case "snmp_poe":
+      return [{ key: "poe_power_w", color: 1 }];
+    case "snmp_sfp":
+      return [
+        { key: "sfp_rx_dbm", color: 1 },
+        { key: "sfp_tx_dbm", color: 8 },
+      ];
     case "check":
       return [{ key: "latency_ms", color: 1 }];
   }

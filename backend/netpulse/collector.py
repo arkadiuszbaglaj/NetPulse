@@ -22,6 +22,7 @@ from .db.models import (
     DiskMetric,
     Interface,
     InterfaceMetric,
+    Metric,
     ServerMetric,
     WifiMetric,
     WifiNetwork,
@@ -338,6 +339,12 @@ class Collector:
                         swap_used_percent=result.server.swap_used_percent,
                         processes=result.server.processes,
                     )
+                )
+
+            if result.metrics:
+                session.add_all(
+                    Metric(time=now, device_id=dev_id, name=m.name[:64], key=m.key[:255], value=m.value)
+                    for m in {(m.name, m.key[:255]): m for m in result.metrics}.values()
                 )
 
             h = result.health

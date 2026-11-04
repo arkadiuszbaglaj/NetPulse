@@ -107,6 +107,15 @@ class ServerSample:
 
 
 @dataclass
+class MetricSample:
+    """Wartość do ogólnej tabeli `metrics` (czujnik, PoE, SFP): nazwa metryki, klucz (czujnik albo port), wartość."""
+
+    name: str
+    key: str
+    value: float
+
+
+@dataclass
 class PollResult:
     driver: str
     system: SystemInfo
@@ -115,6 +124,7 @@ class PollResult:
     wifi: list[WifiSample] = field(default_factory=list)
     disks: list[DiskSample] = field(default_factory=list)
     server: ServerSample | None = None
+    metrics: list[MetricSample] = field(default_factory=list)
 
     def visible_interfaces(self) -> list[InterfaceSample]:
         return [i for i in self.interfaces if not i.hidden]

@@ -207,8 +207,10 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
-  `mikrotik-chr.snmprec`, rozpoznawanie WAN po nazwie portu. Fizyczny routerboard (kilka rdzeni, PPPoE, czujniki
-  MIKROTIK-MIB) dalej tylko na syntetycznym `mikrotik-hex.snmprec`.
+  `mikrotik-chr.snmprec`, rozpoznawanie WAN po nazwie portu. Od 0.50.0 czujniki, PoE i SFP według **oficjalnego
+  MIKROTIK-MIB 7.25.1** (tabela `metrics`, `GET /api/devices/{id}/sensors`, źródła wykresów `snmp_sensor|snmp_poe|snmp_sfp`,
+  alerty `temp_c` i `sfp_rx_dbm`; opis w `docs/12-mikrotik-omada-snmp.md`). Fizyczny routerboard (kilka rdzeni, PPPoE,
+  czujniki, PoE, SFP) dalej tylko na syntetycznym `mikrotik-hex.snmprec`.
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
 - **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.2.24 (192.168.1.86, VM 100 + LXC 101, kopia LXC 101) działa;
   po 0.28.5 sprawdzić „ostatnia kopia” LXC 101 w panelu i alert „brak świeżej kopii” po 36 h bez nowej kopii.

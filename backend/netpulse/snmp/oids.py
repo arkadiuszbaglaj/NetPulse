@@ -57,6 +57,26 @@ HR_PROCESSOR_LOAD = "1.3.6.1.2.1.25.3.3.1.2"
 MIKROTIK_ENTERPRISE = "1.3.6.1.4.1.14988"
 MIKROTIK_LIC_VERSION = "1.3.6.1.4.1.14988.1.1.4.4.0"  # wersja RouterOS
 MIKROTIK_BOARD_NAME = "1.3.6.1.4.1.14988.1.1.7.8.0"  # np. RB750Gr3
+# Czujniki (RouterOS 7): mtxrGaugeTable – nazwa, wartość, jednostka (1 °C, 2 rpm, 3 dV, 4 dA, 5 dW, 6 stan)
+MIKROTIK_GAUGE_NAME = "1.3.6.1.4.1.14988.1.1.3.100.1.2"
+MIKROTIK_GAUGE_VALUE = "1.3.6.1.4.1.14988.1.1.3.100.1.3"
+MIKROTIK_GAUGE_UNIT = "1.3.6.1.4.1.14988.1.1.3.100.1.4"
+# Starsze pojedyncze wartości mtxrHealth (RouterOS 6 i część płyt): temperatury i napięcie w dziesiątych częściach
+MIKROTIK_HEALTH = "1.3.6.1.4.1.14988.1.1.3"
+# PoE na porcie: mtxrPOETable, indeks = ifIndex; stan (3 = poweredOn), napięcie dV, prąd mA, moc dW
+MIKROTIK_POE_NAME = "1.3.6.1.4.1.14988.1.1.15.1.1.2"
+MIKROTIK_POE_STATUS = "1.3.6.1.4.1.14988.1.1.15.1.1.3"
+MIKROTIK_POE_VOLTAGE = "1.3.6.1.4.1.14988.1.1.15.1.1.4"
+MIKROTIK_POE_POWER = "1.3.6.1.4.1.14988.1.1.15.1.1.6"
+# SFP: mtxrOpticalTable – utrata sygnału, błąd nadajnika, temperatura °C, napięcie mV, moc nadawana/odbierana w 1/1000 dBm
+MIKROTIK_OPT_NAME = "1.3.6.1.4.1.14988.1.1.19.1.1.2"
+MIKROTIK_OPT_RX_LOSS = "1.3.6.1.4.1.14988.1.1.19.1.1.3"
+MIKROTIK_OPT_TX_FAULT = "1.3.6.1.4.1.14988.1.1.19.1.1.4"
+MIKROTIK_OPT_TEMP = "1.3.6.1.4.1.14988.1.1.19.1.1.6"
+MIKROTIK_OPT_VOLTAGE = "1.3.6.1.4.1.14988.1.1.19.1.1.7"
+MIKROTIK_OPT_TX_POWER = "1.3.6.1.4.1.14988.1.1.19.1.1.9"
+MIKROTIK_OPT_RX_POWER = "1.3.6.1.4.1.14988.1.1.19.1.1.10"
+MIKROTIK_OPT_PRESENT = "1.3.6.1.4.1.14988.1.1.19.1.1.13"
 
 # TP-Link (Omada, JetStream)
 TPLINK_ENTERPRISE = "1.3.6.1.4.1.11863"

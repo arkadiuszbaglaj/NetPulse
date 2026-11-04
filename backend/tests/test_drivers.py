@@ -194,6 +194,63 @@ def test_mikrotik_chr_real_dump():
     assert {i.name for i in r.visible_interfaces()} == {"WAN", "LAN"}
 
 
+MT = "1.3.6.1.4.1.14988.1.1"
+
+
+def metrics_of(result) -> dict[tuple[str, str], float]:
+    return {(m.name, m.key): m.value for m in result.metrics}
+
+
+def test_mikrotik_sensors_from_gauge_table():
+    """Tabela czujników RouterOS 7 (mtxrGaugeTable, oficjalny MIKROTIK-MIB 7.25.1): napięcie w dV, temperatura w °C."""
+    m = metrics_of(poll("mikrotik-hex"))
+    assert m == {("voltage_v", "voltage"): 24.1, ("temp_c", "cpu-temperature"): 46.0}
+
+
+def test_mikrotik_poe_and_sfp():
+    """hEX S: PoE na ether5 (mtxrPOETable) i moduł SFP (mtxrOpticalTable); pusta klatka sfp2 jest pomijana."""
+    r = poll_with(
+        "mikrotik-hex",
+        **{
+            f"{MT}.15.1.1.2.5": b"ether5",
+            f"{MT}.15.1.1.3.5": 3,  # poweredOn
+            f"{MT}.15.1.1.4.5": 238,  # 23,8 V
+            f"{MT}.15.1.1.5.5": 152,  # mA
+            f"{MT}.15.1.1.6.5": 36,  # 3,6 W
+            f"{MT}.19.1.1.2.6": b"sfp1",
+            f"{MT}.19.1.1.3.6": 0,
+            f"{MT}.19.1.1.4.6": 0,
+            f"{MT}.19.1.1.6.6": 41,  # °C
+            f"{MT}.19.1.1.7.6": 3292,  # mV
+            f"{MT}.19.1.1.9.6": -5871,  # 1/1000 dBm
+            f"{MT}.19.1.1.10.6": -7340,
+            f"{MT}.19.1.1.13.6": 1,
+            f"{MT}.19.1.1.2.7": b"sfp2",
+            f"{MT}.19.1.1.13.7": 0,
+        },
+    )
+    m = metrics_of(r)
+    assert (m[("poe_state", "ether5")], m[("poe_voltage_v", "ether5")], m[("poe_power_w", "ether5")]) == (3, 23.8, 3.6)
+    assert m[("sfp_rx_dbm", "sfp1")] == -7.34 and m[("sfp_tx_dbm", "sfp1")] == -5.871
+    assert (m[("sfp_temp_c", "sfp1")], m[("sfp_voltage_v", "sfp1")], m[("sfp_rx_loss", "sfp1")]) == (41, 3.292, 0)
+    assert not [k for k in m if k[1] == "sfp2"]
+
+
+def test_mikrotik_old_health_scalars_without_gauge_table():
+    """Starsze płyty bez tabeli czujników: pojedyncze wartości w dziesiątych częściach; zera (brak czujnika) pomijane."""
+    r = poll_with("mikrotik-chr", **{f"{MT}.3.10.0": 412, f"{MT}.3.8.0": 240, f"{MT}.3.17.0": 4200, f"{MT}.3.15.0": 1})
+    assert metrics_of(r) == {
+        ("temp_c", "temperature"): 41.2,
+        ("voltage_v", "voltage"): 24.0,
+        ("fan_rpm", "fan1-speed"): 4200,
+        ("sensor_state", "psu1-state"): 1,
+    }
+
+
+def test_mikrotik_chr_has_no_sensors():
+    assert poll("mikrotik-chr").metrics == []  # maszyna wirtualna: same zera w mtxrHealth
+
+
 @pytest.mark.parametrize(
     ("name", "wan"),
     [("WAN", True), ("wan1", True), ("ether1-wan", True), ("Internet-LTE", True), ("LAN", False), ("swan", False), ("wanda", False)],

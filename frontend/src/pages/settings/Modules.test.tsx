@@ -44,7 +44,8 @@ describe("Ustawienia → Moduły", () => {
     const kinds = within(within(form).getByLabelText("Rodzaj reguły")).getAllByRole("option").map((o) => o.getAttribute("value"));
     expect(kinds).toEqual(["device_offline", "port_down", "metric", "check_down", "default_community", "wan_switch", "device_restart"]); // sprawdzenia dostępności – bez modułu
     const metrics = within(within(form).getByLabelText("Metryka")).getAllByRole("option").map((o) => o.getAttribute("value"));
-    expect(metrics).not.toContain("temp_c");
+    expect(metrics).not.toContain("smart_reallocated");
+    expect(metrics).toContain("temp_c"); // temperaturę mają też czujniki MikroTika (SNMP), bez modułu agentów
   });
 
   it("konto bez uprawnień administratora widzi stan, ale nie przełącza", async () => {

@@ -167,15 +167,35 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
         "read_bps": ("guest_disk_read_bps", 8.0),
         "write_bps": ("guest_disk_write_bps", 8.0),
     },
+    # Czujniki urządzeń SNMP (od 0.50.0, MikroTik): klucz = nazwa czujnika albo portu
+    "snmp_sensor": {
+        "temp_c": ("temp_c", 1.0),
+        "fan_rpm": ("fan_rpm", 1.0),
+        "voltage_v": ("voltage_v", 1.0),
+        "current_a": ("current_a", 1.0),
+        "power_w": ("power_w", 1.0),
+    },
+    "snmp_poe": {"poe_power_w": ("poe_power_w", 1.0), "poe_voltage_v": ("poe_voltage_v", 1.0)},
+    "snmp_sfp": {
+        "sfp_rx_dbm": ("sfp_rx_dbm", 1.0),
+        "sfp_tx_dbm": ("sfp_tx_dbm", 1.0),
+        "sfp_temp_c": ("sfp_temp_c", 1.0),
+        "sfp_voltage_v": ("sfp_voltage_v", 1.0),
+    },
 }
-AgentSourceKind = Literal["agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest"]
-# Lista kluczy do edytora wykresu: źródło → nazwa metryki, z której bierzemy klucze
-AGENT_KEY_NAMES = {
-    "agent_net": "net_rx_bps",
-    "agent_disk": "disk_read_bps",
-    "agent_temp": "temp_c",
-    "agent_container": "container_up",
-    "pve_guest": "guest_up",
+AgentSourceKind = Literal[
+    "agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest", "snmp_sensor", "snmp_poe", "snmp_sfp"
+]
+# Lista kluczy do edytora wykresu: źródło → nazwy metryk, z których bierzemy klucze
+AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
+    "agent_net": ("net_rx_bps",),
+    "agent_disk": ("disk_read_bps",),
+    "agent_temp": ("temp_c",),
+    "agent_container": ("container_up",),
+    "pve_guest": ("guest_up",),
+    "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w"),
+    "snmp_poe": ("poe_power_w",),
+    "snmp_sfp": ("sfp_rx_dbm",),
 }
 
 
@@ -240,16 +260,20 @@ async def agent_keys(device_id: int) -> dict[str, list[str]]:
         rows = (
             await session.execute(
                 select(Metric.name, Metric.key)
-                .where(Metric.device_id.in_(await _same_server_devices(session, device_id)), Metric.time >= since, Metric.name.in_(list(AGENT_KEY_NAMES.values())))
+                .where(
+                    Metric.device_id.in_(await _same_server_devices(session, device_id)),
+                    Metric.time >= since,
+                    Metric.name.in_(sorted({n for names in AGENT_KEY_NAMES.values() for n in names})),
+                )
                 .distinct()
-                .order_by(Metric.name, Metric.key)
+                .order_by(Metric.key, Metric.name)
             )
         ).all()
-        rows = list(dict.fromkeys(rows))
     out: dict[str, list[str]] = {source: [] for source in AGENT_KEY_NAMES}
-    by_name = {name: source for source, name in AGENT_KEY_NAMES.items()}
     for name, key in rows:
-        out[by_name[name]].append(key)
+        for source, names in AGENT_KEY_NAMES.items():
+            if name in names and key not in out[source]:
+                out[source].append(key)
     return out
 
 
