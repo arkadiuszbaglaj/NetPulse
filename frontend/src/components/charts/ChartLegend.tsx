@@ -36,7 +36,7 @@ export function ChartLegend({ items, config, onToggle }: { items: LegendItem[]; 
       aria-pressed={!item.hidden}
       title={t(item.hidden ? "chart.legend.show" : "chart.legend.hide")}
       onClick={() => onToggle(item.line.id)}
-      className={`flex min-w-0 items-center gap-1.5 rounded px-1 text-left hover:bg-surface-2 ${item.hidden ? "text-muted line-through" : ""}`}
+      className={`flex min-w-0 max-w-full items-center gap-1.5 rounded px-1 text-left hover:bg-surface-2 ${item.hidden ? "text-muted line-through" : ""}`}
     >
       <Swatch line={item.line} />
       <span className="truncate">{item.line.name}</span>
@@ -61,7 +61,7 @@ export function ChartLegend({ items, config, onToggle }: { items: LegendItem[]; 
         <tbody>
           {items.map((item) => (
             <tr key={item.line.id} className="border-t border-border">
-              <td className="max-w-0 py-1">{toggle(item)}</td>
+              <td className="w-full max-w-0 overflow-hidden py-1">{toggle(item)}</td>
               {config.values.map((v) => (
                 <td key={v} className={`whitespace-nowrap py-1 pl-3 text-right tabular-nums ${item.hidden ? "text-muted" : ""}`}>
                   {value(item, v)}
