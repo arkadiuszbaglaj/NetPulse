@@ -195,6 +195,9 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
   dokument). A: skan podsieci z wyborem, co dodać; B: zanonimizowany raport urządzenia na driverze ogólnym
   (pobranie albo zgłoszenie na GitHubie, bez automatycznej wysyłki do czasu chmury i decyzji o licencji).
   Użytkownik odłożył to 28.10.2026 – nie wdrażać bez jego decyzji.
+- **Własne OID-y, przeglądarka MIB, profile YAML** – propozycja w `docs/25-wlasne-oid-propozycja.md` (tylko dokument,
+  4.11.2026). Hybryda: drivery zostają, dochodzą własne metryki SNMP (tabela `metrics`), przeglądarka MIB (`pysmi`)
+  i profile urządzeń w YAML. Nie wdrażać bez decyzji użytkownika.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
