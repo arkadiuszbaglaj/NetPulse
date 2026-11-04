@@ -253,10 +253,14 @@ async def agent_metrics(device_id: int, source: AgentSourceKind, key: str = "", 
 
 @router.get("/devices/{device_id}/agent-keys")
 async def agent_keys(device_id: int) -> dict[str, list[str]]:
-    """Interfejsy, dyski, czujniki i kontenery widziane w ostatniej godzinie – do wyboru w edytorze wykresu."""
-    await _exists(Device, device_id, "urządzenie")
+    """Interfejsy, dyski, czujniki i kontenery widziane w ostatniej godzinie – do wyboru w edytorze wykresu.
+    Źródła `snmp_*` tylko dla urządzeń SNMP: temperatury serwera z agentem to `agent_temp`."""
     since = datetime.now(UTC) - timedelta(hours=1)
     async with Session() as session:
+        device = await session.get(Device, device_id)
+        if device is None:
+            raise HTTPException(404, "Nie ma takiego obiektu: urządzenie")
+        snmp = device.driver not in ("agent", "proxmox")
         rows = (
             await session.execute(
                 select(Metric.name, Metric.key)
@@ -272,6 +276,8 @@ async def agent_keys(device_id: int) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {source: [] for source in AGENT_KEY_NAMES}
     for name, key in rows:
         for source, names in AGENT_KEY_NAMES.items():
+            if source.startswith("snmp_") and not snmp:
+                continue
             if name in names and key not in out[source]:
                 out[source].append(key)
     return out

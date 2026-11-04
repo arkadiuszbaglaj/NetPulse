@@ -153,7 +153,17 @@ def test_agent_report_flow(client):
     # Wykresy z danych agenta (tabela metrics)
     dev = agent["device_id"]
     keys = client.get(f"/api/devices/{dev}/agent-keys").json()
-    assert keys == {"agent_net": ["eth0"], "agent_disk": [], "agent_temp": ["coretemp/Package id 0"], "agent_container": ["nextcloud"], "pve_guest": []}
+    assert keys == {
+        "agent_net": ["eth0"],
+        "agent_disk": [],
+        "agent_temp": ["coretemp/Package id 0"],
+        "agent_container": ["nextcloud"],
+        "pve_guest": [],
+        # Czujniki SNMP tylko dla urządzeń SNMP – temperatura serwera z agentem nie trafia do „Czujnika urządzenia”
+        "snmp_sensor": [],
+        "snmp_poe": [],
+        "snmp_sfp": [],
+    }
     net = client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "agent_net", "key": "eth0"}).json()
     assert net[-1]["values"] == {"rx_bps": 1000.0, "tx_bps": 2000.0}
     cpu = client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "agent_cpu"}).json()
