@@ -27,26 +27,71 @@ Wersja: minor. Korzysta z istniejących `snmp`/`drivers` (wybór drivera po `sys
 
 ## Część B – „Pomóż dodać to urządzenie” (raport specyfikacji)
 
-Na stronie urządzenia działającego na driverze ogólnym (albo z nieznanym `sysObjectID`) komunikat i przycisk
-**Przygotuj raport urządzenia**:
+Uzupełnione 4.11.2026: pełny przepływ od użytkownika do wydania nowej wersji.
 
-- NetPulse robi zrzut SNMP ważnych gałęzi (system, IF-MIB, ENTITY, HOST-RESOURCES, UCD, gałąź producenta),
-- **od razu anonimizuje** – jak `backend/tools/walk2snmprec.py`: MAC-i, SSID, adresy IP, numery seryjne,
-  `sysContact`, `sysLocation`; community nigdy nie trafia do raportu,
-- **pokazuje treść przed wysłaniem**; użytkownik pobiera plik `.snmprec` albo klika link otwierający
-  zgłoszenie na GitHubie (szablon issue z modelem, firmware, `sysObjectID`) i dołącza plik.
+### Kiedy NetPulse proponuje raport
 
-Na start **bez automatycznej wysyłki** (serwer projektu, e-mail):
+Na stronie urządzenia komunikat „NetPulse zna to urządzenie tylko częściowo” i przycisk **Przygotuj raport**, gdy:
 
-- NetPulse nie ma jeszcze serwera projektu przyjmującego zgłoszenia – dojdzie z chmurą,
-- automatyczne wysyłanie danych z cudzej sieci wymaga wyraźnej zgody, polityki prywatności i ustalenia
-  administratora danych – łączy się z otwartą decyzją o licencji i modelu biznesowym (`docs/09-licencje-propozycja.md`),
-- zgłoszenie na GitHubie nic nie kosztuje, jest jawne i widać, co wysłano.
+- pasuje tylko driver ogólny (`generic`) albo ogólny `linux` przy `sysObjectID` spoza net-snmp,
+- `sysObjectID` nie występuje w żadnym fixture ani profilu,
+- producent jest znany, ale model lub wersja firmware nie (lista znanych modeli przy driverze / profilu).
 
-Później: przycisk „Wyślij do NetPulse” z tym samym podglądem i zgodą, gdy będzie chmura.
+Komunikat można ukryć dla urządzenia („nie pokazuj więcej”).
 
-Dalszy krok, gdy zgłoszeń przybędzie: profile urządzeń jako dane (np. YAML: rozpoznanie, role portów, OID-y CPU
-i czujników) zamiast kodu – łatwiej przyjmować wkład od innych.
+### Co robi NetPulse u użytkownika
+
+1. **Zrzut SNMP** ważnych gałęzi: system, IF-MIB, HOST-RESOURCES, ENTITY, ENTITY-SENSOR, UCD, BRIDGE, LLDP
+   i gałąź producenta z `sysObjectID`. **Dwa zrzuty w odstępie ok. 60 s** – widać, które wartości to liczniki.
+2. **Limity**: liczba wierszy na tabelę (tablice MAC, ARP, trasy, sesje skracane do kilku wierszy), łączny czas
+   i rozmiar; plik spakowany.
+3. **Anonimizacja od razu na serwerze użytkownika** – jak `backend/tools/walk2snmprec.py`: MAC-i, adresy IP, SSID,
+   numery seryjne, `sysName`, `sysContact`, `sysLocation`, `ifAlias`; community i klucze v3 nigdy nie trafiają do
+   raportu. Testy anonimizacji w CI (żadna wartość z listy wrażliwych nie przechodzi).
+4. **Formularz**: co to za urządzenie (model, firmware, jeśli NetPulse ich nie odczytał), uwagi użytkownika,
+   np. „port 5 to WAN”, „to NAS z dwoma dyskami w RAID 1”.
+5. **Podgląd całej treści przed wysłaniem** i wyraźna zgoda.
+
+Raport zawiera też: wersję NetPulse, wybrany driver, `sysObjectID`, `sysDescr` (zanonimizowany), czas zrzutu.
+
+### Jak raport trafia do właściciela
+
+| Sposób | Plusy | Minusy |
+|---|---|---|
+| **A. Plik do pobrania + link do gotowego zgłoszenia na GitHubie** (szablon issue „Nowe urządzenie”, pola wypełnione z raportu) | bez serwera, za darmo, jawne, od razu | użytkownik potrzebuje konta GitHub i sam dołącza plik (link ma limit długości), zgłoszenie publiczne |
+| **B. Przycisk „Wyślij do NetPulse”** – mały serwis pośredniczący (funkcja serverless z aplikacją GitHub) zakłada zgłoszenie w prywatnym repo | jedno kliknięcie, bez konta, raporty prywatne | serwis do utrzymania, polityka prywatności, zgoda, ochrona przed spamem i limit zgłoszeń |
+| C. E-mail | prosty | trudny do obsługi, łatwo coś zgubić |
+
+**Rekomendacja:** najpierw **A**. **B** razem z chmurą i po decyzji o licencji i modelu biznesowym
+(`docs/09-licencje-propozycja.md`) – automatyczna wysyłka danych z cudzej sieci wymaga zgody i ustalenia
+administratora danych. NetPulse zapamiętuje, że raport dla urządzenia został przygotowany / wysłany.
+
+### Co dzieje się u właściciela
+
+1. Zgłoszenie z etykietą `nowe-urządzenie` (szablon w `.github/ISSUE_TEMPLATE/`).
+2. Raport → fixture `backend/tests/fixtures/<model>.snmprec` (zrzut już zanonimizowany, przed dodaniem do repo
+   jeszcze raz sprawdzony narzędziem).
+3. Rozpoznanie i obsługa: profil YAML (`docs/25-wlasne-oid-propozycja.md`, warstwa 3 – najszybciej) albo driver
+   w Pythonie, gdy potrzebna logika (role portów, WAN, WiFi); test drivera na fixture w CI.
+4. Wydanie nowej wersji (patch dla nowego modelu znanego producenta, minor dla nowego producenta), wpis
+   w macierzy zgodności (`docs/26-plan-testow-sprzetu.md`, etap 5).
+5. Zgłoszenie zamknięte z informacją „obsługiwane od wersji X.Y.Z”.
+
+### Co dzieje się u użytkownika po aktualizacji
+
+Panel pokazuje „dostępna aktualizacja”; po `netpulse update` (albo z panelu) urządzenie z driverem `auto` **samo**
+dostaje nowy driver – wybór drivera odbywa się przy każdym odczycie (`poll_device`). Komunikat o raporcie znika.
+Historia ruchu portów zostaje (te same `ifIndex`).
+
+### Ryzyka i ograniczenia
+
+- **Jeden raport nie zawsze wystarczy** – ten sam model na innym firmware zachowuje się inaczej, część rzeczy widać
+  tylko pod obciążeniem. Potrzebna możliwość dopytania zgłaszającego (komentarze w zgłoszeniu) i drugiego raportu.
+- **Rozmiar** – gałąź producenta może mieć dziesiątki tysięcy wartości; limity z punktu 2.
+- **Anonimizacja musi być pewna** – podgląd przed wysłaniem i testy w CI; w razie wątpliwości wartość usuwamy.
+- **Czas reakcji** – do wydania nowej wersji użytkownik ma tylko driver ogólny. Lukę zmniejszają własne OID-y
+  (`docs/25-wlasne-oid-propozycja.md`, warstwa 1).
+- **Zgłoszenia publiczne (A)** – zrzut to dane, nie kod; w szablonie zgoda na użycie zrzutu w repo jako fixture.
 
 ## Taniej niż kupowanie sprzętu
 
@@ -57,4 +102,5 @@ OPNsense, VyOS. Sprzęt fizyczny potrzebny głównie do PoE, czujników i WiFi.
 
 1. Część A (wykrywanie) – od razu przydatne dla każdej instalacji.
 2. Część B (raport) – korzysta z tego samego odczytu SNMP.
-3. Wysyłka do serwera projektu – razem z chmurą i po decyzji o licencji.
+3. Szablon zgłoszenia na GitHubie i strona właściciela (fixture, profil/driver, wydanie).
+4. Wysyłka do serwera projektu (sposób B) – razem z chmurą i po decyzji o licencji.
