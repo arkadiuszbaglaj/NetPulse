@@ -25,7 +25,7 @@ from ..collector import DeviceTarget, credentials_for, make_client
 from ..db import Session
 from ..db.models import NON_SNMP_DRIVERS, Device, Interface
 from ..drivers import DRIVERS, GenericDriver
-from ..rates import LiveRateTracker
+from ..rates import LiveRateTracker, rate_factor
 from ..snmp import SnmpClient, SnmpError, as_int
 from ..snmp import oids as O
 from .security import allowed_hosts, user_from_request
@@ -44,6 +44,7 @@ class LivePort:
     id: int  # interfaces.id
     if_index: int
     speed_mbps: int | None
+    if_type: int | None = None
 
 
 @dataclass(frozen=True)
@@ -112,7 +113,7 @@ class LiveHub:
             ).all()
         by_device: dict[int, list[LivePort]] = {}
         for p in ports:
-            by_device.setdefault(p.device_id, []).append(LivePort(p.id, p.if_index, p.speed_mbps))
+            by_device.setdefault(p.device_id, []).append(LivePort(p.id, p.if_index, p.speed_mbps, p.if_type))
         return [
             LiveTarget(
                 DeviceTarget(d.id, d.name, d.host, d.port, d.driver, credentials_for(d)),
@@ -169,8 +170,8 @@ class LiveHub:
             ports.append(
                 {
                     "id": p.id,
-                    "in_bps": self.tracker.bps(key + ("in",), ts, as_int(values.get(f"{O.IF_HC_IN_OCTETS}.{p.if_index}")), 64, p.speed_mbps),
-                    "out_bps": self.tracker.bps(key + ("out",), ts, as_int(values.get(f"{O.IF_HC_OUT_OCTETS}.{p.if_index}")), 64, p.speed_mbps),
+                    "in_bps": self.tracker.bps(key + ("in",), ts, as_int(values.get(f"{O.IF_HC_IN_OCTETS}.{p.if_index}")), 64, p.speed_mbps, rate_factor(p.if_type)),
+                    "out_bps": self.tracker.bps(key + ("out",), ts, as_int(values.get(f"{O.IF_HC_OUT_OCTETS}.{p.if_index}")), 64, p.speed_mbps, rate_factor(p.if_type)),
                     "up": None if oper is None else 1.0 if oper == 1 else 0.0,
                 }
             )

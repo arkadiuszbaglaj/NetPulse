@@ -30,7 +30,7 @@ from .db.models import (
 )
 from .drivers import PollResult, poll_device
 from .modules import ensure_modules, is_enabled
-from .rates import CounterTracker
+from .rates import CounterTracker, rate_factor
 from .snmp import SnmpClient, SnmpCredentials, SnmpError
 
 log = logging.getLogger("netpulse.collector")
@@ -75,6 +75,8 @@ class Collector:
     def __init__(self, client_factory=make_client, alert_engine=None) -> None:
         self.alert_engine = alert_engine
         self.tracker = CounterTracker()
+        # Ostatni stan łącza każdego portu: odczyt z chwili, gdy łącze padło albo wróciło, nie liczy się (od 0.54.4)
+        self._oper: dict[tuple, str] = {}
         self.client_factory = client_factory
         self._clients: dict[int, tuple[DeviceTarget, SnmpClient]] = {}
         self._last_uptime: dict[int, float] = {}
@@ -209,14 +211,22 @@ class Collector:
         if_rates: dict[int, dict] = {}
         for i in result.interfaces:
             key = (dev_id, "if", i.if_index)
+            factor = rate_factor(i.if_type)
             values = {
-                "in_bps": self.tracker.bps(key + ("in",), ts, i.in_octets, i.counter_bits, i.speed_mbps),
-                "out_bps": self.tracker.bps(key + ("out",), ts, i.out_octets, i.counter_bits, i.speed_mbps),
+                "in_bps": self.tracker.bps(key + ("in",), ts, i.in_octets, i.counter_bits, i.speed_mbps, factor),
+                "out_bps": self.tracker.bps(key + ("out",), ts, i.out_octets, i.counter_bits, i.speed_mbps, factor),
             }
+            # Łącze padło albo wróciło (router potrafi wtedy wyzerować liczniki) albo reset widać tylko w jednym kierunku –
+            # drugi kierunek też jest niepewny: ta próbka bez ruchu (stan łącza zostaje), od następnej liczymy od nowa
+            prev_oper = self._oper.get(key)
+            self._oper[key] = i.oper_status
+            changed = prev_oper is not None and prev_oper != i.oper_status
+            if changed or self.tracker.was_reset(key + ("in",)) or self.tracker.was_reset(key + ("out",)):
+                values["in_bps"] = values["out_bps"] = None
             for field in ("in_errors", "out_errors", "in_discards", "out_discards"):
                 res = self.tracker.update(key + (field,), ts, getattr(i, field), 32)
                 values[field] = res[0] if res else None
-            if any(v is not None for v in values.values()):
+            if changed or any(v is not None for v in values.values()):
                 values["oper_up"] = i.oper_status == "up"
                 if_rates[i.if_index] = values
         wifi_rates: dict[str, dict] = {}

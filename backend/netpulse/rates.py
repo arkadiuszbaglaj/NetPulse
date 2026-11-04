@@ -7,6 +7,18 @@ from collections.abc import Hashable
 _WRAP_32 = 2**32
 _WRAP_64 = 2**64
 
+# Porty Ethernet (ethernetCsmacd, fastEther, gigabitEthernet …): fizycznie nie przeniosą więcej niż wynegocjowana prędkość,
+# więc odrzucamy już ponad 1,1× (od 0.54.4 – wcześniej 2×; routery UniFi potrafią raz na jakiś czas „dogonić” liczniki
+# i pokazać 1–2 Gb/s na łączu 1 Gb/s). Inne interfejsy (mosty, VLAN, WiFi) często podają prędkość umowną – tam 2×.
+ETHERNET_IF_TYPES = frozenset({6, 62, 69, 117})
+ETHERNET_RATE_FACTOR = 1.1
+DEFAULT_RATE_FACTOR = 2.0
+
+
+def rate_factor(if_type: int | None) -> float:
+    """Ile razy szybciej od prędkości łącza może być odczyt, zanim uznamy go za błąd licznika."""
+    return ETHERNET_RATE_FACTOR if if_type in ETHERNET_IF_TYPES else DEFAULT_RATE_FACTOR
+
 
 def counter_delta(prev: int, curr: int, bits: int = 64) -> int | None:
     """Przyrost licznika z obsługą przepełnienia.
@@ -29,6 +41,11 @@ class CounterTracker:
 
     def __init__(self) -> None:
         self._last: dict[Hashable, tuple[float, int]] = {}
+        self._reset: set[Hashable] = set()
+
+    def was_reset(self, key: Hashable) -> bool:
+        """Czy ostatni odczyt tego licznika wykrył reset (licznik spadł)."""
+        return key in self._reset
 
     def update(self, key: Hashable, ts: float, value: int | None, bits: int = 64) -> tuple[int, float] | None:
         """Zwraca (przyrost, czas w sekundach) albo None przy pierwszym odczycie/resecie."""
@@ -44,7 +61,9 @@ class CounterTracker:
             return None
         delta = counter_delta(prev_val, value, bits)
         if delta is None:
+            self._reset.add(key)
             return None
+        self._reset.discard(key)
         return delta, dt
 
     def rate(self, key: Hashable, ts: float, value: int | None, bits: int = 64) -> float | None:
@@ -62,13 +81,14 @@ class CounterTracker:
         octets: int | None,
         bits: int = 64,
         max_mbps: int | None = None,
+        factor: float = DEFAULT_RATE_FACTOR,
     ) -> float | None:
-        """Bity na sekundę z licznika oktetów; odrzuca wartości nierealne (> 2x prędkości łącza)."""
+        """Bity na sekundę z licznika oktetów; odrzuca wartości nierealne (> `factor` × prędkość łącza)."""
         r = self.rate(key, ts, octets, bits)
         if r is None:
             return None
         bps = r * 8
-        if max_mbps and bps > max_mbps * 1_000_000 * 2:
+        if max_mbps and bps > max_mbps * 1_000_000 * factor:
             return None
         return bps
 
@@ -76,6 +96,7 @@ class CounterTracker:
         """Usuwa zapamiętane liczniki pasujące do predykatu (np. po restarcie urządzenia)."""
         for key in [k for k in self._last if predicate(k)]:
             del self._last[key]
+            self._reset.discard(key)
 
 
 class LiveRateTracker:
@@ -89,7 +110,9 @@ class LiveRateTracker:
         self.hold_s = hold_s
         self._last: dict[Hashable, tuple[float, int, float | None]] = {}  # czas zmiany, wartość, ostatnia szybkość
 
-    def bps(self, key: Hashable, ts: float, octets: int | None, bits: int = 64, max_mbps: int | None = None) -> float | None:
+    def bps(
+        self, key: Hashable, ts: float, octets: int | None, bits: int = 64, max_mbps: int | None = None, factor: float = DEFAULT_RATE_FACTOR
+    ) -> float | None:
         if octets is None:
             return None
         prev = self._last.get(key)
@@ -108,7 +131,7 @@ class LiveRateTracker:
             self._last[key] = (ts, octets, None)  # reset urządzenia – zaczynamy od nowa
             return None
         bps = delta * 8 / dt
-        if max_mbps and bps > max_mbps * 1_000_000 * 2:
+        if max_mbps and bps > max_mbps * 1_000_000 * factor:
             self._last[key] = (ts, octets, rate)
             return rate
         self._last[key] = (ts, octets, bps)

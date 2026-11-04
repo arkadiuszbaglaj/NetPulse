@@ -63,7 +63,8 @@ każdego urządzenia ze SNMP, drivery producentów dokładają resztę. Wybór d
 po `sysObjectID` / `sysDescr`.
 
 Kolektor co 30 s: odpytuje urządzenia równolegle, liczy przepływ z różnic liczników
-(`ifHCInOctets`/`ifHCOutOctets`; obsługa przepełnienia Counter32 i resetu urządzenia),
+(`ifHCInOctets`/`ifHCOutOctets`; obsługa przepełnienia Counter32 i resetu urządzenia; od 0.54.4 próbka z chwili,
+gdy łącze padło albo wróciło, albo z resetem w jednym kierunku – bez ruchu, porty Ethernet odrzucają > 1,1× prędkości: `rates.py`),
 zapisuje do TimescaleDB.
 
 Schemat bazy zmieniają **migracje Alembic** (od 0.10.0; `backend/netpulse/db/migrations/`, opis:
