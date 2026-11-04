@@ -191,6 +191,10 @@ wpis w `layout_schemas.py` i ścieżki w `resolve()` (pulpit publiczny). Opis: `
 dla stanów. Od 0.44.0 okno „Dodaj widget” z szablonami (według rodzaju i według urządzenia, cała sekcja urządzenia):
 `lib/widgetTemplates.ts` – nowy szablon = wpis tam (zbudowany widget musi przejść schemat `layout_schemas.py`).
 Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkownik sam się w nim zaloguje.
+Od 0.53.0 widgety skalują treść z kartą: komórka siatki `np-cell` (+ `np-fit` przy stałej wysokości) jest kontenerem
+zapytań, style w `index.css` (klasy `np-*`), legenda wykresu ustępuje miejsca (`charts/legendFit.ts`). Nowy widget =
+dodać mu klasy `np-*`, jeśli ma rosnąć z kartą. Etapy 3–4 (siatka na laptopie, dopasowanie wysokości) czekają na decyzję:
+`docs/29-responsywnosc-widgetow.md`.
 
 ## Do sprawdzenia później
 

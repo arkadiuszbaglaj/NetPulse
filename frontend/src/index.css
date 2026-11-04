@@ -144,3 +144,141 @@ body {
 .np-grid .react-grid-item.react-draggable-dragging {
   z-index: 20;
 }
+
+/* Dopasowanie treści widgetów do karty (od 0.53.0, opis: docs/29-responsywnosc-widgetow.md).
+   Komórka pulpitu to kontener `np-cell`: z `np-fit` (stała wysokość – siatka, pełny ekran) zna szerokość i wysokość,
+   bez niej (telefon, naturalna wysokość) tylko szerokość – wtedy zapytania o wysokość nie pasują i widget wygląda
+   jak dawniej. Reguły są poza warstwami Tailwinda, więc nadpisują klasy narzędziowe (np. `text-3xl`, `h-3`). */
+.np-cell {
+  container: np-cell / inline-size;
+}
+.np-cell.np-fit {
+  container-type: size;
+}
+
+/* Liczba z mini-wykresem: liczba i mini-wykres rosną z kartą */
+@container np-cell (min-height: 190px) {
+  .np-stat-value {
+    font-size: clamp(1.875rem, min(16cqh, 12cqw), 4.5rem);
+    line-height: 1.05;
+  }
+  .np-spark {
+    height: clamp(3rem, 30cqh, 11rem);
+  }
+}
+
+/* Wskaźnik (półkole): bez limitu 192 px – mieści się w karcie */
+@container np-cell (min-height: 260px) {
+  .np-gauge {
+    max-width: min(100%, max(12rem, calc((100cqh - 8.5rem) * 1.78)));
+  }
+  .np-gauge-value {
+    font-size: clamp(1.5rem, min(8cqh, 9cqw), 3.25rem);
+    margin-top: calc(-1 * clamp(1.25rem, 5cqh, 2.5rem));
+  }
+}
+
+/* Wykres kołowy: pierścień zamiast stałych 144 px; w wąskiej i wysokiej karcie (legenda pod spodem) – na szerokość */
+@container np-cell (min-height: 240px) {
+  .np-ring {
+    width: clamp(9rem, min(calc(100cqh - 5.5rem), 46cqw), 22rem);
+  }
+  .np-ring-value {
+    font-size: clamp(1.25rem, 5.5cqh, 2.25rem);
+  }
+}
+@container np-cell (max-width: 420px) and (min-height: 380px) {
+  .np-ring {
+    width: clamp(9rem, min(calc(100cqw - 3rem), calc(100cqh - 12rem)), 22rem);
+  }
+}
+
+/* Paski: wiersze rozkładają się na całą wysokość, pasek i napis rosną z miejscem na wiersz (`--np-rows`) */
+@container np-cell (min-height: 150px) {
+  .np-bars {
+    flex: 1 1 auto;
+    justify-content: space-evenly;
+    row-gap: 0.25rem;
+  }
+  .np-bars > li {
+    font-size: clamp(0.75rem, calc((100cqh - 4.5rem) / var(--np-rows, 6) * 0.28), 0.9375rem);
+  }
+  .np-bars .np-bar {
+    height: clamp(0.75rem, calc((100cqh - 4.5rem) / var(--np-rows, 6) * 0.4), 1.75rem);
+  }
+}
+@container np-cell (min-width: 560px) {
+  .np-bar-label {
+    width: 11rem;
+  }
+  .np-bar-value {
+    width: 6rem;
+  }
+}
+
+/* Oś stanów: wiersze na całą wysokość, wyższe paski; w szerokiej karcie dłuższe nazwy */
+@container np-cell (min-height: 150px) {
+  .np-tl,
+  .np-tl-rows {
+    flex: 1 1 auto;
+  }
+  .np-tl-rows {
+    justify-content: space-evenly;
+  }
+  .np-tl-bar {
+    height: clamp(1rem, calc((100cqh - 7rem) / var(--np-rows, 6) * 0.55), 2.25rem);
+  }
+}
+@container np-cell (min-width: 700px) {
+  .np-tl-label {
+    width: 12rem;
+  }
+  .np-tl-foot {
+    padding-left: 12.75rem;
+  }
+}
+
+/* Listy (PoE, SLA łączy, dostępność): wiersze dzielą wysokość karty, treść wiersza na środku (`--np-row-max` = limit) */
+@container np-cell (min-height: 150px) {
+  .np-list {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .np-list > li {
+    flex: 1 1 0;
+    max-height: var(--np-row-max, none);
+    align-content: center;
+  }
+}
+
+/* Podsumowanie: kafelki wypełniają kartę, większa liczba i mini-wykres w wysokiej karcie; w wąskiej karcie 2×2.
+   Kafelek to osobny kontener (szerokość) – liczba mieści się w kafelku (`cqw` = szerokość kafelka). */
+.np-sum > * {
+  container-type: inline-size;
+}
+.np-sum-value {
+  font-size: clamp(1.25rem, 15cqw, 1.75rem);
+}
+@container np-cell (max-width: 520px) {
+  .np-sum {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+@container np-cell (min-height: 200px) {
+  .np-sum {
+    grid-auto-rows: 1fr;
+    min-height: 100%;
+  }
+  .np-sum-tile {
+    justify-content: space-between;
+  }
+  .np-sum-value {
+    font-size: clamp(1.25rem, min(10cqh, 15cqw), 2.75rem);
+  }
+  .np-sum-spark {
+    height: clamp(1.75rem, 9cqh, 3.5rem);
+    width: clamp(5rem, 35cqw, 10rem);
+  }
+}

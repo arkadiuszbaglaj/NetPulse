@@ -96,10 +96,10 @@ export function PieWidget({ config }: { config: PieConfig }) {
         </p>
       ) : (
         <div className="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-4">
-          <div className="relative aspect-square w-36 shrink-0">
+          <div className="np-ring relative aspect-square w-36 shrink-0">
             <Ring slices={data.slices} label={`${title}: ${data.slices.map((s) => `${s.label} ${s.text}`).join(", ")}`} />
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-xl font-semibold tabular-nums">{data.center}</span>
+              <span className="np-ring-value text-xl font-semibold tabular-nums">{data.center}</span>
               <span className="max-w-20 truncate text-xs text-text-2">{data.sub}</span>
             </div>
           </div>

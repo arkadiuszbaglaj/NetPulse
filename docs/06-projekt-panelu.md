@@ -96,6 +96,10 @@ wygładzanie, skala osi, własny interwał odświeżania. Układ pulpitu (kolejn
 dodawanie i usuwanie widgetów) edytowany przeciąganiem. Zapisywane **na koncie użytkownika**
 w bazie (nie w przeglądarce), więc działa na każdym urządzeniu.
 
+Od 0.53.0 treść widgetu dopasowuje się do rozmiaru karty (zapytania kontenerowe CSS: liczby, wskaźniki, koła, paski,
+oś stanów i listy rosną z kartą), a legenda wykresu w małej karcie przechodzi na prawo, zwija się albo znika.
+Opis: `docs/29-responsywnosc-widgetow.md`.
+
 ## Odświeżanie
 
 - Globalny interwał w pasku górnym: wyłączone, 5 s, 10 s, 30 s, 1 min, 5 min (domyślnie 30 s),

@@ -4,6 +4,7 @@
  */
 import { IconAlertTriangle, IconCheck, IconX } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
+import type { CSSProperties } from "react";
 import { Link } from "react-router";
 import { t } from "../../i18n";
 import { ALERTS_KEY, useAlertSummary, type Alert, type Severity } from "../../lib/alerts";
@@ -251,7 +252,7 @@ export function ChecksWidget({ days }: { days: ChecksDays }) {
           )}
         </p>
       )}
-      <ul className="flex flex-col">
+      <ul className="np-list flex flex-col" style={{ "--np-row-max": "7rem" } as CSSProperties}>
         {(data ?? []).map((row) => (
           <CheckRow key={row.key} row={row} days={days} />
         ))}

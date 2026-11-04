@@ -69,7 +69,7 @@ export function WanSlaWidget({ deviceId, days }: { deviceId?: number | null; day
   const { data, isLoading, isError } = useWanSla(period);
   const items = (data?.links ?? []).filter((x) => deviceId == null || x.link.device_id === deviceId);
   return (
-    <Card className="h-full p-4">
+    <Card className="flex h-full flex-col p-4">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-medium">
           <IconShieldCheck size={18} aria-hidden="true" className="shrink-0 text-accent" />
@@ -94,7 +94,7 @@ export function WanSlaWidget({ deviceId, days }: { deviceId?: number | null; day
       ) : data && items.length === 0 ? (
         <p className="py-4 text-sm text-text-2">{t("wan.none")}</p>
       ) : data ? (
-        <ul className="divide-y divide-border">
+        <ul className="np-list divide-y divide-border">
           {items.map((x) => (
             <LinkSla key={x.link.id} item={x} />
           ))}

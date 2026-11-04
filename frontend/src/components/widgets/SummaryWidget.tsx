@@ -8,7 +8,7 @@ import { LiveBadge } from "../LiveBadge";
 import { Card, ErrorNote } from "../ui";
 
 /** Mini-wykres (linia) z wartości w zakresie pulpitu; mniej niż 2 punkty – nic. */
-export function Sparkline({ values }: { values: (number | null)[] }) {
+export function Sparkline({ values, className = "" }: { values: (number | null)[]; className?: string }) {
   const known = values.map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] != null);
   if (known.length < 2) return null;
   const max = Math.max(...known.map((p) => p[1]));
@@ -17,7 +17,7 @@ export function Sparkline({ values }: { values: (number | null)[] }) {
   const last = values.length - 1 || 1;
   const points = known.map(([i, v]) => `${((i / last) * 120).toFixed(1)},${(28 - ((v - min) / span) * 24).toFixed(1)}`).join(" ");
   return (
-    <svg width="80" height="28" viewBox="0 0 120 32" fill="none" aria-hidden="true" className="min-w-0 shrink text-text-2">
+    <svg width="80" height="28" viewBox="0 0 120 32" fill="none" aria-hidden="true" className={`min-w-0 shrink text-text-2 ${className}`}>
       <polyline points={points} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -52,14 +52,14 @@ function Metric({
 }) {
   const color = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-text";
   return (
-    <Card className="flex h-full flex-col px-5 py-4">
+    <Card className="np-sum-tile flex h-full flex-col px-5 py-4">
       <p className="flex items-center justify-between gap-2 text-[13px] font-medium text-muted">
         {label}
         {live && <LiveBadge compact />}
       </p>
       <div className="mt-2 flex items-end justify-between gap-3">
-        <p className={`whitespace-nowrap text-[28px] font-semibold leading-none tracking-tight ${color}`}>{value}</p>
-        {spark && <Sparkline values={spark} />}
+        <p className={`np-sum-value whitespace-nowrap text-[28px] font-semibold leading-none tracking-tight ${color}`}>{value}</p>
+        {spark && <Sparkline values={spark} className="np-sum-spark" />}
       </div>
       {note && <p className="mt-2 text-xs text-muted">{note}</p>}
     </Card>
@@ -105,9 +105,11 @@ export function SummaryWidget({ tiles }: { tiles: SummaryTile[] }) {
     ),
   };
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+    <div className="np-sum grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
       {tiles.map((tile) => (
-        <div key={tile}>{shown[tile]}</div>
+        <div key={tile} className="min-h-0">
+          {shown[tile]}
+        </div>
       ))}
     </div>
   );

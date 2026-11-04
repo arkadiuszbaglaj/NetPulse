@@ -17,6 +17,10 @@ import { GRID_COLS, GRID_MARGIN, MAX_HEIGHT, ROW_HEIGHT, hiddenBySections, place
 /** Widget w komórce siatki o stałej wysokości: wykresy wypełniają całą komórkę. */
 export const GridCellContext = createContext(false);
 
+/** Komórka z kontenerem zapytań (od 0.53.0): `np-fit` = stała wysokość (siatka, pełny ekran, wykres na telefonie) –
+ * treść widgetu skaluje się do rozmiaru karty (`index.css`, „Dopasowanie treści”); bez niej – tylko do szerokości. */
+const cellClass = (fit: boolean) => `np-cell ${fit ? "np-fit" : ""}`;
+
 const DESKTOP = 1024;
 const TABLET = 640;
 /** Na telefonie te widgety mają wysokość z siatki (wykres potrzebuje wysokości), reszta – swoją. */
@@ -109,7 +113,7 @@ function Fullscreen({ label, onClose, children }: { label: string; onClose: () =
           {t("widget.fullscreen.close")}
         </button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col *:flex-1">
+      <div className={`${cellClass(true)} flex min-h-0 flex-1 flex-col *:flex-1`}>
         <GridCellContext.Provider value>{children}</GridCellContext.Provider>
       </div>
     </div>,
@@ -162,6 +166,7 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
     return { stacked: !desktop, first: i === 0, last: i === ordered.length - 1 };
   };
 
+  const fixedHeight = (w: Widget) => desktop || FIXED_ON_MOBILE.has(w.type);
   const cell = (w: Widget) => {
     if (w.type === "section") {
       const count = edit ? 0 : hiddenBySections(all, new Set([w.id])).size;
@@ -176,7 +181,7 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       // W trybie edycji pasek narzędzi leży nad kartą (w rogu), a nie w niej – widget ma tę samą wysokość co w podglądzie
       <div className={`relative flex h-full min-h-0 flex-col ${edit ? "rounded-xl outline-2 outline-offset-2 outline-dashed outline-border-strong" : ""}`}>
         {edit && <div className="absolute right-2 top-2 z-20">{renderEditBar?.(w, placeOf(w))}</div>}
-        <div className="flex min-h-0 flex-1 flex-col overflow-auto *:flex-1">
+        <div className={`${cellClass(fixedHeight(w))} flex min-h-0 flex-1 flex-col overflow-auto *:flex-1`}>
           <WidgetExpandContext.Provider value={edit ? null : () => setExpanded(w.id)}>
             <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
           </WidgetExpandContext.Provider>

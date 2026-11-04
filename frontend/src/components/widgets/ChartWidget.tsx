@@ -6,6 +6,7 @@ import { ApiError, type Series } from "../../lib/api";
 import { formatRange, metricFormatter } from "../../lib/format";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
+import { fitLegend, useBoxSize } from "../charts/legendFit";
 import { buildLines, lineStats, linesToCsv } from "../charts/panelData";
 import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
@@ -82,7 +83,11 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
   const isLoading = result.isLoading && lines.every((l) => l.rows.length === 0);
   const isError = result.isError;
   const empty = !isLoading && !isError && lines.every((l) => l.rows.length === 0);
-  const legend = config.legend ?? DEFAULT_LEGEND;
+  // W komórce siatki legenda ustępuje miejsca wykresowi, gdy karta jest mała (od 0.53.0, `legendFit.ts`)
+  const [body, setBody] = useState<HTMLDivElement | null>(null);
+  const box = useBoxSize(body, fill);
+  const configured = config.legend ?? DEFAULT_LEGEND;
+  const legend = fill ? fitLegend(configured, lines.length, box) : configured;
   const instance = useRef<echarts.ECharts | null>(null);
   const hasData = !isLoading && !isError && !empty;
   const exports: WidgetAction[] = hasData
@@ -154,8 +159,11 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
       ) : isLoading ? (
         loading
       ) : (
-        <div className={`${legendRight ? "flex flex-col gap-3 lg:flex-row" : "flex flex-col gap-2"} ${fill ? "min-h-0 flex-1" : ""}`}>
-          <div className={`min-w-0 flex-1 ${fill ? "min-h-24" : ""}`}>
+        <div
+          ref={setBody}
+          className={`${legendRight ? (fill ? "flex flex-row gap-3" : "flex flex-col gap-3 lg:flex-row") : "flex flex-col gap-2"} ${fill ? "min-h-0 flex-1" : ""}`}
+        >
+          <div className={`min-w-0 flex-1 ${fill ? "min-h-16" : ""}`}>
             <Suspense fallback={loading}>
               <PanelChart
                 lines={visible}
@@ -172,7 +180,7 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
               />
             </Suspense>
           </div>
-          <div className={`${legendRight ? "lg:w-64 lg:shrink-0" : ""} ${fill ? "max-h-[45%] shrink-0 overflow-y-auto" : ""}`}>
+          <div className={legendRight ? (fill ? "w-64 shrink-0 overflow-y-auto" : "lg:w-64 lg:shrink-0") : fill ? "max-h-[45%] shrink-0 overflow-y-auto" : ""}>
             <ChartLegend items={legendItems} config={legend} onToggle={toggle} />
           </div>
         </div>

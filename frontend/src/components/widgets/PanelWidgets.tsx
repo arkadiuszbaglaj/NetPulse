@@ -2,7 +2,7 @@
 import { IconArrowDown, IconArrowUp } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { t } from "../../i18n";
 import { ApiError } from "../../lib/api";
 import { formatRange, metricFormatter } from "../../lib/format";
@@ -70,7 +70,7 @@ function Sparkline({ values, color }: { values: (number | null)[]; color: string
     .filter(Boolean)
     .join(" ");
   return (
-    <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-12 w-full">
+    <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" className="np-spark pointer-events-none absolute inset-x-0 bottom-0 h-12 w-full">
       <polygon points={`0,40 ${pts} 100,40`} fill={color} opacity={0.08} />
       <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
     </svg>
@@ -86,7 +86,7 @@ function Gauge({ fraction, color }: { fraction: number; color: string }) {
   // Półokrąg o promieniu 40 (obwód 40π); wypełnienie przez długość kreski
   const length = Math.PI * 40;
   return (
-    <svg viewBox="0 0 100 56" aria-hidden="true" className="mx-auto mt-1 block h-auto w-full max-w-48">
+    <svg viewBox="0 0 100 56" aria-hidden="true" className="np-gauge mx-auto mt-1 block h-auto w-full max-w-48">
       <path d="M10,50 A40,40 0 0 1 90,50" fill="none" stroke="var(--surface-2)" strokeWidth={10} strokeLinecap="round" />
       {fraction > 0 && (
         <path
@@ -185,14 +185,14 @@ export function StatWidget({ config }: { config: StatConfig }) {
             className="flex flex-1 flex-col items-center justify-center"
           >
             <Gauge fraction={value == null || max <= 0 ? 0 : Math.min(1, Math.max(0, value / max))} color={color} />
-            <p className="-mt-5 text-2xl font-semibold tabular-nums" style={{ color: valueColor }}>
+            <p className="np-gauge-value -mt-5 text-2xl font-semibold tabular-nums" style={{ color: valueColor }}>
               {text}
             </p>
             {change != null && <Change value={change} minutes={minutes} />}
           </div>
         ) : (
           <>
-            <p className="relative z-10 mt-2 text-3xl font-semibold tracking-tight tabular-nums" style={{ color: valueColor }} aria-label={`${title}: ${text}`}>
+            <p className="np-stat-value relative z-10 mt-2 text-3xl font-semibold tracking-tight tabular-nums" style={{ color: valueColor }} aria-label={`${title}: ${text}`}>
               {text}
               {config.reduce !== "last" && <span className="ml-2 text-xs font-normal text-text-2">{t(`panel.reduce.${config.reduce}` as const)}</span>}
             </p>
@@ -268,7 +268,11 @@ export function BarGaugeWidget({ config }: { config: BarGaugeConfig }) {
       ) : rows.length === 0 ? (
         <Status>{t("panel.empty")}</Status>
       ) : (
-        <ul aria-label={title} className={vertical ? "flex min-h-40 flex-1 items-end gap-2" : "flex flex-col gap-2"}>
+        <ul
+          aria-label={title}
+          className={vertical ? "flex min-h-40 flex-1 items-end gap-2" : "np-bars flex flex-col gap-2"}
+          style={{ "--np-rows": rows.length } as CSSProperties}
+        >
           {rows.map((r) => {
             const v = r.values[config.key];
             const color = chartColor(thresholdColor(v, config.thresholds, config.color));
@@ -293,11 +297,11 @@ export function BarGaugeWidget({ config }: { config: BarGaugeConfig }) {
               </li>
             ) : (
               <li key={r.key} className="flex items-center gap-3 text-xs">
-                <RowLabel kind={config.collection.kind} row={r} className="w-28 shrink-0 truncate text-text-2" />
-                <div {...meter} className="relative h-3 flex-1 overflow-hidden rounded bg-surface-2">
+                <RowLabel kind={config.collection.kind} row={r} className="np-bar-label w-28 shrink-0 truncate text-text-2" />
+                <div {...meter} className="np-bar relative h-3 flex-1 overflow-hidden rounded bg-surface-2">
                   <div className="absolute inset-y-0 left-0 rounded" style={{ width: `${pct(v)}%`, backgroundColor: color }} />
                 </div>
-                <span className="w-20 shrink-0 text-right font-medium tabular-nums" style={{ color }}>
+                <span className="np-bar-value w-20 shrink-0 text-right font-medium tabular-nums" style={{ color }}>
                   {text}
                 </span>
               </li>
@@ -405,29 +409,31 @@ export function StateTimelineWidget({ config }: { config: StateTimelineConfig })
       ) : data.items.length === 0 ? (
         <Status>{t("panel.empty")}</Status>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {data.items.map((item) => (
-            <div key={`${item.kind}${item.id}`} className="flex items-start gap-3 text-xs">
-              <span className="w-32 shrink-0 truncate text-text-2" title={item.label}>
-                {item.label}
-              </span>
-              <StateBar
-                label={t("panel.state.band", { name: item.label })}
-                className="h-4"
-                segments={item.segments.map((s) => {
-                  const left = pct(s.start);
-                  return {
-                    key: `${s.start}-${s.state}`,
-                    left,
-                    width: Math.max(0.3, pct(s.end) - left),
-                    label: `${t(STATE_LABEL[s.state])}: ${timeFmt.format(new Date(s.start))} – ${timeFmt.format(new Date(s.end))}`,
-                    className: BAND[s.state],
-                  };
-                })}
-              />
-            </div>
-          ))}
-          <div className="mt-1 flex flex-wrap items-center justify-between gap-2 pl-35 text-xs text-text-2">
+        <div className="np-tl flex flex-col gap-1.5">
+          <div className="np-tl-rows flex flex-col gap-1.5" style={{ "--np-rows": data.items.length } as CSSProperties}>
+            {data.items.map((item) => (
+              <div key={`${item.kind}${item.id}`} className="flex items-center gap-3 text-xs">
+                <span className="np-tl-label w-32 shrink-0 truncate text-text-2" title={item.label}>
+                  {item.label}
+                </span>
+                <StateBar
+                  label={t("panel.state.band", { name: item.label })}
+                  className="np-tl-bar h-4"
+                  segments={item.segments.map((s) => {
+                    const left = pct(s.start);
+                    return {
+                      key: `${s.start}-${s.state}`,
+                      left,
+                      width: Math.max(0.3, pct(s.end) - left),
+                      label: `${t(STATE_LABEL[s.state])}: ${timeFmt.format(new Date(s.start))} – ${timeFmt.format(new Date(s.end))}`,
+                      className: BAND[s.state],
+                    };
+                  })}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="np-tl-foot mt-1 flex flex-wrap items-center justify-between gap-2 pl-35 text-xs text-text-2">
             <span>{timeFmt.format(new Date(data.start))}</span>
             <span className="flex gap-3">
               {(["up", "down", "unknown"] as const).map((s) => (

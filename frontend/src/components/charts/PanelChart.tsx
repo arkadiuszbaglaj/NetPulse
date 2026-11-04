@@ -6,11 +6,12 @@ import { BarChart, LineChart } from "echarts/charts";
 import { GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { ChartKind, Threshold, ThresholdStyle } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 import { useTheme } from "../../lib/theme";
 import { linkChart } from "./chartSync";
+import { plotSizeClass } from "./legendFit";
 import { ZoomLayer } from "./ZoomLayer";
 import type { ChartRow } from "./chartData";
 import { leftTop, thresholdBands, type PanelLine } from "./panelData";
@@ -52,13 +53,19 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
   const { zoom } = useRefresh();
+  // Klasa rozmiaru obszaru wykresu (od 0.53.0): po zmianie (rozciągnięcie karty, legenda obok) opcje osi liczone od nowa
+  const [sizeClass, setSizeClass] = useState("");
 
   useEffect(() => {
     if (!el.current) return;
-    const instance = echarts.init(el.current, undefined, { renderer: "canvas" });
+    const node = el.current;
+    const instance = echarts.init(node, undefined, { renderer: "canvas" });
     chart.current = instance;
     if (instanceRef) instanceRef.current = instance;
-    const observer = new ResizeObserver(() => instance.resize());
+    const observer = new ResizeObserver(() => {
+      instance.resize();
+      setSizeClass(plotSizeClass(node.clientWidth, node.clientHeight));
+    });
     observer.observe(el.current);
     const unlink = linkChart(instance);
     return () => {
@@ -87,6 +94,10 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
     const inZoom = (rows: ChartRow[]) => (zoom ? rows.filter(([time]) => time >= zoom.from && time <= zoom.to) : rows);
 
     const plotHeight = el.current?.clientHeight ?? 300;
+    const plotWidth = el.current?.clientWidth ?? 600;
+    // Wąski wykres: mniej opisów czasu i mniejsze czcionki osi
+    const narrow = plotWidth < 360;
+    const axisFont = narrow ? 10 : 12;
     const axis = (a: AxisView, position: "left" | "right", withThreshold: boolean) => ({
       type: "value",
       position,
@@ -97,7 +108,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       max: a.max ?? (withThreshold && topThreshold != null ? (v: { max: number }) => Math.max(v.max, topThreshold * 1.05) : undefined),
       // Niski wykres (np. 5 wierszy siatki): mniej podziałek, a nachodzące na siebie opisy chowane
       splitNumber: plotHeight < 170 ? 2 : plotHeight < 240 ? 3 : 5,
-      axisLabel: { color: text, formatter: (v: number) => a.format(v), hideOverlap: true },
+      axisLabel: { color: text, fontSize: axisFont, formatter: (v: number) => a.format(v), hideOverlap: true },
       splitLine: { show: position === "left", lineStyle: { color: grid } },
     });
 
@@ -128,8 +139,8 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
           min: zoom?.from,
           max: zoom?.to,
           axisLine: { lineStyle: { color: grid } },
-          axisLabel: { color: text, hideOverlap: true },
-          splitNumber: 4,
+          axisLabel: { color: text, fontSize: axisFont, hideOverlap: true },
+          splitNumber: narrow ? 2 : plotWidth < 560 ? 3 : 4,
           splitLine: { show: false },
         },
         yAxis: right ? [axis(left, "left", true), axis(right, "right", false)] : [axis(left, "left", true)],
@@ -183,7 +194,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       },
       true,
     );
-  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom]);
+  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom, sizeClass]);
 
   return (
     <ZoomLayer chart={chart} height={height}>

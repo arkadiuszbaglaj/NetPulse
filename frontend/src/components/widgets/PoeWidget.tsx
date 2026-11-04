@@ -1,4 +1,5 @@
 import { IconBolt } from "@tabler/icons-react";
+import type { CSSProperties } from "react";
 import { t } from "../../i18n";
 import type { Device } from "../../lib/api";
 import { useDevices } from "../../lib/queries";
@@ -11,7 +12,7 @@ function SwitchPoe({ device }: { device: Device }) {
   const budget = data.budget;
   const pct = budget?.used_w != null && budget.max_w ? Math.min(100, (budget.used_w / budget.max_w) * 100) : null;
   return (
-    <Card className="p-4">
+    <Card className="flex flex-col p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 truncate text-sm font-medium">
           <IconBolt size={18} aria-hidden="true" className="shrink-0 text-accent" />
@@ -28,7 +29,7 @@ function SwitchPoe({ device }: { device: Device }) {
           <div className={`h-full rounded-full ${pct > 85 ? "bg-danger" : "bg-accent"}`} style={{ width: `${pct}%` }} />
         </div>
       )}
-      <ul className="divide-y divide-border text-sm">
+      <ul className="np-list divide-y divide-border text-sm" style={{ "--np-row-max": "3.25rem" } as CSSProperties}>
         {data.ports.map((p) => (
           <li key={p.port_idx} className="flex items-center justify-between gap-3 py-1.5">
             <span className="min-w-0 truncate">
