@@ -207,12 +207,13 @@ body {
     height: clamp(0.75rem, calc((100cqh - 4.5rem) / var(--np-rows, 6) * 0.4), 1.75rem);
   }
 }
-@container np-cell (min-width: 560px) {
+/* Podpis paska rośnie z szerokością karty (od 0.54.1; wcześniej 7 rem do 560 px, więc nazwy SSID się ucinały) */
+@container np-cell (min-width: 0px) {
   .np-bar-label {
-    width: 11rem;
+    width: clamp(7rem, 40cqw, 12rem);
   }
   .np-bar-value {
-    width: 6rem;
+    width: clamp(4rem, 14cqw, 6rem);
   }
 }
 
