@@ -17,6 +17,7 @@ from . import wan_links
 from .config import settings
 from .db import Session
 from .db.models import (
+    NON_SNMP_DRIVERS,
     Device,
     DeviceMetric,
     DiskMetric,
@@ -99,7 +100,7 @@ class Collector:
     async def load_targets(self) -> list[DeviceTarget]:
         async with Session() as session:
             # Serwery z agentem same wysyłają dane (api/agents.py), węzły Proxmox czyta proxmox_collector – SNMP ich nie dotyczy
-            devices = (await session.scalars(select(Device).where(Device.enabled, Device.driver.not_in(("agent", "proxmox"))))).all()
+            devices = (await session.scalars(select(Device).where(Device.enabled, Device.driver.not_in(NON_SNMP_DRIVERS)))).all()
             return [
                 DeviceTarget(d.id, d.name, d.host, d.port, d.driver, credentials_for(d))
                 for d in devices

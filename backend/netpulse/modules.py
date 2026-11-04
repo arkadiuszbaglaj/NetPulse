@@ -27,7 +27,7 @@ MODULES: tuple[ModuleId, ...] = ("proxmox", "unifi", "agents", "backups")
 SETTINGS_KEY = "modules"
 LABELS: dict[str, str] = {"proxmox": "Proxmox VE", "unifi": "UniFi", "agents": "Agenci serwerów", "backups": "Kopia zapasowa z panelu"}
 # Urządzenia, które dostarcza moduł (devices.driver) – ukrywane, gdy moduł jest wyłączony
-DRIVER_MODULE: dict[str, str] = {"agent": "agents", "proxmox": "proxmox"}
+DRIVER_MODULE: dict[str, str] = {"agent": "agents", "proxmox": "proxmox", "unifi_api": "unifi"}
 
 
 def _normalize(value: dict | None) -> dict[str, bool]:

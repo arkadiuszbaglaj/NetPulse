@@ -6,12 +6,20 @@ import re
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..collector import credentials_for
 from ..db import Session
-from ..db.models import Device, Interface, InterfaceMetric, Metric, WifiNetwork
+from ..db.models import (
+    NON_SNMP_DRIVERS,
+    Device,
+    Interface,
+    InterfaceMetric,
+    Metric,
+    UnifiApiDevice,
+    WifiNetwork,
+)
 from ..drivers import PollResult
 from ..modules import hidden_drivers, read_modules
 from ..probe import probe as snmp_probe
@@ -101,8 +109,11 @@ async def _get_device(session, device_id: int) -> Device:
     return device
 
 
-async def _host_taken(session, host: str, except_id: int | None = None) -> bool:
+async def _host_taken(session, host: str, except_id: int | None = None, *, convertible: bool = False) -> bool:
+    """Adres zajęty przez inne urządzenie. `convertible`: urządzenie z API UniFi się nie liczy (dodanie przez SNMP je przejmie)."""
     stmt = select(Device.id).where(Device.host == host)
+    if convertible:
+        stmt = stmt.where(Device.driver != "unifi_api")
     if except_id is not None:
         stmt = stmt.where(Device.id != except_id)
     return await session.scalar(stmt) is not None
@@ -132,7 +143,7 @@ async def create_device(body: DeviceCreate, probe: bool = Query(True, descriptio
     if err := body.credential_error():
         raise HTTPException(422, err)
     async with Session() as session:
-        if await _host_taken(session, body.host):
+        if await _host_taken(session, body.host, convertible=True):
             raise HTTPException(409, f"Urządzenie {body.host} już jest dodane")
     result = await _probe_or_422(body.host, body.port, _creds(body), body.driver) if probe else None
 
@@ -151,6 +162,20 @@ async def create_device(body: DeviceCreate, probe: bool = Query(True, descriptio
         device.sys_name, device.sys_descr, device.sys_object_id = s.name, s.descr, s.object_id
         device.uptime_s = s.uptime_s
     async with Session() as session, session.begin():
+        existing = await session.scalar(select(Device).where(Device.host == body.host))
+        if existing is not None and existing.driver == "unifi_api":
+            # Urządzenie z oficjalnego API kontrolera UniFi przechodzi na SNMP: to samo urządzenie (historia zostaje),
+            # a kolektor UniFi nie założy go ponownie (powiązanie bez urządzenia = pominięte)
+            await session.execute(update(UnifiApiDevice).where(UnifiApiDevice.device_id == existing.id).values(device_id=None))
+            for field in ("name", "port", "enabled", "driver", "snmp_version", "community", *_V3_FIELDS):
+                setattr(existing, field, getattr(device, field))
+            for field in ("detected_driver", "kind", "vendor", "model", "firmware", "sys_name", "sys_descr", "sys_object_id", "uptime_s"):
+                if getattr(device, field, None) is not None:
+                    setattr(existing, field, getattr(device, field))
+            existing.status, existing.last_error = "unknown", None
+            await session.flush()
+            await session.refresh(existing)
+            return existing
         if await _host_taken(session, body.host):
             raise HTTPException(409, f"Urządzenie {body.host} już jest dodane")
         session.add(device)
@@ -174,8 +199,8 @@ async def update_device(device_id: int, body: DeviceUpdate):
             raise HTTPException(422, f"Pole {field} nie może być puste")
     async with Session() as session, session.begin():
         device = await _get_device(session, device_id)
-        if device.driver in ("agent", "proxmox") and set(changes) - {"name", "enabled"}:
-            raise HTTPException(409, "To urządzenie nie używa SNMP (agent albo Proxmox) – zmienić można tylko nazwę i włączenie")
+        if device.driver in NON_SNMP_DRIVERS and set(changes) - {"name", "enabled"}:
+            raise HTTPException(409, "To urządzenie nie używa SNMP (agent, Proxmox albo kontroler UniFi) – zmienić można tylko nazwę i włączenie")
         if "host" in changes and await _host_taken(session, changes["host"], except_id=device_id):
             raise HTTPException(409, f"Urządzenie {changes['host']} już jest dodane")
         for field, value in changes.items():
@@ -205,8 +230,8 @@ async def probe_device(device_id: int):
     """Test SNMP zapisanego urządzenia (z zapisanymi danymi logowania)."""
     async with Session() as session:
         device = await _get_device(session, device_id)
-    if device.driver in ("agent", "proxmox"):
-        raise HTTPException(409, "To urządzenie nie używa SNMP – stan widać w Ustawienia → Agenci albo Ustawienia → Proxmox")
+    if device.driver in NON_SNMP_DRIVERS:
+        raise HTTPException(409, "To urządzenie nie używa SNMP – stan widać w Ustawienia → Agenci, Proxmox albo Kontrolery UniFi")
     return _probe_out(await _probe_or_422(device.host, device.port, credentials_for(device), device.driver))
 
 
@@ -292,7 +317,7 @@ async def device_wifi(device_id: int, include_hidden: bool = False):
         return (await session.scalars(stmt)).all()
 
 
-SENSOR_METRICS = ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "sensor_state")
+SENSOR_METRICS = ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "sensor_state", "channel_util_percent")
 POE_METRICS = {"poe_state": "state", "poe_power_w": "power_w", "poe_voltage_v": "voltage_v"}
 SFP_METRICS = {
     "sfp_rx_dbm": "rx_dbm",
@@ -315,7 +340,7 @@ def _flag(value: float | None) -> bool | None:
 
 @router.get("/devices/{device_id}/sensors", response_model=SensorsOut)
 async def device_sensors(device_id: int):
-    """Czujniki, PoE i SFP urządzenia SNMP (od 0.50.0: MikroTik, od 0.51.0: switche TP-Link) – ostatnia wartość każdego z ostatnich 10 minut."""
+    """Czujniki, PoE i SFP urządzenia SNMP (od 0.50.0: MikroTik, od 0.51.0: switche TP-Link, od 0.52.0: zajętość kanału AP UniFi) – ostatnia wartość każdego z ostatnich 10 minut."""
     since = datetime.now(UTC) - timedelta(minutes=10)
     names = (*SENSOR_METRICS, *POE_METRICS, *SFP_METRICS)
     async with Session() as session:

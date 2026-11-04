@@ -1,0 +1,332 @@
+{
+ "info": {
+  "applicationVersion": "10.6.109"
+ },
+ "sites": {
+  "offset": 0,
+  "limit": 25,
+  "count": 1,
+  "totalCount": 1,
+  "data": [
+   {
+    "id": "id-6aa981",
+    "internalReference": "default",
+    "name": "name-21b111"
+   }
+  ]
+ },
+ "devices": {
+  "offset": 0,
+  "limit": 200,
+  "count": 3,
+  "totalCount": 3,
+  "data": [
+   {
+    "id": "id-e399f1",
+    "macAddress": "02:00:32:f2:24:9a",
+    "ipAddress": "10.0.0.76",
+    "name": "name-717434",
+    "model": "UCG Ultra",
+    "state": "ONLINE",
+    "supported": true,
+    "firmwareVersion": "5.1.33",
+    "firmwareUpdatable": false,
+    "features": [
+     "switching"
+    ],
+    "interfaces": [
+     "ports"
+    ]
+   },
+   {
+    "id": "id-41220d",
+    "macAddress": "02:00:21:97:7f:07",
+    "ipAddress": "10.0.0.241",
+    "name": "name-cd90f5",
+    "model": "USW-Lite-8-PoE",
+    "state": "ONLINE",
+    "supported": true,
+    "firmwareVersion": "7.5.15",
+    "firmwareUpdatable": false,
+    "features": [
+     "switching"
+    ],
+    "interfaces": [
+     "ports"
+    ]
+   },
+   {
+    "id": "id-76060b",
+    "macAddress": "02:00:74:e3:56:ae",
+    "ipAddress": "10.0.0.134",
+    "name": "name-c9ed48",
+    "model": "U6+",
+    "state": "ONLINE",
+    "supported": true,
+    "firmwareVersion": "6.7.54",
+    "firmwareUpdatable": false,
+    "features": [
+     "accessPoint"
+    ],
+    "interfaces": [
+     "radios"
+    ]
+   }
+  ]
+ },
+ "details": {
+  "id-e399f1": {
+   "id": "id-e399f1",
+   "macAddress": "02:00:32:f2:24:9a",
+   "ipAddress": "10.0.0.76",
+   "name": "name-717434",
+   "model": "UCG Ultra",
+   "supported": true,
+   "state": "ONLINE",
+   "firmwareVersion": "5.1.33",
+   "firmwareUpdatable": false,
+   "adoptedAt": "2025-05-22T16:13:40Z",
+   "provisionedAt": "2026-10-24T08:06:35Z",
+   "configurationId": "1669791b2d616946",
+   "features": {
+    "switching": {
+     "lags": []
+    }
+   },
+   "interfaces": {
+    "ports": [
+     {
+      "idx": 1,
+      "state": "UP",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 1000
+     },
+     {
+      "idx": 2,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 10
+     },
+     {
+      "idx": 3,
+      "state": "UP",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 1000
+     },
+     {
+      "idx": 4,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 10
+     },
+     {
+      "idx": 5,
+      "state": "UP",
+      "connector": "RJ45",
+      "maxSpeedMbps": 2500,
+      "speedMbps": 1000
+     }
+    ]
+   }
+  },
+  "id-41220d": {
+   "id": "id-41220d",
+   "macAddress": "02:00:21:97:7f:07",
+   "ipAddress": "10.0.0.241",
+   "name": "name-cd90f5",
+   "model": "USW-Lite-8-PoE",
+   "supported": true,
+   "state": "ONLINE",
+   "firmwareVersion": "7.5.15",
+   "firmwareUpdatable": false,
+   "adoptedAt": "2025-11-29T14:39:51Z",
+   "provisionedAt": "2026-10-24T02:43:47Z",
+   "configurationId": "9efb9cbc6592fc25",
+   "uplink": {
+    "deviceId": "id-e399f1"
+   },
+   "features": {
+    "switching": {
+     "lags": []
+    }
+   },
+   "interfaces": {
+    "ports": [
+     {
+      "idx": 1,
+      "state": "UP",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 1000,
+      "poe": {
+       "standard": "802.3at",
+       "type": 2,
+       "enabled": true,
+       "state": "UP"
+      }
+     },
+     {
+      "idx": 2,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "poe": {
+       "standard": "802.3at",
+       "type": 2,
+       "enabled": false,
+       "state": "DOWN"
+      }
+     },
+     {
+      "idx": 3,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "poe": {
+       "standard": "802.3at",
+       "type": 2,
+       "enabled": false,
+       "state": "DOWN"
+      }
+     },
+     {
+      "idx": 4,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "poe": {
+       "standard": "802.3at",
+       "type": 2,
+       "enabled": false,
+       "state": "DOWN"
+      }
+     },
+     {
+      "idx": 5,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000
+     },
+     {
+      "idx": 6,
+      "state": "DOWN",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000
+     },
+     {
+      "idx": 7,
+      "state": "UP",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 100
+     },
+     {
+      "idx": 8,
+      "state": "UP",
+      "connector": "RJ45",
+      "maxSpeedMbps": 1000,
+      "speedMbps": 1000
+     }
+    ]
+   }
+  },
+  "id-76060b": {
+   "id": "id-76060b",
+   "macAddress": "02:00:74:e3:56:ae",
+   "ipAddress": "10.0.0.134",
+   "name": "name-c9ed48",
+   "model": "U6+",
+   "supported": true,
+   "state": "ONLINE",
+   "firmwareVersion": "6.7.54",
+   "firmwareUpdatable": false,
+   "adoptedAt": "2025-11-29T14:54:45Z",
+   "provisionedAt": "2026-10-01T08:17:36Z",
+   "configurationId": "effda5c7a423a22a",
+   "uplink": {
+    "deviceId": "id-41220d"
+   },
+   "features": {
+    "accessPoint": {}
+   },
+   "interfaces": {
+    "radios": [
+     {
+      "wlanStandard": "802.11ax",
+      "frequencyGHz": 2.4,
+      "channelWidthMHz": 40,
+      "channel": 1
+     },
+     {
+      "wlanStandard": "802.11ax",
+      "frequencyGHz": 5,
+      "channelWidthMHz": 160,
+      "channel": 44
+     }
+    ]
+   }
+  }
+ },
+ "statistics": {
+  "id-e399f1": {
+   "uptimeSec": 2044958,
+   "lastHeartbeatAt": "2026-10-25T00:21:58Z",
+   "nextHeartbeatAt": "2026-10-25T00:21:59Z",
+   "loadAverage1Min": 1.08,
+   "loadAverage5Min": 1.13,
+   "loadAverage15Min": 1.1,
+   "cpuUtilizationPct": 57.4,
+   "memoryUtilizationPct": 59.9,
+   "uplink": {
+    "txRateBps": 7848,
+    "rxRateBps": 79384
+   },
+   "interfaces": {}
+  },
+  "id-41220d": {
+   "uptimeSec": 3971885,
+   "lastHeartbeatAt": "2026-10-25T00:21:51Z",
+   "nextHeartbeatAt": "2026-10-25T00:22:09Z",
+   "loadAverage1Min": 1.15,
+   "loadAverage5Min": 1.2,
+   "loadAverage15Min": 1.17,
+   "cpuUtilizationPct": 7.0,
+   "memoryUtilizationPct": 39.0,
+   "uplink": {
+    "txRateBps": 0,
+    "rxRateBps": 0
+   },
+   "interfaces": {}
+  },
+  "id-76060b": {
+   "uptimeSec": 54458,
+   "lastHeartbeatAt": "2026-10-25T00:21:52Z",
+   "nextHeartbeatAt": "2026-10-25T00:22:10Z",
+   "loadAverage1Min": 0.02,
+   "loadAverage5Min": 0.01,
+   "loadAverage15Min": 0.0,
+   "cpuUtilizationPct": 1.4,
+   "memoryUtilizationPct": 63.4,
+   "uplink": {
+    "txRateBps": 0,
+    "rxRateBps": 0
+   },
+   "interfaces": {
+    "radios": [
+     {
+      "frequencyGHz": 2.4,
+      "txRetriesPct": 0.0
+     },
+     {
+      "frequencyGHz": 5,
+      "txRetriesPct": 0.0
+     }
+    ]
+   }
+  }
+ }
+}

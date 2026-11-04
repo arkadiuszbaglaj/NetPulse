@@ -206,7 +206,7 @@ Znalezione rozbieżności w kodzie (stan 4.11.2026; punkty 1–3 poprawione w **
 4. MikroTik: brak klientów WiFi (`mtxrWlRtabTable` / `mtxrWifiRegistrationTable`), sąsiadów (`mtxrNeighborTable`)
    i licznika zerwań łącza (`mtxrInterfaceTable`, 7.25+).
 5. UniFi: zajętość kanału z `unifiRadioTable` (oficjalny MIB) nieużywana; switche Flex/Ultra bez SNMP – potrzebują
-   oficjalnego API (CPU/RAM, stan portów).
+   oficjalnego API (CPU/RAM, stan portów). Poprawione w **0.52.0** (etap D).
 6. Omada bez API kontrolera nie da klientów z sygnałem ani mocy PoE z bram/EAP – to odpowiednik etapu 6 dla
    UniFi („API kontrolera Omada” z planu prac).
 
@@ -215,7 +215,7 @@ Proponowana kolejność (do decyzji):
   switchy (fixture syntetyczny zgodny z `L2-tplinkMibs.zip`, potem prawdziwy zrzut).
 - **B.** MikroTik: klienci WiFi (obie tabele), sąsiedzi, zerwania łącza.
 - **C.** Moduł „Omada” – Open API kontrolera (klienci, PoE, WAN, LLDP) – dopiero z prawdziwym kontrolerem.
-- **D.** UniFi: oficjalne API dla urządzeń bez SNMP + zajętość kanału z MIB.
+- **D. ✅ (0.52.0)** UniFi: oficjalne API dla urządzeń bez SNMP + zajętość kanału z MIB (opis: `docs/08-unifi-api.md`).
 
 Pliki MIB nie trafiają do repozytorium (licencje producentów) – driver opiera się na OID-ach opisanych tutaj,
 a testy na fixture'ach `.snmprec`.

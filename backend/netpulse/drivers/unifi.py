@@ -4,16 +4,17 @@ Rozszerza driver generyczny o:
 - rozpoznanie modelu, firmware i typu urządzenia,
 - nazwy i role portów (WAN/LAN na gatewayu, Port N na switchu, uplink na AP),
 - ukrywanie interfejsów technicznych,
-- sieci WiFi z UBNT-UniFi-MIB (SSID, kanał, liczba klientów, ruch).
+- sieci WiFi z UBNT-UniFi-MIB (SSID, kanał, liczba klientów, ruch),
+- zajętość kanału radia AP (`unifiRadioTable`, CuTotal, od 0.52.0) do tabeli `metrics` (`channel_util_percent`).
 """
 
 from __future__ import annotations
 
 import re
 
-from ..snmp import SnmpClient, as_int, as_mac, as_str
+from ..snmp import SnmpClient, SnmpError, as_int, as_mac, as_str
 from ..snmp import oids as O
-from .base import InterfaceSample, PollResult, SystemInfo, WifiSample
+from .base import InterfaceSample, MetricSample, PollResult, SystemInfo, WifiSample
 from .generic import GenericDriver
 
 _TECHNICAL = re.compile(
@@ -57,6 +58,29 @@ class UnifiDriver(GenericDriver):
         if (system.name or "").upper().startswith(("USW", "UCG", "UDM", "U6", "U7", "UAP")):
             return 60
         return 0
+
+    async def poll(self, client: SnmpClient, system: SystemInfo | None = None) -> PollResult:
+        result = await super().poll(client, system)
+        if result.system.kind == "ap":
+            try:
+                result.metrics = await self.read_radios(client)
+            except SnmpError:
+                result.metrics = []
+        return result
+
+    async def read_radios(self, client: SnmpClient) -> list[MetricSample]:
+        """Zajętość kanału każdego radia AP w % (CuTotal: ruch własny, obcych sieci i zakłócenia); klucz = pasmo."""
+        busy = await client.walk(O.UNIFI_RADIO_CU_TOTAL)
+        if not busy:
+            return []
+        radio = await client.walk(O.UNIFI_RADIO_RADIO)
+        out = []
+        for idx, raw in busy.items():
+            value = as_int(raw)
+            band = as_str(radio.get(idx)) or f"radio{idx}"
+            if value is not None and 0 <= value <= 100:
+                out.append(MetricSample("channel_util_percent", _RADIO_BANDS.get(band, band), float(value)))
+        return out
 
     async def read_wifi(self, client: SnmpClient) -> list[WifiSample]:
         essid = await client.walk(O.UNIFI_VAP_ESSID)

@@ -57,6 +57,39 @@ Urządzenie z kontrolera łączymy z urządzeniem NetPulse (SNMP) po adresie IP,
   `/api/clients?kind=wifi|wired`, `/api/devices/{id}/poe`.
 - **6c** panel: Ustawienia → Kontrolery UniFi (dodawanie z testem), strona Klienci, PoE przy portach switcha, widgety.
 
+## Urządzenia bez SNMP z oficjalnego API (0.52.0)
+
+Część sprzętu UniFi nie ma SNMP (np. USW Flex, USW Flex Mini, USW Ultra). Od 0.52.0 kolektor UniFi czyta
+oficjalne Network API (`/proxy/network/integration/v1`, ten sam klucz API) i **sam zakłada** urządzenia, których
+NetPulse nie zna z SNMP, z `driver = "unifi_api"`:
+
+- lista: `GET /sites` (site, którego `internalReference` to nazwa ze starszego API, zwykle `default`),
+  `GET /sites/{site}/devices` (strony `offset`/`limit` ≤ 200, `totalCount`),
+- szczegóły: `GET /sites/{site}/devices/{id}` (porty: stan, prędkość, PoE włączone; radia AP) i
+  `GET …/statistics/latest` (CPU, RAM, load, uptime),
+- liczniki ruchu i błędów portów – oficjalne API ich nie ma, więc ze starszego `stat/device` (`port_table`).
+
+Odczyt zapisuje się tą samą drogą co wynik drivera SNMP (`unifi_devices.build_poll_result` → `Collector.save_result`),
+więc karta urządzenia, porty, wykresy, „Dostępność” i alerty działają bez zmian. Nazwy portów switcha to `0/N`
+(jak `ifName` w SNMP), bramy i AP `ethN-1`; porty WAN bramy według `wan1`/`wan2` ze `stat/device`.
+
+Rodzaj urządzenia: typ ze starszego API (`udm`/`usw`/`uap`) ma pierwszeństwo – oficjalne API opisuje UCG Ultra tylko
+jako `switching` – potem model (UCG/UDM/UDR/UXG…), potem `features`.
+
+Łączenie z istniejącymi urządzeniami (tabela `unifi_api_devices`, migracja 0012, klucz: kontroler + MAC):
+- urządzenie znane z SNMP (po IP, adresie LAN z LLDP albo MAC-u interfejsu) – pomijane, bez duplikatu,
+- urządzenie `unifi_api` usunięte w panelu – wpis zostaje z `device_id = NULL` i kolektor go **nie zakłada ponownie**,
+- dodanie urządzenia SNMP pod tym samym adresem zamienia urządzenie `unifi_api` w SNMP (historia zostaje),
+- kontroler niedostępny – jego urządzenia `unifi_api` są „niedostępne” (alert „urządzenie nie odpowiada”),
+- kontroler bez oficjalnego API – PoE i klienci działają jak wcześniej, urządzeń bez SNMP po prostu nie ma.
+
+Urządzenia `unifi_api` należą do modułu UniFi (wyłączony moduł = ukryte), nie mają testu SNMP ani danych „Na żywo”
+(odczyt co 30 s). Fixture: `backend/tests/fixtures/unifi_official.json` (zanonimizowane odpowiedzi kontrolera 10.6.109).
+
+Przy okazji (z oficjalnego UI-MIB): AP przez SNMP podaje **zajętość kanału** każdego radia (`unifiRadioTable`,
+kolumna CuTotal) – metryka `channel_util_percent` w tabeli `metrics`, klucz = pasmo (2.4GHz, 5GHz, 6GHz);
+na wykresie: źródło „Czujnik urządzenia”.
+
 ## Etap 7 – mapa sieci (LLDP)
 
 `stat/device` zawiera tablicę LLDP każdego urządzenia (`lldp_table`: port lokalny i adres MAC sąsiada).

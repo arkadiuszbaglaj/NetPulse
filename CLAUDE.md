@@ -90,7 +90,10 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
    5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
    5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – wykresy kołowe (od 0.40.0), a od 0.45.0 także bieżący ruch WAN, nagłówki wykresów, tabele i paski portów oraz CPU/RAM urządzeń SNMP (WebSocket `/api/live/device`, co ~1,5 s; jeden wspólny kanał `lib/liveHub.ts`, przełącznik „Na żywo” w pasku górnym; historia dalej co 30 s; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
-6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`)
+6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`).
+   Od 0.52.0 urządzenia bez SNMP (USW Flex/Ultra) z oficjalnego Network API: `driver = "unifi_api"` (`NON_SNMP_DRIVERS`
+   w `models.py`), zakładane przez kolektor UniFi, zapis jak SNMP (`unifi_devices.py`), mapowanie `unifi_api_devices`
+   (migracja 0012; `device_id = NULL` = usunięte, nie zakładać ponownie). Zajętość kanału AP z UI-MIB (`channel_util_percent`).
 7. ✅ Topologia LLDP – mapa sieci (od 0.35.0 obciążenie i prędkość kabli, przybliżanie; opis: `docs/22-wykresy.md`)
 8. ✅ Alerty (8a silnik, 8b panel, reguły dysku i błędów portów, powiadomienia: webhook/Telegram, od 0.25.0 ntfy i e-mail (SMTP), ciche godziny z podsumowaniem po ciszy, grupowanie po topologii LLDP; opis: `docs/21-powiadomienia.md`) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
 9. SNMP v3 ✅ (testowane klientem pysnmp kontra snmpsim w CI), MikroTik i Omada: drivery SNMP gotowe, ale na zrzutach syntetycznych – czekają na prawdziwe zrzuty (opis: `docs/12-mikrotik-omada-snmp.md`); API kontrolera Omada i RouterOS dalej do zrobienia
@@ -207,7 +210,7 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
 - **Źródła producentów (MIB, OID, API)** – `docs/28-zrodla-producentow.md` (4.11.2026): oficjalne MIB-y i API
   UniFi, MikroTik (MIB per wersja), Omada (MIB EAP i switchy L2, Open API). Etap A ✅ (0.51.0): driver `omada` rozpoznaje
   bramy ER/DR/FR (też 4 cyfry), WAN `eth0.<VLAN>` i LAN `br-lan`, czyta CPU/RAM, PoE i SFP switchy z oficjalnego MIB
-  (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etapy B–D czekają na decyzję.
+  (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture

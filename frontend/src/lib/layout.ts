@@ -383,6 +383,7 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   temp_c: { label: "metric.temp_c", unitClass: "temp" },
   // Czujniki urządzeń SNMP (MikroTik): sprzęt, PoE, SFP
   fan_rpm: { label: "metric.fan_rpm", unitClass: "rpm" },
+  channel_util_percent: { label: "metric.channel_util_percent", unitClass: "percent" },
   voltage_v: { label: "metric.voltage_v", unitClass: "volt" },
   current_a: { label: "metric.current_a", unitClass: "amp" },
   power_w: { label: "metric.power_w", unitClass: "watt" },
@@ -438,7 +439,7 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   agent_temp: ["temp_c"],
   agent_container: ["container_cpu_percent", "container_mem_bytes"],
   pve_guest: ["guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"],
-  snmp_sensor: ["temp_c", "fan_rpm", "voltage_v", "current_a", "power_w"],
+  snmp_sensor: ["temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "channel_util_percent"],
   snmp_poe: ["poe_power_w", "poe_voltage_v"],
   snmp_sfp: ["sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"],
   check: ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"],

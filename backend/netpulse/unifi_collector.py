@@ -1,4 +1,7 @@
-"""Kolektor kontrolerów UniFi: PoE na portach switchy i klienci sieci (co cykl, razem z kolektorem SNMP)."""
+"""Kolektor kontrolerów UniFi: PoE na portach switchy i klienci sieci (co cykl, razem z kolektorem SNMP).
+
+Od 0.52.0 także urządzenia kontrolera, których NetPulse nie zna z SNMP (np. USW Flex, USW Ultra – nie mają SNMP):
+zakłada je jako urządzenia `driver = "unifi_api"` i zapisuje jak wynik drivera SNMP (`unifi_devices.py`)."""
 
 from __future__ import annotations
 
@@ -12,22 +15,26 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from . import wan_links
-from .collector import _write_with_retry
+from .collector import Collector, DeviceTarget, _write_with_retry
 from .config import settings
 from .db import Session
 from .db.models import (
     ClientMetric,
     Controller,
     Device,
+    DeviceMetric,
     Interface,
     KnownClient,
     NetworkClient,
     PoeBudgetMetric,
     PoePortMetric,
     TopologyLink,
+    UnifiApiDevice,
 )
 from .modules import is_enabled
-from .unifi import GATEWAY_TYPES, UnifiApi, UnifiClient, UnifiDevice, UnifiError
+from .unifi import GATEWAY_TYPES, OfficialDevice, UnifiApi, UnifiClient, UnifiDevice, UnifiError
+from .unifi_devices import DRIVER as API_DRIVER
+from .unifi_devices import build_poll_result, device_kind
 
 log = logging.getLogger("netpulse.unifi")
 
@@ -104,9 +111,18 @@ async def save_client_history(session, rows: list[dict], now: datetime) -> None:
     await session.execute(stmt)
 
 
+def api_host(device: OfficialDevice, taken: set[str]) -> str:
+    """Adres urządzenia z API (kolumna `host` jest unikalna): IP z kontrolera, a gdy zajęte albo go brak – MAC."""
+    if device.ip and device.ip not in taken:
+        return device.ip
+    return f"unifi-{device.mac.replace(':', '')}"
+
+
 class UnifiCollector:
     def __init__(self, api_factory=make_api) -> None:
         self.api_factory = api_factory
+        # Zapis urządzeń z API tą samą drogą co SNMP (porty, przepływy z liczników, CPU/RAM); własny licznik przepływów
+        self.saver = Collector()
 
     async def run_forever(self) -> None:
         log.info("Kolektor UniFi start: interwał %ss", settings.poll_interval)
@@ -136,6 +152,7 @@ class UnifiCollector:
         try:
             version = await api.app_version()
             devices, clients = await asyncio.gather(api.devices(), api.clients())
+            official = await self.read_official(api, target, devices)
         except UnifiError as exc:
             log.warning("%s (%s): %s", target.name, target.host, exc)
             await self.save_failure(target, now, str(exc))
@@ -147,7 +164,104 @@ class UnifiCollector:
         finally:
             await api.close()
         await self.save_result(target, now, version, devices, clients)
+        if official is not None:
+            await self.save_official(target, now, official, devices)
         return True
+
+    async def read_official(self, api: UnifiApi, target: ControllerTarget, devices: list[UnifiDevice]) -> list[OfficialDevice] | None:
+        """Urządzenia do odczytu z oficjalnego API: już założone jako `unifi_api` i nowe, których nie znamy z SNMP.
+
+        Starszy kontroler bez oficjalnego API (albo bez listy urządzeń) = None: reszta odczytu działa jak wcześniej."""
+        try:
+            listed = await api.official_devices()
+        except UnifiError as exc:
+            log.info("%s: oficjalne API bez listy urządzeń (%s) – pomijam urządzenia bez SNMP", target.name, exc)
+            return None
+        async with Session() as session:
+            mapped = dict(
+                (await session.execute(select(UnifiApiDevice.mac, UnifiApiDevice.device_id).where(UnifiApiDevice.controller_id == target.id))).all()
+            )
+            snmp_hosts = {
+                host: dev_id
+                for dev_id, host in (await session.execute(select(Device.id, Device.host).where(Device.driver != API_DRIVER))).all()
+            }
+            by_iface_mac = {
+                mac.lower(): dev_id
+                for dev_id, mac in (
+                    await session.execute(
+                        select(Interface.device_id, Interface.mac).join(Device).where(Interface.mac.is_not(None), Device.driver != API_DRIVER)
+                    )
+                ).all()
+            }
+        snmp = match_devices(devices, snmp_hosts, by_iface_mac)
+        wanted = [
+            d
+            for d in listed
+            if (d.mac in mapped and mapped[d.mac] is not None)  # już założone urządzenie z API
+            or (d.mac not in mapped and d.mac not in snmp and d.ip not in snmp_hosts)  # nowe, nieznane z SNMP
+        ]
+        sem = asyncio.Semaphore(4)
+
+        async def details(d: OfficialDevice) -> OfficialDevice:
+            async with sem:
+                try:
+                    return await api.official_details(d)
+                except UnifiError as exc:
+                    log.debug("%s: brak szczegółów %s: %s", target.name, d.mac, exc)
+                    return d
+
+        return list(await asyncio.gather(*(details(d) for d in wanted)))
+
+    async def save_official(self, target: ControllerTarget, now: datetime, official: list[OfficialDevice], devices: list[UnifiDevice]) -> None:
+        """Zakłada nowe urządzenia z API i zapisuje odczyt każdego (jak wynik drivera SNMP)."""
+        ids: dict[str, tuple[int, str, bool]] = {}
+        legacy = {d.mac: d for d in devices}
+
+        async def ensure(session) -> None:
+            ids.clear()
+            rows = {m.mac: m for m in (await session.scalars(select(UnifiApiDevice).where(UnifiApiDevice.controller_id == target.id))).all()}
+            taken = set((await session.scalars(select(Device.host))).all())
+            for d in official:
+                row = rows.get(d.mac)
+                if row is not None and row.device_id is None:
+                    continue  # usunięte w panelu albo dodane przez SNMP – nie zakładamy ponownie
+                if row is None:
+                    host = api_host(d, taken)
+                    taken.add(host)
+                    device = Device(
+                        name=(d.name or d.model or d.mac)[:128], host=host, port=0, driver=API_DRIVER, detected_driver=API_DRIVER,
+                        kind=device_kind(d, legacy.get(d.mac)), vendor="Ubiquiti", model=(d.model or "")[:64] or None, community=None, status="unknown",
+                    )  # fmt: skip
+                    session.add(device)
+                    await session.flush()
+                    row = UnifiApiDevice(controller_id=target.id, mac=d.mac, device_id=device.id, official_id=d.id, updated_at=now)
+                    session.add(row)
+                    log.info("%s: nowe urządzenie z oficjalnego API %s (%s, urządzenie %d)", target.name, d.name or d.mac, d.model, device.id)
+                else:
+                    row.official_id, row.updated_at = d.id, now
+                dev = await session.get(Device, row.device_id)
+                if dev is not None:
+                    ids[d.mac] = (dev.id, dev.name, dev.enabled)
+
+        await _write_with_retry(ensure)
+        for d in official:
+            if d.mac not in ids:
+                continue
+            dev_id, name, enabled = ids[d.mac]
+            if not enabled:
+                continue
+            if not d.online:
+                await self._mark_down(dev_id, now, f"Kontroler UniFi: urządzenie {d.state or 'niedostępne'}")
+                continue
+            result = build_poll_result(d, legacy.get(d.mac))
+            await self.saver.save_result(DeviceTarget(dev_id, name, "", 0, API_DRIVER, None), result, now, 0.0)  # type: ignore[arg-type]
+
+    async def _mark_down(self, dev_id: int, now: datetime, error: str) -> None:
+        async def write(session) -> None:
+            await session.execute(update(Device).where(Device.id == dev_id).values(status="down", last_polled_at=now, last_error=error[:2000]))
+            session.add(DeviceMetric(time=now, device_id=dev_id, reachable=False))
+
+        await _write_with_retry(write)
 
     async def save_failure(self, target: ControllerTarget, now: datetime, error: str) -> None:
         async def write(session) -> None:
@@ -156,6 +270,19 @@ class UnifiCollector:
                 .where(Controller.id == target.id)
                 .values(status="down", last_polled_at=now, last_error=error[:2000])
             )
+            # Urządzenia z oficjalnego API tego kontrolera są wtedy niedostępne (alert „urządzenie nie odpowiada”)
+            ids = (
+                await session.scalars(
+                    select(UnifiApiDevice.device_id)
+                    .join(Device, Device.id == UnifiApiDevice.device_id)
+                    .where(UnifiApiDevice.controller_id == target.id, Device.enabled)
+                )
+            ).all()
+            if ids:
+                await session.execute(
+                    update(Device).where(Device.id.in_(ids)).values(status="down", last_polled_at=now, last_error=f"Kontroler UniFi: {error}"[:2000])
+                )
+                session.add_all(DeviceMetric(time=now, device_id=i, reachable=False) for i in ids)
 
         await _write_with_retry(write)
 

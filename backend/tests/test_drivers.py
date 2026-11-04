@@ -76,6 +76,14 @@ def test_u6_plus_access_point():
     }
     assert sum(w.clients or 0 for w in ssids) == 5
     assert all(w.hidden for w in r.wifi if w.ssid.startswith(("element-", "vwire-")))
+    # Zajętość kanału z UI-MIB unifiRadioTable (CuTotal), klucz = pasmo
+    util = {m.key: m.value for m in r.metrics if m.name == "channel_util_percent"}
+    assert util == {"2.4GHz": 30.0, "5GHz": 1.0}
+
+
+def test_unifi_switch_has_no_radio_metrics():
+    r = poll("usw-lite-8-poe")
+    assert not [m for m in r.metrics if m.name == "channel_util_percent"]
 
 
 def test_generic_driver_forced():

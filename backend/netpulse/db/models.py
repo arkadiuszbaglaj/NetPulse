@@ -36,6 +36,9 @@ class Base(DeclarativeBase):
 
 # Fabryczne community SNMP – panel ostrzega, że trzeba je zmienić (od 0.31.1)
 DEFAULT_COMMUNITIES = frozenset({"public", "private"})
+# Urządzenia bez SNMP: serwer z agentem, węzeł Proxmox, urządzenie UniFi z oficjalnego API (od 0.52.0).
+# Kolektor SNMP ich nie odpytuje, a w panelu nie mają ustawień SNMP.
+NON_SNMP_DRIVERS = ("agent", "proxmox", "unifi_api")
 
 
 class Device(Base):
@@ -86,7 +89,7 @@ class Device(Base):
         """SNMP v1/v2c z fabrycznym community („public”, „private”) – każdy w sieci może czytać urządzenie."""
         return (
             self.snmp_version in ("1", "2c")
-            and self.driver not in ("agent", "proxmox")
+            and self.driver not in NON_SNMP_DRIVERS
             and (self.community or "").strip().lower() in DEFAULT_COMMUNITIES
         )
 
@@ -274,6 +277,21 @@ class Controller(Base):
     last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UnifiApiDevice(Base):
+    """Urządzenie kontrolera UniFi spoza SNMP (np. USW Flex), czytane z oficjalnego API (od 0.52.0).
+
+    `device_id` = urządzenie NetPulse z `driver = "unifi_api"`. Po usunięciu urządzenia w panelu (albo dodaniu go
+    przez SNMP) zostaje wiersz z `device_id = NULL` – kolektor nie zakłada go wtedy ponownie."""
+
+    __tablename__ = "unifi_api_devices"
+
+    controller_id: Mapped[int] = mapped_column(ForeignKey("controllers.id", ondelete="CASCADE"), primary_key=True)
+    mac: Mapped[str] = mapped_column(String(17), primary_key=True)
+    device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), unique=True)
+    official_id: Mapped[str | None] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class NetworkClient(Base):

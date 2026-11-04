@@ -100,7 +100,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "agent_temp": ("temp_c",),
     "agent_container": ("container_cpu_percent", "container_mem_bytes"),
     "pve_guest": ("guest_cpu_percent", "guest_mem_bytes", "rx_bps", "tx_bps", "read_bps", "write_bps"),
-    "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w"),
+    "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "channel_util_percent"),
     "snmp_poe": ("poe_power_w", "poe_voltage_v"),
     "snmp_sfp": ("sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"),
     "check": ("latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"),

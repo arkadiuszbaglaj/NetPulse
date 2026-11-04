@@ -163,7 +163,7 @@ export function liveValue(state: LiveState | null, pick: (s: LiveSample) => numb
 }
 
 /** Urządzenia bez SNMP (agent wysyła co 30 s, Proxmox liczy co ~10 s) – kanał na żywo nic dla nich nie ma. */
-const NON_SNMP = new Set(["agent", "proxmox"]);
+const NON_SNMP = new Set(["agent", "proxmox", "unifi_api"]);
 
 /** Jak `useLiveSample`, ale tylko dla działających urządzeń odpytywanych przez SNMP (lista urządzeń z pamięci podręcznej). */
 export function useLiveDeviceSample(deviceId: number | null | undefined, want = true): LiveState | null {

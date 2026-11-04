@@ -9,8 +9,17 @@ import httpx
 import pytest
 from conftest import FIXTURES
 
-from netpulse.unifi import UnifiApi, UnifiError, parse_clients, parse_devices
+from netpulse.unifi import (
+    OfficialDevice,
+    UnifiApi,
+    UnifiError,
+    parse_clients,
+    parse_devices,
+    parse_official_device,
+    parse_official_devices,
+)
 from netpulse.unifi_collector import match_devices
+from netpulse.unifi_devices import build_poll_result, device_kind, port_name
 
 
 def load(name: str) -> dict:
@@ -143,3 +152,119 @@ def test_match_devices_by_ip_lan_address_then_mac():
     assert mac_only == {by_type["udm"].mac: 7}
 
     assert match_devices(devices, {"10.9.9.9": 1}, {"aa:aa:aa:aa:aa:aa": 2}) == {}
+
+
+# --- Oficjalne Network API (od 0.52.0): urządzenia bez SNMP ---
+
+
+def official(dev_id: str) -> OfficialDevice:
+    data = load("unifi_official.json")
+    device = parse_official_device(data["details"][dev_id], data["statistics"][dev_id])
+    assert device is not None
+    return device
+
+
+def legacy_by_mac() -> dict:
+    return {d.mac: d for d in parse_devices(load("unifi_devices.json"))}
+
+
+def test_parse_official_device_list_and_details():
+    listed = parse_official_devices(load("unifi_official.json")["devices"])
+    assert [d.model for d in listed] == ["UCG Ultra", "USW-Lite-8-PoE", "U6+"]
+    assert all(d.online and d.mac == d.mac.lower() and not d.ports for d in listed)
+    usw = official("id-41220d")
+    assert usw.kind == "switch" and len(usw.ports) == 8
+    assert (usw.cpu_percent, usw.mem_percent, usw.load1) == (7.0, 39.0, 1.15)
+    assert usw.ports[0].poe_enabled is True and usw.ports[1].poe_enabled is False
+    ap = official("id-76060b")
+    assert ap.kind == "ap" and len(ap.radios) == 2 and not ap.ports
+
+
+def test_parse_official_device_tolerates_garbage():
+    assert parse_official_device({}) is None
+    assert parse_official_device({"id": "x", "macAddress": "nie-mac"}) is None
+    d = parse_official_device({"id": "x", "macAddress": "02:00:00:00:00:01", "interfaces": {"ports": [{"idx": "?"}, "zle"]}})
+    assert d is not None and d.ports == () and d.kind == "other" and not d.online
+
+
+def test_device_kind_gateway_from_legacy_type_or_model():
+    ucg = official("id-e399f1")
+    assert ucg.kind == "switch"  # oficjalne API podaje bramie tylko `switching`
+    assert device_kind(ucg) == "gateway"  # model UCG
+    assert device_kind(ucg, legacy_by_mac()[ucg.mac]) == "gateway"
+    assert port_name("switch", 3) == "0/3" and port_name("gateway", 5) == "eth4"
+
+
+def test_build_poll_result_switch_with_legacy_counters():
+    usw = official("id-41220d")
+    result = build_poll_result(usw, legacy_by_mac()[usw.mac])
+    assert result.driver == "unifi_api" and result.system.vendor == "Ubiquiti" and result.system.kind == "switch"
+    assert [i.name for i in result.interfaces] == [f"0/{n}" for n in range(1, 9)]
+    p1, p2, p7 = result.interfaces[0], result.interfaces[1], result.interfaces[6]
+    assert p1.oper_status == "up" and p1.speed_mbps == 1000 and p1.in_octets and p1.out_octets and p1.counter_bits == 64
+    assert p2.oper_status == "down" and p2.speed_mbps is None
+    assert p7.speed_mbps == 100  # telewizor
+    assert (result.health.cpu_percent, result.health.mem_used_percent) == (7.0, 39.0)
+    assert result.system.uptime_s == 3971885
+
+
+def test_build_poll_result_gateway_marks_wan_and_works_without_legacy():
+    ucg = official("id-e399f1")
+    result = build_poll_result(ucg, legacy_by_mac()[ucg.mac])
+    roles = {i.name: i.role for i in result.interfaces}
+    assert roles["eth4"] == "wan" and roles["eth0"] == "lan"
+    bare = build_poll_result(ucg)
+    assert all(i.in_octets is None for i in bare.interfaces) and bare.system.kind == "gateway"
+
+
+def test_api_reads_official_devices_paged_with_details():
+    data = load("unifi_official.json")
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path, params = request.url.path, request.url.params
+        calls.append(path)
+        if path.endswith("/integration/v1/sites"):
+            return httpx.Response(200, json=data["sites"])
+        site = data["sites"]["data"][0]["id"]
+        if path.endswith(f"/sites/{site}/devices"):
+            # Strony po jednym urządzeniu: klient musi doczytać resztę
+            offset = int(params["offset"])
+            items = data["devices"]["data"][offset : offset + 1]
+            return httpx.Response(200, json={"offset": offset, "limit": 1, "count": len(items), "totalCount": 3, "data": items})
+        for dev_id in data["details"]:
+            if path.endswith(f"/devices/{dev_id}/statistics/latest"):
+                return httpx.Response(500) if dev_id == "id-76060b" else httpx.Response(200, json=data["statistics"][dev_id])
+            if path.endswith(f"/devices/{dev_id}"):
+                return httpx.Response(200, json=data["details"][dev_id])
+        return httpx.Response(404)
+
+    async def scenario():
+        api = api_with(handler)
+        try:
+            devices = await api.official_devices()
+            assert len(devices) == 3
+            usw = await api.official_details(devices[1])
+            assert len(usw.ports) == 8 and usw.cpu_percent == 7.0
+            ap = await api.official_details(devices[2])
+            assert ap.radios and ap.cpu_percent is None  # statystyki niedostępne – szczegóły zostają
+        finally:
+            await api.close()
+
+    asyncio.run(scenario())
+    assert sum(c.endswith("/integration/v1/sites") for c in calls) == 1  # id site zapamiętane
+
+
+def test_api_official_unknown_site_is_unifi_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"totalCount": 2, "data": [{"id": "a", "internalReference": "x"}, {"id": "b", "internalReference": "y"}]})
+
+    async def scenario():
+        api = api_with(handler)
+        try:
+            with pytest.raises(UnifiError, match="site"):
+                await api.official_devices()
+        finally:
+            await api.close()
+
+    asyncio.run(scenario())

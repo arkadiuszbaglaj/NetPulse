@@ -30,9 +30,16 @@ from netpulse.db.models import (  # noqa: E402
     NetworkClient,
     PoeBudgetMetric,
     PoePortMetric,
+    UnifiApiDevice,
     User,
 )
-from netpulse.unifi import UnifiError, parse_clients, parse_devices  # noqa: E402
+from netpulse.unifi import (  # noqa: E402
+    UnifiError,
+    parse_clients,
+    parse_devices,
+    parse_official_device,
+    parse_official_devices,
+)
 from netpulse.unifi_collector import UnifiCollector  # noqa: E402
 
 ADMIN = {"username": "admin", "password": "haslo-testowe-1"}
@@ -43,9 +50,11 @@ def fixture(name: str) -> dict:
 
 
 class FakeApi:
-    def __init__(self, fail: bool = False, clients: dict | None = None) -> None:
+    def __init__(self, fail: bool = False, clients: dict | None = None, no_official: bool = False) -> None:
         self.fail = fail
         self._clients = clients or fixture("unifi_clients.json")
+        self.no_official = no_official
+        self.detail_calls: list[str] = []
 
     async def app_version(self):
         if self.fail:
@@ -57,6 +66,16 @@ class FakeApi:
 
     async def clients(self):
         return parse_clients(self._clients)
+
+    async def official_devices(self):
+        if self.no_official:
+            raise UnifiError("Kontroler nie ma oficjalnego API")
+        return parse_official_devices(fixture("unifi_official.json")["devices"])
+
+    async def official_details(self, device):
+        data = fixture("unifi_official.json")
+        self.detail_calls.append(device.mac)
+        return parse_official_device(data["details"][device.id], data["statistics"][device.id])
 
     async def close(self):
         pass
@@ -236,3 +255,82 @@ def test_topology_joins_both_ends_of_each_cable(client):
     assert ap["traffic_bps"] == 2e8 and ap["utilization"] == pytest.approx(0.2)
     (gw,) = [e for e in client.get("/api/topology").json()["edges"] if {e["a"], e["b"]} == {by_name["USW"]["id"], by_name["UCG"]["id"]}]
     assert gw["interface_id"] is None and gw["utilization"] is None  # portu 8 switcha nie ma w SNMP tego testu
+
+
+# --- Urządzenia bez SNMP z oficjalnego API (od 0.52.0) ---
+
+
+async def _drop_snmp_switch() -> None:
+    async with Session() as s, s.begin():
+        await s.execute(delete(Device).where(Device.name == "USW"))
+
+
+def test_known_snmp_devices_are_not_duplicated(client):
+    api = FakeApi()
+    assert poll(api) is True
+    assert api.detail_calls == []  # wszystkie trzy urządzenia NetPulse zna z SNMP
+
+    async def check():
+        async with Session() as s:
+            assert await s.scalar(select(func.count()).select_from(Device).where(Device.driver == "unifi_api")) == 0
+
+    run(check)
+
+
+def test_device_without_snmp_is_created_from_official_api(client):
+    run(_drop_snmp_switch)
+    assert poll(FakeApi()) is True
+    poll(FakeApi())  # drugi odczyt: ten sam wpis, bez duplikatu
+
+    async def check():
+        async with Session() as s:
+            (dev,) = (await s.scalars(select(Device).where(Device.driver == "unifi_api"))).all()
+            assert (dev.kind, dev.vendor, dev.model, dev.status) == ("switch", "Ubiquiti", "USW-Lite-8-PoE", "up")
+            names = (await s.scalars(select(Interface.name).where(Interface.device_id == dev.id).order_by(Interface.if_index))).all()
+            assert names == [f"0/{n}" for n in range(1, 9)]
+            assert await s.scalar(select(func.count()).select_from(UnifiApiDevice)) == 1
+            return dev.id
+
+    dev_id = run(check)
+    card = client.get(f"/api/devices/{dev_id}").json()
+    assert card["driver"] == "unifi_api"
+    assert client.post(f"/api/devices/{dev_id}/probe").status_code == 409  # bez SNMP – test nie ma sensu
+
+    # Usunięte w panelu – kolektor nie zakłada go ponownie
+    assert client.delete(f"/api/devices/{dev_id}").status_code == 204
+    api = FakeApi()
+    poll(api)
+
+    async def gone():
+        async with Session() as s:
+            assert await s.scalar(select(func.count()).select_from(Device).where(Device.driver == "unifi_api")) == 0
+            row = await s.scalar(select(UnifiApiDevice))
+            assert row is not None and row.device_id is None
+
+    run(gone)
+    assert api.detail_calls == []
+
+
+def test_controller_without_official_api_still_reads_poe_and_clients(client):
+    run(_drop_snmp_switch)
+    assert poll(FakeApi(no_official=True)) is True
+
+    async def check():
+        async with Session() as s:
+            assert await s.scalar(select(func.count()).select_from(Device).where(Device.driver == "unifi_api")) == 0
+            assert await s.scalar(select(func.count()).select_from(NetworkClient)) == 9
+
+    run(check)
+
+
+def test_controller_failure_marks_api_devices_down(client):
+    run(_drop_snmp_switch)
+    poll(FakeApi())
+    assert poll(FakeApi(fail=True)) is False
+
+    async def check():
+        async with Session() as s:
+            dev = await s.scalar(select(Device).where(Device.driver == "unifi_api"))
+            assert dev.status == "down" and "Kontroler UniFi" in dev.last_error
+
+    run(check)

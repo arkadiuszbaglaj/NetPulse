@@ -11,6 +11,7 @@ from sqlalchemy import column, func, select, table, text
 from .. import aggregates
 from ..db import Session, engine, has_timescale
 from ..db.models import (
+    NON_SNMP_DRIVERS,
     Device,
     DeviceMetric,
     Interface,
@@ -174,6 +175,7 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
         "voltage_v": ("voltage_v", 1.0),
         "current_a": ("current_a", 1.0),
         "power_w": ("power_w", 1.0),
+        "channel_util_percent": ("channel_util_percent", 1.0),
     },
     "snmp_poe": {"poe_power_w": ("poe_power_w", 1.0), "poe_voltage_v": ("poe_voltage_v", 1.0)},
     "snmp_sfp": {
@@ -193,7 +195,7 @@ AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
     "agent_temp": ("temp_c",),
     "agent_container": ("container_up",),
     "pve_guest": ("guest_up",),
-    "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w"),
+    "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "channel_util_percent"),
     "snmp_poe": ("poe_power_w",),
     "snmp_sfp": ("sfp_rx_dbm",),
 }
@@ -260,7 +262,7 @@ async def agent_keys(device_id: int) -> dict[str, list[str]]:
         device = await session.get(Device, device_id)
         if device is None:
             raise HTTPException(404, "Nie ma takiego obiektu: urządzenie")
-        snmp = device.driver not in ("agent", "proxmox")
+        snmp = device.driver not in NON_SNMP_DRIVERS
         rows = (
             await session.execute(
                 select(Metric.name, Metric.key)

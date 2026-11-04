@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from ..collector import DeviceTarget, credentials_for, make_client
 from ..db import Session
-from ..db.models import Device, Interface
+from ..db.models import NON_SNMP_DRIVERS, Device, Interface
 from ..drivers import DRIVERS, GenericDriver
 from ..rates import LiveRateTracker
 from ..snmp import SnmpClient, SnmpError, as_int
@@ -37,7 +37,6 @@ LIVE_INTERVAL = 1.5  # s; nie szybciej, żeby nie przeciążać urządzeń
 MAX_VIEWERS = 40  # połączeń (każdy wykres kołowy portu to jedno)
 TARGETS_TTL = 30.0  # jak często odświeżać listę portów
 MAX_OIDS = 40  # liczników w jednym zapytaniu SNMP (duży switch = kilka zapytań)
-NON_SNMP_DRIVERS = ("agent", "proxmox")
 
 
 @dataclass(frozen=True)

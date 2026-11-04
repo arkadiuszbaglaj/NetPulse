@@ -64,7 +64,7 @@ export const isPortMetric = (m: PieMetric) => m === "port_load" || m === "port_d
 const LIVE_METRICS = new Set<PieMetric>(["cpu", "mem", "disk", "disks_share", "port_load", "port_dir", "ports_in", "ports_out", "ports_state"]);
 export const isLiveMetric = (m: PieMetric) => LIVE_METRICS.has(m);
 /** Urządzenia bez SNMP – bez danych na żywo */
-export const NON_SNMP_DRIVERS = new Set(["agent", "proxmox"]);
+export const NON_SNMP_DRIVERS = new Set(["agent", "proxmox", "unifi_api"]);
 
 /** Wiersze kolekcji z wartościami z próbki na żywo; `applied` = próbka coś podmieniła (znacznik „Na żywo”).
  * Brak wartości w próbce (pierwszy odczyt prędkości, urządzenie nie podało) – zostaje odczyt z bazy. */
