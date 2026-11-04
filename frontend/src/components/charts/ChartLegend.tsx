@@ -63,7 +63,7 @@ export function ChartLegend({ items, config, onToggle }: { items: LegendItem[]; 
             <tr key={item.line.id} className="border-t border-border">
               <td className="max-w-0 py-1">{toggle(item)}</td>
               {config.values.map((v) => (
-                <td key={v} className={`py-1 pl-3 text-right tabular-nums ${item.hidden ? "text-muted" : ""}`}>
+                <td key={v} className={`whitespace-nowrap py-1 pl-3 text-right tabular-nums ${item.hidden ? "text-muted" : ""}`}>
                   {value(item, v)}
                 </td>
               ))}

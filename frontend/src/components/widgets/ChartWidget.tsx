@@ -6,7 +6,7 @@ import { ApiError, type Series } from "../../lib/api";
 import { formatRange, metricFormatter } from "../../lib/format";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
-import { fitLegend, useBoxSize } from "../charts/legendFit";
+import { fitLegend, rightLegendWidth, useBoxSize } from "../charts/legendFit";
 import { buildLines, lineStats, linesToCsv } from "../charts/panelData";
 import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
@@ -180,7 +180,10 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
               />
             </Suspense>
           </div>
-          <div className={legendRight ? (fill ? "w-64 shrink-0 overflow-y-auto" : "lg:w-64 lg:shrink-0") : fill ? "max-h-[45%] shrink-0 overflow-y-auto" : ""}>
+          <div
+            className={legendRight ? (fill ? "shrink-0 overflow-y-auto" : "lg:w-64 lg:shrink-0") : fill ? "max-h-[45%] shrink-0 overflow-y-auto" : ""}
+            style={legendRight && fill ? { width: rightLegendWidth(legend) } : undefined}
+          >
             <ChartLegend items={legendItems} config={legend} onToggle={toggle} />
           </div>
         </div>

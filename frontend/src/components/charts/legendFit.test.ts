@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LegendConfig } from "../../lib/layout";
-import { fitLegend, plotSizeClass } from "./legendFit";
+import { fitLegend, plotSizeClass, rightLegendWidth } from "./legendFit";
 
 const table: LegendConfig = { mode: "table", placement: "bottom", values: ["last", "max", "avg"] };
 const list: LegendConfig = { mode: "list", placement: "bottom", values: [] };
@@ -20,6 +20,14 @@ describe("fitLegend – legenda ustępuje miejsca wykresowi", () => {
   it("szeroka, niska karta przenosi tabelę na prawo", () => {
     // 4 serie: tabela ~124 px, wykres zostałby z ~100 px
     expect(fitLegend(table, 4, { width: 1080, height: 230 })).toEqual({ ...table, placement: "right" });
+  });
+
+  it("tabela po prawej ma szerokość zależną od liczby kolumn", () => {
+    expect(rightLegendWidth(table)).toBe(360);
+    expect(rightLegendWidth({ ...table, values: ["last"] })).toBe(256);
+    expect(rightLegendWidth(list)).toBe(256);
+    // 3 kolumny: 360 px legendy + 360 px wykresu się nie mieszczą w 700 px – tabela zwija się do listy
+    expect(fitLegend(table, 3, { width: 700, height: 200 })).toEqual(compact);
   });
 
   it("wąska i niska karta zwija tabelę do samych nazw", () => {

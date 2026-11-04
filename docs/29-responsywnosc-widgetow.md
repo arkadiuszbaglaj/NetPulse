@@ -79,6 +79,8 @@ czytania. Skutki w tym trybie:
 - **Legenda wykresu** (`components/charts/legendFit.ts`, `fitLegend`): w karcie mierzonej `ResizeObserver` legenda zostaje
   jak w ustawieniach, gdy wykresowi zostaje ≥ 140 px; inaczej idzie na prawo (szeroka karta), potem zwija się do listy
   nazw (wykres ≥ 70 px), a w najmniejszej karcie znika (nazwy serii są w podpowiedzi). Pełny ekran liczy się tak samo.
+  Od 0.54.2 tabela po prawej ma szerokość zależną od liczby kolumn (`rightLegendWidth`: 120 px + 80 px na kolumnę,
+  min. 256 px) – przy 256 px i trzech kolumnach nazwy serii nachodziły na wartości.
 - **Osie**: `PanelChart` przelicza opcje po zmianie klasy rozmiaru (`plotSizeClass`): przy wąskim wykresie mniejsza
   czcionka osi i mniej opisów czasu.
 
