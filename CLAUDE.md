@@ -195,8 +195,9 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
 Od 0.53.0 widgety skalują treść z kartą: komórka siatki `np-cell` (+ `np-fit` przy stałej wysokości) jest kontenerem
 zapytań, style w `index.css` (klasy `np-*`), legenda wykresu ustępuje miejsca (`charts/legendFit.ts`). Nowy widget =
 dodać mu klasy `np-*`, jeśli ma rosnąć z kartą. Etap 3 ✅ (0.54.0): swobodna siatka od 720 px szerokości siatki,
-pary w dwóch kolumnach z tego samego rzędu (`pairsInColumns`). Etap 4 (dopasowanie wysokości) czeka na decyzję:
-`docs/29-responsywnosc-widgetow.md`.
+pary w dwóch kolumnach z tego samego rzędu (`pairsInColumns`). Etap 4 ✅ (0.56.0): widgety z listą (`AUTO_HEIGHT`)
+w podglądzie wydłużają się do treści (`OverflowWatch`, `rowsFor`, `pushDown`), w edycji przycisk „Dopasuj wysokość”;
+nowy widget z listą = dopisać do `AUTO_HEIGHT`. Opis: `docs/29-responsywnosc-widgetow.md`.
 
 ## Do sprawdzenia później
 

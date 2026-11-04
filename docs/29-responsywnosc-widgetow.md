@@ -133,11 +133,22 @@ dla każdego widgetu oraz sprawdzenie w podglądzie przy rozmiarach S/M/L jak wy
 - Tryb dwóch kolumn zostaje dla tabletu (< 720 px), z lepszym parowaniem (para = sąsiedzi w tym samym rzędzie siatki,
   a nie kolejni w kolejności czytania) i wspólną wysokością pary.
 
-### Etap 4 – „dopasuj wysokość do treści” (opcjonalnie)
+### Etap 4 ✅ (0.56.0) – dopasowanie wysokości do treści
 
-- W trybie edycji przycisk „dopasuj wysokość” przy widgetach z listą (tabela, paski, PoE, oś stanów, alerty).
-  Wylicza wiersze siatki z liczby wierszy danych, żeby uniknąć ręcznego zgadywania jak przy przebudowie pulpitu.
-- Ewentualnie ostrzeżenie w edycji, gdy treść widgetu się przewija.
+Widgety z listą rosną z danymi (dochodzą porty, zdarzenia, alerty), więc stała wysokość z siatki kończyła się paskiem
+przewijania w karcie. Teraz (`AUTO_HEIGHT` w `lib/layout.ts`: tabela, paski, PoE, oś stanów, alerty, zdarzenia,
+testy dostępności, Aktywny WAN, SLA łączy, urządzenia, serwer, stan sieci):
+
+- **Podgląd** (też pulpit publiczny): karta, której treść się nie mieści, sama się wydłuża, a widgety pod nią schodzą
+  niżej (`pushDown` – tylko w dół, kolumna obok zostaje). Zapisana wysokość to minimum; karta nie rośnie bez końca, bo
+  listy mają limit wierszy (i `MAX_HEIGHT` = 40 wierszy). Wykresy, liczby, mapa cieplna i wykres kołowy – bez zmian.
+- **Tryb edycji**: siatka pokazuje zapisany układ, a karta, której brakuje miejsca, ma przycisk „Dopasuj wysokość (+N)”
+  – zapisuje potrzebną wysokość i przesuwa widgety pod spodem.
+- Pomiar: `OverflowWatch` w `DashboardGrid.tsx` zgłasza pełną wysokość treści (`scrollHeight`) przy zmianie rozmiaru
+  i treści; `rowsFor` zamienia ją na wiersze siatki. Liczone bezwzględnie, nie przyrostowo (siatka animuje wysokość,
+  więc w trakcie animacji treść „wystaje” dalej). Od nowa po zmianie układu albo szerokości o więcej niż 40 px –
+  mniejsza zmiana to pasek przewijania strony, który pojawia się po wydłużeniu (inaczej pętla: dłużej → węziej → od nowa).
+- Telefon i tablet bez zmian – tam widgety z listą i tak mają naturalną wysokość.
 
 ## Ryzyka i koszty
 
@@ -148,4 +159,4 @@ dla każdego widgetu oraz sprawdzenie w podglądzie przy rozmiarach S/M/L jak wy
 - Etap 3 zmienia zachowanie na laptopach – trzeba go sprawdzić na prawdziwym pulpicie przy 1100–1366 px.
 - Na telefonie (< 640 px) bez zmian: widgety jeden pod drugim, z naturalną wysokością.
 
-Proponowana kolejność: etap 1 + 2 jako jedna wersja (np. 0.53.0), etap 3 osobno, etap 4 na końcu albo wcale.
+Kolejność: etap 1 + 2 – 0.53.0, etap 3 – 0.54.0, etap 4 – 0.56.0.

@@ -3,9 +3,11 @@
  * react-grid-layout z przeciąganiem i rozciąganiem w trybie edycji, na laptopie te same położenia co na dużym ekranie,
  * tylko węższe kolumny; węziej widgety w kolejności czytania: od 640 px w dwóch kolumnach (pary z tego samego rzędu
  * siatki, wspólna wysokość pary; szerokie i bez pary na całą), na telefonie jeden pod drugim. Tam w trybie edycji przestawia się je przyciskami w górę i w dół. Sekcje zwijają widgety
- * pod sobą (stan zwinięcia pamięta przeglądarka, osobno dla każdego pulpitu).
+ * pod sobą (stan zwinięcia pamięta przeglądarka, osobno dla każdego pulpitu). Od 0.56.0 widgety z listą (`AUTO_HEIGHT`)
+ * w podglądzie wydłużają się, gdy treść się nie mieści (widgety pod nimi schodzą niżej), a w trybie edycji dostają
+ * przycisk „Dopasuj wysokość”, który zapisuje potrzebną wysokość w układzie.
  */
-import { IconChevronDown, IconChevronRight, IconX } from "@tabler/icons-react";
+import { IconArrowAutofitHeight, IconChevronDown, IconChevronRight, IconX } from "@tabler/icons-react";
 import { createContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import ReactGridLayout, { useContainerWidth } from "react-grid-layout";
@@ -13,7 +15,21 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { t } from "../i18n";
 import { WidgetExpandContext } from "./widgets/WidgetActions";
-import { GRID_COLS, GRID_MARGIN, MAX_HEIGHT, ROW_HEIGHT, hiddenBySections, placeWidgets, readingOrder, rowsToPx, type Widget } from "../lib/layout";
+import {
+  AUTO_HEIGHT,
+  GRID_COLS,
+  GRID_MARGIN,
+  MAX_HEIGHT,
+  ROW_HEIGHT,
+  hiddenBySections,
+  placeWidgets,
+  pushDown,
+  readingOrder,
+  rowsFor,
+  rowsToPx,
+  type GridBox,
+  type Widget,
+} from "../lib/layout";
 
 /** Widget w komórce siatki o stałej wysokości: wykresy wypełniają całą komórkę. */
 export const GridCellContext = createContext(false);
@@ -29,6 +45,8 @@ const TABLET = 640;
 const FIXED_ON_MOBILE = new Set<Widget["type"]>(["chart", "stat", "wan_chart"]);
 /** W dwóch kolumnach widget od tej szerokości (z 12) zajmuje całą szerokość. */
 const WIDE = 8;
+/** Zmiana szerokości siatki, od której wydłużenie kart liczy się od nowa (większa niż pasek przewijania strony). */
+const RESET_WIDTH = 40;
 
 /** Dwa widgety w tym samym rzędzie siatki (zachodzą na siebie w pionie); bez położeń – zawsze. */
 function sameRow(a: Widget, b: Widget): boolean {
@@ -101,6 +119,39 @@ export function SectionHeader({ title, collapsed, onToggle, hiddenCount }: { tit
   );
 }
 
+/** Komórka, która zgłasza wysokość swojej treści (`scrollHeight` – nie mniej niż wysokość komórki) przy zmianie
+ * rozmiaru i treści (nowe dane, ładowanie, zwijanie wierszy). Zgłoszenie raz na klatkę. */
+function OverflowWatch({ onOverflow, className, children }: { onOverflow: (contentPx: number) => void; className: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const report = useRef(onOverflow);
+  report.current = onOverflow;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let frame = 0;
+    const check = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => report.current(el.scrollHeight));
+    };
+    const resize = new ResizeObserver(check);
+    resize.observe(el);
+    for (const child of Array.from(el.children)) resize.observe(child);
+    const mutation = new MutationObserver(check);
+    mutation.observe(el, { childList: true, subtree: true, characterData: true });
+    check();
+    return () => {
+      resize.disconnect();
+      mutation.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+  return (
+    <div ref={ref} className={className}>
+      {children}
+    </div>
+  );
+}
+
 /** Widget na pełnym ekranie: nad całym panelem, Escape albo przycisk zamyka, fokus wraca na miejsce. */
 function Fullscreen({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
   const close = useRef<HTMLButtonElement>(null);
@@ -168,6 +219,29 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
   const hidden = useMemo(() => (edit ? new Set<string>() : hiddenBySections(all, collapsed)), [all, collapsed, edit]);
   const visible = all.filter((w) => !hidden.has(w.id));
 
+  // Wydłużenie kart w podglądzie (wiersze siatki ponad zapisane `h`) i brakujące wiersze w trybie edycji.
+  // Po zmianie szerokości albo układu liczone od nowa – wtedy karta może też wrócić do zapisanej wysokości.
+  const [grow, setGrow] = useState<Record<string, number>>({});
+  const [need, setNeed] = useState<Record<string, number>>({});
+  // Szerokość tylko przy wyraźnej zmianie: wydłużona strona dostaje pasek przewijania (siatka węższa o ~15 px),
+  // a liczenie od nowa skróciłoby ją z powrotem – i tak w kółko.
+  const shape = widgets.map((w) => `${w.id}:${w.x}:${w.y}:${w.w}:${w.h}`).join(",");
+  const counted = useRef({ width, shape, edit });
+  useEffect(() => {
+    const c = counted.current;
+    if (Math.abs(width - c.width) <= RESET_WIDTH && shape === c.shape && edit === c.edit) return;
+    counted.current = { width, shape, edit };
+    // Wydłużone karty wracają do zapisanej wysokości i mierzą się na nowo (zmiana rozmiaru = nowy pomiar). `need` się
+    // nie czyści: karta, której rozmiar się nie zmienił, nie zgłosi się ponownie, a jej pomiar jest dalej aktualny.
+    setGrow({});
+  }, [width, shape, edit]);
+  const report = (w: Widget, contentPx: number) => {
+    const rows = Math.max(0, Math.min(MAX_HEIGHT, rowsFor(contentPx)) - (w.h ?? 1));
+    if (edit) setNeed((n) => ((n[w.id] ?? 0) === rows ? n : { ...n, [w.id]: rows }));
+    // Tylko w górę: treść rozciągnięta na całą kartę ma wysokość karty, więc mniejszy pomiar to stan w trakcie animacji
+    else setGrow((g) => (rows > (g[w.id] ?? 0) ? { ...g, [w.id]: rows } : g));
+  };
+
   const toggle = (id: string) =>
     setOverrides((o) => {
       const next = { ...o, [id]: !collapsed.has(id) };
@@ -187,6 +261,15 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
   };
 
   const fixedHeight = (w: Widget) => desktop || FIXED_ON_MOBILE.has(w.type);
+  const box = (w: Widget, extra = 0): GridBox => ({ i: w.id, x: w.x ?? 0, y: w.y ?? 0, w: w.w, h: Math.min(MAX_HEIGHT, (w.h ?? 1) + extra) });
+  // Podgląd: karty wydłużone o `grow`, reszta zsunięta niżej; edycja: dokładnie zapisany układ
+  const boxes = edit ? visible.map((w) => box(w)) : pushDown(visible.map((w) => box(w, grow[w.id] ?? 0)));
+  const fit = (w: Widget) => onPositions?.(pushDown(visible.map((x) => box(x, x.id === w.id ? (need[w.id] ?? 0) : 0))));
+  const content = (w: Widget) => (
+    <WidgetExpandContext.Provider value={edit ? null : () => setExpanded(w.id)}>
+      <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
+    </WidgetExpandContext.Provider>
+  );
   const cell = (w: Widget) => {
     if (w.type === "section") {
       const count = edit ? 0 : hiddenBySections(all, new Set([w.id])).size;
@@ -201,11 +284,24 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       // W trybie edycji pasek narzędzi leży nad kartą (w rogu), a nie w niej – widget ma tę samą wysokość co w podglądzie
       <div className={`relative flex h-full min-h-0 flex-col ${edit ? "rounded-xl outline-2 outline-offset-2 outline-dashed outline-border-strong" : ""}`}>
         {edit && <div className="absolute right-2 top-2 z-20">{renderEditBar?.(w, placeOf(w))}</div>}
-        <div className={`${cellClass(fixedHeight(w))} flex min-h-0 flex-1 flex-col overflow-auto *:flex-1`}>
-          <WidgetExpandContext.Provider value={edit ? null : () => setExpanded(w.id)}>
-            <GridCellContext.Provider value>{renderWidget(w)}</GridCellContext.Provider>
-          </WidgetExpandContext.Provider>
-        </div>
+        {edit && desktop && (need[w.id] ?? 0) > 0 && (
+          <button
+            type="button"
+            onClick={() => fit(w)}
+            title={t("widget.fit.hint")}
+            className="absolute bottom-2 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium shadow-sm hover:text-accent"
+          >
+            <IconArrowAutofitHeight size={14} aria-hidden="true" />
+            {t("widget.fit", { n: need[w.id] ?? 0 })}
+          </button>
+        )}
+        {desktop && AUTO_HEIGHT.has(w.type) ? (
+          <OverflowWatch onOverflow={(px) => report(w, px)} className={`${cellClass(true)} flex min-h-0 flex-1 flex-col overflow-auto *:flex-1`}>
+            {content(w)}
+          </OverflowWatch>
+        ) : (
+          <div className={`${cellClass(fixedHeight(w))} flex min-h-0 flex-1 flex-col overflow-auto *:flex-1`}>{content(w)}</div>
+        )}
       </div>
     );
   };
@@ -233,14 +329,10 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       {!mounted ? null : desktop ? (
         <ReactGridLayout
           width={width}
-          layout={visible.map((w) => ({
-            i: w.id,
-            x: w.x ?? 0,
-            y: w.y ?? 0,
-            w: w.w,
-            h: w.h ?? 1,
+          layout={boxes.map((b, n) => ({
+            ...b,
             maxH: MAX_HEIGHT,
-            isResizable: edit && w.type !== "section",
+            isResizable: edit && visible[n]!.type !== "section",
             resizeHandles: ["se", "e", "s"],
           }))}
           gridConfig={{ cols: GRID_COLS, rowHeight: ROW_HEIGHT, margin: [GRID_MARGIN, GRID_MARGIN], containerPadding: [0, 0] }}

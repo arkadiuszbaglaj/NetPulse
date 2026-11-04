@@ -8,7 +8,9 @@ import {
   newWidget,
   nudgeWidget,
   placeWidgets,
+  pushDown,
   readingOrder,
+  rowsFor,
   rowsToPx,
   type DashboardLayout,
   type Widget,
@@ -170,5 +172,39 @@ describe("pulpit na szerokim ekranie", () => {
     await waitFor(() => expect(state.layout).not.toBeNull());
     const first = (state.layout as DashboardLayout).widgets[0];
     expect(first).toMatchObject({ type: "section", w: 12, h: 1, x: 0, y: 0, config: { title: "Serwery", collapsed: false } });
+  });
+});
+
+describe("dopasowanie wysokości widgetów z listą (0.56.0)", () => {
+  it("liczy wiersze siatki potrzebne na treść (odwrotność rowsToPx)", () => {
+    for (const h of [1, 3, 7, 10, 40]) expect(rowsFor(rowsToPx(h))).toBe(h);
+    expect(rowsFor(rowsToPx(7) + 2)).toBe(7); // zaokrąglenia
+    expect(rowsFor(rowsToPx(7) + 3)).toBe(8);
+  });
+
+  it("wydłużona karta spycha w dół tylko to, co pod nią, kolumna obok zostaje", () => {
+    const items = [
+      { i: "porty", x: 0, y: 0, w: 6, h: 9 }, // wydłużone z 7 do 9
+      { i: "obok", x: 6, y: 0, w: 6, h: 7 },
+      { i: "pod", x: 0, y: 7, w: 6, h: 8 },
+      { i: "pod-obok", x: 6, y: 7, w: 6, h: 8 },
+      { i: "dalej", x: 0, y: 15, w: 12, h: 5 },
+    ];
+    const out = pushDown(items);
+    expect(out.map((b) => [b.i, b.y])).toEqual([
+      ["porty", 0],
+      ["obok", 0],
+      ["pod", 9],
+      ["pod-obok", 7],
+      ["dalej", 17],
+    ]);
+  });
+
+  it("bez nakładania się układ zostaje bez zmian", () => {
+    const items = [
+      { i: "a", x: 0, y: 0, w: 12, h: 4 },
+      { i: "b", x: 0, y: 10, w: 6, h: 3 },
+    ];
+    expect(pushDown(items)).toEqual(items);
   });
 });

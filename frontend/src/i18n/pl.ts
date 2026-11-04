@@ -384,6 +384,8 @@ export const pl = {
   "panel.change.vs": "wzgl. poprzedniego okresu",
   "panel.change.hint": "Zmiana względem okresu o {range} wcześniej",
   "widget.fullscreen": "Pełny ekran",
+  "widget.fit": "Dopasuj wysokość (+{n})",
+  "widget.fit.hint": "Treść widgetu się nie mieści – w podglądzie karta sama się wydłuża; ten przycisk zapisuje tę wysokość w układzie",
   "widget.fullscreen.close": "Zamknij",
   "widget.actions": "Więcej działań",
   "chart.export.csv": "Pobierz dane (CSV)",

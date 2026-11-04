@@ -750,6 +750,44 @@ export function swapInReadingOrder(l: DashboardLayout, id: string, dir: -1 | 1):
   return { ...l, widgets: all.map((w) => moved.get(w.id) ?? w) };
 }
 
+/** Widgety z listą (od 0.56.0): ich treść rośnie z danymi (porty, zdarzenia, alerty), więc w podglądzie karta
+ * wydłuża się, gdy treść się nie mieści, zamiast pokazywać pasek przewijania. Wykresy i liczby skalują się do karty. */
+export const AUTO_HEIGHT = new Set<Widget["type"]>([
+  "table", "bargauge", "poe", "state_timeline", "alerts", "events", "checks", "wan_status", "wan_sla", "devices", "server", "status",
+]);
+
+/** Ile wierszy siatki potrzeba, żeby zmieścić `px` treści (odwrotność `rowsToPx`; do 2 px zapasu na zaokrąglenia).
+ * Liczone z pełnej wysokości treści, a nie z tego, o ile wystaje – siatka animuje zmianę wysokości, więc w trakcie
+ * animacji treść „wystaje” dalej i dodawanie wierszy przy każdym pomiarze dawało za wysokie karty. */
+export function rowsFor(px: number): number {
+  return Math.max(1, Math.ceil((px - 2 + GRID_MARGIN) / (ROW_HEIGHT + GRID_MARGIN)));
+}
+
+export interface GridBox {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Usuwa nakładanie się po wydłużeniu kart: od góry, każdy widget, który zachodzi na już ułożony, schodzi tuż pod
+ * niego (tylko w dół – nic nie podjeżdża do góry, więc układ z pulpitu zostaje, przesuwa się tylko to, co pod spodem). */
+export function pushDown<T extends GridBox>(items: T[]): T[] {
+  const placed: T[] = [];
+  for (const it of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    let y = it.y;
+    for (;;) {
+      const hit = placed.find((p) => p.x < it.x + it.w && it.x < p.x + p.w && p.y < y + it.h && y < p.y + p.h);
+      if (!hit) break;
+      y = hit.y + hit.h;
+    }
+    placed.push({ ...it, y });
+  }
+  const byId = new Map(placed.map((p) => [p.i, p]));
+  return items.map((it) => byId.get(it.i)!);
+}
+
 /** Pozycje z siatki po przeciągnięciu albo rozciągnięciu myszką. */
 export function applyPositions(l: DashboardLayout, items: { i: string; x: number; y: number; w: number; h: number }[]): DashboardLayout {
   const byId = new Map(items.map((it) => [it.i, it]));
