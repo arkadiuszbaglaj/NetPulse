@@ -204,6 +204,9 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
 - **Synology NAS** – propozycja w `docs/27-synology-propozycja.md` (4.11.2026, z przewodnika Synology SNMP MIB Guide –
   PDF poza repo): driver `synology` (rozpoznanie sondą `modelName`, dyski, RAID, UPS, I/O, alerty), potem moduł DSM API
   (Hyper Backup, pakiety, kontenery). Odłożone – brak prawdziwego Synology do zrzutu; nie wdrażać bez decyzji.
+- **Źródła producentów (MIB, OID, API)** – `docs/28-zrodla-producentow.md` (4.11.2026): oficjalne MIB-y i API
+  UniFi, MikroTik (MIB per wersja), Omada (MIB EAP i switchy L2, Open API). Znalezione luki: driver `omada` nie
+  rozpoznaje bram ER z 4 cyframi (ER7206, ER8411) i WAN `eth0.<VLAN>`, nie czyta CPU/PoE/SFP switchy. Kolejność A–D czeka na decyzję.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
