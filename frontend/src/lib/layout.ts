@@ -49,7 +49,9 @@ export type AgentSourceKind =
   | "pve_guest"
   | "snmp_sensor"
   | "snmp_poe"
-  | "snmp_sfp";
+  | "snmp_sfp"
+  | "wan_latency"
+  | "wan_ping";
 export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
   "agent_cpu",
   "agent_net",
@@ -60,7 +62,14 @@ export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
   "snmp_sensor",
   "snmp_poe",
   "snmp_sfp",
+  "wan_latency",
+  "wan_ping",
 ];
+/** Pingi łączy WAN mierzone przez bramę UniFi (od 0.55.0): urządzenie = brama, klucz = interfejs łącza (`eth3`)
+ * albo interfejs i serwer (`eth3 · google.com`). */
+export const isWanPingSource = (kind: SourceKind): boolean => kind === "wan_latency" || kind === "wan_ping";
+/** Separator w kluczu pingu bramy do serwera (jak WAN_PING_SEP w unifi_collector.py) */
+export const WAN_PING_SEP = " · ";
 /** Czujniki urządzeń SNMP (od 0.50.0: MikroTik) – te same endpointy co agent, inne urządzenia do wyboru. */
 export const isSnmpSensorSource = (kind: SourceKind): boolean => kind === "snmp_sensor" || kind === "snmp_poe" || kind === "snmp_sfp";
 export const isAgentSource = (kind: SourceKind): kind is AgentSourceKind => (AGENT_SOURCE_KINDS as string[]).includes(kind);
@@ -126,6 +135,8 @@ export interface ChartConfig {
   range_min?: RangeMinutes | null;
   refresh_s?: RefreshSeconds | null;
   height: ChartHeight;
+  /** Od 0.55.0: odcinki, w których internet szedł łączem zapasowym (nie WAN 1), innym kolorem */
+  wan_backup?: boolean;
   /** Dawne zdarzenia na osi czasu (0.34.0–0.48.0) – zostaje w zapisanych pulpitach, od 0.49.0 bez znaczenia */
   annotations?: Annotations;
 }
@@ -442,6 +453,8 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   snmp_sensor: ["temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "channel_util_percent"],
   snmp_poe: ["poe_power_w", "poe_voltage_v"],
   snmp_sfp: ["sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"],
+  wan_latency: ["latency_ms", "availability_percent"],
+  wan_ping: ["latency_ms"],
   check: ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"],
 };
 
@@ -498,6 +511,8 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
         { key: "sfp_tx_dbm", color: 8 },
       ];
     case "check":
+    case "wan_latency":
+    case "wan_ping":
       return [{ key: "latency_ms", color: 1 }];
   }
 }

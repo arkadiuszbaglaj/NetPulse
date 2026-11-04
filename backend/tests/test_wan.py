@@ -174,3 +174,49 @@ def test_gateway_dual_wan_failover():
     assert parse_wans({"type": "usw", "port_table": raw["port_table"]}) == ()
     # Wyłączone łącze w ustawieniach UniFi nie jest WAN-em
     assert parse_wans({"type": "udm", "wan2": {"ifname": "eth3", "enable": False, "up": False}}) == ()
+
+
+def test_gateway_pings_each_wan_including_standby():
+    """Brama pinguje internet każdym łączem, także zapasowym w gotowości (UCG Ultra, 4.11.2026: GSM ~75–99 ms)."""
+    from datetime import UTC, datetime
+
+    from netpulse.unifi_collector import wan_metrics
+
+    raw = {
+        "type": "udm",
+        "wan1": {"ifname": "eth4", "up": True, "enable": True, "latency": 14, "availability": 100},
+        "wan2": {"ifname": "eth3", "up": True, "enable": True, "latency": 88, "availability": 99.5},
+        "uplink": {"name": "eth4", "up": True, "type": "wire"},
+        "uptime_stats": {
+            "WAN": {"availability": 100.0, "latency_average": 14, "monitors": [{"target": "google.com", "type": "icmp", "latency_average": 11}]},
+            "WAN2": {
+                "availability": 100.0,
+                "latency_average": 40,
+                "monitors": [
+                    {"target": "www.microsoft.com", "type": "icmp", "latency_average": 75},
+                    {"target": "1.1.1.1", "type": "icmp", "latency_average": 99},
+                    {"target": "10.0.0.109", "type": "dns", "latency_average": 24},  # zapytania DNS – nie ping
+                ],
+            },
+        },
+    }
+    gsm, wan1 = parse_wans(raw)
+    assert (gsm.ifname, gsm.active, gsm.latency_ms, gsm.availability) == ("eth3", False, 88.0, 99.5)
+    assert gsm.monitors == (("www.microsoft.com", 75.0), ("1.1.1.1", 99.0))
+    assert (wan1.latency_ms, wan1.monitors) == (14.0, (("google.com", 11.0),))
+    # Pomiary nie zmieniają porównania łączy (zapis wykrytych łączy tylko przy zmianie stanu)
+    assert wan1 == WanPort("eth4", True, True)
+
+    now = datetime(2026, 11, 4, 3, 40, tzinfo=UTC)
+    rows = {(m.name, m.key): m.value for m in wan_metrics(7, (gsm, wan1), now)}
+    assert rows == {
+        ("wan_latency_ms", "eth3"): 88.0,
+        ("wan_availability_percent", "eth3"): 99.5,
+        ("wan_ping_ms", "eth3 · www.microsoft.com"): 75.0,
+        ("wan_ping_ms", "eth3 · 1.1.1.1"): 99.0,
+        ("wan_latency_ms", "eth4"): 14.0,
+        ("wan_availability_percent", "eth4"): 100.0,
+        ("wan_ping_ms", "eth4 · google.com"): 11.0,
+    }
+    # Brak pomiaru (UniFi: -1) – bez wartości
+    assert parse_wans({"type": "udm", "wan1": {"ifname": "eth4", "up": True, "latency": -1}})[0].latency_ms is None

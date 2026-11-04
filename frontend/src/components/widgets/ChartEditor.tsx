@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { t, type TextKey } from "../../i18n";
 import { get, type Device } from "../../lib/api";
 import { CHECKS_KEY, type Check } from "../../lib/checks";
+import { WAN_LINKS_KEY, type WanLink } from "../../lib/wan";
 import { formatRange } from "../../lib/format";
 import {
   COLOR_INDEXES,
@@ -22,6 +23,8 @@ import {
   freeColor,
   isAgentSource,
   isSnmpSensorSource,
+  isWanPingSource,
+  WAN_PING_SEP,
   newQuery,
   nextQueryId,
   toggleMetric,
@@ -82,6 +85,8 @@ export const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   snmp_sensor: "ce.source.snmp_sensor",
   snmp_poe: "ce.source.snmp_poe",
   snmp_sfp: "ce.source.snmp_sfp",
+  wan_latency: "ce.source.wan_latency",
+  wan_ping: "ce.source.wan_ping",
 };
 /** Lista do wyboru w edytorze dla źródła z tabeli `metrics` (odpowiedź /api/devices/{id}/agent-keys). */
 type AgentKeys = Record<Exclude<AgentSourceKind, "agent_cpu">, string[]>;
@@ -94,6 +99,8 @@ const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
   snmp_sensor: "ce.agent.key.sensor",
   snmp_poe: "ce.agent.key.port",
   snmp_sfp: "ce.agent.key.port",
+  wan_latency: "ce.agent.key.wan",
+  wan_ping: "ce.agent.key.wanTarget",
 };
 const KIND_OPTIONS: ChartKind[] = ["area", "line", "bar"];
 const LEGEND_MODES: LegendMode[] = ["list", "table", "hidden"];
@@ -170,10 +177,20 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
   });
   // Dla źródeł z agenta tylko serwery z agentem, dla maszyn Proxmox – węzły Proxmox, dla czujników – urządzenia SNMP
   const snmpSensor = agentKind != null && isSnmpSensorSource(agentKind);
-  const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind && !snmpSensor ? "agent" : null;
+  // Pingi łączy WAN mierzy brama (od 0.55.0) – do wyboru tylko bramy, klucze opisane nazwami łączy
+  const wanPing = agentKind != null && isWanPingSource(agentKind);
+  const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind && !snmpSensor && !wanPing ? "agent" : null;
   const deviceOptions = (devices.data ?? []).filter((d: Device) =>
-    snmpSensor ? d.driver !== "agent" && d.driver !== "proxmox" : !wantedDriver || d.driver === wantedDriver,
+    wanPing ? d.kind === "gateway" : snmpSensor ? d.driver !== "agent" && d.driver !== "proxmox" : !wantedDriver || d.driver === wantedDriver,
   );
+  const wanLinks = useQuery({ queryKey: WAN_LINKS_KEY, queryFn: () => get<WanLink[]>("/api/wan/links"), enabled: wanPing });
+  const keyLabel = (key: string): string => {
+    if (!wanPing) return key;
+    const [ifname, ...target] = key.split(WAN_PING_SEP);
+    const link = (wanLinks.data ?? []).find((l) => l.device_id === deviceId && l.interface_name === ifname);
+    const name = link ? `${link.name} (${ifname})` : ifname;
+    return target.length ? `${name}${WAN_PING_SEP}${target.join(WAN_PING_SEP)}` : name;
+  };
   const interfaces = useQuery({
     queryKey: ["device-interfaces", deviceId],
     queryFn: () => get<InterfaceItem[]>(`/api/devices/${deviceId}/interfaces`),
@@ -226,7 +243,9 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
         </Select>
       )}
       {needsDevice && devices.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noDevices")}</p>}
-      {agentKind && devices.data && deviceOptions.length === 0 && <p className="text-xs text-text-2">{t(agentKind === "pve_guest" ? "ce.pve.none" : "ce.agent.none")}</p>}
+      {agentKind && devices.data && deviceOptions.length === 0 && (
+        <p className="text-xs text-text-2">{t(agentKind === "pve_guest" ? "ce.pve.none" : wanPing ? "ce.wan.none" : "ce.agent.none")}</p>
+      )}
       {agentKind && agentKind !== "agent_cpu" && deviceId != null && (
         <Select
           id={`${prefix}-agent-key`}
@@ -237,7 +256,7 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
           <option value="">{t("ce.choose")}</option>
           {(agentKeys.data?.[agentKind] ?? []).map((k) => (
             <option key={k} value={k}>
-              {k}
+              {keyLabel(k)}
             </option>
           ))}
         </Select>
@@ -648,6 +667,7 @@ export function ChartEditor({ initial, onSave, onClose, isNew }: { initial: Char
               </div>
               <Checkbox id="ce-stack" label={t("ce.stack")} checked={cfg.stack ?? false} onChange={(v) => set({ stack: v })} />
               <Checkbox id="ce-smooth" label={t("ce.smooth")} checked={cfg.smooth} onChange={(v) => set({ smooth: v })} />
+              <Checkbox id="ce-wan-backup" label={t("ce.wanBackup")} checked={cfg.wan_backup ?? false} onChange={(v) => set({ wan_backup: v })} />
             </Section>
 
             <Section title={t("ce.section.legend")}>

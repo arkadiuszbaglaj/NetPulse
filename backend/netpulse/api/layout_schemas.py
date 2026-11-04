@@ -66,10 +66,20 @@ class AgentSource(Strict):
     i czujniki urządzeń SNMP (`snmp_*`, od 0.50.0: czujnik, PoE i SFP portu MikroTika)."""
 
     kind: Literal[
-        "agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest", "snmp_sensor", "snmp_poe", "snmp_sfp"
+        "agent_cpu",
+        "agent_net",
+        "agent_disk",
+        "agent_temp",
+        "agent_container",
+        "pve_guest",
+        "snmp_sensor",
+        "snmp_poe",
+        "snmp_sfp",
+        "wan_latency",
+        "wan_ping",
     ]
-    id: int = Field(ge=1)  # urządzenie (serwer z agentem, węzeł Proxmox albo urządzenie SNMP)
-    key: str = Field("", max_length=255)  # interfejs, dysk, czujnik, kontener albo port; dla agent_cpu puste
+    id: int = Field(ge=1)  # urządzenie (serwer z agentem, węzeł Proxmox, urządzenie SNMP albo brama – `wan_*`)
+    key: str = Field("", max_length=255)  # interfejs, dysk, czujnik, kontener, port albo łącze WAN; dla agent_cpu puste
 
     @model_validator(mode="after")
     def _key_required(self) -> AgentSource:
@@ -103,6 +113,8 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "channel_util_percent"),
     "snmp_poe": ("poe_power_w", "poe_voltage_v"),
     "snmp_sfp": ("sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"),
+    "wan_latency": ("latency_ms", "availability_percent"),
+    "wan_ping": ("latency_ms",),
     "check": ("latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"),
 }
 
@@ -204,6 +216,8 @@ class ChartConfig(Strict):
     range_min: RangeMinutes | None = None  # puste = zakres globalny
     refresh_s: RefreshSeconds | None = None  # puste = interwał globalny
     height: Literal["sm", "md", "lg"] = "md"
+    # Od 0.55.0: odcinki, w których internet szedł łączem zapasowym (nie WAN 1), rysowane innym kolorem
+    wan_backup: bool = False
     # Zdarzenia na osi czasu (0.34.0): auto – dotyczące urządzeń i portów wykresu, all – wszystkie, off – żadne
     annotations: Literal["auto", "all", "off"] = "auto"  # dawne zdarzenia na wykresie (do 0.48.0) – bez znaczenia
 

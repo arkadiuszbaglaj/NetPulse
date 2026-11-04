@@ -36,6 +36,9 @@
   --chart-6: #c77da8;
   --chart-7: #3e5c76;
   --chart-8: #8e8e96;
+  /* Ruch przez łącze zapasowe (od 0.55.0): pierwsza seria i pozostałe */
+  --chart-backup: #d9730d;
+  --chart-backup-2: #e8ad6a;
   --state-up: #a9bdef;
   --state-down: #dc2626;
   --state-unknown: #e4e4e7;
@@ -71,6 +74,8 @@
   --chart-6: #e0a3c6;
   --chart-7: #8aa8c4;
   --chart-8: #a1a1aa;
+  --chart-backup: #f59e0b;
+  --chart-backup-2: #a8742c;
   --state-up: #4a67b8;
   --state-down: #ef4444;
   --state-unknown: #3f3f46;

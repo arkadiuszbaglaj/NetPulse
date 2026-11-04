@@ -3,7 +3,7 @@
  * Legenda jest poza płótnem (ChartLegend) – działa z klawiatury i czytnikiem ekranu.
  */
 import { BarChart, LineChart } from "echarts/charts";
-import { GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent } from "echarts/components";
+import { GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent, VisualMapPiecewiseComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef, useState, type RefObject } from "react";
@@ -14,9 +14,9 @@ import { linkChart } from "./chartSync";
 import { plotSizeClass } from "./legendFit";
 import { ZoomLayer } from "./ZoomLayer";
 import type { ChartRow } from "./chartData";
-import { leftTop, thresholdBands, type PanelLine } from "./panelData";
+import { leftTop, thresholdBands, type PanelLine, type TimeSpan } from "./panelData";
 
-echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, CanvasRenderer]);
+echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, VisualMapPiecewiseComponent, CanvasRenderer]);
 
 export interface AxisView {
   format: (value: number) => string;
@@ -42,13 +42,17 @@ export interface PanelChartProps {
   ariaLabel: string;
   /** Instancja ECharts dla właściciela (eksport do PNG) */
   instanceRef?: RefObject<echarts.ECharts | null>;
+  /** Od 0.55.0: odcinki, w których internet szedł łączem zapasowym – serie bieżące (bez porównań) mają tam inny kolor */
+  backup?: TimeSpan[];
 }
 
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "medium" });
 
-export default function PanelChart({ lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, height, ariaLabel, instanceRef }: PanelChartProps) {
+const NO_SPANS: TimeSpan[] = [];
+
+export default function PanelChart({ lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, height, ariaLabel, instanceRef, backup = NO_SPANS }: PanelChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const { resolved } = useTheme();
@@ -112,9 +116,27 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       splitLine: { show: position === "left", lineStyle: { color: grid } },
     });
 
+    // Kolor odcinków przez łącze zapasowe: osobna mapa kolorów (po czasie) dla każdej bieżącej serii
+    const colored = (l: PanelLine) => backup.length > 0 && !l.dashed;
+    const visualMap = lines.flatMap((l, i) =>
+      colored(l)
+        ? [
+            {
+              type: "piecewise",
+              show: false,
+              seriesIndex: i,
+              dimension: 0,
+              pieces: backup.map(([from, to]) => ({ gte: from, lt: to, color: css(i === 0 ? "--chart-backup" : "--chart-backup-2") })),
+              outOfRange: { color: css(`--chart-${l.color}`) },
+            },
+          ]
+        : [],
+    );
+
     instance.setOption(
       {
         animationDuration: 250,
+        visualMap: visualMap.length ? visualMap : undefined,
         textStyle: { color: text },
         grid: { left: 8, right: right ? 8 : 16, top: left.label || right?.label ? 28 : 12, bottom: 8, containLabel: true },
         tooltip: {
@@ -171,8 +193,10 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
                   }
                 : {};
             const stackId = stack ? l.axis : undefined;
+            // Z mapą kolorów (łącze zapasowe) kolor daje mapa – jawny kolor serii by ją przykrył
+            const own = colored(l) ? undefined : color;
             if (kind === "bar") {
-              return { name: l.name, type: "bar", yAxisIndex, stack: stackId, barMaxWidth: 14, itemStyle: { color }, data: inZoom(l.rows), ...marks };
+              return { name: l.name, type: "bar", yAxisIndex, stack: stackId, barMaxWidth: 14, itemStyle: { color: own }, data: inZoom(l.rows), ...marks };
             }
             return {
               name: l.name,
@@ -183,9 +207,9 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
               showSymbol: false,
               symbol: "circle",
               symbolSize: 6,
-              lineStyle: { width: 2, color, type: l.dashed ? "dashed" : "solid" },
-              itemStyle: { color },
-              areaStyle: kind === "area" ? { color, opacity: stack ? 0.35 : 0.1 } : undefined,
+              lineStyle: { width: 2, color: own, type: l.dashed ? "dashed" : "solid" },
+              itemStyle: { color: own },
+              areaStyle: kind === "area" ? { color: own, opacity: stack ? 0.35 : 0.1 } : undefined,
               data: inZoom(l.rows),
               ...marks,
             };
@@ -194,7 +218,7 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
       },
       true,
     );
-  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom, sizeClass]);
+  }, [lines, kind, stack, smooth, left, right, thresholds, thresholdStyle, resolved, zoom, sizeClass, backup]);
 
   return (
     <ZoomLayer chart={chart} height={height}>

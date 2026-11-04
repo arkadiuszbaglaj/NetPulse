@@ -21,6 +21,7 @@ export function isOn(mods: Modules | undefined, id: ModuleId | undefined | null)
 export function sourceModule(kind: string): ModuleId | null {
   if (kind === "pve_guest") return "proxmox";
   if (kind.startsWith("agent_")) return "agents";
+  if (kind === "wan_latency" || kind === "wan_ping") return "unifi"; // pomiary bramy z kontrolera UniFi
   return null;
 }
 

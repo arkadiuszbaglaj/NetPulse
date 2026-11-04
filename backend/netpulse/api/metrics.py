@@ -178,6 +178,9 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
         "channel_util_percent": ("channel_util_percent", 1.0),
     },
     "snmp_poe": {"poe_power_w": ("poe_power_w", 1.0), "poe_voltage_v": ("poe_voltage_v", 1.0)},
+    # Łącza WAN bramy UniFi (od 0.55.0): brama pinguje internet każdym łączem, też zapasowym; klucz = interfejs łącza
+    "wan_latency": {"latency_ms": ("wan_latency_ms", 1.0), "availability_percent": ("wan_availability_percent", 1.0)},
+    "wan_ping": {"latency_ms": ("wan_ping_ms", 1.0)},
     "snmp_sfp": {
         "sfp_rx_dbm": ("sfp_rx_dbm", 1.0),
         "sfp_tx_dbm": ("sfp_tx_dbm", 1.0),
@@ -186,7 +189,17 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
     },
 }
 AgentSourceKind = Literal[
-    "agent_cpu", "agent_net", "agent_disk", "agent_temp", "agent_container", "pve_guest", "snmp_sensor", "snmp_poe", "snmp_sfp"
+    "agent_cpu",
+    "agent_net",
+    "agent_disk",
+    "agent_temp",
+    "agent_container",
+    "pve_guest",
+    "snmp_sensor",
+    "snmp_poe",
+    "snmp_sfp",
+    "wan_latency",
+    "wan_ping",
 ]
 # Lista kluczy do edytora wykresu: źródło → nazwy metryk, z których bierzemy klucze
 AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
@@ -198,6 +211,8 @@ AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
     "snmp_sensor": ("temp_c", "fan_rpm", "voltage_v", "current_a", "power_w", "channel_util_percent"),
     "snmp_poe": ("poe_power_w",),
     "snmp_sfp": ("sfp_rx_dbm",),
+    "wan_latency": ("wan_latency_ms",),
+    "wan_ping": ("wan_ping_ms",),
 }
 
 

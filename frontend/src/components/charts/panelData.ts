@@ -135,3 +135,26 @@ export function linesToCsv(lines: PanelLine[], timeLabel: string): string {
   // BOM na początku – Excel czyta wtedy polskie znaki jako UTF-8
   return String.fromCharCode(0xfeff) + [head.map(cell).join(";"), ...rows].join("\r\n");
 }
+
+/** Odcinek czasu `[od, do)` w ms, w którym internet szedł łączem zapasowym. */
+export type TimeSpan = [from: number, to: number];
+
+/** Kiedy ruch szedł łączem zapasowym (od 0.55.0): odcinki „aktywne” łączy dalszych niż pierwsze w kolejności (WAN 1),
+ * połączone, gdy na siebie zachodzą. Bez łączy albo z jednym łączem – pusta lista. */
+export function backupSpans(history: { links: { id: number; position: number }[]; segments: { link_id: number; state: string; start: string; end: string }[] } | undefined): TimeSpan[] {
+  if (!history || history.links.length < 2) return [];
+  const primary = Math.min(...history.links.map((l) => l.position));
+  const backup = new Set(history.links.filter((l) => l.position !== primary).map((l) => l.id));
+  const spans = history.segments
+    .filter((s) => s.state === "active" && backup.has(s.link_id))
+    .map((s): TimeSpan => [new Date(s.start).getTime(), new Date(s.end).getTime()])
+    .filter(([a, b]) => b > a)
+    .sort((x, y) => x[0] - y[0]);
+  const out: TimeSpan[] = [];
+  for (const span of spans) {
+    const last = out[out.length - 1];
+    if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+    else out.push([...span]);
+  }
+  return out;
+}

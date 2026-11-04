@@ -79,6 +79,29 @@ Stany łącza: **w użyciu** (zielony), **nieaktywne – zapas** (czerwony pusty
 
 Historia jest trzymana tak długo jak inne metryki (`NETPULSE_RETENTION_DAYS`, domyślnie 30 dni).
 
+## Pingi łączy i kolor łącza zapasowego (0.55.0)
+
+**Pingi każdego łącza, także zapasowego.** Serwer NetPulse nie może sam pingować przez łącze zapasowe (ruch idzie
+łączem aktywnym), więc pingi mierzy brama UniFi. W `stat/device` każda brama podaje dla każdego WAN-u opóźnienie
+(`wan1.latency`, `wan2.latency`), dostępność (`availability`) i wyniki pingów do serwerów monitorujących
+(`uptime_stats.WAN`/`WAN2.monitors`, typ `icmp`, np. `google.com`, `1.1.1.1`). Kolektor UniFi zapisuje je co cykl
+do tabeli `metrics` dla urządzenia bramy:
+
+| Metryka | Klucz | Co to jest |
+|---------|-------|------------|
+| `wan_latency_ms` | interfejs łącza (np. `eth4`) | opóźnienie łącza według bramy |
+| `wan_availability_percent` | interfejs łącza | dostępność łącza według bramy |
+| `wan_ping_ms` | `eth3 · google.com` | średni ping łącza do jednego serwera |
+
+Na wykresie: źródło **Łącze WAN: ping bramy do internetu** (`wan_latency`: opóźnienie, dostępność) albo **Łącze WAN: ping bramy do serwera**
+(`wan_ping`) – wybierasz bramę, potem łącze (np. „GSM (eth3)”) i kolor serii. Wymaga modułu UniFi i kontrolera.
+
+**Inny kolor ruchu, gdy internet idzie łączem zapasowym.** W ustawieniach wykresu (`chart`) opcja „Inny kolor, gdy
+internet idzie łączem zapasowym” (`wan_backup: true`). Wykres pobiera wtedy `/api/wan/history` i odcinki, w których
+w użyciu było łącze inne niż WAN 1, maluje kolorem łącza zapasowego (pomarańczowy, tokeny `--chart-backup`,
+`--chart-backup-2`; ECharts `visualMap` po czasie). Nad legendą pojawia się próbka „łącze zapasowe”. Pulpit
+publiczny przepuszcza `/api/wan/history`, gdy jakiś wykres ma tę opcję.
+
 ## API
 
 | Metoda i adres | Co zwraca |

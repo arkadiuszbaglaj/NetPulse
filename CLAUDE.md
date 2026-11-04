@@ -139,7 +139,7 @@ bez kontrolera – link (`ifOperStatus`) i ruch. Logika: `backend/netpulse/wan.p
 API: `api/wan.py` (`/api/wan/status|history|sla|links`), widgety `wan_status`, `wan_chart`, `wan_sla`.
 Od 0.46.0 kolejność łączy jest wspólna dla wszystkich routerów (migracja 0011): WAN 1 główne, łącza innych routerów
 są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outranked_by)`). Od 0.47.0 podpowiedź w Łączach WAN: łącze WAN zgłoszone przez kontroler, którego nie ma na liście
-(`wan_links.save_detected`, `GET /api/wan/suggestions`). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
+(`wan_links.save_detected`, `GET /api/wan/suggestions`). Od 0.55.0 pingi każdego łącza (też zapasowego) z bramy UniFi (`wan1.latency`, `uptime_stats.WAN*.monitors`) w `metrics` (`wan_latency_ms`, `wan_ping_ms`, źródła wykresu `wan_latency`/`wan_ping`) i opcja wykresu `wan_backup` – ruch przez łącze zapasowe innym kolorem (`backupSpans`, visualMap). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
 
 ## Szczegóły, dostępność i pulpity
 

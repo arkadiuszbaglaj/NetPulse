@@ -7,11 +7,12 @@ import { formatRange, metricFormatter } from "../../lib/format";
 import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
 import { fitLegend, rightLegendWidth, useBoxSize } from "../charts/legendFit";
-import { buildLines, lineStats, linesToCsv } from "../charts/panelData";
+import { backupSpans, buildLines, lineStats, linesToCsv } from "../charts/panelData";
 import { download, fileName } from "../../lib/download";
 import { GridCellContext } from "../DashboardGrid";
 import { useLiveDeviceSample, liveValue } from "../../lib/liveHub";
 import { useLiveWan } from "../../lib/liveWan";
+import { useWanHistory } from "../../lib/wan";
 import { LiveBadge } from "../LiveBadge";
 import { Card } from "../ui";
 import { defaultTitle, useChartQueries } from "./chartSource";
@@ -42,6 +43,10 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
   const first = config.queries[0];
 
   const result = useChartQueries(config);
+  // Od 0.55.0: kiedy internet szedł łączem zapasowym – te odcinki serii innym kolorem
+  const wanHistory = useWanHistory(result.minutes, config.wan_backup ?? false);
+  const backup = useMemo(() => (config.wan_backup ? backupSpans(wanHistory.data) : []), [config.wan_backup, wanHistory.data]);
+  const backupShown = backup.some(([, to]) => to >= Date.now() - result.minutes * 60_000);
   // Zdarzenia tylko w zalogowanym panelu (pulpit publiczny nie dostaje historii alertów) i bez trybu „Na żywo”
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -177,6 +182,7 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
                 height={fill ? "100%" : HEIGHT[config.height]}
                 ariaLabel={t("chart.summary", { title, range: formatRange(result.minutes) })}
                 instanceRef={instance}
+                backup={backup}
               />
             </Suspense>
           </div>
@@ -184,6 +190,12 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
             className={legendRight ? (fill ? "shrink-0 overflow-y-auto" : "lg:w-64 lg:shrink-0") : fill ? "max-h-[45%] shrink-0 overflow-y-auto" : ""}
             style={legendRight && fill ? { width: rightLegendWidth(legend) } : undefined}
           >
+            {backupShown && legend.mode !== "hidden" && (
+              <p className="mb-1 flex items-center gap-1.5 px-1 text-xs text-text-2">
+                <span aria-hidden="true" className="inline-block h-1 w-3.5 rounded-full" style={{ backgroundColor: "var(--chart-backup)" }} />
+                {t("chart.wanBackup")}
+              </p>
+            )}
             <ChartLegend items={legendItems} config={legend} onToggle={toggle} />
           </div>
         </div>

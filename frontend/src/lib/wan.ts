@@ -88,11 +88,12 @@ export function useWanStatus() {
   return useQuery({ queryKey: ["wan", "status"], queryFn: () => get<WanStatus>("/api/wan/status"), refetchInterval });
 }
 
-export function useWanHistory(minutes: number) {
+export function useWanHistory(minutes: number, enabled = true) {
   const { refetchInterval } = useRefresh();
   return useQuery({
     queryKey: ["wan", "history", minutes],
     queryFn: () => get<WanHistory>(`/api/wan/history?minutes=${minutes}`),
+    enabled,
     refetchInterval,
     placeholderData: (previous) => previous,
   });

@@ -234,7 +234,8 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         return await events.events(wanted, 0)
     if path == "/api/wan/status" and "wan_status" in types:
         return await wan.status()
-    if path == "/api/wan/history" and "wan_chart" in types:
+    # Historia łączy: widget „Aktywne łącze WAN” albo wykres z kolorem łącza zapasowego (od 0.55.0)
+    if path == "/api/wan/history" and ("wan_chart" in types or any(w.type == "chart" and w.config.wan_backup for w in widgets)):
         return await wan.history(minutes())
     if path == "/api/wan/sla" and "wan_sla" in types:
         days = _int(query.get("days"), 7)

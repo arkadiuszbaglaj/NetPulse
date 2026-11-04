@@ -54,6 +54,10 @@ class WanPort:
     up: bool | None
     active: bool
     slot: int | None = field(default=None, compare=False)  # numer łącza w UniFi (wan = 1, wan2 = 2 …)
+    # Pomiary bramy (od 0.55.0): brama sama pinguje serwery w internecie każdym łączem, także zapasowym w gotowości
+    latency_ms: float | None = field(default=None, compare=False)  # `wanN.latency` – bieżące opóźnienie łącza
+    availability: float | None = field(default=None, compare=False)  # `wanN.availability` – % odpowiedzi
+    monitors: tuple[tuple[str, float], ...] = field(default=(), compare=False)  # `uptime_stats.WANn.monitors`: (serwer, ms)
 
 
 @dataclass(frozen=True)
@@ -215,13 +219,44 @@ def parse_wans(d: dict) -> tuple[WanPort, ...]:
         entry["slot"] = _slot(key)
         if "up" in w:
             entry["up"] = bool(w["up"])
+        entry["latency"] = _num(w.get("latency"))
+        entry["availability"] = _num(w.get("availability"))
+        entry["monitors"] = _monitors(d, entry["slot"])
     uplink = d.get("uplink") if isinstance(d.get("uplink"), dict) else {}
     current = _str(uplink.get("ifname")) or _str(uplink.get("name"))
     if current and (current in ports or IFNAME_RE.match(current)):
         ports.setdefault(current, {"up": bool(uplink["up"]) if "up" in uplink else None, "active": True, "slot": None})
         for name, entry in ports.items():
             entry["active"] = name == current
-    return tuple(WanPort(name, e["up"], e["active"], e["slot"]) for name, e in sorted(ports.items()))
+    return tuple(
+        WanPort(name, e["up"], e["active"], e["slot"], e.get("latency"), e.get("availability"), e.get("monitors", ()))
+        for name, e in sorted(ports.items())
+    )
+
+
+def _num(value) -> float | None:
+    """Liczba ≥ 0 z pola kontrolera; brak, tekst albo wartość ujemna (UniFi: -1 = brak pomiaru) – None."""
+    if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+        return None
+    return float(value)
+
+
+def _monitors(d: dict, slot: int | None) -> tuple[tuple[str, float], ...]:
+    """Pingi bramy do serwerów w internecie dla łącza (`uptime_stats.WAN` = łącze 1, `WAN2` = 2 …): (serwer, średnio ms)."""
+    stats = d.get("uptime_stats") if isinstance(d.get("uptime_stats"), dict) else {}
+    if slot is None:
+        return ()
+    entry = stats.get("WAN" if slot == 1 else f"WAN{slot}")
+    if not isinstance(entry, dict):
+        return ()
+    out: list[tuple[str, float]] = []
+    for m in entry.get("monitors") or []:
+        if not isinstance(m, dict) or str(m.get("type") or "icmp") != "icmp":
+            continue
+        target, latency = _str(m.get("target")), _num(m.get("latency_average"))
+        if target and latency is not None:
+            out.append((target[:120], latency))
+    return tuple(out)
 
 
 def parse_devices(raw: dict) -> list[UnifiDevice]:

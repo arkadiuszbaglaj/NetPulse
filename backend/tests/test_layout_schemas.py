@@ -60,6 +60,8 @@ def test_every_source_accepts_its_own_metrics():
         "snmp_sensor": {"kind": "snmp_sensor", "id": 5, "key": "cpu-temperature"},
         "snmp_poe": {"kind": "snmp_poe", "id": 5, "key": "ether5"},
         "snmp_sfp": {"kind": "snmp_sfp", "id": 5, "key": "sfp1"},
+        "wan_latency": {"kind": "wan_latency", "id": 1, "key": "eth3"},
+        "wan_ping": {"kind": "wan_ping", "id": 1, "key": "eth3 · google.com"},
         "check": {"kind": "check", "id": 4},
     }
     assert set(sources) == set(ALLOWED_METRICS)
@@ -430,3 +432,10 @@ def test_free_grid_positions_and_sections():
 def test_free_grid_rejects_invalid(widget):
     with pytest.raises(ValidationError):
         DashboardLayout.model_validate(layout(widget))
+
+
+def test_chart_backup_link_color_option():
+    """Od 0.55.0: odcinki ruchu przez łącze zapasowe innym kolorem – domyślnie wyłączone (stare pulpity bez zmian)."""
+    base = {"source": {"kind": "wan"}, "series": [{"key": "in_bps"}]}
+    assert ChartConfig.model_validate(base).wan_backup is False
+    assert ChartConfig.model_validate({**base, "wan_backup": True}).wan_backup is True

@@ -25,6 +25,7 @@ from .db.models import (
     DeviceMetric,
     Interface,
     KnownClient,
+    Metric,
     NetworkClient,
     PoeBudgetMetric,
     PoePortMetric,
@@ -32,11 +33,32 @@ from .db.models import (
     UnifiApiDevice,
 )
 from .modules import is_enabled
-from .unifi import GATEWAY_TYPES, OfficialDevice, UnifiApi, UnifiClient, UnifiDevice, UnifiError
+from .unifi import GATEWAY_TYPES, OfficialDevice, UnifiApi, UnifiClient, UnifiDevice, UnifiError, WanPort
 from .unifi_devices import DRIVER as API_DRIVER
 from .unifi_devices import build_poll_result, device_kind
 
 log = logging.getLogger("netpulse.unifi")
+
+# Klucz pingu bramy do serwera: interfejs łącza i serwer (`eth3 · google.com`)
+WAN_PING_SEP = " · "
+
+
+def wan_metrics(dev_id: int, wans: tuple[WanPort, ...], now: datetime) -> list[Metric]:
+    """Pomiary łączy WAN z bramy (od 0.55.0) do ogólnej tabeli `metrics`, klucz = interfejs łącza (jak `ifName`):
+    `wan_latency_ms` i `wan_availability_percent` łącza oraz `wan_ping_ms` do każdego serwera, który brama pinguje."""
+    rows: list[Metric] = []
+    for w in wans:
+        if w.latency_ms is not None:
+            rows.append(Metric(time=now, device_id=dev_id, name="wan_latency_ms", key=w.ifname, value=w.latency_ms))
+        if w.availability is not None:
+            rows.append(Metric(time=now, device_id=dev_id, name="wan_availability_percent", key=w.ifname, value=w.availability))
+        seen: set[str] = set()
+        for target, ms in w.monitors:
+            key = f"{w.ifname}{WAN_PING_SEP}{target}"[:255]
+            if key not in seen:
+                seen.add(key)
+                rows.append(Metric(time=now, device_id=dev_id, name="wan_ping_ms", key=key, value=ms))
+    return rows
 
 
 @dataclass(frozen=True)
@@ -335,6 +357,7 @@ class UnifiCollector:
                 # Brama: który port WAN działa i którym idzie ruch – kolektor SNMP użyje tego w następnym cyklu
                 if d.wans:
                     await wan_links.apply_controller(session, dev_id, d.wans, now)
+                    session.add_all(wan_metrics(dev_id, d.wans, now))
                 if d.type in GATEWAY_TYPES:
                     await wan_links.save_detected(session, dev_id, d.wans)
 
