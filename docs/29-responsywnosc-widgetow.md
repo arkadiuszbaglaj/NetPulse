@@ -86,6 +86,19 @@ Pomiar w podglądzie (karty S 271×156, M 366×324, L 460×492): liczba 30 → 4
 koło 144 → 168 → 212 px, paski i oś stanów wypełniają 91–97% karty, wykresy nie przewijają się w żadnym rozmiarze.
 W najmniejszych kartach przewijają się tylko listy z większą liczbą wierszy niż mieści karta.
 
+## Wdrożone w 0.54.0 (etap 3)
+
+- Swobodna siatka już od **720 px** szerokości siatki (wcześniej od 1024 px; `DESKTOP` w `DashboardGrid.tsx`). Na laptopie
+  1100–1366 px (siatka ok. 780–1050 px) pulpit ma **te same położenia** co na dużym ekranie, tylko węższe kolumny; treść
+  dopasowuje się dzięki etapowi 1. Tablet pionowo (768 px, menu schowane) też dostaje siatkę.
+- Dwie kolumny zostają dla 640–720 px. Pary tworzą tylko sąsiedzi **z tego samego rzędu siatki** (zachodzą na siebie
+  w pionie, `pairsInColumns`), więc widget z końca rzędu nie łączy się już z początkiem następnego (np. PoE z „Kablem”).
+  Para ma wspólną wysokość: wykres i liczba w parze mają wysokość z siatki jako minimum, a nie sztywną wysokość.
+- Podsumowanie: kafelek od 160 px (wcześniej 200 px), więc 4 kafelki mieszczą się w rzędzie na laptopie.
+
+Sprawdzone w podglądzie na układzie z serwera (52 widgety): przy 1100 px siatka 781 px, położenia jak na dużym ekranie;
+przy 700 px pary z tego samego rzędu, równe wysokości.
+
 ## Propozycja (etapy)
 
 ### Etap 1 ✅ (0.53.0) – treść skaluje się z kartą (zapytania kontenerowe)
@@ -111,7 +124,7 @@ dla każdego widgetu oraz sprawdzenie w podglądzie przy rozmiarach S/M/L jak wy
 - W szerokiej i niskiej karcie legenda przechodzi sama na prawo (dziś tylko gdy ustawi się `placement: "right"`).
 - Mniej podziałek i mniejsze czcionki osi przy wąskim wykresie (`splitNumber` liczy dziś tylko wysokość).
 
-### Etap 3 – siatka na laptopie
+### Etap 3 ✅ (0.54.0) – siatka na laptopie
 
 - Próg swobodnej siatki obniżony do ~720 px szerokości siatki, a między 720 a 1024 px siatka ma **te same położenia** z
   węższymi kolumnami. Widgety skalują się dzięki etapowi 1.

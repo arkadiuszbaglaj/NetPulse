@@ -193,7 +193,8 @@ dla stanów. Od 0.44.0 okno „Dodaj widget” z szablonami (według rodzaju i w
 Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkownik sam się w nim zaloguje.
 Od 0.53.0 widgety skalują treść z kartą: komórka siatki `np-cell` (+ `np-fit` przy stałej wysokości) jest kontenerem
 zapytań, style w `index.css` (klasy `np-*`), legenda wykresu ustępuje miejsca (`charts/legendFit.ts`). Nowy widget =
-dodać mu klasy `np-*`, jeśli ma rosnąć z kartą. Etapy 3–4 (siatka na laptopie, dopasowanie wysokości) czekają na decyzję:
+dodać mu klasy `np-*`, jeśli ma rosnąć z kartą. Etap 3 ✅ (0.54.0): swobodna siatka od 720 px szerokości siatki,
+pary w dwóch kolumnach z tego samego rzędu (`pairsInColumns`). Etap 4 (dopasowanie wysokości) czeka na decyzję:
 `docs/29-responsywnosc-widgetow.md`.
 
 ## Do sprawdzenia później

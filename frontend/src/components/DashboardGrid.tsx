@@ -1,11 +1,12 @@
 /**
- * Swobodna siatka pulpitu (od 0.28.0): 12 kolumn, wiersz 30 px. Od 1024 px – react-grid-layout z przeciąganiem
- * i rozciąganiem w trybie edycji; węziej widgety w kolejności czytania: od 640 px w dwóch kolumnach (szerokie na
- * całą), na telefonie jeden pod drugim. Tam w trybie edycji przestawia się je przyciskami w górę i w dół. Sekcje zwijają widgety
+ * Swobodna siatka pulpitu (od 0.28.0): 12 kolumn, wiersz 30 px. Od 720 px szerokości siatki (do 0.53.0: od 1024 px) –
+ * react-grid-layout z przeciąganiem i rozciąganiem w trybie edycji, na laptopie te same położenia co na dużym ekranie,
+ * tylko węższe kolumny; węziej widgety w kolejności czytania: od 640 px w dwóch kolumnach (pary z tego samego rzędu
+ * siatki, wspólna wysokość pary; szerokie i bez pary na całą), na telefonie jeden pod drugim. Tam w trybie edycji przestawia się je przyciskami w górę i w dół. Sekcje zwijają widgety
  * pod sobą (stan zwinięcia pamięta przeglądarka, osobno dla każdego pulpitu).
  */
 import { IconChevronDown, IconChevronRight, IconX } from "@tabler/icons-react";
-import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import ReactGridLayout, { useContainerWidth } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -21,24 +22,43 @@ export const GridCellContext = createContext(false);
  * treść widgetu skaluje się do rozmiaru karty (`index.css`, „Dopasowanie treści”); bez niej – tylko do szerokości. */
 const cellClass = (fit: boolean) => `np-cell ${fit ? "np-fit" : ""}`;
 
-const DESKTOP = 1024;
+/** Od tej szerokości siatki – swobodna siatka (laptop: siatka bez menu ma 780–960 px) */
+const DESKTOP = 720;
 const TABLET = 640;
 /** Na telefonie te widgety mają wysokość z siatki (wykres potrzebuje wysokości), reszta – swoją. */
 const FIXED_ON_MOBILE = new Set<Widget["type"]>(["chart", "stat", "wan_chart"]);
 /** W dwóch kolumnach widget od tej szerokości (z 12) zajmuje całą szerokość. */
 const WIDE = 8;
 
-/** Widgety na całą szerokość w dwóch kolumnach: szerokie, sekcje i wąskie bez pary (bez pustej połowy obok). */
-export function fullWidthInColumns(ordered: Widget[]): Set<string> {
+/** Dwa widgety w tym samym rzędzie siatki (zachodzą na siebie w pionie); bez położeń – zawsze. */
+function sameRow(a: Widget, b: Widget): boolean {
+  if (a.y == null || b.y == null) return true;
+  return a.y < b.y + (b.h ?? 1) && b.y < a.y + (a.h ?? 1);
+}
+
+/** Układ dwóch kolumn: pary wąskich sąsiadów z tego samego rzędu siatki (od 0.54.0 – wcześniej kolejne w kolejności
+ * czytania, więc widget z jednego rzędu łączył się z widgetem z następnego); szerokie, sekcje i bez pary – na całą szerokość. */
+export function pairsInColumns(ordered: Widget[]): { full: Set<string>; partner: Map<string, Widget> } {
   const wide = (w: Widget | undefined) => !w || w.type === "section" || w.w >= WIDE;
   const full = new Set<string>();
-  let paired = false;
-  ordered.forEach((w, i) => {
-    if (paired) paired = false;
-    else if (wide(w) || wide(ordered[i + 1])) full.add(w.id);
-    else paired = true;
-  });
-  return full;
+  const partner = new Map<string, Widget>();
+  for (let i = 0; i < ordered.length; i++) {
+    const w = ordered[i]!;
+    const next = ordered[i + 1];
+    if (wide(w) || wide(next) || !sameRow(w, next!)) {
+      full.add(w.id);
+      continue;
+    }
+    partner.set(w.id, next!);
+    partner.set(next!.id, w);
+    i++;
+  }
+  return { full, partner };
+}
+
+/** Widgety na całą szerokość w dwóch kolumnach (zob. `pairsInColumns`). */
+export function fullWidthInColumns(ordered: Widget[]): Set<string> {
+  return pairsInColumns(ordered).full;
 }
 
 /** Gdzie jest widget w trybie edycji: w siatce (przeciąganie) albo w kolejności czytania (przyciski w górę i w dół). */
@@ -192,7 +212,17 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
 
   const columns = width >= TABLET;
   const big = expanded && !edit ? all.find((w) => w.id === expanded) : undefined;
-  const full = columns ? fullWidthInColumns(ordered) : new Set<string>();
+  const { full, partner } = columns ? pairsInColumns(ordered) : { full: new Set<string>(), partner: new Map<string, Widget>() };
+  /** Wysokość w trybie kolejności czytania: sekcja – nagłówek; wykres i liczba – z siatki. W dwóch kolumnach para ma wspólną
+   * wysokość (rząd siatki rozciąga obie karty), więc tam wysokość z siatki jest minimum, a nie sztywną wysokością. */
+  const stackedStyle = (w: Widget): CSSProperties | undefined => {
+    if (w.type === "section") return { height: rowsToPx(1) + 8 };
+    const other = partner.get(w.id);
+    const fixed = [w, other].filter((x): x is Widget => !!x && FIXED_ON_MOBILE.has(x.type));
+    if (!fixed.length) return undefined;
+    const px = rowsToPx(Math.max(...fixed.map((x) => x.h ?? 8)));
+    return other ? { minHeight: px } : { height: px };
+  };
   return (
     <div ref={containerRef} className="np-grid min-w-0">
       {big && (
@@ -228,7 +258,7 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
       ) : (
         <div className={columns ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
           {ordered.map((w) => (
-            <div key={w.id} className={`min-w-0 ${full.has(w.id) ? "col-span-2" : ""}`} style={w.type === "section" ? { height: rowsToPx(1) + 8 } : FIXED_ON_MOBILE.has(w.type) ? { height: rowsToPx(w.h ?? 8) } : undefined}>
+            <div key={w.id} className={`min-w-0 ${full.has(w.id) ? "col-span-2" : ""}`} style={stackedStyle(w)}>
               {cell(w)}
             </div>
           ))}

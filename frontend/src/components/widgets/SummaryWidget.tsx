@@ -105,7 +105,7 @@ export function SummaryWidget({ tiles }: { tiles: SummaryTile[] }) {
     ),
   };
   return (
-    <div className="np-sum grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+    <div className="np-sum grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4">
       {tiles.map((tile) => (
         <div key={tile} className="min-h-0">
           {shown[tile]}

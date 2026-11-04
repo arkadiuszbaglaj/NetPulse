@@ -13,7 +13,7 @@ import {
   type DashboardLayout,
   type Widget,
 } from "../lib/layout";
-import { fullWidthInColumns } from "../components/DashboardGrid";
+import { fullWidthInColumns, pairsInColumns } from "../components/DashboardGrid";
 import { CLASSIC_LAYOUT } from "../test/layouts";
 import { mockApi } from "../test/mockApi";
 import { customWidgets } from "../test/addWidget";
@@ -27,6 +27,18 @@ describe("dwie kolumny (tablet)", () => {
     const w = (id: string, width: Widget["w"]): Widget => ({ ...newWidget("summary", id), w: width });
     const order = [w("a", 12), w("b", 8), w("c", 4), w("d", 12), w("e", 6), w("f", 6), w("g", 4)];
     expect([...fullWidthInColumns(order)]).toEqual(["a", "b", "c", "d", "g"]);
+  });
+
+  it("pary tylko z tego samego rzędu siatki – widget z końca rzędu nie łączy się z początkiem następnego", () => {
+    const at = (id: string, x: number, y: number, width: Widget["w"], h = 4): Widget => ({ ...newWidget("stat", id), x, y, w: width, h });
+    // rząd 1: trzy wąskie (4+4+4), rząd 2: dwa wąskie (PoE 4 + kabel 4) i szeroki
+    const order = readingOrder([at("a", 0, 0, 4), at("b", 4, 0, 4), at("c", 8, 0, 4), at("poe", 0, 4, 4, 8), at("kabel", 4, 4, 4), at("tv", 8, 6, 4)]);
+    const { full, partner } = pairsInColumns(order);
+    expect([...full]).toEqual(["c", "tv"]);
+    expect(partner.get("a")?.id).toBe("b");
+    // „tv” zaczyna się niżej, ale wciąż w rzędzie PoE (y 4–12) – para z „kabel” nie, bo „kabel” już ma parę z PoE
+    expect(partner.get("poe")?.id).toBe("kabel");
+    expect(partner.has("tv")).toBe(false);
   });
 });
 

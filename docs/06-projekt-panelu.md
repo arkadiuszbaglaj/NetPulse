@@ -98,7 +98,8 @@ w bazie (nie w przeglądarce), więc działa na każdym urządzeniu.
 
 Od 0.53.0 treść widgetu dopasowuje się do rozmiaru karty (zapytania kontenerowe CSS: liczby, wskaźniki, koła, paski,
 oś stanów i listy rosną z kartą), a legenda wykresu w małej karcie przechodzi na prawo, zwija się albo znika.
-Opis: `docs/29-responsywnosc-widgetow.md`.
+Od 0.54.0 swobodna siatka działa od 720 px szerokości siatki (laptop ma te same położenia co duży ekran), a dwie kolumny
+łączą w pary tylko widgety z tego samego rzędu. Opis: `docs/29-responsywnosc-widgetow.md`.
 
 ## Odświeżanie
 
