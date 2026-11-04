@@ -201,6 +201,9 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
 - **Plan testów na różnym sprzęcie** – propozycja w `docs/26-plan-testow-sprzetu.md` (4.11.2026): ryzyka R1–R10
   (liczniki 32-bit, interfejsy techniczne w driverze ogólnym, brak roli WAN, zmiana `ifIndex`, duże urządzenia,
   NAS, ARM), etapy 1–5. Etap 1 (testy odporności w CI) można robić bez sprzętu – czeka na decyzję użytkownika.
+- **Synology NAS** – propozycja w `docs/27-synology-propozycja.md` (4.11.2026, z przewodnika Synology SNMP MIB Guide –
+  PDF poza repo): driver `synology` (rozpoznanie sondą `modelName`, dyski, RAID, UPS, I/O, alerty), potem moduł DSM API
+  (Hyper Backup, pakiety, kontenery). Odłożone – brak prawdziwego Synology do zrzutu; nie wdrażać bez decyzji.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
