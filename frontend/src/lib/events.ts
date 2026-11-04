@@ -1,8 +1,8 @@
-/** Zdarzenia: restarty urządzeń i przełączenia WAN – kafelek „Zdarzenia” (na wykresach nie są rysowane). API: api/events.py. */
+/** Zdarzenia: restarty urządzeń, przełączenia WAN i nowe połączenia VPN – kafelek „Zdarzenia” (na wykresach nie są rysowane). API: api/events.py. */
 import { useQuery } from "@tanstack/react-query";
 import { get } from "./api";
 
-export type EventKind = "restart" | "wan_switch";
+export type EventKind = "restart" | "wan_switch" | "vpn_connect";
 
 export interface ChartEvent {
   time: string;

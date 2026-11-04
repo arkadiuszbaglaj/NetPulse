@@ -87,6 +87,7 @@ export const SOURCE_LABEL: Record<SourceKind, TextKey> = {
   snmp_sfp: "ce.source.snmp_sfp",
   wan_latency: "ce.source.wan_latency",
   wan_ping: "ce.source.wan_ping",
+  vpn: "ce.source.vpn",
 };
 /** Lista do wyboru w edytorze dla źródła z tabeli `metrics` (odpowiedź /api/devices/{id}/agent-keys). */
 type AgentKeys = Record<Exclude<AgentSourceKind, "agent_cpu">, string[]>;
@@ -101,6 +102,7 @@ const AGENT_KEY_LABEL: Record<keyof AgentKeys, TextKey> = {
   snmp_sfp: "ce.agent.key.port",
   wan_latency: "ce.agent.key.wan",
   wan_ping: "ce.agent.key.wanTarget",
+  vpn: "ce.agent.key.vpn",
 };
 const KIND_OPTIONS: ChartKind[] = ["area", "line", "bar"];
 const LEGEND_MODES: LegendMode[] = ["list", "table", "hidden"];
@@ -178,14 +180,15 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
   // Dla źródeł z agenta tylko serwery z agentem, dla maszyn Proxmox – węzły Proxmox, dla czujników – urządzenia SNMP
   const snmpSensor = agentKind != null && isSnmpSensorSource(agentKind);
   // Pingi łączy WAN mierzy brama (od 0.55.0) – do wyboru tylko bramy, klucze opisane nazwami łączy
-  const wanPing = agentKind != null && isWanPingSource(agentKind);
+  // Klienci VPN (od 0.57.0) też są na bramie
+  const wanPing = agentKind != null && (isWanPingSource(agentKind) || agentKind === "vpn");
   const wantedDriver = agentKind === "pve_guest" ? "proxmox" : agentKind && !snmpSensor && !wanPing ? "agent" : null;
   const deviceOptions = (devices.data ?? []).filter((d: Device) =>
     wanPing ? d.kind === "gateway" : snmpSensor ? d.driver !== "agent" && d.driver !== "proxmox" : !wantedDriver || d.driver === wantedDriver,
   );
   const wanLinks = useQuery({ queryKey: WAN_LINKS_KEY, queryFn: () => get<WanLink[]>("/api/wan/links"), enabled: wanPing });
   const keyLabel = (key: string): string => {
-    if (!wanPing) return key;
+    if (!wanPing || agentKind === "vpn") return key;
     const [ifname, ...target] = key.split(WAN_PING_SEP);
     const link = (wanLinks.data ?? []).find((l) => l.device_id === deviceId && l.interface_name === ifname);
     const name = link ? `${link.name} (${ifname})` : ifname;
@@ -244,7 +247,7 @@ export function SourcePicker({ prefix, source, error, onChange }: { prefix: stri
       )}
       {needsDevice && devices.data?.length === 0 && <p className="text-xs text-text-2">{t("ce.noDevices")}</p>}
       {agentKind && devices.data && deviceOptions.length === 0 && (
-        <p className="text-xs text-text-2">{t(agentKind === "pve_guest" ? "ce.pve.none" : wanPing ? "ce.wan.none" : "ce.agent.none")}</p>
+        <p className="text-xs text-text-2">{t(agentKind === "pve_guest" ? "ce.pve.none" : agentKind === "vpn" ? "ce.vpn.none" : wanPing ? "ce.wan.none" : "ce.agent.none")}</p>
       )}
       {agentKind && agentKind !== "agent_cpu" && deviceId != null && (
         <Select

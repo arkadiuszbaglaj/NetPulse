@@ -39,6 +39,7 @@ const KIND_LABEL: Record<RuleKind, TextKey> = {
   default_community: "rules.kind.default_community",
   wan_switch: "rules.kind.wan_switch",
   device_restart: "rules.kind.device_restart",
+  vpn_connect: "rules.kind.vpn_connect",
 };
 const MATCH_HINT: Partial<Record<RuleKind, TextKey>> = {
   container_stopped: "rules.match.hint.container",
@@ -242,6 +243,7 @@ function describe(rule: AlertRule, metrics: RuleMetric[]): string {
   if (rule.kind === "default_community") return t("rules.sum.community");
   if (rule.kind === "wan_switch") return t("rules.sum.wan_switch");
   if (rule.kind === "device_restart") return t("rules.sum.device_restart");
+  if (rule.kind === "vpn_connect") return t("rules.sum.vpn_connect");
   const only = rule.match ? ` (${rule.match})` : "";
   if (AGENT_KINDS.includes(rule.kind) || rule.kind === "check_down") return `${t(KIND_LABEL[rule.kind])}${only}, ${durationLabel(rule.duration_s)}`;
   const meta = metrics.find((m) => m.metric === rule.metric);

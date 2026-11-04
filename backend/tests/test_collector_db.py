@@ -103,6 +103,18 @@ def test_collector_end_to_end():
             assert await s.scalar(select(func.count()).select_from(WifiNetwork)) == 6
             assert await s.scalar(select(func.count()).select_from(WifiMetric)) == 12
             assert await s.scalar(select(func.count()).select_from(DeviceMetric)) == 8
+
+        # Interfejs, którego nie ma w odczycie (WireGuard bramy między połączeniami): „nieobecny”, bez próbek
+        async with Session() as s, s.begin():
+            gone = Interface(device_id=devices["10.0.0.1"].id, if_index=90497, name="wgsrv1", label="WG-Home", role="vpn", oper_status="up")
+            s.add(gone)
+        await collector.poll_all()
+        async with Session() as s:
+            gone = await s.get(Interface, gone.id)
+            assert gone.oper_status == "notPresent"
+            assert await s.scalar(select(func.count()).select_from(InterfaceMetric).where(InterfaceMetric.interface_id == gone.id)) == 0
+            wan = await s.get(Interface, wan.id)
+            assert wan.oper_status == "up"
         await engine.dispose()
         return timescale
 

@@ -22,12 +22,11 @@ export const OPER_STYLE: Record<string, string> = {
   down: "bg-surface-2 text-text-2",
 };
 
-export function OperBadge({ status }: { status: string }) {
-  return (
-    <span className={`rounded-md px-2 py-0.5 text-xs ${OPER_STYLE[status] ?? "bg-surface-2 text-text-2"}`}>
-      {t(status === "up" ? "port.up" : status === "down" ? "port.down" : "dash.status.unknown")}
-    </span>
-  );
+/** Stan portu. `notPresent` = interfejsu nie ma w ostatnim odczycie (od 0.57.0) – dla VPN to brak sesji. */
+export function OperBadge({ status, role }: { status: string; role?: string }) {
+  const label =
+    status === "up" ? "port.up" : status === "down" ? "port.down" : status === "notPresent" ? (role === "vpn" ? "port.noSession" : "port.absent") : "dash.status.unknown";
+  return <span className={`rounded-md px-2 py-0.5 text-xs ${OPER_STYLE[status] ?? "bg-surface-2 text-text-2"}`}>{t(label)}</span>;
 }
 
 export function BackLink({ to, label }: { to: string; label: string }) {
@@ -100,7 +99,7 @@ function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces
               </td>
               <td className="max-w-48 truncate px-4 py-2 text-text-2">{i.alias ?? "–"}</td>
               <td className="px-4 py-2">
-                <OperBadge status={i.oper_status} />
+                <OperBadge status={i.oper_status} role={i.role} />
               </td>
               <td className="px-4 py-2 text-text-2">{i.oper_status === "up" ? formatSpeed(i.speed_mbps) : "–"}</td>
               <td className="px-4 py-2 text-right tabular-nums">{formatBps(i.in_bps)}</td>

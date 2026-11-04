@@ -48,6 +48,9 @@ class FakeApi:
     async def clients(self):
         return parse_clients(self._clients)
 
+    async def vpn(self):
+        return [], [], []
+
     async def official_devices(self):
         return []  # urządzenia z oficjalnego API – osobny test w test_unifi_db.py
 

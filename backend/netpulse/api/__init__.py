@@ -42,6 +42,7 @@ from . import (
     system,
     topology,
     updates,
+    vpn,
     wan,
 )
 from .security import check_origin
@@ -84,6 +85,7 @@ app.include_router(servers.router)
 app.include_router(system.router)
 app.include_router(topology.router)
 app.include_router(updates.router)
+app.include_router(vpn.router)
 app.include_router(wan.router)
 
 

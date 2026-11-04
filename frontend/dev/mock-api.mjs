@@ -123,7 +123,20 @@ createServer(async (req, res) => {
       poll_interval_s: 30,
     });
   }
-  // Zdarzenia na osi czasu (adnotacje): restart i przełączenie WAN – w oknie zapytania
+  // VPN bramy UniFi (0.57.0): jeden klient połączony, drugi rozłączony
+  if (route === "GET /api/vpn") {
+    return send(res, 200, {
+      at: ago(10), stale: false, device_id: 1,
+      servers: [{ id: "net-wg", name: "WG-Home", type: "WireGuard", enabled: true, port: 51820, subnet: "192.168.3.1/24" }],
+      users: [
+        { name: "iPhone", server: "WG-Home", tunnel_ip: "192.168.3.2", connected: true, since: ago(840), last_seen: ago(10), remote_ip: "203.0.113.7",
+          down_bytes: 76148892, up_bytes: 11867028, down_bps: wave(0, 2) * 2e6, up_bps: wave(0, 3) * 5e5 },
+        { name: "Laptop", server: "WG-Home", tunnel_ip: "192.168.3.3", connected: false, since: null, last_seen: ago(7200), remote_ip: "198.51.100.4",
+          down_bytes: 5_400_000, up_bytes: 900_000, down_bps: null, up_bps: null },
+      ],
+    });
+  }
+  // Zdarzenia na osi czasu (adnotacje): restart, przełączenie WAN i połączenie VPN – w oknie zapytania
   if (route === "GET /api/events") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
     const back = Number(url.searchParams.get("offset") ?? 0) * 60_000;
@@ -131,6 +144,7 @@ createServer(async (req, res) => {
     const all = [
       { at: 40, kind: "restart", title: "USW Lite 8 PoE", device_id: 2 },
       { at: 25, kind: "wan_switch", title: "WAN 1 → WAN 2", device_id: 1 },
+      { at: 14, kind: "vpn_connect", title: "iPhone", device_id: 1 },
     ];
     const events = all
       .map(({ at, ...e }) => ({ ...e, time: new Date(Date.now() - at * 60_000).toISOString() }))
@@ -292,6 +306,20 @@ createServer(async (req, res) => {
         admin_up: true, oper_status: n <= 6 ? "up" : "down", speed_mbps: n === 6 ? 100 : 1000, in_bps: n <= 6 ? wave(n, 0) * 1e5 : null, out_bps: n <= 6 ? wave(n, 1) * 1e5 : null,
       })),
     );
+  }
+  // Źródła z tabeli `metrics` na bramie: klienci VPN (0.57.0) – klient połączony w ostatnich 14 minutach
+  if (req.method === "GET" && /^\/api\/devices\/\d+\/agent-keys$/.test(url.pathname)) {
+    return send(res, 200, { agent_net: [], agent_disk: [], agent_temp: [], agent_container: [], pve_guest: [], snmp_sensor: [], snmp_poe: [], snmp_sfp: [], wan_latency: [], wan_ping: [], vpn: ["iPhone", "Laptop"] });
+  }
+  if (req.method === "GET" && /^\/api\/devices\/\d+\/agent-metrics$/.test(url.pathname) && url.searchParams.get("source") === "vpn") {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const points = [];
+    for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
+      const on = url.searchParams.get("key") === "iPhone" && i * stride <= 840;
+      points.push({ time: new Date(Date.now() - i * stride * 1000).toISOString(), values: on ? { down_bps: wave(i, 2) * 2e6, up_bps: wave(i, 3) * 5e5, connected: 1 } : { connected: 0 } });
+    }
+    return send(res, 200, points);
   }
   const series = /^\/api\/(devices|interfaces|wifi)\/(\d+)\/metrics$/.exec(url.pathname) || url.pathname === "/api/system/metrics";
   if (req.method === "GET" && series) {

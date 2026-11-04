@@ -29,6 +29,7 @@ from netpulse.db.models import (  # noqa: E402
     DeviceMetric,
     Interface,
     InterfaceMetric,
+    Metric,
     User,
     WanLink,
     WanLinkMetric,
@@ -370,6 +371,24 @@ def test_wan_switch_alert(client):
     assert client.post("/api/alert-rules", json=bad).status_code == 422
 
 
+def test_vpn_connect_alert(client):
+    """Nowe połączenie VPN (0.57.0): `vpn_connected` 1 po 0 – alert trwa 10 min, kolejne cykle go nie powtarzają."""
+    gw = add_device(name="UCG", status="up")
+    add_rule(name="VPN", kind="vpn_connect", duration_s=0, severity="info")
+
+    async def seed():
+        async with Session() as s, s.begin():
+            for m, value in ((3, 0.0), (2, 0.0), (1, 1.0), (0, 1.0)):
+                s.add(Metric(time=NOW - timedelta(minutes=m), device_id=gw, name="vpn_connected", key="iPhone", value=value))
+
+    run(seed)
+    events = evaluate_events(NOW)
+    assert [(e.kind, e.title, e.device_name) for e in events] == [("firing", "VPN: połączenie – iPhone", "UCG")]
+    assert evaluate_events(NOW + timedelta(seconds=30)) == []
+    assert evaluate_events(NOW + timedelta(minutes=12)) == []
+    assert [a["state"] for a in alerts(client)] == ["resolved"]
+
+
 def test_default_rules_created_once(client):
     async def go():
         await AlertEngine().ensure_default_rules()
@@ -380,7 +399,7 @@ def test_default_rules_created_once(client):
     assert kinds == [
         "device_offline", "port_down", "container_stopped", "service_failed", "smart_failed", "metric",
         "guest_stopped", "backup_failed", "metric", "check_down", "metric", "default_community",
-        "wan_switch", "device_restart",
+        "wan_switch", "device_restart", "vpn_connect",
     ]  # fmt: skip
 
 
@@ -393,7 +412,7 @@ def test_default_rules_for_existing_install_and_deleted_rules_stay_deleted(clien
 
     run(go)
     rules = client.get("/api/alert-rules").json()
-    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 13
+    assert [r["name"] for r in rules][:2] == ["moja", "Kontener zatrzymany"] and len(rules) == 14
     temp = next(r for r in rules if r["metric"] == "temp_c")
     assert temp["threshold"] == 85 and temp["op"] == ">"
     assert client.delete(f"/api/alert-rules/{rules[1]['id']}").status_code == 204

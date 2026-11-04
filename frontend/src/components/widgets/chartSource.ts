@@ -50,6 +50,7 @@ const AGENT_TITLE = {
   snmp_sfp: "ce.source.snmp_sfp",
   wan_latency: "ce.source.wan_latency",
   wan_ping: "ce.source.wan_ping",
+  vpn: "ce.source.vpn",
 } as const;
 
 /** Endpointy pulpitu zwracają `{interval_s, points}`, pozostałe samą listę punktów.

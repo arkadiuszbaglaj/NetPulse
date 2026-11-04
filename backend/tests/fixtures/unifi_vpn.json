@@ -1,0 +1,17 @@
+{
+  "networkconf": {"meta": {"rc": "ok"}, "data": [
+    {"_id": "net-lan", "name": "Default", "purpose": "corporate", "ip_subnet": "192.168.1.1/24", "enabled": true},
+    {"_id": "net-wg", "name": "WG-Home", "purpose": "remote-user-vpn", "vpn_type": "wireguard-server", "enabled": true,
+     "local_port": 51820, "ip_subnet": "192.168.3.1/24", "x_wireguard_private_key": "nie-trafia-do-netpulse"}
+  ]},
+  "remoteuservpn": {"meta": {"rc": "ok"}, "data": [
+    {"interface": "wgsrv1", "tunnel_ip": "192.168.3.2", "last_seen": 1793835506, "user": "iPhone", "network_id": "net-wg",
+     "remote_ip": "203.0.113.7", "rx_bytes": 11867028, "rx_rate": 96637, "rx_packets": 0, "tx_bytes": 76148892,
+     "tx_rate": 147888, "tx_packets": 0, "uptime": 99, "vpn_type": "wireguard-server", "assoc_time": 1793835408,
+     "peer_id": "/vpn/wireguard/servers/1", "up": true}
+  ]},
+  "wireguard_users": [
+    {"_id": "u1", "name": "iPhone", "interface_ip": "192.168.3.2", "network_id": "net-wg", "public_key": "pk1", "allowed_ips": []},
+    {"_id": "u2", "name": "Laptop", "interface_ip": "192.168.3.3", "network_id": "net-wg", "public_key": "pk2", "allowed_ips": []}
+  ]
+}

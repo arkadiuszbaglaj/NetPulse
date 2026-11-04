@@ -181,6 +181,8 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
     # Łącza WAN bramy UniFi (od 0.55.0): brama pinguje internet każdym łączem, też zapasowym; klucz = interfejs łącza
     "wan_latency": {"latency_ms": ("wan_latency_ms", 1.0), "availability_percent": ("wan_availability_percent", 1.0)},
     "wan_ping": {"latency_ms": ("wan_ping_ms", 1.0)},
+    # Klienci VPN bramy UniFi (od 0.57.0): klucz = nazwa klienta; pobieranie = ruch do klienta
+    "vpn": {"down_bps": ("vpn_down_bps", 1.0), "up_bps": ("vpn_up_bps", 1.0), "connected": ("vpn_connected", 1.0)},
     "snmp_sfp": {
         "sfp_rx_dbm": ("sfp_rx_dbm", 1.0),
         "sfp_tx_dbm": ("sfp_tx_dbm", 1.0),
@@ -200,6 +202,7 @@ AgentSourceKind = Literal[
     "snmp_sfp",
     "wan_latency",
     "wan_ping",
+    "vpn",
 ]
 # Lista kluczy do edytora wykresu: źródło → nazwy metryk, z których bierzemy klucze
 AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
@@ -213,6 +216,7 @@ AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
     "snmp_sfp": ("sfp_rx_dbm",),
     "wan_latency": ("wan_latency_ms",),
     "wan_ping": ("wan_ping_ms",),
+    "vpn": ("vpn_connected",),
 }
 
 

@@ -383,6 +383,97 @@ def parse_official_devices(page: dict) -> list[OfficialDevice]:
     return [d for raw in page.get("data") or [] if isinstance(raw, dict) and (d := parse_official_device(raw))]
 
 
+@dataclass(frozen=True)
+class VpnServer:
+    """Serwer VPN dla użytkowników zdalnych (`rest/networkconf`, `purpose = remote-user-vpn`)."""
+
+    id: str
+    name: str
+    vpn_type: str  # wireguard-server, openvpn-server, l2tp-server …
+    enabled: bool
+    port: int | None = None
+    subnet: str | None = None
+
+
+@dataclass(frozen=True)
+class VpnUser:
+    """Skonfigurowany klient VPN (WireGuard: `v2/api/site/<site>/wireguard/users`)."""
+
+    name: str
+    server_id: str | None
+    tunnel_ip: str | None
+
+
+@dataclass(frozen=True)
+class VpnSession:
+    """Trwające połączenie VPN (`stat/remoteuservpn`). `rx` = od klienta (jego wysyłanie), `tx` = do klienta."""
+
+    user: str
+    server_id: str | None
+    interface: str | None
+    vpn_type: str | None
+    tunnel_ip: str | None
+    remote_ip: str | None
+    connected_at: int | None  # znacznik czasu (s) nawiązania połączenia
+    last_seen: int | None
+    rx_bytes: float | None
+    tx_bytes: float | None
+    rx_bps: float | None  # bity/s (kontroler podaje bajty/s)
+    tx_bps: float | None
+
+
+def _bits(v: Any) -> float | None:
+    n = _num(v)
+    return n * 8 if n is not None else None
+
+
+def parse_vpn_servers(raw: dict) -> list[VpnServer]:
+    out = []
+    for n in raw.get("data", []):
+        if not isinstance(n, dict) or n.get("purpose") != "remote-user-vpn":
+            continue
+        sid, name = _str(n.get("_id")), _str(n.get("name"))
+        if not sid or not name:
+            continue
+        out.append(
+            VpnServer(sid, name, _str(n.get("vpn_type")) or "vpn", n.get("enabled") is not False, _int(n.get("local_port")), _str(n.get("ip_subnet")))
+        )
+    return out
+
+
+def parse_vpn_users(raw: Any) -> list[VpnUser]:
+    rows = raw if isinstance(raw, list) else raw.get("data", []) if isinstance(raw, dict) else []
+    return [
+        VpnUser(_str(u.get("name")) or "?", _str(u.get("network_id")), _str(u.get("interface_ip")))
+        for u in rows
+        if isinstance(u, dict) and _str(u.get("name"))
+    ]
+
+
+def parse_vpn_sessions(raw: dict) -> list[VpnSession]:
+    out = []
+    for v in raw.get("data", []):
+        if not isinstance(v, dict) or v.get("up") is False:
+            continue
+        out.append(
+            VpnSession(
+                user=_str(v.get("user")) or _str(v.get("tunnel_ip")) or "?",
+                server_id=_str(v.get("network_id")),
+                interface=_str(v.get("interface")),
+                vpn_type=_str(v.get("vpn_type")),
+                tunnel_ip=_str(v.get("tunnel_ip")),
+                remote_ip=_str(v.get("remote_ip")),
+                connected_at=_int(v.get("assoc_time")),
+                last_seen=_int(v.get("last_seen")),
+                rx_bytes=_num(v.get("rx_bytes")),
+                tx_bytes=_num(v.get("tx_bytes")),
+                rx_bps=_bits(v.get("rx_rate")),
+                tx_bps=_bits(v.get("tx_rate")),
+            )
+        )
+    return out
+
+
 def parse_clients(raw: dict) -> list[UnifiClient]:
     """`stat/sta` → klienci. Nazwa: nadana w UniFi, potem nazwa hosta; port tylko dla klientów po kablu."""
     out: list[UnifiClient] = []
@@ -483,6 +574,40 @@ class UnifiApi:
 
     async def clients(self) -> list[UnifiClient]:
         return parse_clients(await self._get(f"/api/s/{self.site}/stat/sta"))
+
+    async def vpn(self) -> tuple[list[VpnServer], list[VpnUser], list[VpnSession]]:
+        """Serwery VPN, skonfigurowani klienci i trwające połączenia. Kontroler bez VPN (albo starszy, bez tych
+        adresów) – puste listy, bez błędu; błąd połączenia przechodzi dalej."""
+
+        async def soft(path: str, parse, *, any_json: bool = False):
+            try:
+                return parse(await (self._get_any(path) if any_json else self._get(path)))
+            except UnifiError as exc:
+                if "nie zna adresu" in str(exc) or "kodem 400" in str(exc):
+                    return []
+                raise
+
+        servers = await soft(f"/api/s/{self.site}/rest/networkconf", parse_vpn_servers)
+        if not servers:
+            return [], [], []
+        sessions = await soft(f"/api/s/{self.site}/stat/remoteuservpn", parse_vpn_sessions)
+        users = await soft(f"/v2/api/site/{self.site}/wireguard/users", parse_vpn_users, any_json=True)
+        return servers, users, sessions
+
+    async def _get_any(self, path: str) -> Any:
+        """Jak `_get`, ale odpowiedź może być listą (adresy `v2/api`)."""
+        try:
+            res = await self._client.get(self.base + path)
+        except httpx.HTTPError as exc:
+            raise UnifiError(f"Brak połączenia z kontrolerem: {type(exc).__name__}: {exc}") from exc
+        if res.status_code == 404:
+            raise UnifiError(f"Kontroler nie zna adresu {path} (nieobsługiwana wersja UniFi Network albo zła nazwa site)")
+        if res.status_code != 200:
+            raise UnifiError(f"Kontroler odpowiedział kodem {res.status_code}")
+        try:
+            return res.json()
+        except ValueError as exc:
+            raise UnifiError("Kontroler zwrócił odpowiedź, która nie jest JSON-em") from exc
 
     async def close(self) -> None:
         await self._client.aclose()

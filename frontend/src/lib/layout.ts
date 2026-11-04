@@ -51,7 +51,8 @@ export type AgentSourceKind =
   | "snmp_poe"
   | "snmp_sfp"
   | "wan_latency"
-  | "wan_ping";
+  | "wan_ping"
+  | "vpn";
 export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
   "agent_cpu",
   "agent_net",
@@ -64,6 +65,7 @@ export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
   "snmp_sfp",
   "wan_latency",
   "wan_ping",
+  "vpn",
 ];
 /** Pingi łączy WAN mierzone przez bramę UniFi (od 0.55.0): urządzenie = brama, klucz = interfejs łącza (`eth3`)
  * albo interfejs i serwer (`eth3 · google.com`). */
@@ -197,6 +199,8 @@ export type AlertsWidgetModel = WidgetBase & { type: "alerts"; config: { limit: 
 export type EventsDays = 1 | 7 | 30;
 export const EVENTS_DAYS: EventsDays[] = [1, 7, 30];
 export type EventsWidgetModel = WidgetBase & { type: "events"; config: { days: EventsDays; limit: AlertsLimit } };
+/** Kafelek „VPN” (od 0.57.0): klienci VPN bramy UniFi; `show_offline` – także rozłączeni. */
+export type VpnWidgetModel = WidgetBase & { type: "vpn"; config: { title?: string | null; show_offline: boolean } };
 export type ChecksDays = 7 | 30;
 export type ChecksWidgetModel = WidgetBase & { type: "checks"; config: { days: ChecksDays } };
 export type PoeWidgetModel = WidgetBase & { type: "poe"; config: { device_id?: number | null } };
@@ -339,7 +343,8 @@ export type Widget =
   | StatusWidgetModel
   | AlertsWidgetModel
   | ChecksWidgetModel
-  | EventsWidgetModel;
+  | EventsWidgetModel
+  | VpnWidgetModel;
 export type WidgetType = Widget["type"];
 
 export interface DashboardLayout {
@@ -415,6 +420,10 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
   guest_mem_bytes: { label: "metric.guest_mem_bytes", unitClass: "size" },
   // Sprawdzenia dostępności (ping, HTTP, TCP)
   latency_ms: { label: "metric.latency_ms", unitClass: "ms" },
+  // Klient VPN (od 0.57.0): jego pobieranie i wysyłanie, połączony 1/0
+  down_bps: { label: "metric.down_bps", unitClass: "rate" },
+  up_bps: { label: "metric.up_bps", unitClass: "rate" },
+  connected: { label: "metric.connected", unitClass: "state" },
   jitter_ms: { label: "metric.jitter_ms", unitClass: "ms" },
   loss_percent: { label: "metric.loss_percent", unitClass: "percent" },
   availability_percent: { label: "metric.availability_percent", unitClass: "percent" },
@@ -455,6 +464,7 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   snmp_sfp: ["sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"],
   wan_latency: ["latency_ms", "availability_percent"],
   wan_ping: ["latency_ms"],
+  vpn: ["down_bps", "up_bps", "connected"],
   check: ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"],
 };
 
@@ -514,6 +524,11 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
     case "wan_latency":
     case "wan_ping":
       return [{ key: "latency_ms", color: 1 }];
+    case "vpn":
+      return [
+        { key: "down_bps", color: 1 },
+        { key: "up_bps", color: 8 },
+      ];
   }
 }
 
@@ -575,6 +590,8 @@ export function newWidget(type: WidgetType, id: string = newId()): Widget {
       return { id, type, w: 4, config: { days: 30 } };
     case "events":
       return { id, type, w: 4, config: { days: 7, limit: 8 } };
+    case "vpn":
+      return { id, type, w: 4, config: { title: null, show_offline: true } };
     case "poe":
       return { id, type, w: 12, config: { device_id: null } };
     case "server":
@@ -648,6 +665,8 @@ export function defaultHeight(w: Widget): number {
     case "alerts":
     case "events":
       return 10;
+    case "vpn":
+      return 8;
     case "checks":
       return 11;
     case "devices":
@@ -753,7 +772,7 @@ export function swapInReadingOrder(l: DashboardLayout, id: string, dir: -1 | 1):
 /** Widgety z listą (od 0.56.0): ich treść rośnie z danymi (porty, zdarzenia, alerty), więc w podglądzie karta
  * wydłuża się, gdy treść się nie mieści, zamiast pokazywać pasek przewijania. Wykresy i liczby skalują się do karty. */
 export const AUTO_HEIGHT = new Set<Widget["type"]>([
-  "table", "bargauge", "poe", "state_timeline", "alerts", "events", "checks", "wan_status", "wan_sla", "devices", "server", "status",
+  "table", "bargauge", "poe", "state_timeline", "alerts", "events", "checks", "wan_status", "wan_sla", "devices", "server", "status", "vpn",
 ]);
 
 /** Ile wierszy siatki potrzeba, żeby zmieścić `px` treści (odwrotność `rowsToPx`; do 2 px zapasu na zaokrąglenia).

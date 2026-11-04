@@ -21,6 +21,8 @@ _TECHNICAL = re.compile(
     r"^(lo|dummy\d*|ip_vti\d*|ip6_vti\d*|ip6tnl\d*|ip6gre\d*|gre\d*|sit\d*|tunl\d*|miireg|"
     r"bond\d+|ifb\d+|teql\d*|imq\d*|erspan\d*|gretap\d*|ip6erspan\d*)$"
 )
+# Serwer i klient VPN bramy (WireGuard, OpenVPN, L2TP): interfejs jest w SNMP tylko w trakcie połączenia (od 0.57.0)
+_VPN = re.compile(r"^(wgsrv\d+|wgclt\d+|ovpn\S*|l2tp\S*|vti\d+)$")
 _VIRTUAL = re.compile(r"^(switch\d+(\.\d+)?|br\d+(\.\d+)?|br-.*|vlan\d+|eth\d+\.\d+|wg\d+|tun\d+|tap\d+)$")
 _RADIO = re.compile(r"^(ra|rai|rax|wifi|ath|wlan|apcli|apclii)\d*$")
 _SWITCH_PORT = re.compile(r"^0/(\d+)$")
@@ -157,6 +159,10 @@ class UnifiDriver(GenericDriver):
             return
         if _VIRTUAL.match(name):
             iface.role, iface.hidden, iface.label = "virtual", True, name
+            return
+
+        if _VPN.match(name):
+            iface.role, iface.label = "vpn", iface.alias or name  # alias = nazwa sieci VPN z UniFi (np. „WG-Home”)
             return
 
         m = _SWITCH_PORT.match(name)

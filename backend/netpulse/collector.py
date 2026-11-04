@@ -34,6 +34,8 @@ from .rates import CounterTracker, rate_factor
 from .snmp import SnmpClient, SnmpCredentials, SnmpError
 
 log = logging.getLogger("netpulse.collector")
+# Stan interfejsu, którego nie ma w ostatnim odczycie (ifOperStatus notPresent = 6 w IF-MIB)
+NOT_PRESENT = "notPresent"
 
 
 @dataclass(frozen=True)
@@ -209,6 +211,10 @@ class Collector:
     def compute_rates(self, dev_id: int, result: PollResult, ts: float) -> tuple[dict, dict]:
         """Liczy przepływy przed zapisem (żeby ponowienie zapisu nie psuło liczników)."""
         if_rates: dict[int, dict] = {}
+        # Interfejs, którego nie ma w odczycie (VPN bez sesji, wyjęty moduł): po powrocie pierwsza próbka bez ruchu
+        present = {i.if_index for i in result.interfaces}
+        for key in [k for k in self._oper if k[0] == dev_id and k[1] == "if" and k[2] not in present]:
+            self._oper[key] = NOT_PRESENT
         for i in result.interfaces:
             key = (dev_id, "if", i.if_index)
             factor = rate_factor(i.if_type)
@@ -310,6 +316,13 @@ class Collector:
                     for idx, values in if_rates.items()
                 )
                 await wan_links.record(session, dev_id, now, result, if_rates, ids)
+                # Interfejs zniknął z odczytu (np. WireGuard bramy między połączeniami): stan „nieobecny” zamiast
+                # ostatniego „działa”; bez próbek, więc nie ma alertu „port nie działa” ani fałszywego ruchu
+                await session.execute(
+                    update(Interface)
+                    .where(Interface.device_id == dev_id, Interface.if_index.not_in(list(ids)), Interface.oper_status != NOT_PRESENT)
+                    .values(oper_status=NOT_PRESENT)
+                )
 
             if result.wifi:
                 rows = [

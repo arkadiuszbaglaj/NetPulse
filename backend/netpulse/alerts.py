@@ -16,7 +16,7 @@ from fnmatch import fnmatchcase
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 
-from . import wan_links
+from . import vpn, wan_links
 from .config import settings
 from .db import Session
 from .db.models import (
@@ -44,7 +44,7 @@ SEVERITIES = ("info", "warning", "critical")
 # Rodzaje na ogólnej tabeli `metrics`: z agenta (kontener, usługa systemd, SMART) i z Proxmoxa (maszyna, kopia)
 AGENT_KINDS = ("container_stopped", "service_failed", "smart_failed", "guest_stopped", "backup_failed")
 # Zdarzenia chwilowe (od 0.49.0): alert trwa EVENT_HOLD od zdarzenia i kończy się bez powiadomienia o końcu
-EVENT_KINDS = ("wan_switch", "device_restart")
+EVENT_KINDS = ("wan_switch", "device_restart", "vpn_connect")
 EVENT_HOLD = timedelta(minutes=10)
 KINDS = ("device_offline", "port_down", "metric", *AGENT_KINDS, "check_down", "default_community", *EVENT_KINDS)
 OPS = (">", "<")
@@ -136,6 +136,7 @@ DEFAULT_RULE_SETS = (
         dict(name="Przełączenie łącza WAN", kind="wan_switch", duration_s=0, severity="warning"),
         dict(name="Restart urządzenia", kind="device_restart", duration_s=0, severity="info"),
     ),
+    (dict(name="Nowe połączenie VPN", kind="vpn_connect", duration_s=0, severity="info"),),
 )
 DEFAULTS_KEY = "alert_defaults"
 DEFAULT_COMMUNITY_HINT = (
@@ -147,7 +148,7 @@ DEFAULT_COMMUNITY_HINT = (
 # Reguły zależne od modułu: rodzaj albo metryka → moduł (Ustawienia → Moduły)
 KIND_MODULE = {
     "container_stopped": "agents", "service_failed": "agents", "smart_failed": "agents",
-    "guest_stopped": "proxmox", "backup_failed": "proxmox",
+    "guest_stopped": "proxmox", "backup_failed": "proxmox", "vpn_connect": "unifi",
 }  # fmt: skip
 # Temperatura nie zależy od modułu: czujniki ma też MikroTik przez SNMP (od 0.50.0)
 METRIC_MODULE = {"smart_reallocated": "agents", "backup_age_h": "proxmox"}
@@ -407,6 +408,8 @@ class AlertEngine:
             return await self._restarts(session, scope, now)
         if rule.kind == "wan_switch":
             return await self._wan_switches(session, devices, now)
+        if rule.kind == "vpn_connect":
+            return await self._vpn_connections(session, scope, now)
         if rule.kind == "metric" and rule.metric in METRICS and rule.op in OPS and rule.threshold is not None:
             return await self._metric(session, rule, scope, now)
         return []
@@ -440,6 +443,20 @@ class AlertEngine:
             )
             for sw in found
             if sw.time >= since
+        ]
+
+    async def _vpn_connections(self, session, scope: list[Device], now: datetime) -> list[Hit]:
+        """Klient VPN połączył się w ostatnich EVENT_HOLD (od 0.57.0) – osobny alert na połączenie."""
+        names = {d.id: d.name for d in scope}
+        return [
+            Hit(
+                subject_key("vpn", f"{c.user}:{int(c.time.timestamp())}"),
+                f"VPN: połączenie – {c.user}",
+                f"Klient {c.user} połączył się z VPN na {names[c.device_id]}.",
+                c.device_id,
+                None,
+            )
+            for c in await vpn.connections(session, names, now - EVENT_HOLD, now + timedelta(seconds=1))
         ]
 
     def _default_community(self, scope: list[Device]) -> list[Hit]:

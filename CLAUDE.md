@@ -141,6 +141,14 @@ Od 0.46.0 kolejność łączy jest wspólna dla wszystkich routerów (migracja 0
 są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outranked_by)`). Od 0.47.0 podpowiedź w Łączach WAN: łącze WAN zgłoszone przez kontroler, którego nie ma na liście
 (`wan_links.save_detected`, `GET /api/wan/suggestions`). Od 0.55.0 pingi każdego łącza (też zapasowego) z bramy UniFi (`wan1.latency`, `uptime_stats.WAN*.monitors`) w `metrics` (`wan_latency_ms`, `wan_ping_ms`, źródła wykresu `wan_latency`/`wan_ping`) i opcja wykresu `wan_backup` – ruch przez łącze zapasowe innym kolorem (`backupSpans`, visualMap). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
 
+## VPN (0.57.0)
+
+Klienci VPN bramy UniFi z kontrolera (`rest/networkconf` → `remote-user-vpn`, `v2/.../wireguard/users`, `stat/remoteuservpn`):
+stan w `app_settings` (`vpn:<kontroler>`), metryki `vpn_connected|vpn_down_bps|vpn_up_bps` w `metrics` na bramie (klucz = klient),
+bez migracji. Kod: `netpulse/vpn.py`, `unifi.py` (`UnifiApi.vpn`), `api/vpn.py` (`GET /api/vpn`), widget `vpn`, źródło wykresu `vpn`,
+alert i zdarzenie `vpn_connect`. Interfejs, którego nie ma w odczycie SNMP (np. `wgsrv1` między sesjami, rola `vpn`), dostaje
+`oper_status = "notPresent"` bez próbek (panel: „brak sesji” / „nieobecny”). Opis: `docs/30-vpn.md`.
+
 ## Szczegóły, dostępność i pulpity
 
 Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):

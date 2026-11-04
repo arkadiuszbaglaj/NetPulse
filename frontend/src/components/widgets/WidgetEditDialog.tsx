@@ -410,6 +410,21 @@ export function WidgetEditDialog({ widget, isNew = false, onSave, onClose }: { w
           onSave={(days) => onSave({ ...widget, config: { ...widget.config, days } })}
         />
       );
+    case "vpn":
+      return (
+        <ChoiceForm<0 | 1>
+          title="widget.type.vpn"
+          label="widget.vpn.show"
+          options={[
+            { value: 1, label: t("widget.vpn.show.all") },
+            { value: 0, label: t("widget.vpn.show.online") },
+          ]}
+          initial={widget.config.show_offline ? 1 : 0}
+          isNew={isNew}
+          onClose={onClose}
+          onSave={(v) => onSave({ ...widget, config: { ...widget.config, show_offline: v === 1 } })}
+        />
+      );
     case "poe":
       return <PoeForm initial={widget.config.device_id} onClose={onClose} onSave={(device_id) => onSave({ ...widget, config: { device_id } })} />;
     case "wan_status":

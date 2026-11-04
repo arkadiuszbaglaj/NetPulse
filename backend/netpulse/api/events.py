@@ -1,4 +1,4 @@
-"""Zdarzenia: restarty urządzeń i przełączenia WAN – kafelek „Zdarzenia” na pulpicie (na wykresach nie są rysowane).
+"""Zdarzenia: restarty urządzeń, przełączenia WAN i nowe połączenia VPN – kafelek „Zdarzenia” na pulpicie (na wykresach nie są rysowane).
 
 - GET /api/events?minutes=&offset= – zdarzenia z okna (to samo okno co metryki), najnowsze na końcu.
 
@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from .. import vpn
 from ..db import Session
 from ..db.models import Device
 from ..modules import hidden_drivers, read_modules
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/api", tags=["zdarzenia"], dependencies=[Depends(requ
 DETAIL_MAX_MINUTES = 31 * 24 * 60
 MAX_EVENTS = 300
 
-EventKind = Literal["restart", "wan_switch"]
+EventKind = Literal["restart", "wan_switch", "vpn_connect"]
 
 
 class EventOut(BaseModel):
@@ -42,7 +43,8 @@ async def events(minutes: int = MinutesQuery, offset: int = OffsetQuery) -> list
     since, until = window(minutes, offset)
     out: list[EventOut] = []
     async with Session() as session:
-        hidden = hidden_drivers(await read_modules(session))
+        modules = await read_modules(session)
+        hidden = hidden_drivers(modules)
         devices = {
             d.id: d.name
             for d in (await session.scalars(select(Device).where(Device.driver.not_in(hidden or ("",))))).all()
@@ -52,5 +54,8 @@ async def events(minutes: int = MinutesQuery, offset: int = OffsetQuery) -> list
                 out.append(EventOut(time=r.time, kind="restart", title=devices[r.device_id], device_id=r.device_id))
             for sw in await wan_switches(session, devices, since, until):
                 out.append(EventOut(time=sw.time, kind="wan_switch", title=f"{sw.from_names} → {sw.to_names}", device_id=sw.device_id))
+            if modules.get("unifi", True):
+                for c in await vpn.connections(session, devices, since, until):
+                    out.append(EventOut(time=c.time, kind="vpn_connect", title=c.user, device_id=c.device_id))
     out.sort(key=lambda e: e.time)
     return out[-MAX_EVENTS:]

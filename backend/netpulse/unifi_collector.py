@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
+from . import vpn as vpn_state
 from . import wan_links
 from .collector import Collector, DeviceTarget, _write_with_retry
 from .config import settings
@@ -175,6 +176,7 @@ class UnifiCollector:
             version = await api.app_version()
             devices, clients = await asyncio.gather(api.devices(), api.clients())
             official = await self.read_official(api, target, devices)
+            vpn = await self.read_vpn(api, target)
         except UnifiError as exc:
             log.warning("%s (%s): %s", target.name, target.host, exc)
             await self.save_failure(target, now, str(exc))
@@ -185,10 +187,18 @@ class UnifiCollector:
             return False
         finally:
             await api.close()
-        await self.save_result(target, now, version, devices, clients)
+        await self.save_result(target, now, version, devices, clients, vpn)
         if official is not None:
             await self.save_official(target, now, official, devices)
         return True
+
+    async def read_vpn(self, api: UnifiApi, target: ControllerTarget):
+        """Serwery, klienci i połączenia VPN (od 0.57.0). Błąd odczytu VPN nie psuje reszty odczytu kontrolera."""
+        try:
+            return await api.vpn()
+        except UnifiError as exc:
+            log.info("%s: bez danych VPN (%s)", target.name, exc)
+            return None
 
     async def read_official(self, api: UnifiApi, target: ControllerTarget, devices: list[UnifiDevice]) -> list[OfficialDevice] | None:
         """Urządzenia do odczytu z oficjalnego API: już założone jako `unifi_api` i nowe, których nie znamy z SNMP.
@@ -315,6 +325,7 @@ class UnifiCollector:
         version: str | None,
         devices: list[UnifiDevice],
         clients: list[UnifiClient],
+        vpn=None,
     ) -> None:
         async def write(session) -> None:
             await session.execute(
@@ -360,6 +371,15 @@ class UnifiCollector:
                     session.add_all(wan_metrics(dev_id, d.wans, now))
                 if d.type in GATEWAY_TYPES:
                     await wan_links.save_detected(session, dev_id, d.wans)
+
+            # VPN: stan klientów (zdjęcie) i metryki na bramie – brama to urządzenie, które VPN obsługuje
+            if vpn is not None:
+                gateway = next((by_mac[d.mac] for d in devices if d.type in GATEWAY_TYPES and d.mac in by_mac), None)
+                snap = vpn_state.snapshot(*vpn, await vpn_state.previous(session, target.id), now, gateway)
+                if snap["servers"] or snap["users"]:
+                    await vpn_state.save(session, target.id, snap)
+                    if gateway is not None:
+                        session.add_all(vpn_state.metrics(gateway, snap, now))
 
             # Topologia: zdjęcie stanu połączeń LLDP urządzeń, które znamy z SNMP
             links = [

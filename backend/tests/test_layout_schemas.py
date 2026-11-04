@@ -62,6 +62,7 @@ def test_every_source_accepts_its_own_metrics():
         "snmp_sfp": {"kind": "snmp_sfp", "id": 5, "key": "sfp1"},
         "wan_latency": {"kind": "wan_latency", "id": 1, "key": "eth3"},
         "wan_ping": {"kind": "wan_ping", "id": 1, "key": "eth3 · google.com"},
+        "vpn": {"kind": "vpn", "id": 1, "key": "iPhone"},
         "check": {"kind": "check", "id": 4},
     }
     assert set(sources) == set(ALLOWED_METRICS)

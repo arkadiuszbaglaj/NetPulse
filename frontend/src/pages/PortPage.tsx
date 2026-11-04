@@ -18,7 +18,7 @@ import { formatWatts, usePoe } from "../lib/unifi";
 import { ClientList } from "./ClientList";
 import { BackLink, OperBadge } from "./DevicePage";
 
-const ROLE_LABEL = { wan: "port.role.wan", lan: "port.role.lan", port: "port.role.port", virtual: "port.role.virtual" } as const;
+const ROLE_LABEL = { wan: "port.role.wan", lan: "port.role.lan", port: "port.role.port", virtual: "port.role.virtual", vpn: "port.role.vpn" } as const;
 
 function PortInfo({ port, poeW }: { port: InterfaceDetail; poeW: number | null | undefined }) {
   const rows: [string, string][] = [
@@ -116,7 +116,7 @@ export function PortPage() {
     <>
       <BackLink to={back} label={p.device_name} />
       <PageHeader title={`${p.label || p.name} · ${p.device_name}`}>
-        <OperBadge status={p.oper_status} />
+        <OperBadge status={p.oper_status} role={p.role} />
       </PageHeader>
       {p.alias && <p className="-mt-3 mb-4 text-sm text-text-2">{p.alias}</p>}
 

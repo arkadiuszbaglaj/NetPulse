@@ -1,6 +1,6 @@
 /** Kafelek „Zdarzenia” (od 0.49.0): przełączenia WAN i restarty urządzeń z ostatnich dni, najnowsze na górze.
  * Na wykresach tych zdarzeń nie ma – są tu, a jako alerty na liście alertów i pod dzwonkiem. */
-import { IconArrowsExchange, IconRefresh } from "@tabler/icons-react";
+import { IconArrowsExchange, IconRefresh, IconShieldLock } from "@tabler/icons-react";
 import { t } from "../../i18n";
 import { useEvents, type EventKind } from "../../lib/events";
 import { relativeTime } from "../../lib/format";
@@ -8,7 +8,7 @@ import type { EventsDays } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 import { Card, ErrorNote } from "../ui";
 
-const ICON: Record<EventKind, typeof IconRefresh> = { wan_switch: IconArrowsExchange, restart: IconRefresh };
+const ICON: Record<EventKind, typeof IconRefresh> = { wan_switch: IconArrowsExchange, restart: IconRefresh, vpn_connect: IconShieldLock };
 const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
 
 export function EventsWidget({ days, limit }: { days: EventsDays; limit: number }) {

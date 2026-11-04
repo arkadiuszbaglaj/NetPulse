@@ -16,6 +16,7 @@ import {
   IconNumber,
   IconServer,
   IconShieldCheck,
+  IconShieldLock,
   IconTable,
   IconTimeline,
   IconWorld,
@@ -26,6 +27,7 @@ import type { Widget, WidgetType } from "../../lib/layout";
 import { ChartWidget, chartTitle } from "./ChartWidget";
 import { DevicesWidget } from "./DevicesWidget";
 import { EventsWidget } from "./EventsWidget";
+import { VpnWidget } from "./VpnWidget";
 import { HeatmapWidget, heatmapTitle } from "./HeatmapWidget";
 import { BarGaugeWidget, StatWidget, StateTimelineWidget, TableWidget, collectionTitle, statTitle, stateTimelineTitle } from "./PanelWidgets";
 import { SectionHeader } from "../DashboardGrid";
@@ -54,6 +56,7 @@ export const WIDGET_TYPES: { type: WidgetType; label: TextKey; description: Text
   { type: "alerts", label: "widget.type.alerts", description: "widget.type.alerts.desc", icon: IconBell },
   { type: "checks", label: "widget.type.checks", description: "widget.type.checks.desc", icon: IconActivityHeartbeat },
   { type: "events", label: "widget.type.events", description: "widget.type.events.desc", icon: IconHistory },
+  { type: "vpn", label: "widget.type.vpn", description: "widget.type.vpn.desc", icon: IconShieldLock },
   { type: "poe", label: "widget.type.poe", description: "widget.type.poe.desc", icon: IconBolt },
   { type: "server", label: "widget.type.server", description: "widget.type.server.desc", icon: IconServer },
   { type: "wan_status", label: "widget.type.wan_status", description: "widget.type.wan_status.desc", icon: IconWorld },
@@ -101,6 +104,8 @@ export function widgetTitle(w: Widget): string {
       return t("widget.type.checks");
     case "events":
       return t("widget.type.events");
+    case "vpn":
+      return w.config.title || t("widget.type.vpn");
   }
 }
 
@@ -145,5 +150,7 @@ export function WidgetView({ widget }: { widget: Widget }) {
       return <ChecksWidget days={widget.config.days} />;
     case "events":
       return <EventsWidget days={widget.config.days} limit={widget.config.limit} />;
+    case "vpn":
+      return <VpnWidget title={widget.config.title ?? null} showOffline={widget.config.show_offline} />;
   }
 }

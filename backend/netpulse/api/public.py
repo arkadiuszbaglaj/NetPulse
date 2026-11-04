@@ -38,6 +38,7 @@ from . import (
     panels,
     servers,
     system,
+    vpn,
     wan,
 )
 from .dashboards import _parse, public_options
@@ -232,6 +233,8 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         if wanted not in {w.config.days * 24 * 60 for w in widgets if w.type == "events"} or query.get("offset"):
             raise HTTPException(403, "Niedozwolony zakres czasu")
         return await events.events(wanted, 0)
+    if path == "/api/vpn" and "vpn" in types:
+        return await vpn.status(public=True)  # bez adresów: skąd łączy się klient i adresu w tunelu
     if path == "/api/wan/status" and "wan_status" in types:
         return await wan.status()
     # Historia łączy: widget „Aktywne łącze WAN” albo wykres z kolorem łącza zapasowego (od 0.55.0)
@@ -294,6 +297,8 @@ async def resolve(layout: DashboardLayout, opts: PublicOptions, raw: str) -> Any
         if source.kind == "pve_guest" and not mods.get("proxmox", True):
             break
         if source.kind.startswith("agent_") and not mods.get("agents", True):
+            break
+        if source.kind == "vpn" and not mods.get("unifi", True):
             break
         return await _chart(source, minutes(), offset)
     raise HTTPException(403, "Tych danych nie ma na tym pulpicie")

@@ -165,6 +165,7 @@ def test_agent_report_flow(client):
         "snmp_sfp": [],
         "wan_latency": [],
         "wan_ping": [],
+        "vpn": [],
     }
     net = client.get(f"/api/devices/{dev}/agent-metrics", params={"source": "agent_net", "key": "eth0"}).json()
     assert net[-1]["values"] == {"rx_bps": 1000.0, "tx_bps": 2000.0}

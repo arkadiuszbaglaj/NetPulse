@@ -20,7 +20,7 @@ from sqlalchemy import delete  # noqa: E402
 from netpulse.api import app  # noqa: E402
 from netpulse.api.security import login_limiter  # noqa: E402
 from netpulse.db import Session, engine, init_db  # noqa: E402
-from netpulse.db.models import Alert, Device, DeviceMetric, Interface, User, WanLink, WanLinkMetric  # noqa: E402
+from netpulse.db.models import Alert, Device, DeviceMetric, Interface, Metric, User, WanLink, WanLinkMetric  # noqa: E402
 
 ADMIN = {"username": "admin", "password": "haslo-testowe-1"}
 
@@ -79,13 +79,17 @@ def test_events_alerts_restarts_and_wan_switch(client):
             for m in (20, 15):
                 s.add(WanLinkMetric(time=ago(m), wan_link_id=links[0].id, up=m == 20, active=m == 20))
                 s.add(WanLinkMetric(time=ago(m), wan_link_id=links[1].id, up=True, active=m == 15))
+            # VPN (0.57.0): iPhone łączy się 10 min temu; Laptop od początku połączony – to nie jest nowe połączenie
+            for m, value in ((12, 0.0), (11, 0.0), (10, 1.0), (9, 1.0)):
+                s.add(Metric(time=ago(m), device_id=gw.id, name="vpn_connected", key="iPhone", value=value))
+                s.add(Metric(time=ago(m), device_id=gw.id, name="vpn_connected", key="Laptop", value=1.0))
             return sw.id, gw.id
 
     sw_id, gw_id = run(seed)
     res = client.get("/api/events", params={"minutes": 60})
     assert res.status_code == 200, res.text
     events = [(e["kind"], e["title"], e["device_id"]) for e in res.json()]
-    assert events == [("restart", "USW", sw_id), ("wan_switch", "WAN 1 → WAN 2", gw_id)]
+    assert events == [("restart", "USW", sw_id), ("wan_switch", "WAN 1 → WAN 2", gw_id), ("vpn_connect", "iPhone", gw_id)]
     restart = datetime.fromisoformat(res.json()[0]["time"])
     assert restart == ago(32)
 

@@ -1,0 +1,49 @@
+# VPN użytkowników zdalnych (od 0.57.0)
+
+NetPulse pokazuje, kto jest połączony z serwerem VPN bramy UniFi (WireGuard, a także OpenVPN / L2TP, jeśli kontroler
+je zgłasza): od kiedy, skąd, ile przesłał i z jakim ruchem. Dane daje kontroler UniFi (moduł UniFi, klucz API), więc
+nie trzeba nic ustawiać – wystarczy skonfigurowany kontroler w Ustawienia → UniFi.
+
+## Skąd dane
+
+Kolektor UniFi co cykl (30 s) czyta z kontrolera (sprawdzone na UCG Ultra, Network 10.x):
+
+| Adres | Co daje |
+|-------|---------|
+| `rest/networkconf` | serwery VPN: sieci z `purpose = "remote-user-vpn"` (nazwa, typ, port, podsieć) |
+| `v2/api/site/<site>/wireguard/users` | skonfigurowani klienci WireGuard (nazwa, adres w tunelu) |
+| `stat/remoteuservpn` | trwające połączenia: klient, adres publiczny, czas połączenia, bajty i bieżący ruch |
+
+`rx` w `remoteuservpn` = od klienta (jego wysyłanie), `tx` = do klienta (jego pobieranie); szybkości są w B/s,
+NetPulse zapisuje je w b/s. Brak serwera VPN = żadnych dalszych zapytań. Błąd odczytu VPN nie psuje reszty odczytu kontrolera.
+
+## Gdzie zapisuje
+
+- **Stan** (kto jest połączony, od kiedy, skąd, ostatni transfer) – zdjęcie w `app_settings` pod `vpn:<id kontrolera>`
+  (`backend/netpulse/vpn.py`). Klient, który się rozłączył, zostaje z czasem ostatniego połączenia i ostatnim transferem.
+- **Metryki** w ogólnej tabeli `metrics`, na urządzeniu bramy, klucz = nazwa klienta:
+  `vpn_connected` (1/0 dla każdego znanego klienta), `vpn_down_bps`, `vpn_up_bps` (tylko w trakcie połączenia).
+  Bez migracji bazy.
+
+## W panelu
+
+- **Widget „VPN”** (Dodaj widget → Internet i WAN → Klienci VPN): serwery, klienci z kropką stanu, „połączony od”,
+  adres w tunelu i adres publiczny, przesłane dane, bieżący ruch ↓↑. W ustawieniach: wszyscy klienci albo tylko połączeni.
+  Na pulpicie publicznym bez adresów (ani publicznego, ani w tunelu).
+- **Źródło wykresu „Klient VPN”**: brama → klient; serie: pobieranie, wysyłanie, połączony (1/0).
+- **Zdarzenia**: „Połączenie VPN: <klient>” w kafelku „Zdarzenia”.
+- **Alert „Nowe połączenie VPN”** (`vpn_connect`, informacja, domyślnie włączony): trwa 10 minut, bez powiadomienia
+  o końcu. Nowe połączenie = próbka `vpn_connected` 1 po próbce 0 (przerwa w odczytach dłuższa niż 150 s się nie liczy).
+
+API: `GET /api/vpn` (`backend/netpulse/api/vpn.py`); `stale = true`, gdy ostatni odczyt jest starszy niż 3 minuty –
+wtedy nikt nie jest pokazywany jako połączony.
+
+## Interfejs, który znika z SNMP
+
+Interfejs WireGuard bramy (`wgsrv1`) jest w SNMP tylko w trakcie połączenia. Wcześniej panel pokazywał wtedy ostatni
+stan („działa”). Od 0.57.0:
+
+- driver UniFi daje mu rolę `vpn` i nazwę sieci VPN (np. „WG-Home”);
+- kolektor ustawia każdemu interfejsowi, którego nie ma w odczycie, stan `notPresent` (bez próbek – więc bez alertu
+  „port nie działa” i bez fałszywego skoku ruchu po powrocie);
+- panel pokazuje „brak sesji” (VPN) albo „nieobecny”, a w tabeli portów „–”.

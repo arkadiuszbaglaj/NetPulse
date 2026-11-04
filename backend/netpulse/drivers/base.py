@@ -53,7 +53,7 @@ class InterfaceSample:
     out_discards: int | None = None
     # Uzupełniane przez driver
     label: str = ""
-    role: str = "port"  # wan | lan | port | uplink | radio | virtual | system
+    role: str = "port"  # wan | lan | port | uplink | vpn | radio | virtual | system
     hidden: bool = False
 
 

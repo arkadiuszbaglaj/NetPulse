@@ -77,6 +77,7 @@ class AgentSource(Strict):
         "snmp_sfp",
         "wan_latency",
         "wan_ping",
+        "vpn",
     ]
     id: int = Field(ge=1)  # urządzenie (serwer z agentem, węzeł Proxmox, urządzenie SNMP albo brama – `wan_*`)
     key: str = Field("", max_length=255)  # interfejs, dysk, czujnik, kontener, port albo łącze WAN; dla agent_cpu puste
@@ -115,6 +116,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "snmp_sfp": ("sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"),
     "wan_latency": ("latency_ms", "availability_percent"),
     "wan_ping": ("latency_ms",),
+    "vpn": ("down_bps", "up_bps", "connected"),
     "check": ("latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"),
 }
 
@@ -426,6 +428,15 @@ class EventsConfig(Strict):
     limit: Literal[3, 5, 8, 10] = 8
 
 
+class VpnConfig(Strict):
+    """Kafelek „VPN” (od 0.57.0): serwery VPN bramy UniFi i klienci – kto jest połączony, od kiedy, ruch."""
+
+    title: str | None = Field(None, max_length=80)
+    show_offline: bool = True  # pokazywać rozłączonych klientów (z czasem ostatniego połączenia)
+
+    _strip = field_validator("title")(lambda cls, v: _title(v))
+
+
 class ServerConfig(Strict):
     pass  # karta stanu serwera NetPulse nie ma ustawień
 
@@ -518,6 +529,16 @@ class EventsWidget(Strict):
     y: int | None = Field(None, ge=0, le=MAX_ROW)
     h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
     config: EventsConfig = EventsConfig()
+
+
+class VpnWidget(Strict):
+    id: str = Field(pattern=WIDGET_ID)
+    type: Literal["vpn"]
+    w: GridWidth
+    x: int | None = Field(None, ge=0, lt=GRID_COLS)
+    y: int | None = Field(None, ge=0, le=MAX_ROW)
+    h: int | None = Field(None, ge=1, le=MAX_HEIGHT)
+    config: VpnConfig = VpnConfig()
 
 
 class PoeWidget(Strict):
@@ -757,7 +778,8 @@ Widget = Annotated[
     | StatusWidget
     | AlertsWidget
     | ChecksWidget
-    | EventsWidget,
+    | EventsWidget
+    | VpnWidget,
     Field(discriminator="type"),
 ]
 

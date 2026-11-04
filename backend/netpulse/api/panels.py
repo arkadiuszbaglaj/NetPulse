@@ -128,10 +128,11 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
             rows = [
                 Row(
                     key=str(p.id),
-                    label=f"{p.label or p.name}" + (f" ({p.alias})" if p.alias else ""),
+                    label=f"{p.label or p.name}" + (f" ({p.alias})" if p.alias and p.alias != p.label else ""),
                     device_id=device.id,
                     values={
-                        "up": 1.0 if p.oper_status == "up" else 0.0,
+                        # Nieobecny w ostatnim odczycie (VPN bez sesji): ani „działa”, ani „nie działa”
+                        "up": None if p.oper_status == "notPresent" else 1.0 if p.oper_status == "up" else 0.0,
                         "in_bps": _num(latest[p.id].in_bps) if p.id in latest else None,
                         "out_bps": _num(latest[p.id].out_bps) if p.id in latest else None,
                         "speed_mbps": _num(p.speed_mbps) if p.oper_status == "up" else None,

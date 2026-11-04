@@ -23,10 +23,12 @@ from netpulse.api import app  # noqa: E402
 from netpulse.api.security import login_limiter  # noqa: E402
 from netpulse.db import Session, engine, init_db  # noqa: E402
 from netpulse.db.models import (  # noqa: E402
+    AppSetting,
     Controller,
     Device,
     Interface,
     InterfaceMetric,
+    Metric,
     NetworkClient,
     PoeBudgetMetric,
     PoePortMetric,
@@ -39,6 +41,9 @@ from netpulse.unifi import (  # noqa: E402
     parse_devices,
     parse_official_device,
     parse_official_devices,
+    parse_vpn_servers,
+    parse_vpn_sessions,
+    parse_vpn_users,
 )
 from netpulse.unifi_collector import UnifiCollector  # noqa: E402
 
@@ -49,9 +54,13 @@ def fixture(name: str) -> dict:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
+VPN = fixture("unifi_vpn.json")
+
+
 class FakeApi:
-    def __init__(self, fail: bool = False, clients: dict | None = None, no_official: bool = False) -> None:
+    def __init__(self, fail: bool = False, clients: dict | None = None, no_official: bool = False, vpn_sessions: bool = True) -> None:
         self.fail = fail
+        self.vpn_sessions = vpn_sessions
         self._clients = clients or fixture("unifi_clients.json")
         self.no_official = no_official
         self.detail_calls: list[str] = []
@@ -66,6 +75,10 @@ class FakeApi:
 
     async def clients(self):
         return parse_clients(self._clients)
+
+    async def vpn(self):
+        sessions = parse_vpn_sessions(VPN["remoteuservpn"]) if self.vpn_sessions else []
+        return parse_vpn_servers(VPN["networkconf"]), parse_vpn_users(VPN["wireguard_users"]), sessions
 
     async def official_devices(self):
         if self.no_official:
@@ -105,6 +118,7 @@ def seed() -> None:
         await init_db()
         async with Session() as s, s.begin():
             await s.execute(delete(Controller))
+            await s.execute(delete(AppSetting).where(AppSetting.key.startswith("vpn:")))
             await s.execute(delete(Device))
             await s.execute(delete(User))
             switch = Device(name="USW", host=devices["usw"], community="public")
@@ -129,6 +143,7 @@ def client():
 async def _clean():
     async with Session() as s, s.begin():
         await s.execute(delete(Controller))
+        await s.execute(delete(AppSetting).where(AppSetting.key.startswith("vpn:")))
         await s.execute(delete(Device))
         await s.execute(delete(User))
 
@@ -199,6 +214,32 @@ def test_clients_and_poe_endpoints(client):
     assert [p["port_idx"] for p in poe["ports"]] == [1, 2, 3, 4]
     assert poe["ports"][0]["label"] == "AP U6+" and poe["ports"][0]["power_w"] == 3.89 and poe["ports"][0]["delivering"]
     assert client.get("/api/devices/99999/poe").status_code == 404
+
+
+def test_vpn_status_and_metrics(client):
+    """VPN (0.57.0): kto jest połączony, metryki na bramie, po rozłączeniu – ostatnio widziany i ostatni transfer."""
+    poll(FakeApi())
+    vpn = client.get("/api/vpn").json()
+    gw = next(d["id"] for d in client.get("/api/devices").json() if d["name"] == "UCG")
+    assert vpn["device_id"] == gw and vpn["stale"] is False
+    assert vpn["servers"] == [{"id": "net-wg", "name": "WG-Home", "type": "WireGuard", "enabled": True, "port": 51820, "subnet": "192.168.3.1/24"}]
+    iphone, laptop = vpn["users"]
+    assert (iphone["name"], iphone["connected"], iphone["server"], iphone["remote_ip"]) == ("iPhone", True, "WG-Home", "203.0.113.7")
+    assert iphone["down_bytes"] == 76148892 and iphone["down_bps"] == 147888 * 8 and iphone["since"]
+    assert (laptop["name"], laptop["connected"], laptop["last_seen"]) == ("Laptop", False, None)
+
+    async def rows():
+        async with Session() as s:
+            return {(m.name, m.key): m.value for m in (await s.scalars(select(Metric).where(Metric.device_id == gw))).all()}
+
+    assert run(rows) == {("vpn_connected", "iPhone"): 1.0, ("vpn_connected", "Laptop"): 0.0, ("vpn_down_bps", "iPhone"): 147888 * 8, ("vpn_up_bps", "iPhone"): 96637 * 8}
+    chart = client.get(f"/api/devices/{gw}/agent-metrics", params={"source": "vpn", "key": "iPhone"}).json()
+    assert chart[-1]["values"]["down_bps"] == 147888 * 8
+    assert set(client.get(f"/api/devices/{gw}/agent-keys").json()["vpn"]) == {"Laptop", "iPhone"}
+
+    poll(FakeApi(vpn_sessions=False))
+    iphone = next(u for u in client.get("/api/vpn").json()["users"] if u["name"] == "iPhone")
+    assert iphone["connected"] is False and iphone["last_seen"] and iphone["down_bytes"] == 76148892 and iphone["down_bps"] is None
 
 
 def test_controller_crud_hides_api_key(client):

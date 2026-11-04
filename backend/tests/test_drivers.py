@@ -48,6 +48,19 @@ def test_ucg_ultra_gateway():
     assert r.health.load1 is not None
 
 
+def test_unifi_gateway_vpn_interface_has_vpn_role():
+    """WireGuard bramy (`wgsrv1`, alias = nazwa sieci VPN w UniFi) jest widoczny z rolą „vpn” (od 0.57.0)."""
+    from netpulse.drivers.base import InterfaceSample
+
+    r = poll("ucg-ultra")
+    iface = InterfaceSample(if_index=90497, name="wgsrv1", descr="wgsrv1", alias="WG-Home", if_type=1)
+    UnifiDriver().enrich_interface(iface, r)
+    assert (iface.role, iface.label, iface.hidden) == ("vpn", "WG-Home", False)
+    wg = InterfaceSample(if_index=5, name="wg0", descr="wg0", alias=None, if_type=1)
+    UnifiDriver().enrich_interface(wg, r)
+    assert wg.hidden  # stary wg0 bez sieci VPN – dalej wirtualny
+
+
 def test_usw_lite_switch():
     r = poll("usw-lite-8-poe")
     assert r.system.kind == "switch"
