@@ -198,6 +198,9 @@ Panel na prawdziwym serwerze sprawdzam w podglądzie przeglądarki, gdy użytkow
 - **Własne OID-y, przeglądarka MIB, profile YAML** – propozycja w `docs/25-wlasne-oid-propozycja.md` (tylko dokument,
   4.11.2026). Hybryda: drivery zostają, dochodzą własne metryki SNMP (tabela `metrics`), przeglądarka MIB (`pysmi`)
   i profile urządzeń w YAML. Nie wdrażać bez decyzji użytkownika.
+- **Plan testów na różnym sprzęcie** – propozycja w `docs/26-plan-testow-sprzetu.md` (4.11.2026): ryzyka R1–R10
+  (liczniki 32-bit, interfejsy techniczne w driverze ogólnym, brak roli WAN, zmiana `ifIndex`, duże urządzenia,
+  NAS, ARM), etapy 1–5. Etap 1 (testy odporności w CI) można robić bez sprzętu – czeka na decyzję użytkownika.
 - **Licencje** – propozycja w `docs/09-licencje-propozycja.md` (tylko dokument, bez kodu). Użytkownik wróci do niej
   później i rozstrzygnie pytania otwarte (model biznesowy A/B/C, licencja kodu, dostawca). Do tego czasu nic nie wdrażać.
 - **MikroTik**: ✅ (0.28.2) sprawdzony na prawdziwym RouterOS 7.18.2 (CHR w VirtualBox, 192.168.1.62) – fixture
