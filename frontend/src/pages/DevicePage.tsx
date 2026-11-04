@@ -277,7 +277,7 @@ export function DevicePage() {
   const unifi = isOn(useModules().data, "unifi");
   const poe = usePoe(unifi && device.data?.kind === "switch" ? id : null);
   const sensors = useSensors(id);
-  // Porty PoE z kontrolera mają nazwy 0/1, 0/2… jak ifName switcha UniFi w SNMP; PoE z SNMP (MikroTik) – nazwa portu
+  // Porty PoE z kontrolera mają nazwy 0/1, 0/2… jak ifName switcha UniFi w SNMP; PoE z SNMP (MikroTik, TP-Link) – nazwa portu
   const poeByName = useMemo(
     () =>
       new Map<string, Pick<PoePort, "power_w">>([

@@ -272,6 +272,66 @@ def test_tplink_jetstream_switch():
     assert ifs["vlan1"].hidden and ifs["lag1"].label == "LAG 1" and not ifs["lag1"].hidden
 
 
+def test_tplink_switch_health_poe_and_sfp_from_official_mib():
+    r = poll("tplink-jetstream")
+    assert r.system.firmware == "1.0.4 Build 20240531 Rel.61923"
+    assert (r.health.cpu_percent, r.health.mem_used_percent) == (12.0, 43.0)
+    m = {(s.name, s.key): s.value for s in r.metrics}
+    # PoE: indeks = numer portu → nazwa interfejsu (panel łączy PoE z portem po nazwie); 0,1 W i 0,1 V
+    assert m[("poe_power_w", "gi1/0/1")] == 6.5 and m[("poe_voltage_v", "gi1/0/1")] == 53.2
+    # Stan TP-Link (0 wył., 2 zasila, 3 przeciążenie) w skali panelu wspólnej z MikroTikiem (1 wył., 3 zasila, 4 przeciążenie)
+    assert (m[("poe_state", "gi1/0/1")], m[("poe_state", "gi1/0/2")], m[("poe_state", "gi1/0/4")]) == (3.0, 1.0, 4.0)
+    # DDM: wartości tekstowe, port „1/0/9” → gi1/0/9
+    assert m[("sfp_rx_dbm", "gi1/0/9")] == -7.83 and m[("sfp_tx_dbm", "gi1/0/9")] == -2.51
+    assert (m[("sfp_temp_c", "gi1/0/9")], m[("sfp_voltage_v", "gi1/0/9")]) == (35.2, 3.29)
+    assert (m[("sfp_rx_loss", "gi1/0/9")], m[("sfp_tx_fault", "gi1/0/9")]) == (0.0, 0.0)
+
+
+@pytest.mark.parametrize(
+    ("raw", "power", "expected"),
+    [(b"-7.83", True, -7.83), (b"35.2 C", False, 35.2), (b"--", True, None), (b"0.5012 mW", True, -3.0), (b"", False, None)],
+)
+def test_tplink_ddm_number(raw, power, expected):
+    from netpulse.drivers.omada import ddm_number
+
+    assert ddm_number(raw, power) == expected
+
+
+def test_tplink_ddm_flag():
+    from netpulse.drivers.omada import ddm_flag
+
+    assert [ddm_flag(x) for x in (b"No", b"Normal", b"Yes", b"Loss", b"1", b"0", b"?", None)] == [0.0, 0.0, 1.0, 1.0, 1.0, 0.0, None, None]
+
+
+def test_tplink_omada_gateway_wan_vlans():
+    r = poll("tplink-er7206")
+    assert r.driver == OmadaDriver.name
+    assert (r.system.kind, r.system.model) == ("gateway", "ER7206")
+    ifs = by_name(r)
+    assert (ifs["eth0.10"].role, ifs["eth0.10"].label) == ("wan", "WAN 1")
+    assert (ifs["eth0.20"].role, ifs["eth0.20"].label) == ("wan", "WAN 2")
+    assert (ifs["br-lan"].role, ifs["br-lan"].label) == ("lan", "LAN")
+    assert {i.name for i in r.visible_interfaces()} == {"eth0.10", "eth0.20", "br-lan"}
+    assert r.metrics == []  # bramy nie mają tabel PoE/DDM switchy
+
+
+@pytest.mark.parametrize(
+    ("descr", "kind"),
+    [
+        (b"ER605 Omada Gigabit VPN Router", "gateway"),
+        (b"ER707-M2", "gateway"),
+        (b"Omada Multi-Gigabit VPN Router ER8411", "gateway"),
+        (b"ER7212PC Omada 3-in-1 Gigabit VPN Router", "gateway"),
+        (b"DR3650v", "gateway"),
+        (b"SG3428X-M2 JetStream 24-Port", "switch"),
+        (b"EAP650 Wi-Fi 6 Access Point", "ap"),
+    ],
+)
+def test_tplink_device_kind_by_model(descr, kind):
+    r = poll_with("tplink-jetstream", **{"1.3.6.1.2.1.1.1.0": descr})
+    assert r.system.kind == kind
+
+
 def test_tplink_access_point_and_detection():
     ap = poll_with("tplink-jetstream", **{"1.3.6.1.2.1.1.1.0": b"EAP245 AC1750 Ceiling Mount Dual-Band Wi-Fi Access Point"})
     assert ap.system.kind == "ap" and ap.system.model == "EAP245"

@@ -80,6 +80,23 @@ MIKROTIK_OPT_PRESENT = "1.3.6.1.4.1.14988.1.1.19.1.1.13"
 
 # TP-Link (Omada, JetStream)
 TPLINK_ENTERPRISE = "1.3.6.1.4.1.11863"
+# Oficjalne MIB-y switchy L2 (TP-Link_L2 Switch_MIB, L2-tplinkMibs.zip z 2024-02-29), gałąź tplinkMgmt
+TPLINK_MGMT = "1.3.6.1.4.1.11863.6"
+TPLINK_SW_VERSION = TPLINK_MGMT + ".1.1.6.0"  # tpSysInfoSwVersion
+TPLINK_CPU_1MIN = TPLINK_MGMT + ".4.1.1.1.1.3"  # tpSysMonitorCpu1Minute, % na jednostkę stosu
+TPLINK_MEM_UTIL = TPLINK_MGMT + ".4.1.2.1.1.2"  # tpSysMonitorMemoryUtilization, %
+TPLINK_POE_PORT = TPLINK_MGMT + ".56.1.1.2.1.1"  # tpPoePortConfigEntry, indeks = numer portu
+TPLINK_POE_POWER = TPLINK_POE_PORT + ".7"  # 0,1 W
+TPLINK_POE_VOLTAGE = TPLINK_POE_PORT + ".9"  # 0,1 V
+TPLINK_POE_STATUS = TPLINK_POE_PORT + ".11"  # 0 wył., 1 włączanie, 2 zasila, 3 przeciążenie, 4 zwarcie, …
+TPLINK_DDM = TPLINK_MGMT + ".96.1.7.1.1"  # ddmStatusEntry, wartości jako tekst
+TPLINK_DDM_PORT = TPLINK_DDM + ".1"
+TPLINK_DDM_TEMP = TPLINK_DDM + ".2"
+TPLINK_DDM_VOLTAGE = TPLINK_DDM + ".3"
+TPLINK_DDM_TX_POWER = TPLINK_DDM + ".5"
+TPLINK_DDM_RX_POWER = TPLINK_DDM + ".6"
+TPLINK_DDM_RX_LOSS = TPLINK_DDM + ".8"
+TPLINK_DDM_TX_FAULT = TPLINK_DDM + ".9"
 
 # Ubiquiti UBNT-UniFi-MIB
 UBNT_ENTERPRISE = "1.3.6.1.4.1.41112"

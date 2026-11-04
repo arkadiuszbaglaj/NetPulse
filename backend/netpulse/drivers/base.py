@@ -65,12 +65,13 @@ class DeviceHealth:
     load1: float | None = None
     load5: float | None = None
     load15: float | None = None
+    mem_percent: float | None = None  # gdy urządzenie podaje tylko zajętość w % (np. switche TP-Link)
 
     @property
     def mem_used_percent(self) -> float | None:
         if self.mem_total_kb and self.mem_used_kb is not None:
             return round(100.0 * self.mem_used_kb / self.mem_total_kb, 1)
-        return None
+        return self.mem_percent
 
 
 @dataclass

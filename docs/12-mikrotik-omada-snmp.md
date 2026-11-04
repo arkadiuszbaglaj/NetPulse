@@ -13,18 +13,34 @@ rozpoznawany jest automatycznie, więc przy dodawaniu zostaw sterownik „Automa
 
 | | MikroTik RouterOS | TP-Link JetStream / Omada |
 |---|---|---|
-| Typ urządzenia | po nazwie płyty: CRS/CSS i RB260/RB250 = switch, cAP/wAP/SXT/LHG = access point, reszta = router | po modelu: EAP = access point, ER = router, reszta = switch |
-| Model i wersja | nazwa płyty i wersja RouterOS (MIKROTIK-MIB) | model z opisu systemu |
-| CPU i RAM | średnia z rdzeni i pamięć główna (HOST-RESOURCES-MIB) | tylko jeśli urządzenie udostępnia (zwykle nie) |
-| Porty | `ether1` bez komentarza = WAN; komentarz albo nazwa portu ze słowem „wan" lub „internet" (np. przemianowany port „WAN”, „wan1”, „ether1-wan”) oznacza WAN na dowolnym porcie; pozostałe `ether`/`sfp` i przemianowane porty Ethernet (np. „LAN”) = LAN; komentarz portu jest jego nazwą | „Port N" z numeru na końcu nazwy (`gi1/0/12` to Port 12); LAG jako „LAG N" |
-| Ukryte | `bridge`, `vlan`, `pppoe-out`, tunele, `lo`, radia `wlan` | `vlan`, `loopback`, `null`, radia |
+| Typ urządzenia | po nazwie płyty: CRS/CSS i RB260/RB250 = switch, cAP/wAP/SXT/LHG = access point, reszta = router | po modelu: EAP = access point, ER/DR/FR (np. ER605, ER7206, ER8411) = brama, reszta = switch |
+| Model i wersja | nazwa płyty i wersja RouterOS (MIKROTIK-MIB) | model z opisu systemu, wersja firmware switcha (`tpSysInfoSwVersion`, od 0.51.0) |
+| CPU i RAM | średnia z rdzeni i pamięć główna (HOST-RESOURCES-MIB) | switche: CPU (1 min) i zajętość RAM w % (`tplinkSysMonitorMIB`, od 0.51.0); bramy i EAP tylko jeśli mają UCD-SNMP-MIB |
+| Porty | `ether1` bez komentarza = WAN; komentarz albo nazwa portu ze słowem „wan" lub „internet" (np. przemianowany port „WAN”, „wan1”, „ether1-wan”) oznacza WAN na dowolnym porcie; pozostałe `ether`/`sfp` i przemianowane porty Ethernet (np. „LAN”) = LAN; komentarz portu jest jego nazwą | switche: „Port N" z numeru na końcu nazwy (`gi1/0/12` to Port 12), LAG jako „LAG N"; bramy (od 0.51.0): `eth0.<VLAN>` = WAN (WAN 1, WAN 2 … według numeru VLAN), `br-lan` = LAN |
+| Ukryte | `bridge`, `vlan`, `pppoe-out`, tunele, `lo`, radia `wlan` | `vlan`, `loopback`, `null`, radia; na bramach interfejsy wewnętrzne (`eth0` bez VLAN, `lo`, `ifb`, tunele, `pppoe`) |
 | Czujniki (od 0.50.0) | temperatury, wentylatory, napięcie, prąd, moc, stan zasilaczy | – |
-| PoE (od 0.50.0) | stan, moc i napięcie na porcie | – |
-| SFP (od 0.50.0) | moc odbierana i nadawana (dBm), temperatura, napięcie, utrata sygnału, błąd nadajnika | – |
+| PoE | stan, moc i napięcie na porcie (od 0.50.0) | switche: stan, moc i napięcie na porcie (od 0.51.0) |
+| SFP | moc odbierana i nadawana (dBm), temperatura, napięcie, utrata sygnału, błąd nadajnika (od 0.50.0) | switche: to samo z tabeli DDM (od 0.51.0) |
 
 Tunel PPPoE jest ukryty celowo: ten sam ruch przechodzi przez fizyczny port WAN, więc zliczenie obu podwoiłoby ruch WAN na pulpicie.
 
-Czego jeszcze nie ma: danych z kontrolera Omada (klienci, PoE) oraz API RouterOS.
+Czego jeszcze nie ma: danych z kontrolera Omada (klienci z sygnałem, PoE z bram i EAP, stan WAN – Open API) oraz API RouterOS.
+
+## TP-Link: CPU, PoE i SFP switchy, WAN bram (od 0.51.0)
+
+Źródła: **oficjalny MIB switchy L2** (TP-Link_L2 Switch_MIB, `L2-tplinkMibs.zip` z 2024-02-29, centrum pobierania Omada) i
+**oficjalne FAQ** o SNMP bram Omada (document/13047). Szczegóły i adresy: `docs/28-zrodla-producentow.md`.
+
+| Tabela MIB | OID (`1.3.6.1.4.1.11863.6…`) | Co trafia do NetPulse | Przeliczenie |
+|---|---|---|---|
+| `tplinkSysInfoMIB` | `.1.1.6.0` | wersja firmware | tekst |
+| `tplinkSysMonitorMIB` | `.4.1.1.1.1.3` (CPU 1 min), `.4.1.2.1.1.2` (RAM) | CPU i RAM urządzenia | %, średnia z jednostek stosu |
+| `tplinkPowerOverEthernetMIB` | `.56.1.1.2.1.1` (moc .7, napięcie .9, stan .11) | `poe_power_w`, `poe_voltage_v`, `poe_state` | ÷10; stan +1 (skala panelu wspólna z MikroTikiem: 1 wył., 3 zasila, 4 przeciążenie, 5 zwarcie, wyżej błąd) |
+| `ddmStatus` | `.96.1.7.1.1` (port .1, temp. .2, napięcie .3, TX .5, RX .6, utrata .8, błąd TX .9) | `sfp_*` | tekst → liczba („mW” przeliczane na dBm), „Yes/No” → 1/0; pusta klatka pomijana |
+
+Klucz metryki = nazwa interfejsu (indeks PoE = numer portu, port DDM „1/0/9” → `gi1/0/9`), więc moc PoE pojawia się
+w tabeli portów, a SFP w karcie „Moduły SFP”. **Testowane na zrzucie syntetycznym zgodnym z MIB** – do sprawdzenia na
+prawdziwym switchu: format tekstu DDM, jednostki mocy i numeracja PoE w stosie.
 
 ## Czujniki, PoE i SFP MikroTika (od 0.50.0)
 

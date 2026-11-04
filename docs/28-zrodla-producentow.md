@@ -196,7 +196,7 @@ wersję kontrolera i testować na prawdziwym.
 
 ## 4. Co z tego wynika dla NetPulse
 
-Znalezione rozbieżności w obecnym kodzie (nic jeszcze nie zmienione):
+Znalezione rozbieżności w kodzie (stan 4.11.2026; punkty 1–3 poprawione w **0.51.0**, etap A):
 
 1. **Driver `omada` źle rozpoznaje część bram.** Wzorzec `\bER\d{3}\b` łapie ER605 i ER707, ale **nie ER7206,
    ER8411, ER7212PC** (4 cyfry) ani bram DR/FR – te dostaną typ „switch”, a ich `eth0.10` stanie się „Port 10”.
@@ -211,7 +211,7 @@ Znalezione rozbieżności w obecnym kodzie (nic jeszcze nie zmienione):
    UniFi („API kontrolera Omada” z planu prac).
 
 Proponowana kolejność (do decyzji):
-- **A.** Poprawki drivera `omada` z oficjalnych źródeł: rozpoznanie bram, WAN `eth0.<VLAN>`, CPU/RAM/PoE/SFP
+- **A. ✅ (0.51.0)** Poprawki drivera `omada` z oficjalnych źródeł: rozpoznanie bram, WAN `eth0.<VLAN>`, CPU/RAM/PoE/SFP
   switchy (fixture syntetyczny zgodny z `L2-tplinkMibs.zip`, potem prawdziwy zrzut).
 - **B.** MikroTik: klienci WiFi (obie tabele), sąsiedzi, zerwania łącza.
 - **C.** Moduł „Omada” – Open API kontrolera (klienci, PoE, WAN, LLDP) – dopiero z prawdziwym kontrolerem.

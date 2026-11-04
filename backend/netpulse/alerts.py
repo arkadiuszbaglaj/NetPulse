@@ -62,7 +62,7 @@ METRICS: dict[str, tuple[str, str]] = {
     "system_mem_used_percent": ("Serwer NetPulse: RAM", "%"),
     "system_disk_used_percent": ("Serwer NetPulse: dysk", "%"),
     "temp_c": ("Temperatura (każdy czujnik: serwer z agentem, MikroTik)", "°C"),
-    "sfp_rx_dbm": ("SFP: moc odbierana (każdy moduł SFP MikroTika)", " dBm"),
+    "sfp_rx_dbm": ("SFP: moc odbierana (każdy moduł SFP: MikroTik, switche TP-Link)", " dBm"),
     "smart_reallocated": ("SMART: realokowane sektory (każdy dysk serwera z agentem)", ""),
     "backup_age_h": ("Proxmox: godziny od ostatniej kopii (każda VM i LXC)", " h"),
     "check_latency_ms": ("Sprawdzenie dostępności: opóźnienie", " ms"),

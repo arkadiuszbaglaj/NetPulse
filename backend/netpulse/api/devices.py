@@ -315,7 +315,7 @@ def _flag(value: float | None) -> bool | None:
 
 @router.get("/devices/{device_id}/sensors", response_model=SensorsOut)
 async def device_sensors(device_id: int):
-    """Czujniki, PoE i SFP urządzenia SNMP (od 0.50.0: MikroTik) – ostatnia wartość każdego z ostatnich 10 minut."""
+    """Czujniki, PoE i SFP urządzenia SNMP (od 0.50.0: MikroTik, od 0.51.0: switche TP-Link) – ostatnia wartość każdego z ostatnich 10 minut."""
     since = datetime.now(UTC) - timedelta(minutes=10)
     names = (*SENSOR_METRICS, *POE_METRICS, *SFP_METRICS)
     async with Session() as session:
