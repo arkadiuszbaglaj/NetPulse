@@ -30,6 +30,10 @@ i wykończenie. Wszystko przez tokeny w `frontend/src/index.css`, więc kolejną
   (druga seria i porównanie z „wczoraj”, wcześniej szary). Łącze zapasowe – pomarańcz.
 - **Font:** Geist i Geist Mono w paczce (`@fontsource-variable/geist`, `…/geist-mono`; z polskimi znakami, bez internetu).
 - **Menu:** w kolorze tła, aktywna pozycja to kafelek w kolorze karty z niebieską ikoną, wersja w niebieskiej plakietce.
+  Od 0.58.1 grupy **Monitoring** (pulpit, mapa sieci, dostępność), **Zdarzenia** (alerty z plakietką liczby
+  niepotwierdzonych – po zwinięciu menu kropka), **Integracje** (klienci WiFi, Proxmox – pusta grupa znika) i **System**.
+  Grupa to pole `group` w rejestrze `frontend/src/modules.tsx` (`NAV_GROUPS`; bez pola – Monitoring); nowa integracja
+  = `group: "integrations"`.
 - **Karty** zaokrąglone 16 px (`rounded-2xl`), przyciski i pola 10 px; paski CPU/RAM w tabeli urządzeń – akcent.
 - Ikony aplikacji (favicon, PWA) i `theme-color` – niebieskie.
 
@@ -48,7 +52,7 @@ Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu
   Stany (oś stanów, koło „działa/nie działa”) – osobne tokeny `--state-up|down|unknown`. Liczba w widgecie „liczba”
   w kolorze tekstu, kolor progu tylko po przekroczeniu. Karta wykresu: tytuł i bieżąca wartość pierwszej serii w nagłówku.
 - **Font:** Inter dołączony do panelu (`@fontsource-variable/inter`, działa bez internetu), cyfry równej szerokości.
-- **Menu:** na całą wysokość, logo na górze, grupy „Monitorowanie” i „System” (`Sidebar.tsx`, `SYSTEM_MODULES`).
+- **Menu:** na całą wysokość, logo na górze, grupy „Monitorowanie” i „System” (do 0.58.0; od 0.58.1 – patrz „Wygląd Błękit”).
   Pasek górny bez ramki, w kolorze tła; na telefonie przycisk menu z logo.
 - **Pulpit domyślny** (`DEFAULT_LAYOUT`, szablon „Pełny”): pasek stanu → kafelki z mini-wykresem i szczytem →
   ruch WAN (8) + alerty (4) → tabela urządzeń (8) + dostępność (4). Nowe widgety: `status` (pasek

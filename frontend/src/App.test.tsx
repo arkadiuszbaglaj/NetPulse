@@ -92,6 +92,16 @@ describe("panel po zalogowaniu", () => {
     expect(screen.getByRole("button", { name: "Menu konta" })).toHaveTextContent("admin");
   });
 
+  it("dzieli menu na grupy: Monitoring, Zdarzenia, System (Integracje – tylko z włączonym modułem)", async () => {
+    mockApi();
+    renderApp();
+    const nav = await screen.findByRole("navigation", { name: "Menu główne" });
+    expect(within(nav).getByText("Monitoring")).toBeInTheDocument();
+    expect(within(nav).getByText("Zdarzenia")).toBeInTheDocument();
+    expect(within(nav).getByText("System")).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: /^Alerty/ })).toBeInTheDocument();
+  });
+
   it("pokazuje karty urządzeń i podsumowanie", async () => {
     mockApi();
     renderApp();

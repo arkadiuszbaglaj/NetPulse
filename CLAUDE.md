@@ -209,6 +209,7 @@ nowy widget z listą = dopisać do `AUTO_HEIGHT`. Opis: `docs/29-responsywnosc-w
 Od 0.58.0 wygląd „Błękit” (wybrany przez użytkownika z projektów na płótnie): niebieski akcent `#1f6feb`/`#4c9bff`,
 chłodne tła, font Geist + Geist Mono w paczce, karty 16 px, kolor wykresu 8 = błękit (druga seria). Tekst w kolorze
 akcentu = `text-accent-text` (nie `text-accent` – za mały kontrast na `bg-accent-soft`). Opis: `docs/06-projekt-panelu.md`.
+Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `group` w `modules.tsx` (nowa integracja = `"integrations"`).
 
 ## Do sprawdzenia później
 

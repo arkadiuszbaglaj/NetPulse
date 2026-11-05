@@ -89,7 +89,13 @@ export interface NavModule {
   module?: ModuleId;
   /** Sama trasa bez pozycji w menu (np. szczegóły urządzenia otwierane z karty) */
   hidden?: boolean;
+  /** Grupa w menu (od 0.58.1); bez niej – „Monitoring”. Integracja z Ustawienia → Moduły = zwykle "integrations". */
+  group?: NavGroup;
 }
+
+/** Grupy menu w kolejności wyświetlania. */
+export const NAV_GROUPS = ["monitoring", "events", "integrations", "system"] as const;
+export type NavGroup = (typeof NAV_GROUPS)[number];
 
 export const modules: NavModule[] = [
   {
@@ -146,6 +152,7 @@ export const modules: NavModule[] = [
     icon: IconDevicesPc,
     element: <ClientsPage />,
     module: "unifi",
+    group: "integrations",
   },
   {
     id: "client",
@@ -163,6 +170,7 @@ export const modules: NavModule[] = [
     icon: IconServerCog,
     element: <ProxmoxPage />,
     module: "proxmox",
+    group: "integrations",
   },
   {
     id: "topology",
@@ -185,12 +193,14 @@ export const modules: NavModule[] = [
     label: "nav.alerts",
     icon: IconBellRinging,
     element: <AlertsPage />,
+    group: "events",
   },
   {
     id: "settings",
     path: "/settings",
     label: "nav.settings",
     icon: IconSettings,
+    group: "system",
     children: [
       { path: "account", label: "nav.settings.account", icon: IconUserCircle, element: <AccountPage /> },
       {
