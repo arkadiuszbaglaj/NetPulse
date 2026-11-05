@@ -12,6 +12,13 @@ NetPulse czyta z Proxmox VE (7 i 8) przez API, tylko do odczytu:
 - **kopie zapasowe**: wynik ostatniego zadania vzdump na każdym węźle i czas ostatniej kopii każdej maszyny,
   z alertami „kopia nie powiodła się” i „brak świeżej kopii”.
 
+**Gdy Proxmox nie odpowiada** (od 0.58.5): nie pokazujemy ostatniego odczytu jako bieżącego. Węzeł oznaczony przez
+kolektor jako `down` (serwer bez połączenia albo węzeł offline w klastrze) → API `/api/proxmox/guests` i `/storages`
+zwraca `stale: true`, stan `unknown` i puste CPU, pamięć, dysk, czas pracy i zajętość magazynów (zostaje nazwa, VMID
+i czas ostatniej kopii); `/nodes` – `online: false`. Strona Proxmox: gdy nie odpowiada nic – komunikat „Proxmox nie
+odpowiada” z błędem i czasem ostatniego udanego odczytu zamiast tabel; gdy część węzłów – ich wiersze bez danych.
+Kolekcja `guests` (pulpit) działa tak samo od 0.43.3.
+
 ## Konfiguracja krok po kroku
 
 1. **Użytkownik:** Datacenter → Permissions → Users → Add: `netpulse`, realm *Proxmox VE authentication server*.

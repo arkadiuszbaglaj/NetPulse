@@ -107,6 +107,8 @@ class GuestOut(BaseModel):
     uptime_s: int | None
     last_backup_at: datetime | None
     updated_at: datetime
+    # Węzeł nie odpowiada (od 0.58.5): stan i bieżące wartości z ostatniego odczytu są ukryte (null), zostaje to, co stałe
+    stale: bool = False
 
 
 class StorageOut(BaseModel):
@@ -120,6 +122,7 @@ class StorageOut(BaseModel):
     used_bytes: int | None
     total_bytes: int | None
     updated_at: datetime
+    stale: bool = False  # węzeł nie odpowiada – zajętość ukryta (od 0.58.5)
 
 
 class NodeOut(BaseModel):
@@ -130,6 +133,19 @@ class NodeOut(BaseModel):
     online: bool
     backup_status: str | None
     backup_at: datetime | None
+
+
+# Bieżące wartości maszyny – bez nich, gdy węzeł nie odpowiada (stare liczby wyglądałyby jak aktualne)
+_GUEST_LIVE = ("cpu_percent", "mem_used", "mem_total", "disk_used", "disk_total", "uptime_s")
+
+
+async def _node_devices(session) -> tuple[dict[tuple[int, str], int | None], set[int]]:
+    """Mapowanie (serwer, węzeł) → urządzenie i zbiór urządzeń-węzłów, które nie odpowiadają.
+    Kolektor oznacza węzeł jako `down`, gdy nie odpowiada serwer Proxmox albo węzeł jest offline w klastrze."""
+    nodes = {(n.server_id, n.node): n.device_id for n in (await session.scalars(select(ProxmoxNode))).all()}
+    ids = set(nodes.values()) - {None}
+    down = set((await session.scalars(select(Device.id).where(Device.id.in_(ids), Device.status != "up"))).all()) if ids else set()
+    return nodes, down
 
 
 async def _probe(t: ServerTarget) -> ServerProbe:
@@ -229,21 +245,25 @@ async def list_guests(device_id: int | None = Query(None, description="tylko mas
     """Maszyny VM i kontenery LXC z ostatniego odczytu (bez szablonów na końcu listy)."""
     async with Session() as session:
         servers = {s.id: s.name for s in (await session.scalars(select(ProxmoxServer))).all()}
-        nodes = {(n.server_id, n.node): n.device_id for n in (await session.scalars(select(ProxmoxNode))).all()}
         guests = (await session.scalars(select(ProxmoxGuest).order_by(ProxmoxGuest.template, ProxmoxGuest.vmid))).all()
-        # Węzeł bez odpowiedzi – stan maszyn z ostatniego odczytu jest nieaktualny
-        node_ids = set(nodes.values()) - {None}
-        down = set((await session.scalars(select(Device.id).where(Device.id.in_(node_ids), Device.status != "up"))).all()) if node_ids else set()
-    out = [
-        GuestOut(
-            **{c: getattr(g, c) for c in GuestOut.model_fields if hasattr(g, c) and c not in ("server", "device_id", "key", "status")},
-            status="unknown" if nodes.get((g.server_id, g.node)) in down else g.status,
-            server=servers.get(g.server_id, "?"),
-            device_id=nodes.get((g.server_id, g.node)),
-            key=f"{g.name} ({g.vmid})",
+        # Węzeł bez odpowiedzi – stan i bieżące wartości maszyn z ostatniego odczytu są nieaktualne: nie pokazujemy ich
+        nodes, down = await _node_devices(session)
+    out = []
+    for g in guests:
+        stale = nodes.get((g.server_id, g.node)) in down
+        fields = {c: getattr(g, c) for c in GuestOut.model_fields if hasattr(g, c) and c not in ("server", "device_id", "key", "status")}
+        if stale:
+            fields.update(dict.fromkeys(_GUEST_LIVE))
+        out.append(
+            GuestOut(
+                **fields,
+                status="unknown" if stale else g.status,
+                server=servers.get(g.server_id, "?"),
+                device_id=nodes.get((g.server_id, g.node)),
+                key=f"{g.name} ({g.vmid})",
+                stale=stale,
+            )
         )
-        for g in guests
-    ]
     return [g for g in out if device_id is None or g.device_id == device_id]
 
 
@@ -251,11 +271,20 @@ async def list_guests(device_id: int | None = Query(None, description="tylko mas
 async def list_storages():
     async with Session() as session:
         rows = (await session.scalars(select(ProxmoxStorage).order_by(ProxmoxStorage.node, ProxmoxStorage.storage))).all()
-    return [StorageOut.model_validate(r, from_attributes=True) for r in rows]
+        nodes, down = await _node_devices(session)
+    out = []
+    for r in rows:
+        s = StorageOut.model_validate(r, from_attributes=True)
+        if nodes.get((r.server_id, r.node)) in down:
+            s = s.model_copy(update={"used_bytes": None, "total_bytes": None, "active": False, "stale": True})
+        out.append(s)
+    return out
 
 
 @router.get("/nodes", response_model=list[NodeOut])
 async def list_nodes():
     async with Session() as session:
         rows = (await session.scalars(select(ProxmoxNode).order_by(ProxmoxNode.server_id, ProxmoxNode.node))).all()
-    return [NodeOut.model_validate(r, from_attributes=True) for r in rows]
+        _, down = await _node_devices(session)
+    # `online` z ostatniego udanego odczytu – gdy serwer przestał odpowiadać, węzeł też nie jest online
+    return [NodeOut.model_validate(r, from_attributes=True).model_copy(update={"online": r.online and r.device_id not in down}) for r in rows]

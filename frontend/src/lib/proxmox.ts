@@ -49,6 +49,8 @@ export interface ProxmoxGuest {
   uptime_s: number | null;
   last_backup_at: string | null;
   updated_at: string;
+  /** Węzeł nie odpowiada (od 0.58.5): stan i bieżące wartości są puste, zostaje nazwa i wiek kopii */
+  stale?: boolean;
 }
 
 export interface ProxmoxStorage {
@@ -62,6 +64,8 @@ export interface ProxmoxStorage {
   used_bytes: number | null;
   total_bytes: number | null;
   updated_at: string;
+  /** Węzeł nie odpowiada – zajętość ukryta */
+  stale?: boolean;
 }
 
 export const PROXMOX_SERVERS_KEY = ["proxmox", "servers"];

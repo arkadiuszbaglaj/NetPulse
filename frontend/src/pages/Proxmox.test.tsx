@@ -103,6 +103,39 @@ describe("strona Proxmox", () => {
     expect(screen.getByRole("meter", { name: "local-lvm · pve1" })).toHaveAttribute("aria-valuenow", "75");
   });
 
+  const staleGuest = (g: ProxmoxGuest): ProxmoxGuest => ({
+    ...g, stale: true, status: "unknown", cpu_percent: null, mem_used: null, mem_total: null, disk_used: null, disk_total: null, uptime_s: null,
+  });
+  const staleStorage = (s: ProxmoxStorage): ProxmoxStorage => ({ ...s, stale: true, active: false, used_bytes: null, total_bytes: null });
+
+  it("serwer nie odpowiada: komunikat z błędem i ostatnim odczytem zamiast archiwalnych maszyn i magazynów", async () => {
+    mockApi({
+      pveServers: [{ ...PVE_SERVER, status: "down", last_error: "Brak połączenia z 192.168.1.10:8006", last_ok_at: hoursAgo(2) }],
+      pveGuests: GUESTS.map(staleGuest),
+      pveStorages: STORAGES.map(staleStorage),
+    });
+    renderApp("/proxmox");
+    expect(await screen.findByRole("heading", { name: "Proxmox nie odpowiada" })).toBeInTheDocument();
+    expect(screen.getByText(/Homelab: Brak połączenia z 192.168.1.10:8006/)).toBeInTheDocument();
+    expect(screen.getByText(/Ostatni udany odczyt:/)).toBeInTheDocument();
+    expect(screen.queryByText("homeassistant")).not.toBeInTheDocument();
+    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+  });
+
+  it("część węzłów nie odpowiada: ich maszyny i magazyny bez danych, reszta normalnie", async () => {
+    mockApi({
+      pveServers: [PVE_SERVER],
+      pveGuests: GUESTS.map((g) => (g.node === "pve2" ? staleGuest(g) : g)),
+      pveStorages: [STORAGES[0], staleStorage({ ...STORAGES[1], node: "pve2", shared: false })],
+    });
+    renderApp("/proxmox");
+    expect(await screen.findByText("Część węzłów nie odpowiada – ich maszyny i magazyny są bez danych.")).toBeInTheDocument();
+    const row = (name: string) => screen.getByText(name).closest("tr") as HTMLElement;
+    expect(within(row("pihole")).getByText("brak danych (węzeł nie odpowiada)")).toBeInTheDocument();
+    expect(within(row("homeassistant")).getByText("działa")).toBeInTheDocument();
+    expect(screen.getByText("brak danych – węzeł nie odpowiada")).toBeInTheDocument();
+  });
+
   it("karta węzła na pulpicie: maszyny i błąd kopii zapasowej", async () => {
     const status: ServerStatus = {
       sampled_at: new Date().toISOString(),

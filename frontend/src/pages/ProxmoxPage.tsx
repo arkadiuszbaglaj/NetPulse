@@ -34,7 +34,7 @@ function BackupCell({ guest }: { guest: ProxmoxGuest }) {
 
 function GuestRow({ g }: { g: ProxmoxGuest }) {
   const Icon = g.type === "lxc" ? IconBox : IconDeviceDesktop;
-  const mem = g.mem_total ? `${formatBytes(g.mem_used ?? 0)} / ${formatBytes(g.mem_total)}` : "–";
+  const mem = g.mem_total && g.mem_used != null ? `${formatBytes(g.mem_used ?? 0)} / ${formatBytes(g.mem_total)}` : "–";
   return (
     <tr className="border-t border-border">
       <td className={td}>
@@ -50,7 +50,7 @@ function GuestRow({ g }: { g: ProxmoxGuest }) {
         </div>
       </td>
       <td className={td}>{g.template ? <span className="text-xs text-text-2">{t("pve.guest.template")}</span> : <StatusBadge status={g.status} />}</td>
-      <td className={`${td} text-text-2`}>{g.cpu_percent != null ? `${Math.round(g.cpu_percent)}% · ${g.cpus ?? "?"} vCPU` : "–"}</td>
+      <td className={`${td} text-text-2`}>{g.stale ? "–" : g.cpu_percent != null ? `${Math.round(g.cpu_percent)}% · ${g.cpus ?? "?"} vCPU` : "–"}</td>
       <td className={`${td} text-text-2`}>{mem}</td>
       <td className={`${td} text-text-2`}>{g.uptime_s ? formatUptime(g.uptime_s) : "–"}</td>
       <td className={td}>{g.template ? "–" : <BackupCell guest={g} />}</td>
@@ -67,6 +67,12 @@ export function ProxmoxPage() {
   const list = guests.data ?? [];
   const running = list.filter((g) => !g.template && g.status === "running").length;
   const total = list.filter((g) => !g.template).length;
+  // Serwer albo węzły nie odpowiadają: zamiast archiwalnych wartości – komunikat (całość) albo puste pola (część węzłów)
+  const storageList = storages.data ?? [];
+  const items = [...list, ...storageList];
+  const allStale = items.length > 0 && items.every((x) => x.stale);
+  const someStale = !allStale && items.some((x) => x.stale);
+  const downServers = (servers.data ?? []).filter((s) => s.enabled && s.status === "down");
 
   return (
     <>
@@ -84,8 +90,28 @@ export function ProxmoxPage() {
       )}
       {guests.isError && <ErrorNote>{t("pve.page.error")}</ErrorNote>}
 
-      {!noServer && (
+      {!noServer && allStale && (
+        <Card className="p-6">
+          <h2 className="text-base font-medium text-danger">{t("pve.page.down.title")}</h2>
+          <p className="mt-1 max-w-prose text-sm text-text-2">{t("pve.page.down.body")}</p>
+          {downServers.map((s) => (
+            <p key={s.id} className="mt-3 max-w-prose text-sm">
+              {s.last_error ? t("pve.page.down.server", { name: s.name, error: s.last_error }) : s.name}{" "}
+              <span className="text-text-2">
+                {s.last_ok_at ? t("pve.page.down.lastOk", { when: relativeTime(s.last_ok_at) ?? "" }) : t("pve.page.down.never")}
+              </span>
+            </p>
+          ))}
+        </Card>
+      )}
+
+      {!noServer && !allStale && (
         <div className="flex flex-col gap-6">
+          {someStale && (
+            <p role="status" className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning">
+              {t("pve.page.partial")}
+            </p>
+          )}
           <section aria-labelledby="pve-guests">
             <h2 id="pve-guests" className="mb-2 text-base font-medium">
               {t("pve.page.guests", { running, total })}
@@ -118,13 +144,15 @@ export function ProxmoxPage() {
             </h2>
             <Card className="p-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {(storages.data ?? []).map((s) => (
+                {storageList.map((s) => (
                   <UsageBar
                     key={`${s.server_id}-${s.node}-${s.storage}`}
                     label={`${s.storage} · ${s.shared ? t("pve.storage.shared") : s.node}`}
                     percent={s.total_bytes ? (100 * (s.used_bytes ?? 0)) / s.total_bytes : null}
                     note={
-                      s.active
+                      s.stale
+                        ? t("pve.storage.stale")
+                        : s.active
                         ? t("server.free", { free: formatBytes((s.total_bytes ?? 0) - (s.used_bytes ?? 0)), total: formatBytes(s.total_bytes) }) + ` · ${s.type ?? "?"}`
                         : t("pve.storage.inactive")
                     }

@@ -190,6 +190,20 @@ def test_unreachable_server_marks_nodes_down(client):
     servers = client.get("/api/proxmox/servers").json()
     assert servers[0]["status"] == "down" and "Brak połączenia" in servers[0]["last_error"]
     assert {d["status"] for d in client.get("/api/devices").json()} == {"down"}
+    # Strona Proxmox (0.58.5): bez archiwalnych wartości – stan nieznany, CPU/RAM/dysk/czas pracy i zajętość magazynów puste
+    guests = [g for g in client.get("/api/proxmox/guests").json() if not g["template"]]
+    assert guests and all(g["stale"] and g["status"] == "unknown" for g in guests)
+    assert all(g[k] is None for g in guests for k in ("cpu_percent", "mem_used", "mem_total", "disk_used", "disk_total", "uptime_s"))
+    assert all(g["name"] and g["vmid"] for g in guests)  # co to za maszyny – zostaje
+    storages = client.get("/api/proxmox/storages").json()
+    assert storages and all(s["stale"] and not s["active"] and s["used_bytes"] is None and s["total_bytes"] is None for s in storages)
+    assert not any(n["online"] for n in client.get("/api/proxmox/nodes").json())
+    # Serwer znów odpowiada – dane wracają
+    fake.down = False
+    poll(collector)
+    guests = [g for g in client.get("/api/proxmox/guests").json() if not g["template"]]
+    assert not any(g["stale"] for g in guests) and any(g["cpu_percent"] is not None for g in guests)
+    assert not any(s["stale"] for s in client.get("/api/proxmox/storages").json())
 
 
 def test_alerts_guest_stopped_backup_failed_and_stale_backup(client):
