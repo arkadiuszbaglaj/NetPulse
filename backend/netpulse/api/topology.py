@@ -140,7 +140,7 @@ async def topology():
                     name=d.name,
                     device_kind=d.kind,
                     model=d.model,
-                    status=d.status,
+                    status=d.live_status,
                 )
             )
     for node_id in sorted(n for n in used if n.startswith("x")):

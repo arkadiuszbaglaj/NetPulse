@@ -6,7 +6,7 @@ import { DefaultCommunityBadge } from "../components/SnmpWarning";
 import { RangePicker } from "../components/RangePicker";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { ChartWidget } from "../components/widgets/ChartWidget";
-import { KIND_LABEL, STATUS_LABEL, STATUS_STYLE, deviceIcon } from "../components/widgets/DevicesWidget";
+import { KIND_LABEL, STATUS_LABEL, STATUS_STYLE, deviceIcon, deviceState, staleHint } from "../components/widgets/DevicesWidget";
 import { ServerDetails } from "../components/widgets/ServerDetails";
 import { t, type TextKey } from "../i18n";
 import { ApiError, type Device } from "../lib/api";
@@ -301,14 +301,16 @@ export function DevicePage() {
   if (!d) return <p role="status" className="py-10 text-center text-sm text-text-2">{t("app.loading")}</p>;
 
   const Icon = deviceIcon(d.kind);
-  const status = d.status in STATUS_STYLE ? d.status : "unknown";
+  const status = deviceState(d);
   const ports = interfaces.data ?? [];
   return (
     <>
       <BackLink to="/" label={t("nav.dashboard")} />
       <PageHeader title={d.name}>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`}>{t(STATUS_LABEL[status])}</span>
+          <span className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`} title={staleHint(d)}>
+            {t(STATUS_LABEL[status])}
+          </span>
           <DefaultCommunityBadge device={d} />
           <Link
             to="/settings/devices"
@@ -324,6 +326,11 @@ export function DevicePage() {
         {d.host} · {t(KIND_LABEL[d.kind] ?? "dash.kind.other")}
         {d.model && ` · ${d.model}`}
       </p>
+      {d.stale && (
+        <p role="status" className="-mt-2 mb-4 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
+          {staleHint(d)}
+        </p>
+      )}
 
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">

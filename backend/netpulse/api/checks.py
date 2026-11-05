@@ -13,7 +13,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import Integer, cast, delete, func, select, text
 from sqlalchemy.dialects.postgresql import distinct_on
 
@@ -89,7 +89,9 @@ class CheckOut(BaseModel):
     expect_status: str | None
     keyword: str | None
     verify_tls: bool
-    status: str
+    # `unknown`, gdy sprawdzenie dawno się nie wykonało (kolektor stoi) – freshness.py
+    status: str = Field(validation_alias=AliasChoices("live_status", "status"))
+    stale: bool = False
     status_since: datetime | None
     last_checked_at: datetime | None
     last_ok_at: datetime | None

@@ -26,11 +26,13 @@ const STATUS_STYLE: Record<string, string> = {
   up: "bg-success-soft text-success",
   down: "bg-danger-soft text-danger",
   unknown: "bg-surface-2 text-text-2",
+  stale: "bg-warning-soft text-warning",
 };
 const STATUS_LABEL: Record<string, TextKey> = {
   up: "chk.status.up",
   down: "chk.status.down",
   unknown: "chk.status.unknown",
+  stale: "chk.status.stale",
 };
 const KIND_LABEL: Record<CheckKind, TextKey> = {
   ping: "chk.kind.ping",
@@ -325,8 +327,12 @@ function CheckRow({
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: CHECKS_KEY }),
   });
-  const status = check.enabled ? (check.status in STATUS_STYLE ? check.status : "unknown") : null;
-  const since = check.status_since ? relativeTime(check.status_since) : null;
+  const status = check.enabled ? (check.stale ? "stale" : check.status in STATUS_STYLE ? check.status : "unknown") : null;
+  const since = check.stale
+    ? t("chk.status.staleHint", { time: relativeTime(check.last_checked_at) ?? "–" })
+    : check.status_since
+      ? relativeTime(check.status_since)
+      : null;
   const metrics = resultParts({ ...check, latency_ms: check.last_latency_ms });
 
   return (

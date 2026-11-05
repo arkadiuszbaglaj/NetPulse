@@ -14,6 +14,7 @@ from sqlalchemy import delete, select
 
 from ..db import Session
 from ..db.models import Device, ProxmoxGuest, ProxmoxNode, ProxmoxServer, ProxmoxStorage
+from ..freshness import status_sql
 from ..modules import require_module
 from ..proxmox import ProxmoxApi, ProxmoxError
 from .schemas import _check_host
@@ -144,7 +145,7 @@ async def _node_devices(session) -> tuple[dict[tuple[int, str], int | None], set
     Kolektor oznacza węzeł jako `down`, gdy nie odpowiada serwer Proxmox albo węzeł jest offline w klastrze."""
     nodes = {(n.server_id, n.node): n.device_id for n in (await session.scalars(select(ProxmoxNode))).all()}
     ids = set(nodes.values()) - {None}
-    down = set((await session.scalars(select(Device.id).where(Device.id.in_(ids), Device.status != "up"))).all()) if ids else set()
+    down = set((await session.scalars(select(Device.id).where(Device.id.in_(ids), status_sql(Device) != "up"))).all()) if ids else set()
     return nodes, down
 
 

@@ -136,7 +136,8 @@ def test_summary(client):
     seed()
     r = client.get("/api/dashboard/summary").json()
     # wyłączony switch nie liczy się do urządzeń ani do ruchu
-    assert r["devices"] == {"total": 3, "up": 2, "down": 1, "unknown": 0}
+    # Router 2: werdykt „down” sprzed 9 min – kolektor go nie potwierdza, więc „nieznany”, nie awaria (freshness.py)
+    assert r["devices"] == {"total": 3, "up": 2, "down": 0, "unknown": 1}
     # WAN: tylko ostatnie próbki z 5 minut, suma po routerach (wan1 + wan2); LAN i wyłączone pominięte
     assert r["wan"]["interfaces"] == 2
     assert r["wan"]["in_bps"] == pytest.approx(15e6)
@@ -144,6 +145,10 @@ def test_summary(client):
     # klienci: 5 + 3, ukryta sieć pominięta
     assert r["wifi_clients"] == 8
     assert r["last_poll_at"] is not None
+    # Lista urządzeń: status do pokazania + zapisany werdykt i znacznik nieaktualnych danych
+    devices = {d["name"]: d for d in client.get("/api/devices").json()}
+    assert (devices["Router 2"]["status"], devices["Router 2"]["stale"], devices["Router 2"]["last_status"]) == ("unknown", True, "down")
+    assert (devices["UCG"]["status"], devices["UCG"]["stale"], devices["UCG"]["last_status"]) == ("up", False, "up")
 
 
 def test_traffic_series_sums_wan_per_bucket(client):

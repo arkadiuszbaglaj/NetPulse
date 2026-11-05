@@ -15,7 +15,7 @@ if os.environ.get("NETPULSE_TEST_DB") != "1":
     pytest.skip("brak testowej bazy (NETPULSE_TEST_DB=1)", allow_module_level=True)
 
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import delete, select  # noqa: E402
+from sqlalchemy import delete, select, update  # noqa: E402
 
 from netpulse.alerts import AlertEngine  # noqa: E402
 from netpulse.api import app  # noqa: E402
@@ -74,8 +74,10 @@ def client():
     run(_reset)
 
 
-def evaluate(now=NOW):
+def evaluate(now=NOW, fresh=True):
     async def go():
+        if fresh:
+            await polled(now)
         await AlertEngine(now_fn=lambda: now).evaluate()
 
     run(go)
@@ -83,6 +85,12 @@ def evaluate(now=NOW):
 
 def alerts(client, state="all"):
     return client.get("/api/alerts", params={"state": state}).json()
+
+
+async def polled(now):
+    """Świeży werdykt kolektora dla wszystkich urządzeń – bez niego alerty urządzeń stoją (freshness.py)."""
+    async with Session() as s, s.begin():
+        await s.execute(update(Device).values(last_polled_at=now))
 
 
 def add_device(**kw) -> int:
@@ -138,6 +146,38 @@ def test_offline_rule_fires_after_duration_and_resolves(client):
     evaluate(NOW + timedelta(seconds=30))
     (a,) = alerts(client)
     assert a["state"] == "resolved" and a["resolved_at"]
+
+
+def test_stale_device_neither_fires_nor_resolves(client):
+    """Kolektor stoi: zapisany werdykt jest nieaktualny – brak danych to nie awaria ani powrót do normy."""
+    stale_at = NOW - timedelta(minutes=10)
+    add_device(status="down", last_ok_at=NOW - timedelta(minutes=15), last_polled_at=stale_at)
+    add_rule(name="offline", kind="device_offline", duration_s=0)
+    evaluate(fresh=False)
+    assert alerts(client) == []
+
+    evaluate()  # świeży werdykt „down” – alert się otwiera
+    (a,) = alerts(client)
+    assert a["state"] == "firing"
+
+    later = NOW + timedelta(minutes=10)  # od NOW żadnego odczytu: alert trwa bez zmian
+    events = evaluate_stale(later)
+    assert events == [] and [x["state"] for x in alerts(client)] == ["firing"]
+
+    async def back_online():
+        async with Session() as s, s.begin():
+            (await s.get(Device, a["device_id"])).status = "up"
+
+    run(back_online)
+    evaluate(later)  # świeży odczyt „up” – teraz koniec alertu
+    assert [x["state"] for x in alerts(client)] == ["resolved"]
+
+
+def evaluate_stale(now):
+    async def go():
+        return await AlertEngine(now_fn=lambda: now).evaluate()
+
+    return run(go)
 
 
 def test_offline_rule_waits_for_duration(client):
@@ -314,6 +354,7 @@ def test_deleted_rule_ends_its_alerts_but_keeps_history(client):
 
 def evaluate_events(now):
     async def go():
+        await polled(now)  # kolektor odpytał urządzenia tuż przed oceną (kolejność jak w pętli kolektora)
         return await AlertEngine(now_fn=lambda: now).evaluate()
 
     return run(go)

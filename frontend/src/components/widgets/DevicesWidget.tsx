@@ -24,12 +24,27 @@ export const STATUS_STYLE: Record<string, string> = {
   up: "bg-success-soft text-success",
   down: "bg-danger-soft text-danger",
   unknown: "bg-surface-2 text-text-2",
+  stale: "bg-warning-soft text-warning",
 };
 export const STATUS_LABEL: Record<string, TextKey> = {
   up: "dash.status.up",
   down: "dash.status.down",
   unknown: "dash.status.unknown",
+  stale: "dash.status.stale",
 };
+
+/** Stan do pokazania: „stale” = kolektor dawno nie wydał werdyktu – brak danych, a nie awaria (od 0.59.0). */
+export function deviceState(d: Pick<Device, "status" | "stale">): string {
+  if (d.stale) return "stale";
+  return d.status in STATUS_LABEL && d.status !== "stale" ? d.status : "unknown";
+}
+
+/** Podpowiedź do plakietki nieaktualnego urządzenia: kiedy był ostatni odczyt i co wtedy pokazał. */
+export function staleHint(d: Pick<Device, "stale" | "last_polled_at" | "last_status">): string | undefined {
+  if (!d.stale) return undefined;
+  const last = d.last_status && d.last_status in STATUS_LABEL ? t("dash.status.staleLast", { status: t(STATUS_LABEL[d.last_status]) }) : "";
+  return t("dash.status.staleHint", { time: relativeTime(d.last_polled_at) ?? t("dash.never"), last });
+}
 
 export function deviceIcon(kind: string) {
   return KIND_ICON[kind as keyof typeof KIND_ICON] ?? IconDeviceDesktop;
@@ -37,7 +52,7 @@ export function deviceIcon(kind: string) {
 
 function DeviceCard({ device, availability }: { device: Device; availability: number | null | undefined }) {
   const Icon = deviceIcon(device.kind);
-  const status = device.status in STATUS_STYLE ? device.status : "unknown";
+  const status = deviceState(device);
   const polled = relativeTime(device.last_polled_at);
   const linked = useDetailLinks();
   return (
@@ -60,7 +75,9 @@ function DeviceCard({ device, availability }: { device: Device; availability: nu
             </p>
           </div>
         </div>
-        <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`}>{t(STATUS_LABEL[status])}</span>
+        <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs ${STATUS_STYLE[status]}`} title={staleHint(device)}>
+          {t(STATUS_LABEL[status])}
+        </span>
       </div>
       <dl className="flex justify-between gap-3 text-xs text-text-2">
         <div className="min-w-0">
@@ -69,7 +86,7 @@ function DeviceCard({ device, availability }: { device: Device; availability: nu
         </div>
         <div className="shrink-0 text-right">
           <dt className="sr-only">{t("dash.polled")}</dt>
-          <dd>{polled ?? t("dash.never")}</dd>
+          <dd className={device.stale ? "text-warning" : undefined}>{polled ?? t("dash.never")}</dd>
         </div>
       </dl>
       {availability != null && (
@@ -87,7 +104,7 @@ function DeviceCard({ device, availability }: { device: Device; availability: nu
   );
 }
 
-const STATUS_DOT: Record<string, string> = { up: "bg-success", down: "bg-danger", unknown: "bg-border-strong" };
+const STATUS_DOT: Record<string, string> = { up: "bg-success", down: "bg-danger", unknown: "bg-border-strong", stale: "bg-warning" };
 
 /** Procent z paskiem (CPU, RAM w tabeli urządzeń). */
 function PercentBar({ value }: { value: number | null | undefined }) {
@@ -129,7 +146,7 @@ function DevicesTable({ list }: { list: Device[] }) {
           <tbody>
             {[...list.filter((d) => d.enabled), ...list.filter((d) => !d.enabled)].map((d) => {
               const v = byId.get(String(d.id));
-              const status = d.status in STATUS_STYLE ? d.status : "unknown";
+              const status = deviceState(d);
               if (!d.enabled) {
                 // Wyłączone (bez odpytywania) – na końcu, wyszarzone; pasek stanu ich nie liczy
                 return (
@@ -174,7 +191,7 @@ function DevicesTable({ list }: { list: Device[] }) {
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.status === "up" && d.uptime_s != null ? formatUptime(d.uptime_s) : "–"}</td>
                   <td className="whitespace-nowrap py-3 pl-3 pr-5">
-                    <span className="inline-flex items-center gap-1.5 text-[13px] text-text-2" title={status === "down" ? (d.last_error ?? undefined) : undefined}>
+                    <span className="inline-flex items-center gap-1.5 text-[13px] text-text-2" title={status === "down" ? (d.last_error ?? undefined) : staleHint(d)}>
                       <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} aria-hidden="true" />
                       {t(STATUS_LABEL[status])}
                     </span>

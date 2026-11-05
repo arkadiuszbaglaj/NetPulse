@@ -34,6 +34,7 @@ from .db.models import (
     SystemMetric,
     TopologyLink,
 )
+from .freshness import is_stale
 from .modules import hidden_drivers, read_modules
 from .notifications import AlertEvent, Notifier
 from .timeline import restarts, wan_switches
@@ -308,6 +309,9 @@ class AlertEngine:
             by_key = {(a.rule_id, a.subject): a for a in firing}
             active_rules = {r.id for r in rules}
             rule_kind = {r.id: r.kind for r in rules}
+            # Brak świeżego werdyktu (pętla kolektora albo integracji stoi): brak danych to nie awaria ani powrót
+            # do normy – takie urządzenie nie otwiera alertu „nie odpowiada”, a jego otwarte alerty trwają bez zmian
+            stale = {d.id for d in devices.values() if is_stale(d.last_polled_at, now)}
 
             # Grupowanie: urządzenie za niedziałającym urządzeniem (np. AP za switchem) nie dostaje osobnego
             # powiadomienia – wymieniamy je w wiadomości o przyczynie. Alert w panelu powstaje normalnie.
@@ -375,7 +379,8 @@ class AlertEngine:
                     events[i] = replace(events[i], message=f"{events[i].message}\n{extra}" if events[i].message else extra)
 
             for key, alert in by_key.items():
-                if key not in seen or alert.rule_id not in active_rules:
+                held = alert.device_id in stale and rule_kind.get(alert.rule_id) not in EVENT_KINDS
+                if (key not in seen and not held) or alert.rule_id not in active_rules:
                     alert.state = "resolved"
                     alert.resolved_at = now
                     log.info("Alert zakończony: %s", alert.title)
@@ -395,7 +400,7 @@ class AlertEngine:
     async def _hits(self, session, rule: AlertRule, devices: dict[int, Device], now: datetime) -> list[Hit]:
         scope = [d for d in devices.values() if rule.device_id in (None, d.id)]
         if rule.kind == "device_offline":
-            return self._offline(rule, scope, now)
+            return self._offline(rule, [d for d in scope if not is_stale(d.last_polled_at, now)], now)
         if rule.kind == "default_community":
             return self._default_community(scope)
         if rule.kind == "port_down":

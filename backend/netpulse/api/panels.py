@@ -31,6 +31,7 @@ from ..db.models import (
     WifiMetric,
     WifiNetwork,
 )
+from ..freshness import status_sql
 from ..modules import hidden_drivers, read_modules
 from .metrics import MinutesQuery, _bucket_seconds
 from .security import require_user
@@ -103,7 +104,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                         label=d.name,
                         device_id=d.id,
                         values={
-                            "up": 1.0 if d.status == "up" else 0.0 if d.status == "down" else None,
+                            "up": 1.0 if d.live_status == "up" else 0.0 if d.live_status == "down" else None,
                             "cpu_percent": _num(m.cpu_percent) if m else None,
                             "mem_used_percent": _num(m.mem_used_percent) if m else None,
                             "poll_ms": _num(m.poll_ms) if m else None,
@@ -187,7 +188,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                     key=str(c.id),
                     label=c.name,
                     values={
-                        "up": 1.0 if c.status == "up" else 0.0 if c.status == "down" else None,
+                        "up": 1.0 if c.live_status == "up" else 0.0 if c.live_status == "down" else None,
                         "latency_ms": c.last_latency_ms,
                         "loss_percent": c.loss_percent,
                         "availability_percent": c.availability_24h,
@@ -292,7 +293,7 @@ async def _guest_rows(session, node_device: int | None) -> list[Row]:
         ).all():
             rates[(dev, name, key)] = value
     # Węzeł bez odpowiedzi: ostatni odczyt maszyn jest nieaktualny – stan i bieżące wartości jako brak danych
-    down = set((await session.scalars(select(Device.id).where(Device.id.in_(devices), Device.status != "up"))).all()) if devices else set()
+    down = set((await session.scalars(select(Device.id).where(Device.id.in_(devices), status_sql(Device) != "up"))).all()) if devices else set()
     rows = []
     for g in guests:
         dev, key = nodes.get((g.server_id, g.node)), f"{g.name} ({g.vmid})"

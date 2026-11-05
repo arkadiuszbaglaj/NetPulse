@@ -13,6 +13,7 @@ from .. import aggregates
 from ..config import settings
 from ..db import Session, engine, has_timescale
 from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
+from ..freshness import status_sql
 from ..modules import hidden_drivers, read_modules
 from .metrics import MinutesQuery, OffsetQuery, _bucket_seconds, window
 from .schemas import Point
@@ -55,8 +56,9 @@ async def summary():
     since = datetime.now(UTC) - CURRENT_WINDOW
     async with Session() as session:
         visible = Device.driver.not_in(hidden_drivers(await read_modules(session)) or ("",))
+        status = status_sql(Device).label("live_status")  # nieaktualny werdykt kolektora = nieznany, nie „działa”
         by_status = dict(
-            (await session.execute(select(Device.status, func.count()).where(Device.enabled, visible).group_by(Device.status))).all()
+            (await session.execute(select(status, func.count()).where(Device.enabled, visible).group_by(text("live_status")))).all()
         )
         last_poll = await session.scalar(select(func.max(Device.last_polled_at)).where(Device.enabled))
 

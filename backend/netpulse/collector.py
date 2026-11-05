@@ -126,6 +126,13 @@ class Collector:
                 )
             ).all()
             session.add_all(DeviceMetric(time=now, device_id=i, reachable=False) for i in ids)
+            # Dalej milczy: werdykt „down” jest świeży, dopóki kolektor go potwierdza (bez tego po kilku cyklach
+            # serwer pokazałby „nieznany” zamiast „nie odpowiada” – freshness.py)
+            await session.execute(
+                update(Device)
+                .where(Device.driver == "agent", Device.enabled, Device.status == "down", Device.last_ok_at < cutoff)
+                .values(last_polled_at=now)
+            )
 
         await _write_with_retry(write)
         for i in ids:

@@ -19,6 +19,7 @@ import { ApiError, del, patch, post, type Device, type ProbeResult } from "../..
 import { relativeTime } from "../../../lib/format";
 import { useDevices } from "../../../lib/queries";
 import { DefaultCommunityBadge } from "../../../components/SnmpWarning";
+import { STATUS_LABEL, STATUS_STYLE, deviceState, staleHint } from "../../../components/widgets/DevicesWidget";
 import { DeviceForm } from "./DeviceForm";
 import { ProbeSummary } from "./ProbeSummary";
 
@@ -29,16 +30,6 @@ const KIND_LABEL: Record<string, TextKey> = {
   ap: "dash.kind.ap",
   server: "dash.kind.server",
   other: "dash.kind.other",
-};
-const STATUS_STYLE: Record<string, string> = {
-  up: "bg-success-soft text-success",
-  down: "bg-danger-soft text-danger",
-  unknown: "bg-surface-2 text-text-2",
-};
-const STATUS_LABEL: Record<string, TextKey> = {
-  up: "dash.status.up",
-  down: "dash.status.down",
-  unknown: "dash.status.unknown",
 };
 
 type ProbeState = { status: "loading" } | { status: "ok"; result: ProbeResult } | { status: "error"; message: string };
@@ -69,8 +60,8 @@ function DeviceRow({
       Promise.all([qc.invalidateQueries({ queryKey: ["devices"] }), qc.invalidateQueries({ queryKey: ["dashboard"] })]),
   });
   const Icon = KIND_ICON[device.kind as keyof typeof KIND_ICON] ?? IconDeviceDesktop;
-  const status = device.status in STATUS_STYLE ? device.status : "unknown";
-  const polled = relativeTime(device.last_polled_at);
+  const status = deviceState(device);
+  const polled = staleHint(device) ?? relativeTime(device.last_polled_at);
   // Serwer z agentem i węzeł Proxmox nie mają ustawień SNMP: test i edycja nie mają sensu
   const agent = device.driver === "agent" || device.driver === "proxmox" || device.driver === "unifi_api";
   const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";

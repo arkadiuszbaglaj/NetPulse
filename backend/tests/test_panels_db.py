@@ -69,8 +69,9 @@ def lab():
         await init_db()
         await _clean()
         async with Session() as s, s.begin():
-            sw = Device(name="USW", host="10.0.0.2", community="public", kind="switch", status="up", uptime_s=3600)
-            ap = Device(name="U6+", host="10.0.0.3", community="public", kind="ap", status="down")
+            polled = datetime.now(UTC)  # świeży werdykt kolektora (starszy = „nieznany”, freshness.py)
+            sw = Device(name="USW", host="10.0.0.2", community="public", kind="switch", status="up", uptime_s=3600, last_polled_at=polled)
+            ap = Device(name="U6+", host="10.0.0.3", community="public", kind="ap", status="down", last_polled_at=polled)
             nas = Device(name="NAS", host="nas", port=0, driver="agent", kind="server", status="up")
             s.add_all([sw, ap, nas])
             await s.flush()

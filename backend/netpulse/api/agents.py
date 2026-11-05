@@ -81,7 +81,7 @@ def _out(agent: Agent, device: Device) -> AgentOut:
         device_id=device.id,
         name=device.name,
         enabled=device.enabled,
-        status=device.status,
+        status=device.live_status,
         token_hint=agent.token_hint,
         created_at=agent.created_at,
         last_seen_at=agent.last_seen_at,

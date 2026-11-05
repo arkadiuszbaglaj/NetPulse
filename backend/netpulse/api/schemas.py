@@ -140,7 +140,10 @@ class DeviceOut(BaseModel):
     firmware: str | None
     sys_name: str | None
     uptime_s: float | None
-    status: str
+    # Status do pokazania: `unknown`, gdy kolektor dawno nie wydał werdyktu (freshness.py); zapisany – w `last_status`
+    status: str = Field(validation_alias=AliasChoices("live_status", "status"))
+    stale: bool = False
+    last_status: str | None = Field(None, validation_alias=AliasChoices("last_status", "status"))
     last_polled_at: datetime | None
     last_ok_at: datetime | None
     last_error: str | None

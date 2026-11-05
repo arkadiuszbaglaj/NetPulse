@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ..crypto import EncryptedText
+from ..freshness import is_stale, live_status
 
 
 class Base(DeclarativeBase):
@@ -83,6 +84,16 @@ class Device(Base):
     interfaces: Mapped[list[Interface]] = relationship(
         back_populates="device", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def stale(self) -> bool:
+        """Zapisany status jest nieaktualny – kolektor dawno nie wydał werdyktu (freshness.py)."""
+        return is_stale(self.last_polled_at)
+
+    @property
+    def live_status(self) -> str:
+        """Status do pokazania: `unknown`, gdy dane są nieaktualne (awaria ≠ brak danych)."""
+        return live_status(self.status, self.last_polled_at)
 
     @property
     def uses_default_community(self) -> bool:
@@ -682,6 +693,15 @@ class Check(Base):
     last_error: Mapped[str | None] = mapped_column(String(255))
     last_latency_ms: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def stale(self) -> bool:
+        """Sprawdzenie dawno się nie wykonało (kolektor stoi) – zapisany stan jest nieaktualny (freshness.py)."""
+        return self.enabled and self.status != "unknown" and is_stale(self.last_checked_at, interval_s=self.interval_s)
+
+    @property
+    def live_status(self) -> str:
+        return "unknown" if self.stale else self.status
 
 
 class CheckMetric(Base):

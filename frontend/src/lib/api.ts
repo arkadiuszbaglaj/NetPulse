@@ -103,7 +103,12 @@ export interface Device {
   firmware: string | null;
   sys_name: string | null;
   uptime_s: number | null;
+  /** Status do pokazania: od 0.59.0 „unknown”, gdy kolektor dawno nie wydał werdyktu (wtedy `stale`). */
   status: "up" | "down" | "unknown" | string;
+  /** Dane nieaktualne – kolektor nie odświeża urządzenia (od 0.59.0; brak w starszym API) */
+  stale?: boolean;
+  /** Ostatni zapisany werdykt kolektora, także gdy jest nieaktualny (od 0.59.0) */
+  last_status?: string | null;
   last_polled_at: string | null;
   last_ok_at: string | null;
   last_error: string | null;

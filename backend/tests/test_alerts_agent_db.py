@@ -15,7 +15,7 @@ if os.environ.get("NETPULSE_TEST_DB") != "1":
     pytest.skip("brak testowej bazy (NETPULSE_TEST_DB=1)", allow_module_level=True)
 
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import delete, insert, select  # noqa: E402
+from sqlalchemy import delete, insert, select, update  # noqa: E402
 
 from netpulse.alerts import AlertEngine, matches, subject_key  # noqa: E402
 from netpulse.api import app  # noqa: E402
@@ -89,8 +89,15 @@ def rule(**kw) -> int:
     return run(go)
 
 
+async def polled(now):
+    """Świeży werdykt kolektora dla wszystkich urządzeń – bez niego alerty urządzeń stoją (freshness.py)."""
+    async with Session() as s, s.begin():
+        await s.execute(update(Device).values(last_polled_at=now))
+
+
 def evaluate(now=NOW) -> list[str]:
     async def go():
+        await polled(now)  # kolektor odpytał urządzenia tuż przed oceną (kolejność jak w pętli kolektora)
         await AlertEngine(now_fn=lambda: now).evaluate()
         async with Session() as s:
             return sorted(a.title for a in (await s.scalars(select(Alert).where(Alert.state == "firing"))).all())

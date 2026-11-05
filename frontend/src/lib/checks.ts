@@ -24,6 +24,8 @@ export interface CheckPayload {
 export interface Check extends CheckPayload {
   id: number;
   status: "up" | "down" | "unknown" | string;
+  /** Sprawdzenie dawno się nie wykonało (kolektor stoi) – od 0.59.0 */
+  stale?: boolean;
   status_since: string | null;
   last_checked_at: string | null;
   last_ok_at: string | null;

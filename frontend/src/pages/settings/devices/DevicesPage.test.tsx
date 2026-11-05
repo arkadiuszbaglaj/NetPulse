@@ -25,6 +25,14 @@ describe("lista urządzeń", () => {
     expect(screen.getByText("brak odpowiedzi")).toBeInTheDocument();
   });
 
+  it("nieaktualne dane to „brak aktualnych danych”, nie awaria", async () => {
+    const polled = new Date(Date.now() - 15 * 60_000).toISOString();
+    await openPage([{ ...SECOND, status: "unknown", stale: true, last_status: "up", last_polled_at: polled }]);
+    const badge = await screen.findByText("brak aktualnych danych");
+    expect(badge).toHaveAttribute("title", expect.stringMatching(/^Kolektor nie odświeża danych – ostatni odczyt .+ \(wtedy: działa\)/));
+    expect(screen.queryByText("brak odpowiedzi")).not.toBeInTheDocument();
+  });
+
   it("oznacza urządzenie z fabrycznym community SNMP", async () => {
     await openPage([{ ...DEVICE, default_community: true }, SECOND]);
     const row = (await screen.findByText("UCG Ultra")).closest("li") as HTMLElement;

@@ -172,6 +172,16 @@ migracja 0010 (`checks`, hypertable `check_metrics`). Alerty: `check_down` + met
 `checks`, oś stanów `kind: "check"`. Rdzeń, nie moduł. Opis: `docs/23-dostepnosc.md`. `1.1.1.1` nie odpowiada na
 ping w sieci użytkownika – domyślny gotowy wybór to `8.8.8.8`.
 
+## Świeżość danych (0.59.0)
+
+Awaria ≠ brak danych: werdykt kolektora (`Device.last_polled_at`) starszy niż `max(120 s, 4 × poll_interval)` daje
+w API `status = "unknown"`, `stale = true`, `last_status` = zapisany werdykt (`netpulse/freshness.py`, `Device.live_status`,
+w SQL `status_sql`; sprawdzenia: `Check.live_status` z `interval_s`). Alerty: nieaktualne urządzenie nie otwiera
+„nie odpowiada”, a jego otwarte alerty trwają (bez fałszywego „zakończony”). **Nowe miejsce, które czyta status
+urządzenia w API = `live_status` / `status_sql`, nie surowe `Device.status`.** Nowy zapis statusu = też `last_polled_at`.
+Testy alertów z bazą: helper `polled(now)` (świeży werdykt przed oceną). Panel: plakietka „brak aktualnych danych”
+(`deviceState`, `staleHint` w `DevicesWidget.tsx`). Opis: `docs/31-swiezosc-danych.md`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`
