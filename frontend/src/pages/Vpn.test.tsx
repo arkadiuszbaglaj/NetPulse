@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react";
-import { AUTO_HEIGHT, defaultSeries, newWidget, SOURCE_METRICS, unitClassOf } from "../lib/layout";
+import { AUTO_HEIGHT, defaultSeries, SOURCE_METRICS, unitClassOf, type DashboardLayout } from "../lib/layout";
 import { sourceModule } from "../lib/modules";
 import type { VpnStatus } from "../lib/vpn";
 import { mockApi } from "../test/mockApi";
@@ -42,7 +42,7 @@ const VPN: VpnStatus = {
   ],
 };
 
-const layout = (show_offline = true) => ({ version: 1 as const, widgets: [{ ...newWidget("vpn", "vpn1"), config: { title: null, show_offline } }] });
+const layout = (show_offline = true): DashboardLayout => ({ version: 1, widgets: [{ id: "vpn1", type: "vpn", w: 4, config: { title: null, show_offline } }] });
 
 describe("widget VPN", () => {
   it("pokazuje serwer, połączonych z ruchem i rozłączonych z czasem ostatniego połączenia", async () => {

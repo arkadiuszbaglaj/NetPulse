@@ -115,6 +115,8 @@ def test_collector_end_to_end():
             assert await s.scalar(select(func.count()).select_from(InterfaceMetric).where(InterfaceMetric.interface_id == gone.id)) == 0
             wan = await s.get(Interface, wan.id)
             assert wan.oper_status == "up"
+        async with Session() as s, s.begin():
+            await s.execute(delete(Interface).where(Interface.id == gone.id))  # następny test liczy porty bramy
         await engine.dispose()
         return timescale
 
