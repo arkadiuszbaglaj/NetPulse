@@ -191,9 +191,10 @@ export function dailyBars(points: SeriesPoint[], days: number, now: Date = new D
   });
 }
 
-function barClass(v: number | null): string {
+/** Kolor paska dnia: zielony = pełna dostępność (≥ 99,9 %, od 0.58.2; wcześniej szary), pomarańczowy, czerwony. */
+export function barClass(v: number | null): string {
   if (v == null) return "bg-surface-2";
-  if (v >= 99.9) return "bg-muted/45";
+  if (v >= 99.9) return "bg-success";
   return v >= 95 ? "bg-warning" : "bg-danger";
 }
 

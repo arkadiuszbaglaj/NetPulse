@@ -57,7 +57,7 @@ Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu
 - **Pulpit domyślny** (`DEFAULT_LAYOUT`, szablon „Pełny”): pasek stanu → kafelki z mini-wykresem i szczytem →
   ruch WAN (8) + alerty (4) → tabela urządzeń (8) + dostępność (4). Nowe widgety: `status` (pasek
   „Sieć działa prawidłowo”), `alerts` (ostatnie alerty, aktywne na górze, bez pulpitu publicznego),
-  `checks` (sprawdzenia z paskami dzień po dniu, 7 albo 30 dni); urządzenia mają `display: "cards" | "table"`
+  `checks` (sprawdzenia z paskami dzień po dniu, 7 albo 30 dni; od 0.58.2 dzień ≥ 99,9 % zielony, < 99,9 % pomarańczowy, < 95 % czerwony); urządzenia mają `display: "cards" | "table"`
   (stare pulpity – karty). Kod: `components/widgets/OverviewWidgets.tsx`, `DevicesWidget.tsx`, `SummaryWidget.tsx`.
 - **Dodawanie widgetu (od 0.44.0, makiety A + B):** okno z zakładkami *Według rodzaju* (grupy Przegląd, Internet i WAN,
   Urządzenie, Port, WiFi, Serwer, Dostępność, Własny) i *Według urządzenia* (pasujące widgety, kilka naraz albo „Cała sekcja”

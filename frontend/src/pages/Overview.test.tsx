@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyBars, networkStatus, plural, recentAlerts, sortAlerts } from "../components/widgets/OverviewWidgets";
+import { barClass, dailyBars, networkStatus, plural, recentAlerts, sortAlerts } from "../components/widgets/OverviewWidgets";
 import { peakOf } from "../components/widgets/SummaryWidget";
 import type { Alert } from "../lib/alerts";
 
@@ -50,6 +50,16 @@ describe("paski dostępności", () => {
     );
     expect(bars.map((b) => b.value)).toEqual([100, null, 95]);
     expect(bars.map((b) => b.day)).toEqual(["2026-11-01", "2026-11-02", "2026-11-03"]);
+  });
+});
+
+describe("kolor paska dostępności", () => {
+  it("pełna dostępność na zielono, spadki pomarańczowo i czerwono, brak danych – tło", () => {
+    expect(barClass(100)).toBe("bg-success");
+    expect(barClass(99.95)).toBe("bg-success");
+    expect(barClass(99)).toBe("bg-warning");
+    expect(barClass(80)).toBe("bg-danger");
+    expect(barClass(null)).toBe("bg-surface-2");
   });
 });
 
