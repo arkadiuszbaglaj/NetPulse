@@ -181,7 +181,7 @@ export function DashboardWizard({ onClose }: { onClose: () => void }) {
     >
       <ol aria-label={t("setup.progress")} className="mb-4 flex flex-wrap gap-1.5 text-xs">
         {STEPS.map((s, i) => (
-          <li key={s} aria-current={i === step ? "step" : undefined} className={`rounded-full px-2.5 py-1 ${i === step ? "bg-accent-soft font-medium text-accent" : "bg-surface-2 text-text-2"}`}>
+          <li key={s} aria-current={i === step ? "step" : undefined} className={`rounded-full px-2.5 py-1 ${i === step ? "bg-accent-soft font-medium text-accent-text" : "bg-surface-2 text-text-2"}`}>
             {i + 1}. {t(s)}
           </li>
         ))}

@@ -233,7 +233,7 @@ export function DashboardPage() {
       </PageHeader>
 
       {edit && (
-        <p role="status" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
+        <p role="status" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent-text">
           {t("dash.edit.banner")}
         </p>
       )}

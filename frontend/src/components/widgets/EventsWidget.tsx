@@ -25,7 +25,7 @@ export function EventsWidget({ days, limit }: { days: EventsDays; limit: number 
           const Icon = ICON[e.kind];
           return (
             <li key={`${e.kind}-${e.time}-${e.device_id}`} className="flex gap-3 border-t border-border/60 py-3 first:border-t-0 first:pt-0">
-              <Icon size={18} aria-hidden="true" className={`mt-0.5 shrink-0 ${e.kind === "wan_switch" ? "text-accent" : "text-text-2"}`} />
+              <Icon size={18} aria-hidden="true" className={`mt-0.5 shrink-0 ${e.kind === "wan_switch" ? "text-accent-text" : "text-text-2"}`} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium" title={e.title}>
                   {t(`event.${e.kind}`)}: {e.title}

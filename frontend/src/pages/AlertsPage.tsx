@@ -16,7 +16,7 @@ const SEVERITY_LABEL: Record<Severity, TextKey> = {
 };
 const SEVERITY_STYLE: Record<Severity, string> = {
   critical: "bg-danger-soft text-danger",
-  warning: "bg-accent-soft text-accent",
+  warning: "bg-accent-soft text-accent-text",
   info: "bg-surface-2 text-text-2",
 };
 
@@ -79,7 +79,7 @@ export function AlertsPage() {
               aria-pressed={tab === id}
               onClick={() => setTab(id)}
               className={`rounded-md px-3 py-1 text-sm transition-colors ${
-                tab === id ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:text-text"
+                tab === id ? "bg-accent-soft font-medium text-accent-text" : "text-text-2 hover:text-text"
               }`}
             >
               {t(TAB_LABEL[id])}
@@ -94,7 +94,7 @@ export function AlertsPage() {
               aria-pressed={severity === s}
               onClick={() => setSeverity(s)}
               className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-                severity === s ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:text-text"
+                severity === s ? "bg-accent-soft font-medium text-accent-text" : "text-text-2 hover:text-text"
               }`}
             >
               {s === "all" ? t("alerts.filter.all") : t(SEVERITY_LABEL[s])}

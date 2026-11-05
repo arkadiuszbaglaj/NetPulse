@@ -123,10 +123,10 @@ function DashboardRow({ info, onOpen }: { info: DashboardInfo; onOpen: (o: Open)
       <IconLayoutDashboard size={22} aria-hidden="true" className="shrink-0 text-text-2" />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-          <Link to={info.is_default ? "/" : `/dashboards/${info.id}`} className="hover:text-accent hover:underline">
+          <Link to={info.is_default ? "/" : `/dashboards/${info.id}`} className="hover:text-accent-text hover:underline">
             {info.name}
           </Link>
-          {info.is_default && <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-xs text-accent">{t("dashboards.default")}</span>}
+          {info.is_default && <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-xs text-accent-text">{t("dashboards.default")}</span>}
           <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs ${p ? (p.expired ? "bg-danger-soft text-danger" : "bg-success-soft text-success") : "bg-surface-2 text-text-2"}`}>
             {p ? <IconWorld size={12} aria-hidden="true" /> : <IconLock size={12} aria-hidden="true" />}
             {t(p ? (p.expired ? "share.expiredBadge" : "share.public") : "share.private")}

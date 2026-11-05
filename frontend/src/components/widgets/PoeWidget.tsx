@@ -15,7 +15,7 @@ function SwitchPoe({ device }: { device: Device }) {
     <Card className="flex flex-col p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 truncate text-sm font-medium">
-          <IconBolt size={18} aria-hidden="true" className="shrink-0 text-accent" />
+          <IconBolt size={18} aria-hidden="true" className="shrink-0 text-accent-text" />
           {t("poe.title", { name: device.name })}
         </h3>
         {budget && (

@@ -92,7 +92,7 @@ function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces
           {interfaces.map((i) => (
             <tr key={i.id} className="border-t border-border">
               <td className="px-4 py-2">
-                <Link to={`/devices/${deviceId}/ports/${i.id}`} className="font-medium hover:text-accent hover:underline">
+                <Link to={`/devices/${deviceId}/ports/${i.id}`} className="font-medium hover:text-accent-text hover:underline">
                   {i.label || i.name}
                 </Link>
                 {i.label && i.label !== i.name && <span className="ml-1.5 text-xs text-muted">{i.name}</span>}
@@ -335,7 +335,7 @@ export function DevicePage() {
           <Card className="p-4">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-sm font-medium">{t("device.server")}</h2>
-              <Link to={`/devices/${id}/server`} className="text-sm text-accent hover:underline">
+              <Link to={`/devices/${id}/server`} className="text-sm text-accent-text hover:underline">
                 {t("srv.all")}
               </Link>
             </div>

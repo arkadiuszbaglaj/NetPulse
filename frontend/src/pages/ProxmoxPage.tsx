@@ -76,7 +76,7 @@ export function ProxmoxPage() {
           <h2 className="text-base font-medium">{t("pve.page.noServer.title")}</h2>
           <p className="mt-1 max-w-prose text-sm text-text-2">
             {t("pve.page.noServer.body")}{" "}
-            <Link to="/settings/proxmox" className="text-accent underline">
+            <Link to="/settings/proxmox" className="text-accent-text underline">
               {t("settings.proxmox.title")}
             </Link>
           </p>

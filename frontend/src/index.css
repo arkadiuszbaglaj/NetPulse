@@ -1,84 +1,86 @@
 @import "tailwindcss";
 
-/* Kolory jako zmienne – motyw przełącza atrybut data-theme na <html> (patrz lib/theme.tsx) */
 /* Kolory jako zmienne – motyw przełącza atrybut data-theme na <html> (patrz lib/theme.tsx).
-   Styl od 0.42.0: szarości i biel (wariant A „klasyczny jasny”), grafit jako akcent, kolor tylko dla stanów. */
+   Styl od 0.58.0: „Błękit” – chłodne szarości z nutą granatu, niebieski akcent, błękit jako druga seria wykresów.
+   Zieleń, pomarańcz i czerwień tylko dla stanów. Projekt: docs/06-projekt-panelu.md („Wygląd Błękit”). */
 :root {
   color-scheme: light;
-  --bg: #fafafa;
+  --bg: #f3f6fa;
   --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --border: #e4e4e7;
-  --border-strong: #d4d4d8;
-  --text: #18181b;
-  --text-2: #52525b;
-  --text-muted: #71717a;
-  --accent: #27272a;
-  --accent-hover: #09090b;
-  --accent-soft: #f4f4f5;
+  --surface-2: #eef2f8;
+  --border: #e0e6ef;
+  --border-strong: #cdd6e3;
+  --text: #0f1a2a;
+  --text-2: #42506a;
+  --text-muted: #627089;
+  --accent: #1f6feb;
+  --accent-hover: #1557c2;
+  --accent-soft: #e6f0fd;
+  --accent-text: #1557c2;
   --on-accent: #ffffff;
-  --success: #15803d;
-  --success-soft: #f0fdf4;
-  --warning: #b45309;
-  --warning-soft: #fffbeb;
-  --danger: #b91c1c;
-  --danger-soft: #fef2f2;
-  --ring: rgb(39 39 42 / 0.3);
-  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
-  /* Wykresy (styl B, od 0.43.0): stonowane kolory o dawnym znaczeniu numerów (1 niebieski akcent, 2 zielony,
-     3 fiolet, 4 piaskowy = próg ostrzeżenia, 5 ceglasty = próg krytyczny, 6 róż, 7 łupek, 8 szary).
-     Druga seria nowych wykresów – szary 8. Stany (oś stanów, koło) – osobne tokeny --state-*. */
-  --chart-1: #2f5bd3;
-  --chart-2: #4f9a7e;
-  --chart-3: #7e6bb5;
+  --success: #11805a;
+  --success-soft: #e2f5ec;
+  --warning: #a85a06;
+  --warning-soft: #fcf0df;
+  --danger: #c3302d;
+  --danger-soft: #fcebea;
+  --ring: rgb(31 111 235 / 0.35);
+  --shadow-card: 0 1px 2px rgb(15 26 42 / 0.04);
+  /* Wykresy: kolory o dawnym znaczeniu numerów (1 niebieski akcent, 2 zielony, 3 fiolet, 4 piaskowy = próg
+     ostrzeżenia, 5 ceglasty = próg krytyczny, 6 róż, 7 łupek, 8 błękit = druga seria i porównanie z wcześniej).
+     Stany (oś stanów, koło) – osobne tokeny --state-*. */
+  --chart-1: #1f6feb;
+  --chart-2: #2f9a74;
+  --chart-3: #7e6bd0;
   --chart-4: #c0883a;
   --chart-5: #c2564b;
   --chart-6: #c77da8;
-  --chart-7: #3e5c76;
-  --chart-8: #8e8e96;
+  --chart-7: #4b5f7a;
+  --chart-8: #0ea5e9;
   /* Ruch przez łącze zapasowe (od 0.55.0): pierwsza seria i pozostałe */
-  --chart-backup: #d9730d;
-  --chart-backup-2: #e8ad6a;
-  --state-up: #a9bdef;
+  --chart-backup: #e07b1a;
+  --chart-backup-2: #eeb06a;
+  --state-up: #9cc2f7;
   --state-down: #dc2626;
-  --state-unknown: #e4e4e7;
+  --state-unknown: #e0e6ef;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #09090b;
-  --surface: #18181b;
-  --surface-2: #27272a;
-  --border: #2e2e33;
-  --border-strong: #3f3f46;
-  --text: #fafafa;
-  --text-2: #a1a1aa;
-  --text-muted: #8e8e97;
-  --accent: #f4f4f5;
-  --accent-hover: #ffffff;
-  --accent-soft: #27272a;
-  --on-accent: #18181b;
-  --success: #4ade80;
-  --success-soft: #052e16;
-  --warning: #fbbf24;
-  --warning-soft: #3b2405;
-  --danger: #f87171;
-  --danger-soft: #450a0a;
-  --ring: rgb(244 244 245 / 0.35);
+  --bg: #0a0f18;
+  --surface: #111827;
+  --surface-2: #172033;
+  --border: #223047;
+  --border-strong: #2f405c;
+  --text: #edf2f9;
+  --text-2: #b3bfd2;
+  --text-muted: #8b98ae;
+  --accent: #4c9bff;
+  --accent-hover: #75b2ff;
+  --accent-soft: #10274a;
+  --accent-text: #8cc0ff;
+  --on-accent: #04122a;
+  --success: #3fd09a;
+  --success-soft: #10291f;
+  --warning: #f2b24c;
+  --warning-soft: #2f220c;
+  --danger: #f47872;
+  --danger-soft: #371617;
+  --ring: rgb(76 155 255 / 0.4);
   --shadow-card: none;
-  --chart-1: #7b9cf0;
-  --chart-2: #6fbf9f;
-  --chart-3: #a897d9;
+  --chart-1: #4c9bff;
+  --chart-2: #4fc79a;
+  --chart-3: #a897e6;
   --chart-4: #d9a65c;
   --chart-5: #e07a6e;
   --chart-6: #e0a3c6;
-  --chart-7: #8aa8c4;
-  --chart-8: #a1a1aa;
-  --chart-backup: #f59e0b;
+  --chart-7: #8aa3c4;
+  --chart-8: #5fd3ff;
+  --chart-backup: #f5a352;
   --chart-backup-2: #a8742c;
-  --state-up: #4a67b8;
+  --state-up: #2f5fa8;
   --state-down: #ef4444;
-  --state-unknown: #3f3f46;
+  --state-unknown: #2f405c;
 }
 
 @theme inline {
@@ -93,6 +95,7 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
   --color-on-accent: var(--on-accent);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
@@ -100,8 +103,8 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-sans: "Geist Variable", "Geist", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 html,
@@ -140,7 +143,7 @@ body {
 .np-grid .react-grid-item.react-grid-placeholder {
   background: var(--accent);
   opacity: 0.15;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
 }
 .np-grid .react-grid-item > .react-resizable-handle::after {
   border-color: var(--text-2);

@@ -107,7 +107,7 @@ function SuggestionNote({ hint, admin, onAdd }: { hint: WanSuggestion; admin: bo
   const state = hint.up === false ? "wan.hint.down" : hint.active ? "wan.hint.active" : "wan.hint.standby";
   return (
     <div role="status" className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm sm:flex-row sm:items-center">
-      <IconBulb size={20} aria-hidden="true" className="shrink-0 text-accent" />
+      <IconBulb size={20} aria-hidden="true" className="shrink-0 text-accent-text" />
       <p className="flex-1">
         {t("wan.hint.text", { wan: hint.slot ? `WAN ${hint.slot}` : t("wan.hint.anyWan"), port, device: hint.device_name })}{" "}
         <span className="text-text-2">{t(state)}</span>

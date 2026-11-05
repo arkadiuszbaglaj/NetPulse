@@ -206,6 +206,9 @@ dodać mu klasy `np-*`, jeśli ma rosnąć z kartą. Etap 3 ✅ (0.54.0): swobod
 pary w dwóch kolumnach z tego samego rzędu (`pairsInColumns`). Etap 4 ✅ (0.56.0): widgety z listą (`AUTO_HEIGHT`)
 w podglądzie wydłużają się do treści (`OverflowWatch`, `rowsFor`, `pushDown`), w edycji przycisk „Dopasuj wysokość”;
 nowy widget z listą = dopisać do `AUTO_HEIGHT`. Opis: `docs/29-responsywnosc-widgetow.md`.
+Od 0.58.0 wygląd „Błękit” (wybrany przez użytkownika z projektów na płótnie): niebieski akcent `#1f6feb`/`#4c9bff`,
+chłodne tła, font Geist + Geist Mono w paczce, karty 16 px, kolor wykresu 8 = błękit (druga seria). Tekst w kolorze
+akcentu = `text-accent-text` (nie `text-accent` – za mały kontrast na `bg-accent-soft`). Opis: `docs/06-projekt-panelu.md`.
 
 ## Do sprawdzenia później
 

@@ -60,7 +60,7 @@ export function WanStatusWidget({ deviceId }: { deviceId?: number | null }) {
   return (
     <Card className="h-full p-4">
       <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
-        <IconWorld size={18} aria-hidden="true" className="shrink-0 text-accent" />
+        <IconWorld size={18} aria-hidden="true" className="shrink-0 text-accent-text" />
         {t("widget.type.wan_status")}
       </h3>
       {isError ? (
@@ -68,7 +68,7 @@ export function WanStatusWidget({ deviceId }: { deviceId?: number | null }) {
       ) : data && links.length === 0 ? (
         <p className="py-4 text-sm text-text-2">
           {t("wan.none")}{" "}
-          <Link to="/settings/wan" className="text-accent hover:underline">
+          <Link to="/settings/wan" className="text-accent-text hover:underline">
             {t("wan.none.link")}
           </Link>
         </p>

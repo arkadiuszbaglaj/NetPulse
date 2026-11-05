@@ -31,7 +31,7 @@ export function UpdateBadge() {
     }
   };
   return (
-    <div className="flex items-center rounded-lg bg-accent-soft text-accent">
+    <div className="flex items-center rounded-lg bg-accent-soft text-accent-text">
       <Link
         to="/settings/update"
         className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-accent"

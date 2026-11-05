@@ -68,7 +68,7 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
         <Icon size={20} aria-hidden="true" className="shrink-0 text-text-2" />
         <h3 className="min-w-0 truncate text-sm font-medium">
           {node.device_id != null ? (
-            <Link to={`/devices/${node.device_id}`} className="hover:text-accent hover:underline">
+            <Link to={`/devices/${node.device_id}`} className="hover:text-accent-text hover:underline">
               {node.name}
             </Link>
           ) : (
@@ -159,7 +159,7 @@ function CableInfo({ edge, places }: { edge: TopologyEdge; places: Record<string
     "absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] tabular-nums text-text-2";
   const style = { left: (ends.x1 + ends.x2) / 2, top: (ends.y1 + ends.y2) / 2 };
   return edge.interface_id != null && edge.device_id != null ? (
-    <Link to={`/devices/${edge.device_id}/ports/${edge.interface_id}`} title={title} className={`${className} hover:border-accent hover:text-accent`} style={style}>
+    <Link to={`/devices/${edge.device_id}/ports/${edge.interface_id}`} title={title} className={`${className} hover:border-accent hover:text-accent-text`} style={style}>
       {text}
     </Link>
   ) : (

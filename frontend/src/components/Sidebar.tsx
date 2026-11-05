@@ -4,9 +4,10 @@ import { t } from "../i18n";
 import { useVisibleModules, type NavModule } from "../modules";
 import { Logo } from "./ui";
 
-const linkBase = "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors";
-const linkIdle = "font-medium text-text-2 hover:bg-surface-2 hover:text-text";
-const linkActive = "bg-surface-2 font-semibold text-text";
+// Wygląd „Błękit” (0.58.0): aktywna pozycja to kafelek w kolorze karty z niebieską ikoną
+const linkBase = "flex min-h-10 items-center gap-3 rounded-[10px] border px-3 text-sm transition-colors";
+const linkIdle = "border-transparent font-medium text-text-2 hover:bg-surface hover:text-text";
+const linkActive = "border-border bg-surface font-semibold text-text shadow-[var(--shadow-card)] [&>svg]:text-accent";
 
 /** Pozycje „systemowe” (ustawienia) idą do osobnej grupy pod monitorowaniem. */
 const SYSTEM_MODULES = new Set(["settings"]);
@@ -43,7 +44,7 @@ export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: S
           className={() => {
             // Moduł z podstronami: gdy jest rozwinięty, pełne podświetlenie ma tylko aktywna podstrona
             const parentOnly = inModule && m.children && !collapsed;
-            const style = parentOnly ? "font-semibold text-text hover:bg-surface-2" : inModule ? linkActive : linkIdle;
+            const style = parentOnly ? "border-transparent font-semibold text-text hover:bg-surface [&>svg]:text-accent" : inModule ? linkActive : linkIdle;
             return `${linkBase} ${style} ${collapsed ? "justify-center" : ""}`;
           }}
         >
@@ -85,7 +86,7 @@ export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: S
           {collapsed ? (
             <span className="sr-only">{g.label}</span>
           ) : (
-            <span className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted">{g.label}</span>
+            <span className="px-3 pb-1.5 pt-3 text-[11px] font-medium uppercase tracking-[0.06em] text-muted">{g.label}</span>
           )}
           <ul className="flex flex-col gap-0.5">{g.items.map(renderItem)}</ul>
         </div>
@@ -93,8 +94,8 @@ export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: S
 
       <div className="mt-auto flex items-center gap-2 pt-4">
         {!collapsed && version && (
-          <div className="flex min-w-0 flex-1 flex-col rounded-lg border border-border px-3 py-2">
-            <span className="text-[13px] font-semibold">
+          <div className="flex min-w-0 flex-1 flex-col rounded-xl bg-accent-soft px-3 py-2">
+            <span className="text-[13px] font-semibold text-accent-text">
               {t("app.name")} {version}
             </span>
           </div>
@@ -104,7 +105,7 @@ export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: S
           onClick={onToggleCollapsed}
           aria-label={collapsed ? t("nav.expand") : t("nav.collapse")}
           title={collapsed ? t("nav.expand") : t("nav.collapse")}
-          className={`hidden size-10 shrink-0 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text lg:flex ${collapsed ? "mx-auto" : ""}`}
+          className={`hidden size-10 shrink-0 items-center justify-center rounded-[10px] text-text-2 hover:bg-surface hover:text-text lg:flex ${collapsed ? "mx-auto" : ""}`}
         >
           <CollapseIcon size={18} aria-hidden="true" />
         </button>

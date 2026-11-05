@@ -60,7 +60,7 @@ function TemplateCard({ tpl, onPick }: { tpl: WidgetTemplate; onPick: () => void
       <WidgetThumb kind={tpl.thumb} />
       <span className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold">{t(templateLabel(tpl))}</span>
-        {tpl.recommended && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-accent">{t("addw.recommended")}</span>}
+        {tpl.recommended && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-accent-text">{t("addw.recommended")}</span>}
       </span>
       <span className="text-xs leading-relaxed text-text-2">{t(templateDesc(tpl))}</span>
       {asksText(tpl) && <span className="text-[11px] text-muted">{asksText(tpl)}</span>}
@@ -72,7 +72,7 @@ function CustomCard({ type, onPick }: { type: (typeof WIDGET_TYPES)[number]; onP
   const Icon = type.icon;
   return (
     <button type="button" onClick={onPick} className="flex items-start gap-3 rounded-xl border border-border p-3 text-left hover:bg-surface-2">
-      <Icon size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
+      <Icon size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-accent-text" />
       <span>
         <span className="block text-sm font-medium">{t(type.label)}</span>
         <span className="block text-xs text-text-2">{t(type.description)}</span>

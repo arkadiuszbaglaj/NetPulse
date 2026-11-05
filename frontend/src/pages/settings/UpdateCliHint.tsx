@@ -10,7 +10,7 @@ export const UPDATE_COMMAND = "netpulse update";
  */
 export function UpdateCliHint() {
   return (
-    <section aria-labelledby="update-cli-title" className="flex max-w-xl gap-3 rounded-xl bg-accent-soft p-4 text-accent">
+    <section aria-labelledby="update-cli-title" className="flex max-w-xl gap-3 rounded-xl bg-accent-soft p-4 text-accent-text">
       <IconTerminal2 size={22} aria-hidden="true" className="mt-0.5 shrink-0" />
       <div className="min-w-0 text-sm">
         <h2 id="update-cli-title" className="font-medium">

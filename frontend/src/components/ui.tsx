@@ -4,7 +4,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="7" className="fill-accent" />
+      <rect width="32" height="32" rx="9" className="fill-accent" />
       <polyline
         points="4,17 10,17 13,8 18,25 21,14 23,17 28,17"
         fill="none"
@@ -18,7 +18,7 @@ export function Logo({ size = 28 }: { size?: number }) {
 }
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-[10px] px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 
 export function Button({
   variant = "secondary",
@@ -69,7 +69,7 @@ export function Field({
 }
 
 const controlClass =
-  "h-10 rounded-lg border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent aria-[invalid=true]:border-danger";
+  "h-10 rounded-[10px] border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent aria-[invalid=true]:border-danger";
 
 export function Select({
   label,
@@ -153,7 +153,7 @@ export function SuccessNote({ children }: { children: ReactNode }) {
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-border bg-surface shadow-[var(--shadow-card)] ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] ${className}`}>{children}</div>;
 }
 
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {

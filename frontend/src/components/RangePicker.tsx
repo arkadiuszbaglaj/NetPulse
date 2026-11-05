@@ -23,7 +23,7 @@ export function RangePicker() {
           type="button"
           onClick={zoomOut}
           title={t("zoom.out.hint")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-accent bg-accent-soft px-2.5 py-1 text-xs text-accent hover:bg-accent/20"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-accent bg-accent-soft px-2.5 py-1 text-xs text-accent-text hover:bg-accent/20"
         >
           <IconZoomOut size={14} aria-hidden="true" />
           <span>
@@ -67,7 +67,7 @@ export function RangePicker() {
                   className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-text hover:bg-surface-2 focus-visible:bg-surface-2"
                 >
                   {formatRange(m)}
-                  {checked && <IconCheck size={16} aria-hidden="true" className="text-accent" />}
+                  {checked && <IconCheck size={16} aria-hidden="true" className="text-accent-text" />}
                 </button>
               );
             })}

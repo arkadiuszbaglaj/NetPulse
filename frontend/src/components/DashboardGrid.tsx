@@ -107,7 +107,7 @@ export function SectionHeader({ title, collapsed, onToggle, hiddenCount }: { tit
   return (
     <div className="flex h-full items-end border-b border-border pb-1">
       {onToggle ? (
-        <button type="button" aria-expanded={!collapsed} onClick={onToggle} className="flex items-center gap-1.5 rounded-md text-base font-semibold hover:text-accent">
+        <button type="button" aria-expanded={!collapsed} onClick={onToggle} className="flex items-center gap-1.5 rounded-md text-base font-semibold hover:text-accent-text">
           <Icon size={18} aria-hidden="true" />
           {title}
           {collapsed && hiddenCount ? <span className="text-xs font-normal text-text-2">{t("section.hidden", { n: hiddenCount })}</span> : null}
@@ -282,14 +282,14 @@ export function DashboardGrid({ widgets, scope, edit = false, onPositions, rende
     }
     return (
       // W trybie edycji pasek narzędzi leży nad kartą (w rogu), a nie w niej – widget ma tę samą wysokość co w podglądzie
-      <div className={`relative flex h-full min-h-0 flex-col ${edit ? "rounded-xl outline-2 outline-offset-2 outline-dashed outline-border-strong" : ""}`}>
+      <div className={`relative flex h-full min-h-0 flex-col ${edit ? "rounded-2xl outline-2 outline-offset-2 outline-dashed outline-border-strong" : ""}`}>
         {edit && <div className="absolute right-2 top-2 z-20">{renderEditBar?.(w, placeOf(w))}</div>}
         {edit && desktop && (need[w.id] ?? 0) > 0 && (
           <button
             type="button"
             onClick={() => fit(w)}
             title={t("widget.fit.hint")}
-            className="absolute bottom-2 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium shadow-sm hover:text-accent"
+            className="absolute bottom-2 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium shadow-sm hover:text-accent-text"
           >
             <IconArrowAutofitHeight size={14} aria-hidden="true" />
             {t("widget.fit", { n: need[w.id] ?? 0 })}

@@ -63,7 +63,7 @@ function Choice({ checked, onSelect, icon: Icon, title, body }: { checked: boole
   return (
     <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 ${checked ? "border-accent bg-accent-soft" : "border-border hover:bg-surface-2"}`}>
       <input type="radio" name="visibility" checked={checked} onChange={onSelect} className="mt-1 accent-[var(--accent)]" />
-      <Icon size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
+      <Icon size={22} aria-hidden="true" className="mt-0.5 shrink-0 text-accent-text" />
       <span>
         <span className="block text-sm font-medium">{title}</span>
         <span className="block text-xs text-text-2">{body}</span>

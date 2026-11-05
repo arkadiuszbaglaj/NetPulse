@@ -30,7 +30,7 @@ export function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 hover:bg-surface-2"
       >
-        <span className="flex size-8 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent">
+        <span className="flex size-8 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent-text">
           {initials(user.username)}
         </span>
         <span className="hidden max-w-40 truncate text-sm font-medium sm:block">{user.username}</span>

@@ -20,7 +20,7 @@ function Stepper({ step }: { step: number }) {
           key={label}
           aria-current={i === step ? "step" : undefined}
           className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
-            i === step ? "bg-accent-soft font-medium text-accent" : i < step ? "bg-success-soft text-success" : "bg-surface-2 text-text-2"
+            i === step ? "bg-accent-soft font-medium text-accent-text" : i < step ? "bg-success-soft text-success" : "bg-surface-2 text-text-2"
           }`}
         >
           {i < step ? <IconCheck size={14} aria-hidden="true" /> : <span aria-hidden="true">{i + 1}</span>}
@@ -39,7 +39,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
       <ul className="mt-4 flex flex-col gap-2 text-sm">
         {(["setup.welcome.need1", "setup.welcome.need2", "setup.welcome.need3"] as const).map((k) => (
           <li key={k} className="flex gap-2">
-            <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
+            <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-accent-text" />
             {t(k)}
           </li>
         ))}
@@ -169,7 +169,7 @@ function Done() {
       <ul className="mt-2 flex flex-col gap-1.5 text-sm">
         {NEXT_STEPS.filter((s) => !s.module || mods?.[s.module]).map((s) => (
           <li key={s.to}>
-            <Link to={s.to} className="text-accent hover:underline">
+            <Link to={s.to} className="text-accent-text hover:underline">
               {t(s.label)}
             </Link>
           </li>

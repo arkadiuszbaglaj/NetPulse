@@ -72,7 +72,7 @@ export function WanSlaWidget({ deviceId, days }: { deviceId?: number | null; day
     <Card className="flex h-full flex-col p-4">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-medium">
-          <IconShieldCheck size={18} aria-hidden="true" className="shrink-0 text-accent" />
+          <IconShieldCheck size={18} aria-hidden="true" className="shrink-0 text-accent-text" />
           {t("widget.type.wan_sla")}
         </h3>
         <div role="group" aria-label={t("wan.sla.period")} className="flex gap-1">
@@ -82,7 +82,7 @@ export function WanSlaWidget({ deviceId, days }: { deviceId?: number | null; day
               type="button"
               aria-pressed={period === d}
               onClick={() => setPeriod(d)}
-              className={`rounded-md px-2 py-0.5 text-xs ${period === d ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:bg-surface-2"}`}
+              className={`rounded-md px-2 py-0.5 text-xs ${period === d ? "bg-accent-soft font-medium text-accent-text" : "text-text-2 hover:bg-surface-2"}`}
             >
               {t(`wan.sla.days.${d}` as TextKey)}
             </button>

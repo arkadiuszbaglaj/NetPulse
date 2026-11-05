@@ -39,7 +39,7 @@ export function ServerWidget() {
   return (
     <Card className="h-full p-4">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
-        <IconServer size={18} aria-hidden="true" className="shrink-0 text-accent" />
+        <IconServer size={18} aria-hidden="true" className="shrink-0 text-accent-text" />
         {t("widget.type.server")}
       </h3>
       {isError ? (

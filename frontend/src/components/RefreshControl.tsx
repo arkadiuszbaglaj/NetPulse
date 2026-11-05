@@ -67,7 +67,7 @@ export function RefreshControl() {
               className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-text hover:bg-surface-2 focus-visible:bg-surface-2"
             >
               {refreshLabel(s)}
-              {s === refreshSeconds && <IconCheck size={16} aria-hidden="true" className="text-accent" />}
+              {s === refreshSeconds && <IconCheck size={16} aria-hidden="true" className="text-accent-text" />}
             </button>
           ))}
           {pollInterval !== undefined && (

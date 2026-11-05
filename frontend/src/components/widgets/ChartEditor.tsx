@@ -341,7 +341,7 @@ function QueryCard({
     <section aria-label={t("ce.query", { id: query.id })} className="flex flex-col gap-3 rounded-xl border border-border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium">
-          <span className="mr-1.5 inline-flex size-5 items-center justify-center rounded bg-accent-soft text-xs text-accent">{query.id}</span>
+          <span className="mr-1.5 inline-flex size-5 items-center justify-center rounded bg-accent-soft text-xs text-accent-text">{query.id}</span>
           {t("ce.query.title")}
         </h3>
         <div className="flex items-center gap-1">

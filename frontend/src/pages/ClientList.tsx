@@ -32,7 +32,7 @@ export function ClientList({ deviceId, port, title }: { deviceId: number; port?:
               <td className="px-4 py-2">
                 <span className="flex items-center gap-2">
                   <IconDeviceDesktop size={16} aria-hidden="true" className="shrink-0 text-text-2" />
-                  <Link to={clientUrl(c.mac)} className="truncate font-medium hover:text-accent hover:underline">
+                  <Link to={clientUrl(c.mac)} className="truncate font-medium hover:text-accent-text hover:underline">
                     {c.name ?? c.mac}
                   </Link>
                 </span>

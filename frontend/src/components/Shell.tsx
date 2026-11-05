@@ -66,7 +66,7 @@ export function Shell() {
       {drawer && <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setDrawer(false)} aria-hidden="true" />}
       <aside
         className={[
-          "z-30 shrink-0 border-r border-border bg-surface transition-[width,transform] duration-200",
+          "z-30 shrink-0 border-r border-border bg-bg transition-[width,transform] duration-200",
           "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-64",
           drawer ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
           collapsed ? "lg:w-[72px]" : "lg:w-60",

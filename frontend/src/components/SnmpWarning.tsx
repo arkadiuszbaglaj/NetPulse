@@ -26,7 +26,7 @@ export function DefaultCommunityNote() {
         <p className="font-medium">{t("snmp.default.title", { n: devices.length })}</p>
         <p className="mt-1 text-text-2">{devices.map((d) => d.name).join(", ")}</p>
         <p className="mt-2 max-w-2xl text-text-2">{t("snmp.default.body")}</p>
-        <Link to="/settings/devices" className="mt-2 inline-block text-accent hover:underline">
+        <Link to="/settings/devices" className="mt-2 inline-block text-accent-text hover:underline">
           {t("snmp.default.link")}
         </Link>
       </div>

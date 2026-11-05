@@ -41,7 +41,7 @@ function RowLabel({ kind, row, className }: { kind: CollectionKind; row: Collect
   const to = rowLink(kind, row);
   const linked = useDetailLinks() && to;
   return linked ? (
-    <Link to={to} title={row.label} className={`${className} hover:text-accent hover:underline`}>
+    <Link to={to} title={row.label} className={`${className} hover:text-accent-text hover:underline`}>
       {row.label}
     </Link>
   ) : (

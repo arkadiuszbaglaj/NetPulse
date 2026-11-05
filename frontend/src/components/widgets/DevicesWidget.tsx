@@ -48,7 +48,7 @@ function DeviceCard({ device, availability }: { device: Device; availability: nu
           <div className="min-w-0">
             <h3 className="truncate text-sm font-medium">
               {linked ? (
-                <Link to={`/devices/${device.id}`} className="hover:text-accent hover:underline">
+                <Link to={`/devices/${device.id}`} className="hover:text-accent-text hover:underline">
                   {device.name}
                 </Link>
               ) : (
@@ -97,7 +97,7 @@ function PercentBar({ value }: { value: number | null | undefined }) {
     <span className="flex items-center gap-2">
       <span className="w-10 text-right">{Math.round(v)} %</span>
       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
-        <span className={`block h-full rounded-full ${v >= 90 ? "bg-danger" : v >= 75 ? "bg-warning" : "bg-text-2"}`} style={{ width: `${v}%` }} />
+        <span className={`block h-full rounded-full ${v >= 90 ? "bg-danger" : v >= 75 ? "bg-warning" : "bg-accent"}`} style={{ width: `${v}%` }} />
       </span>
     </span>
   );

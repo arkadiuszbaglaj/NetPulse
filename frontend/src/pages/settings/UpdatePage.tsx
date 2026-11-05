@@ -53,7 +53,7 @@ function PhaseIcon({ status }: { status: UpdatePhaseStatus }) {
     case "done":
       return <IconCircleCheck {...common} className="text-success" />;
     case "running":
-      return <IconLoader2 {...common} className="animate-spin text-accent" />;
+      return <IconLoader2 {...common} className="animate-spin text-accent-text" />;
     case "failed":
       return <IconCircleX {...common} className="text-danger" />;
     case "skipped":
@@ -139,7 +139,7 @@ function JobCard({ job, restarting }: { job: UpdateJob; restarting: boolean }) {
             type="button"
             aria-expanded={details}
             onClick={() => setDetails((v) => !v)}
-            className="text-sm text-accent hover:underline"
+            className="text-sm text-accent-text hover:underline"
           >
             {details ? t("update.job.hideDetails") : t("update.job.details")}
           </button>
@@ -231,7 +231,7 @@ export function UpdatePage() {
             {!info && <p className="text-sm text-text-2">{t("update.neverChecked")}</p>}
             {info && info.update_available && (
               <>
-                <p className="flex items-center gap-2 text-sm font-medium text-accent">
+                <p className="flex items-center gap-2 text-sm font-medium text-accent-text">
                   <IconDownload size={18} aria-hidden="true" />
                   {latest ? t("update.available", { version: latest }) : t("update.availableNoVersion")}
                 </p>

@@ -32,7 +32,7 @@ const QUALITY_LABEL = {
 function UplinkLink({ id, name, port }: { id: number | null; name: string | null; port: number | null }) {
   const text = `${name ?? "–"}${port != null ? ` · ${t("clients.port", { n: port })}` : ""}`;
   return id != null ? (
-    <Link to={`/devices/${id}`} className="hover:text-accent hover:underline">
+    <Link to={`/devices/${id}`} className="hover:text-accent-text hover:underline">
       {text}
     </Link>
   ) : (

@@ -60,7 +60,7 @@ function ClientRow({ c }: { c: NetworkClient }) {
         <div className="flex items-center gap-2">
           <IconDeviceDesktop size={18} aria-hidden="true" className="shrink-0 text-text-2" />
           <div className="min-w-0">
-            <Link to={clientUrl(c.mac)} className="block truncate font-medium hover:text-accent hover:underline">
+            <Link to={clientUrl(c.mac)} className="block truncate font-medium hover:text-accent-text hover:underline">
               {c.name ?? c.mac}
             </Link>
             {c.name && <p className="truncate text-xs text-muted">{c.mac}</p>}
@@ -117,7 +117,7 @@ export function ClientsPage() {
                 aria-pressed={f === filter}
                 onClick={() => setFilter(f)}
                 className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-                  f === filter ? "bg-accent-soft font-medium text-accent" : "text-text-2 hover:text-text"
+                  f === filter ? "bg-accent-soft font-medium text-accent-text" : "text-text-2 hover:text-text"
                 }`}
               >
                 {t(FILTER_LABEL[f])}

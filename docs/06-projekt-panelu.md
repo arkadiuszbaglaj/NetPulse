@@ -17,7 +17,23 @@ Decyzje zapadły wspólnie z autorem projektu; zmiany zapisujemy tutaj.
 - Główny ekran: **pulpit z kartami** – pasek podsumowania i karty urządzeń z mini-wykresami.
 - Menu nawigacji **po lewej**, zwijane do ikon; na telefonie chowane pod przyciskiem.
 
-### Nowy wygląd (od 0.42.0, wariant A „klasyczny jasny”)
+### Wygląd „Błękit” (od 0.58.0)
+
+Wybrany z dwóch projektów na płótnie (fioletowy „Iris” i „Błękit”), układ bez zmian – zmieniły się kolory, font
+i wykończenie. Wszystko przez tokeny w `frontend/src/index.css`, więc kolejną kolorystykę zmienia się w jednym miejscu.
+
+- **Kolory (jasny / ciemny):** tło `#f3f6fa` / `#0a0f18` (chłodne szarości z nutą granatu), karty `#ffffff` / `#111827`,
+  akcent niebieski `#1f6feb` / `#4c9bff`. Tekst w kolorze akcentu (linki, zaznaczenia) – token `--accent-text`
+  (`text-accent-text`; `#1557c2` / `#8cc0ff`), bo czysty akcent na jasnoniebieskim tle `--accent-soft` miał za mały
+  kontrast. Zielony, bursztynowy i czerwony tylko dla stanów – bez zmian znaczenia.
+- **Wykresy:** numery kolorów zachowują znaczenie; 1 = akcent niebieski, **8 = błękit** `#0ea5e9` / `#5fd3ff`
+  (druga seria i porównanie z „wczoraj”, wcześniej szary). Łącze zapasowe – pomarańcz.
+- **Font:** Geist i Geist Mono w paczce (`@fontsource-variable/geist`, `…/geist-mono`; z polskimi znakami, bez internetu).
+- **Menu:** w kolorze tła, aktywna pozycja to kafelek w kolorze karty z niebieską ikoną, wersja w niebieskiej plakietce.
+- **Karty** zaokrąglone 16 px (`rounded-2xl`), przyciski i pola 10 px; paski CPU/RAM w tabeli urządzeń – akcent.
+- Ikony aplikacji (favicon, PWA) i `theme-color` – niebieskie.
+
+### Nowy wygląd (od 0.42.0 do 0.57.x, wariant A „klasyczny jasny”)
 
 Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu u góry).
 
