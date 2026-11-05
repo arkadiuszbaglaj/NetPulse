@@ -33,9 +33,17 @@ const check = (over: Partial<Check>): Check => ({
 });
 
 describe("Dostępność", () => {
+  it("jest w Ustawieniach, nie w głównym menu; stary adres /checks przekierowuje", async () => {
+    mockApi();
+    renderApp("/checks");
+    expect(await screen.findByRole("heading", { name: "Dostępność", level: 1 })).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Menu główne" });
+    expect(within(nav).getByRole("link", { name: "Dostępność" })).toHaveAttribute("href", "/settings/checks");
+  });
+
   it("pusta lista proponuje gotowe sprawdzenia, formularz testuje i zapisuje ping", async () => {
     const { state, calls } = mockApi();
-    renderApp("/checks");
+    renderApp("/settings/checks");
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Internet – Google DNS" }));
@@ -61,7 +69,7 @@ describe("Dostępność", () => {
 
   it("HTTP wymaga adresu z http(s), TCP – portu; limit czasu krótszy niż odstęp", async () => {
     mockApi();
-    renderApp("/checks");
+    renderApp("/settings/checks");
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Dodaj sprawdzenie" }));
     const dialog = await screen.findByRole("dialog");
@@ -101,7 +109,7 @@ describe("Dostępność", () => {
         }),
       ],
     });
-    renderApp("/checks");
+    renderApp("/settings/checks");
     expect(await screen.findByText("Nie przechodzi: 1 z 2.")).toBeInTheDocument();
     const rows = ["Internet – Google DNS", "Pi-hole"].map((name) => screen.getByText(name).closest("li") as HTMLElement);
     expect(within(rows[0]).getByText("dostępne")).toBeInTheDocument();
@@ -122,7 +130,7 @@ describe("Dostępność", () => {
       ],
       checks: [check({})], // 8.8.8.8 już jest
     });
-    renderApp("/checks");
+    renderApp("/settings/checks");
     const user = userEvent.setup();
     const quick = (await screen.findByText("Szybko dodaj:")).parentElement as HTMLElement;
     const names = within(quick)

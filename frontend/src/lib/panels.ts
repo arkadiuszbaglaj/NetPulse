@@ -75,7 +75,7 @@ export function rowLink(kind: CollectionKind, row: CollectionRow): string | null
     case "clients":
       return "/clients";
     case "checks":
-      return "/checks";
+      return "/settings/checks";
     case "guests":
       return "/proxmox";
   }

@@ -33,7 +33,7 @@ describe("panele – funkcje", () => {
     expect(rowLink("ports", row("17", 2))).toBe("/devices/2/ports/17");
     expect(rowLink("ports", row("17"))).toBeNull();
     expect(rowLink("disks", row("/", 5))).toBe("/devices/5/server");
-    expect(rowLink("checks", row("1"))).toBe("/checks");
+    expect(rowLink("checks", row("1"))).toBe("/settings/checks");
     expect(rowLink("clients", row("0"))).toBe("/clients");
   });
 

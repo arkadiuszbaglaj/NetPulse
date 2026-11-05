@@ -1,6 +1,6 @@
 # Sprawdzanie dostępności (od 0.30.0)
 
-Strona **Dostępność** w menu: sprawdzenia, które NetPulse wykonuje sam, niezależnie od SNMP i agentów.
+Strona **Dostępność** (od 0.58.3 w Ustawieniach, `/settings/checks`; stary adres `/checks` przekierowuje): sprawdzenia, które NetPulse wykonuje sam, niezależnie od SNMP i agentów.
 
 | Rodzaj | Co mierzy | Kiedy „niedostępne” |
 |---|---|---|

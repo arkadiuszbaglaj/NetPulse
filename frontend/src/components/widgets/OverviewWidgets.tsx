@@ -247,7 +247,7 @@ export function ChecksWidget({ days }: { days: ChecksDays }) {
         <p className="text-sm text-muted">
           {t("checksWidget.none")}{" "}
           {linked && (
-            <Link to="/checks" className="font-medium text-text-2 underline hover:text-text">
+            <Link to="/settings/checks" className="font-medium text-text-2 underline hover:text-text">
               {t("checksWidget.add")}
             </Link>
           )}

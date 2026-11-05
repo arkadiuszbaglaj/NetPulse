@@ -2,6 +2,7 @@
  * Rejestr modułów panelu – jedno miejsce, z którego powstaje menu i routing.
  * Nowa sekcja (Alerty, Topologia, Klienci WiFi…) to jeden wpis tutaj.
  */
+import { Navigate } from "react-router";
 import {
   IconBell,
   IconActivity,
@@ -181,11 +182,13 @@ export const modules: NavModule[] = [
     module: "unifi",
   },
   {
-    id: "checks",
+    // Dostępność to konfiguracja sprawdzeń – od 0.58.3 w Ustawieniach; stary adres przekierowuje
+    id: "checks-legacy",
     path: "/checks",
     label: "nav.checks",
     icon: IconActivity,
-    element: <ChecksPage />,
+    element: <Navigate to="/settings/checks" replace />,
+    hidden: true,
   },
   {
     id: "alerts",
@@ -208,6 +211,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.devices",
         icon: IconServer2,
         element: <DevicesPage />,
+      },
+      {
+        path: "checks",
+        label: "nav.checks",
+        icon: IconActivity,
+        element: <ChecksPage />,
       },
       {
         path: "dashboards",

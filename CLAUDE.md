@@ -164,7 +164,7 @@ Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):
 
 ## Sprawdzanie dostępności
 
-Od 0.30.0: strona Dostępność – ping (opóźnienie, utrata pakietów, jitter = jakość łącza), HTTP(S) (kod, tekst,
+Od 0.30.0: strona Dostępność (od 0.58.3 w Ustawieniach, `/settings/checks`) – ping (opóźnienie, utrata pakietów, jitter = jakość łącza), HTTP(S) (kod, tekst,
 ważność certyfikatu) i port TCP. Ping bez roota (gniazdo ICMP `SOCK_DGRAM`, działa w kontenerze kolektora), bez
 zewnętrznej biblioteki. Kod: `netpulse/checks.py`, `checks_collector.py` (pętla w kolektorze), `api/checks.py`,
 migracja 0010 (`checks`, hypertable `check_metrics`). Alerty: `check_down` + metryki `check_latency_ms`,

@@ -30,7 +30,7 @@ i wykończenie. Wszystko przez tokeny w `frontend/src/index.css`, więc kolejną
   (druga seria i porównanie z „wczoraj”, wcześniej szary). Łącze zapasowe – pomarańcz.
 - **Font:** Geist i Geist Mono w paczce (`@fontsource-variable/geist`, `…/geist-mono`; z polskimi znakami, bez internetu).
 - **Menu:** w kolorze tła, aktywna pozycja to kafelek w kolorze karty z niebieską ikoną, wersja w niebieskiej plakietce.
-  Od 0.58.1 grupy **Monitoring** (pulpit, mapa sieci, dostępność), **Zdarzenia** (alerty z plakietką liczby
+  Od 0.58.1 grupy **Monitoring** (pulpit, mapa sieci; Dostępność od 0.58.3 w Ustawieniach), **Zdarzenia** (alerty z plakietką liczby
   niepotwierdzonych – po zwinięciu menu kropka), **Integracje** (klienci WiFi, Proxmox – pusta grupa znika) i **System**.
   Grupa to pole `group` w rejestrze `frontend/src/modules.tsx` (`NAV_GROUPS`; bez pola – Monitoring); nowa integracja
   = `group: "integrations"`.
