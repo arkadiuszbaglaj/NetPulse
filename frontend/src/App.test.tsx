@@ -92,7 +92,7 @@ describe("panel po zalogowaniu", () => {
     expect(screen.getByRole("button", { name: "Menu konta" })).toHaveTextContent("admin");
   });
 
-  it("dzieli menu na grupy: Monitoring, Zdarzenia, System (Integracje – tylko z włączonym modułem)", async () => {
+  it("dzieli menu na grupy: Monitoring, Zdarzenia, Integracje, System", async () => {
     mockApi();
     renderApp();
     const nav = await screen.findByRole("navigation", { name: "Menu główne" });
@@ -100,6 +100,13 @@ describe("panel po zalogowaniu", () => {
     expect(within(nav).getByText("Zdarzenia")).toBeInTheDocument();
     expect(within(nav).getByText("System")).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: /^Alerty/ })).toBeInTheDocument();
+    // Grupy według przeznaczenia, nie źródła danych: Klienci (z UniFi) to monitoring, Proxmox – integracja
+    const linksIn = (group: string) =>
+      within(within(nav).getByText(group).parentElement as HTMLElement)
+        .getAllByRole("link")
+        .map((a) => a.textContent);
+    expect(linksIn("Monitoring")).toEqual(["Dashboard", "Klienci", "Mapa sieci"]);
+    expect(linksIn("Integracje")).toEqual(["Proxmox"]);
   });
 
   it("pokazuje karty urządzeń i podsumowanie", async () => {

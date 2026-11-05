@@ -31,9 +31,10 @@ i wykończenie. Wszystko przez tokeny w `frontend/src/index.css`, więc kolejną
 - **Font:** Geist i Geist Mono w paczce (`@fontsource-variable/geist`, `…/geist-mono`; z polskimi znakami, bez internetu).
 - **Menu:** w kolorze tła, aktywna pozycja to kafelek w kolorze karty z niebieską ikoną, wersja w niebieskiej plakietce.
   Od 0.58.1 grupy **Monitoring** (pulpit, mapa sieci; Dostępność od 0.58.3 w Ustawieniach), **Zdarzenia** (alerty z plakietką liczby
-  niepotwierdzonych – po zwinięciu menu kropka), **Integracje** (klienci WiFi, Proxmox – pusta grupa znika) i **System**.
+  niepotwierdzonych – po zwinięciu menu kropka), **Integracje** (od 0.58.4 sam Proxmox – pusta grupa znika) i **System**.
   Grupa to pole `group` w rejestrze `frontend/src/modules.tsx` (`NAV_GROUPS`; bez pola – Monitoring); nowa integracja
-  = `group: "integrations"`.
+  = `group: "integrations"`. Grupa według przeznaczenia strony, nie źródła danych: Klienci (dane z UniFi) od 0.58.4
+  w Monitoringu (Dashboard, Klienci, Mapa sieci); Integracje = strony osobnych systemów podglądanych przez NetPulse.
 - **Karty** zaokrąglone 16 px (`rounded-2xl`), przyciski i pola 10 px; paski CPU/RAM w tabeli urządzeń – akcent.
 - Ikony aplikacji (favicon, PWA) i `theme-color` – niebieskie.
 

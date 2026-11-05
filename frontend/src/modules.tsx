@@ -153,7 +153,6 @@ export const modules: NavModule[] = [
     icon: IconDevicesPc,
     element: <ClientsPage />,
     module: "unifi",
-    group: "integrations",
   },
   {
     id: "client",
