@@ -188,7 +188,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                     key=str(c.id),
                     label=c.name,
                     values={
-                        "up": 1.0 if c.live_status == "up" else 0.0 if c.live_status == "down" else None,
+                        "up": 1.0 if c.status == "up" else 0.0 if c.status == "down" else None,
                         "latency_ms": c.last_latency_ms,
                         "loss_percent": c.loss_percent,
                         "availability_percent": c.availability_24h,
