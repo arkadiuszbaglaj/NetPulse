@@ -40,6 +40,33 @@ export const USER: User = {
   last_login_at: "2026-10-24T20:05:00Z",
 };
 
+/** Raport miesięczny (GET /api/reports/monthly, od 0.65.0) */
+export const REPORT = {
+  year: 2026,
+  month: 10,
+  title: "październik 2026",
+  start: "2026-09-30T22:00:00Z",
+  end: "2026-10-31T23:00:00Z",
+  generated_at: "2026-11-06T08:00:00Z",
+  timezone: "Europe/Warsaw",
+  version: "0.65.0",
+  raw_from: "2026-10-07T00:00:00Z",
+  devices_percent: 99.9975,
+  checks_percent: 99.5,
+  devices: [
+    { id: 1, name: "UCG Ultra", host: "192.168.1.1", kind: "gateway", percent: 99.995, down_s: 120, maintenance_s: 0, samples: 89000 },
+    { id: 2, name: "USW Lite 8 PoE", host: "192.168.1.2", kind: "switch", percent: 100, down_s: 0, maintenance_s: 3600, samples: 89000 },
+  ],
+  checks: [{ id: 1, name: "Internet – Google DNS", kind: "ping", target: "8.8.8.8", percent: 99.5, samples: 2000, failed: 10, avg_latency_ms: 15.24, max_latency_ms: 80 }],
+  wan: [{ name: "WAN 1", device: "UCG Ultra", rx_bytes: 512.3e9, tx_bytes: 40.1e9, percent: 99.9, down_s: 2580, outages: 2, longest_outage_s: 1800 }],
+  alerts: [
+    { id: 1, title: "Port 7 przeszedł w stan down", severity: "warning", device: "USW Lite 8 PoE", started_at: "2026-10-03T10:00:00Z", resolved_at: "2026-10-03T10:30:00Z", duration_s: 1800, maintenance: false },
+    { id: 2, title: "Urządzenie nie odpowiada", severity: "critical", device: "UCG Ultra", started_at: "2026-10-20T02:00:00Z", resolved_at: null, duration_s: 3600, maintenance: true },
+  ],
+  alerts_total: 2,
+  alerts_by_severity: { warning: 1, critical: 1 },
+};
+
 /** Źródła danych z poziomem potwierdzenia (GET /api/system/verification, od 0.64.0) */
 export const VERIFICATION = [
   { id: "snmp_ifmib", label: "SNMP: porty, ruch, błędy", level: "verified", note: "UniFi UCG Ultra, USW Lite 8 PoE, U6+", drivers: ["generic", "unifi"] },
@@ -697,6 +724,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         return json(200, state.totp);
       }
       if (key === "GET /api/system/verification") return json(200, VERIFICATION);
+      if (key === "GET /api/reports/monthly") return json(200, REPORT);
       if (key === "GET /api/system/tls") return json(200, state.tls);
       if (key === "PUT /api/system/tls/names") {
         state.tls = { ...state.tls, requested: (body as { names: string[] }).names.map((n) => n.toLowerCase()) };

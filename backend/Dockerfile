@@ -18,6 +18,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Czcionka z polskimi znakami do raportu PDF (netpulse/report.py)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # Najpierw zależności (lepsze cache warstw przy aktualizacjach)
 COPY backend/pyproject.toml ./
 COPY backend/netpulse/__init__.py ./netpulse/__init__.py

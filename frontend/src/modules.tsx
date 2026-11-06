@@ -11,6 +11,7 @@ import {
   IconDatabase,
   IconDevicesPc,
   IconDownload,
+  IconFileAnalytics,
   IconHeartbeat,
   IconHierarchy2,
   IconLayoutDashboard,
@@ -51,6 +52,7 @@ const AlertRulesPage = page(() => import("./pages/settings/AlertRulesPage"), "Al
 const BackupsPage = page(() => import("./pages/settings/BackupsPage"), "BackupsPage");
 const ModulesPage = page(() => import("./pages/settings/ModulesPage"), "ModulesPage");
 const AlertsPage = page(() => import("./pages/AlertsPage"), "AlertsPage");
+const ReportsPage = page(() => import("./pages/ReportsPage"), "ReportsPage");
 const AccountPage = page(() => import("./pages/settings/AccountPage"), "AccountPage");
 const ClientPage = page(() => import("./pages/ClientPage"), "ClientPage");
 const ClientsPage = page(() => import("./pages/ClientsPage"), "ClientsPage");
@@ -205,6 +207,14 @@ export const modules: NavModule[] = [
     label: "nav.alerts",
     icon: IconBellRinging,
     element: <AlertsPage />,
+    group: "events",
+  },
+  {
+    id: "reports",
+    path: "/reports",
+    label: "nav.reports",
+    icon: IconFileAnalytics,
+    element: <ReportsPage />,
     group: "events",
   },
   {

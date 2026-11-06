@@ -227,6 +227,14 @@ poziomy `verified|partial|test`) – **po sprawdzeniu źródła na prawdziwym sp
 `GET /api/system/verification`, panel `components/Verification.tsx` (plakietka na stronie urządzenia, lista w Ustawienia → System).
 Nowy driver = wpis w `SOURCES` (pilnuje `test_verification.py`). Opis: `docs/36-dns-i-potwierdzenie-danych.md`.
 
+## Raport miesięczny (0.65.0)
+
+Menu → Raporty (`/reports`, grupa Zdarzenia, każda rola): podgląd i pobranie PDF/CSV za miesiąc (`month=RRRR-MM`, puste =
+poprzedni). Kod: `netpulse/report.py` (`build`, `to_csv` – średnik, przecinek, BOM; `to_pdf` – `fpdf2`, czcionka DejaVu
+z `fonts-dejavu-core` w Dockerfile, bez niej Helvetica bez ogonków), `api/reports.py` (`/api/reports/monthly`, `.csv`, `.pdf`),
+panel `pages/ReportsPage.tsx`. Urządzenia i ruch WAN z agregatów godzinowych (cały miesiąc), sprawdzenia i SLA WAN z surowych
+próbek (tylko `retention_days` – raport podaje `raw_from`). Bez zapisu raportów i wysyłki e-mailem. Opis: `docs/37-raport-miesieczny.md`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`

@@ -39,6 +39,7 @@ from . import (
     preferences,
     proxmox,
     public,
+    reports,
     servers,
     system,
     topology,
@@ -104,6 +105,7 @@ app.include_router(panels.router)
 app.include_router(preferences.router)
 app.include_router(proxmox.router)
 app.include_router(public.router)
+app.include_router(reports.router)
 app.include_router(servers.router)
 app.include_router(system.router)
 app.include_router(tls_api.router)

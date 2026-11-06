@@ -345,6 +345,35 @@ createServer(async (req, res) => {
       { ...base, id: 5, name: "DNS – NAS", kind: "dns", target: "nas.lan", dns_type: "A", dns_server: "192.168.1.1", keyword: "192.168.1.34", interval_s: 60, status: "up", last_ok_at: ago(20), last_error: null, last_latency_ms: 3.1, last_answer: "192.168.1.34", availability_24h: 100, loss_percent: null, jitter_ms: null, status_code: null, cert_days: null },
     ]);
   }
+  if (route === "GET /api/reports/monthly") {
+    const [y, m] = (url.searchParams.get("month") || "2026-10").split("-").map(Number);
+    const names = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
+    return send(res, 200, { ...{
+      year: 2026,
+      month: 10,
+      title: "październik 2026",
+      start: "2026-09-30T22:00:00Z",
+      end: "2026-10-31T23:00:00Z",
+      generated_at: "2026-11-06T08:00:00Z",
+      timezone: "Europe/Warsaw",
+      version: "0.65.0",
+      raw_from: "2026-10-07T00:00:00Z",
+      devices_percent: 99.9975,
+      checks_percent: 99.5,
+      devices: [
+        { id: 1, name: "UCG Ultra", host: "192.168.1.1", kind: "gateway", percent: 99.995, down_s: 120, maintenance_s: 0, samples: 89000 },
+        { id: 2, name: "USW Lite 8 PoE", host: "192.168.1.2", kind: "switch", percent: 100, down_s: 0, maintenance_s: 3600, samples: 89000 },
+      ],
+      checks: [{ id: 1, name: "Internet – Google DNS", kind: "ping", target: "8.8.8.8", percent: 99.5, samples: 2000, failed: 10, avg_latency_ms: 15.24, max_latency_ms: 80 }],
+      wan: [{ name: "WAN 1", device: "UCG Ultra", rx_bytes: 512.3e9, tx_bytes: 40.1e9, percent: 99.9, down_s: 2580, outages: 2, longest_outage_s: 1800 }],
+      alerts: [
+        { id: 1, title: "Port 7 przeszedł w stan down", severity: "warning", device: "USW Lite 8 PoE", started_at: "2026-10-03T10:00:00Z", resolved_at: "2026-10-03T10:30:00Z", duration_s: 1800, maintenance: false },
+        { id: 2, title: "Urządzenie nie odpowiada", severity: "critical", device: "UCG Ultra", started_at: "2026-10-20T02:00:00Z", resolved_at: null, duration_s: 3600, maintenance: true },
+      ],
+      alerts_total: 2,
+      alerts_by_severity: { warning: 1, critical: 1 },
+    }, year: y, month: m, title: `${names[m - 1]} ${y}` });
+  }
   if (route === "GET /api/system/verification") {
     return send(res, 200, [
       { id: "snmp_ifmib", label: "SNMP: porty, ruch, błędy (IF-MIB), CPU i RAM (UCD-SNMP-MIB)", level: "verified", note: "UniFi UCG Ultra, USW Lite 8 PoE, U6+ i MikroTik RouterOS 7.18 (CHR)", drivers: ["generic", "unifi", "mikrotik", "omada", "linux"] },
