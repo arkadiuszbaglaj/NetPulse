@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Motyw okna przed startem Compose (pasek stanu, tło); kolory i jasny/ciemny ustawia NetPulseTheme -->
+    <style name="Theme.NetPulse" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+    </style>
+</resources>

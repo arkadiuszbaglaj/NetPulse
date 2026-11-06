@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NetPulse działa w sieci domowej: HTTP (port 8000) jest dozwolony, a HTTPS (port 8443) z certyfikatem
+     lokalnego CA NetPulse działa po zainstalowaniu ca.pem w telefonie (Ustawienia → Bezpieczeństwo → Certyfikat CA). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

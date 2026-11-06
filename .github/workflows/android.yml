@@ -1,0 +1,88 @@
+name: Android
+
+# Aplikacja na Androida (mobile/android): budowanie podpisanego APK. Na main dodatkowo wydanie na GitHubie
+# z tagiem android-v<versionName> – stamtąd APK instaluje się ręcznie na telefonie.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "mobile/android/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "mobile/android/**"
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: APK
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mobile/android
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Klucz podpisu
+        env:
+          KEYSTORE_B64: ${{ secrets.NETPULSE_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            # Wydanie musi mieć stały klucz – inaczej telefon nie przyjmie aktualizacji. Na gałęziach wystarczy
+            # klucz debug (sprawdzenie, że kod się buduje).
+            if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+              echo "::error::Brak sekretów NETPULSE_KEYSTORE_B64 i NETPULSE_KEYSTORE_PASSWORD."
+              exit 1
+            fi
+            echo "::warning::Brak klucza podpisu – APK podpisany kluczem debug, nie instalować na stałe."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/netpulse-release.p12"
+          echo "NETPULSE_KEYSTORE=$RUNNER_TEMP/netpulse-release.p12" >> "$GITHUB_ENV"
+
+      - name: Budowanie
+        env:
+          NETPULSE_KEYSTORE_PASSWORD: ${{ secrets.NETPULSE_KEYSTORE_PASSWORD }}
+        run: gradle --no-daemon assembleRelease
+
+      - name: Wersja i nazwa pliku
+        id: meta
+        run: |
+          version=$(sed -n 's/^val appVersionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          cp app/build/outputs/apk/release/app-release.apk "NetPulse-$version.apk"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --print-certs "NetPulse-$version.apk" | head -3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NetPulse-${{ steps.meta.outputs.version }}-apk
+          path: mobile/android/NetPulse-${{ steps.meta.outputs.version }}.apk
+
+      - name: Wydanie na GitHubie
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          tag="android-v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "NetPulse-$VERSION.apk" --clobber
+          else
+            gh release create "$tag" "NetPulse-$VERSION.apk" --target "$GITHUB_SHA" --latest=false \
+              --title "NetPulse na Androida $VERSION" \
+              --notes "Aplikacja NetPulse na Androida (instalacja ręczna). Na telefonie: pobierz plik APK, otwórz go i zezwól na instalację z tego źródła."
+          fi
