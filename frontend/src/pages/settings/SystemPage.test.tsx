@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { DEVICE, mockApi } from "../../test/mockApi";
+import userEvent from "@testing-library/user-event";
+import { DEVICE, TLS, mockApi } from "../../test/mockApi";
 import { renderApp } from "../../test/renderApp";
 
 describe("Ustawienia → System", () => {
@@ -92,5 +93,44 @@ describe("Ustawienia → System", () => {
     mockApi();
     renderApp("/settings/system");
     expect((await screen.findAllByRole("link", { name: "System" })).length).toBeGreaterThan(0);
+  });
+});
+
+describe("Ustawienia → System → HTTPS", () => {
+  it("pokazuje certyfikat, link do HTTPS i pobranie CA", async () => {
+    mockApi();
+    renderApp("/settings/system");
+    const https = await screen.findByRole("region", { name: "HTTPS" });
+    expect(await within(https).findByText("Połączenie bez szyfrowania (HTTP)")).toBeInTheDocument();
+    expect(within(https).getByRole("link", { name: "Otwórz przez HTTPS (port 8443)" })).toHaveAttribute("href", "https://localhost:8443/settings/system");
+    expect(within(https).getByRole("link", { name: "Pobierz certyfikat CA" })).toHaveAttribute("href", "/api/system/tls/ca.pem");
+    expect(within(https).getByText("192.168.1.34")).toBeInTheDocument();
+  });
+
+  it("adres spoza certyfikatu: administrator dopisuje go jednym kliknięciem", async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({ tls: { ...TLS, host: "netpulse.lan", host_covered: false } });
+    renderApp("/settings/system");
+    const https = await screen.findByRole("region", { name: "HTTPS" });
+    expect(await within(https).findByText(/Adresu netpulse.lan nie ma w certyfikacie/)).toBeInTheDocument();
+    await user.click(within(https).getByRole("button", { name: "Dodaj ten adres" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PUT" && c.path === "/api/system/tls/names")?.body).toEqual({ names: ["netpulse.lan"] }));
+    expect(await within(https).findByText("Nowy certyfikat powstaje – zwykle w ciągu 30 sekund.")).toBeInTheDocument();
+    expect(within(https).getByRole("button", { name: "Usuń adres netpulse.lan" })).toBeInTheDocument();
+  });
+
+  it("podgląd nie zmienia adresów", async () => {
+    mockApi({ admin: false, role: "viewer", tls: { ...TLS, host: "netpulse.lan", host_covered: false } });
+    renderApp("/settings/system");
+    const https = await screen.findByRole("region", { name: "HTTPS" });
+    await within(https).findByText(/Adresu netpulse.lan nie ma w certyfikacie/);
+    expect(within(https).queryByRole("button", { name: "Dodaj ten adres" })).toBeNull();
+    expect(within(https).queryByText("Dodatkowe adresy w certyfikacie")).toBeNull();
+  });
+
+  it("bez kontenera proxy podpowiada aktualizację", async () => {
+    mockApi({ tls: { ...TLS, available: false } });
+    renderApp("/settings/system");
+    expect(await screen.findByText(/HTTPS nie jest jeszcze włączone/)).toBeInTheDocument();
   });
 });

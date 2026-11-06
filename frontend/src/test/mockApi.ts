@@ -1,6 +1,7 @@
 import type { Check, CheckPayload, CheckTestResult } from "../lib/checks";
 import type { MaintenanceWindow, MaintenanceWindowIn } from "../lib/maintenance";
 import type { AuditEntry } from "../lib/audit";
+import type { TlsStatus } from "../components/HttpsCard";
 import { vi } from "vitest";
 import type {
   AuthStatus,
@@ -37,6 +38,20 @@ export const USER: User = {
   is_admin: true,
   created_at: "2026-10-24T20:00:00Z",
   last_login_at: "2026-10-24T20:05:00Z",
+};
+
+export const TLS: TlsStatus = {
+  available: true,
+  mode: "local",
+  https_port: 8443,
+  names: ["127.0.0.1", "192.168.1.34", "localhost", "netpulse"],
+  requested: [],
+  not_after: "2027-12-08T01:02:11Z",
+  issuer: "NetPulse local CA 1a2b3c4d",
+  ca_fingerprint: "AB:CD:EF",
+  host: "localhost",
+  host_covered: true,
+  https: false,
 };
 
 export const DEVICE: Device = {
@@ -277,6 +292,8 @@ interface MockState {
   role?: "admin" | "operator" | "viewer";
   /** Konta (Ustawienia → Konta) */
   users: User[];
+  /** Stan HTTPS (Ustawienia → System, od 0.62.0) */
+  tls: TlsStatus;
   audit: AuditEntry[];
   updates: UpdatesResponse;
   /** Odpowiedź na POST /api/updates/check (domyślnie bez zmian) */
@@ -357,6 +374,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     controllers: [],
     maintenance: [],
     users: [USER],
+    tls: TLS,
     audit: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },
@@ -650,6 +668,11 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.agents = state.agents.filter((a) => a.device_id !== Number(agentDevice[1]));
         state.devices = state.devices.filter((d) => d.id !== Number(agentDevice[1]));
         return json(204);
+      }
+      if (key === "GET /api/system/tls") return json(200, state.tls);
+      if (key === "PUT /api/system/tls/names") {
+        state.tls = { ...state.tls, requested: (body as { names: string[] }).names.map((n) => n.toLowerCase()) };
+        return json(200, state.tls);
       }
       if (key === "GET /api/users") return json(200, state.users);
       if (key === "POST /api/users") {

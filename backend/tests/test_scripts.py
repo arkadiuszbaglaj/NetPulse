@@ -183,3 +183,52 @@ def test_sourcing_scripts_does_not_run_main(env):
         r = env.run(script, "echo loaded")  # ASCII: argument wiersza poleceń nie przechodzi przez stronę kodową
         assert "loaded" in r.stdout
         assert "Uruchom jako root" not in r.stderr + r.stdout
+
+
+IP_STUB = """#!/bin/sh
+cat <<'OUT'
+2: enp0s3    inet 192.168.1.34/24 brd 192.168.1.255 scope global dynamic enp0s3
+3: docker0    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+4: br-1a2b3c    inet 172.18.0.1/16 brd 172.18.255.255 scope global br-1a2b3c
+5: wg0    inet 10.8.0.1/24 scope global wg0
+OUT
+"""
+
+HOSTNAME_STUB = """#!/bin/sh
+case "$1" in
+  -s) echo NetPulse ;;
+  -f) echo netpulse.lan ;;
+  -I) echo "192.168.1.34 172.17.0.1" ;;
+esac
+"""
+
+
+def _tls_stubs(env):
+    (env.bin / "ip").write_text(IP_STUB, newline="\n")
+    (env.bin / "hostname").write_text(HOSTNAME_STUB, newline="\n")
+    for f in env.bin.iterdir():
+        f.chmod(0o755)
+
+
+@pytest.mark.parametrize("script", [INSTALL, NETPULSE])
+def test_tls_names_skip_docker_networks(env, script):
+    _tls_stubs(env)
+    r = env.run(script, "np_tls_names")
+    assert r.stdout.strip() == "10.8.0.1,192.168.1.34,netpulse,netpulse.lan"
+
+
+@pytest.mark.parametrize("script", [INSTALL, NETPULSE])
+def test_fill_tls_names_only_when_missing_or_empty(env, script):
+    _tls_stubs(env)
+    f = env.tmp / "env"
+    f.write_text("NETPULSE_PORT=8000\n")
+    env.run(script, f'np_fill_tls_names "{posix(f)}"')
+    assert "NETPULSE_TLS_NAMES=10.8.0.1,192.168.1.34,netpulse,netpulse.lan" in f.read_text()
+
+    f.write_text("NETPULSE_TLS_NAMES=\nX=1\n")
+    env.run(script, f'np_fill_tls_names "{posix(f)}"')
+    assert f.read_text().startswith("NETPULSE_TLS_NAMES=10.8.0.1,")
+
+    f.write_text("NETPULSE_TLS_NAMES=moj.serwer\n")
+    env.run(script, f'np_fill_tls_names "{posix(f)}"')
+    assert f.read_text() == "NETPULSE_TLS_NAMES=moj.serwer\n"

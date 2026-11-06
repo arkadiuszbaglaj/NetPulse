@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { ChartWidget } from "../../components/widgets/ChartWidget";
 import { ServerWidget } from "../../components/widgets/ServerWidget";
 import { DefaultCommunityNote } from "../../components/SnmpWarning";
+import { HttpsCard } from "../../components/HttpsCard";
 import { Card, ErrorNote, PageHeader } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
 import { get } from "../../lib/api";
@@ -108,6 +109,13 @@ export function SystemPage() {
             ))}
           </ul>
         </Card>
+      </section>
+
+      <section aria-labelledby="sys-https" className="mb-6">
+        <h2 id="sys-https" className="mb-2 text-sm font-medium text-text-2">
+          {t("sys.https")}
+        </h2>
+        <HttpsCard />
       </section>
 
       <div className="grid gap-3 lg:grid-cols-12">

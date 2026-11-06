@@ -158,6 +158,56 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -b cookies.txt $API/api/devices)" = 401
           curl -fsS -c cookies.txt -H 'Content-Type: application/json' \
             -d '{"username":"admin","password":"nowe-haslo-ci-1"}' $API/api/auth/login | tee -a auth.log; echo
+      - name: HTTPS przez proxy (lokalne CA)
+        run: |
+          dc() { sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env "$@"; }
+          for i in $(seq 1 30); do sudo test -s /opt/netpulse/deploy/tls/server.pem && break; sleep 2; done
+          sudo ls -l /opt/netpulse/deploy/tls | tee https.log
+          sudo grep '^NETPULSE_TLS_NAMES=' /opt/netpulse/deploy/.env | tee -a https.log
+          sudo cp /opt/netpulse/deploy/tls/ca.pem ca.pem && sudo chmod 644 ca.pem
+          # klucz CA nie jest dostępny dla wszystkich
+          test "$(sudo stat -c %a /opt/netpulse/deploy/tls/ca-key.pem)" = 600
+          curl -fsS --cacert ca.pem https://localhost:8443/api/health | tee -a https.log; echo
+          curl -fsS --cacert ca.pem https://127.0.0.1:8443/api/health
+          # certyfikat obejmuje adres serwera z instalatora
+          IP=$(ip -4 -o addr show scope global | awk '$2 !~ /^(docker|br-|veth)/ {sub(/\/.*/, "", $4); print $4; exit}')
+          echo "IP=$IP" | tee -a https.log
+          curl -fsS --cacert ca.pem "https://$IP:8443/api/health"
+          # panel i WebSocket-owy nagłówek przechodzą przez proxy
+          PAGE=$(curl -fsS --cacert ca.pem https://127.0.0.1:8443/)
+          grep -q '<div id="root">' <<<"$PAGE"
+          # logowanie przez HTTPS daje ciasteczko Secure (X-Forwarded-Proto od proxy)
+          curl -fsS --cacert ca.pem -c https-cookies.txt -H 'Content-Type: application/json'             -d '{"username":"admin","password":"nowe-haslo-ci-1"}' https://127.0.0.1:8443/api/auth/login >/dev/null
+          awk '$7 != "" && $1 ~ /127.0.0.1/ {print $4}' https-cookies.txt | grep -q TRUE
+          TLS=$(curl -fsS --cacert ca.pem -b https-cookies.txt https://127.0.0.1:8443/api/system/tls)
+          echo "$TLS" | tee -a https.log
+          python3 - "$TLS" "$IP" <<'PY'
+          import json, sys
+          s, ip = json.loads(sys.argv[1]), sys.argv[2]
+          assert s["available"] and s["mode"] == "local" and s["https"] and s["https_port"] == 8443, s
+          assert ip in s["names"] and "localhost" in s["names"], s
+          PY
+          # pobranie CA z panelu = ten sam plik
+          curl -fsS --cacert ca.pem -b https-cookies.txt -o ca-panel.pem https://127.0.0.1:8443/api/system/tls/ca.pem
+          cmp ca.pem ca-panel.pem
+          # adres dopisany w panelu trafia do certyfikatu (proxy sprawdza co 30 s)
+          curl -fsS --cacert ca.pem -b https-cookies.txt -X PUT -H 'Content-Type: application/json'             -d '{"names":["netpulse-ci.test"]}' https://127.0.0.1:8443/api/system/tls/names >/dev/null
+          for i in $(seq 1 30); do
+            if curl -fsS --cacert ca.pem --resolve netpulse-ci.test:8443:127.0.0.1 https://netpulse-ci.test:8443/api/health >/dev/null 2>&1; then OK=1; break; fi
+            sleep 3
+          done
+          test "${OK:-0}" = 1
+          # dziennik zdarzeń widzi prawdziwy adres klienta (X-Forwarded-For), nie adres proxy
+          PROXY_IP=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$(dc ps -q proxy)")
+          AUDIT=$(curl -fsS --cacert ca.pem -b https-cookies.txt "https://127.0.0.1:8443/api/audit?kind=auth&limit=1")
+          echo "proxy=$PROXY_IP audit=$AUDIT" | tee -a https.log
+          python3 - "$AUDIT" "$PROXY_IP" <<'PY'
+          import json, sys
+          e, proxy = json.loads(sys.argv[1])["items"][0], sys.argv[2]
+          assert e["action"] == "login" and e["ip"] and e["ip"] != proxy, (e, proxy)
+          PY
+          # API nie ma już opublikowanego portu – wszystko idzie przez proxy
+          if dc port api 8000 2>/dev/null | grep -q .; then echo "API ma opublikowany port"; exit 1; fi
       - name: Kolektor zapisuje dane, API je zwraca
         run: |
           api() { curl -fsS -b cookies.txt "http://127.0.0.1:8000$1"; }
@@ -391,6 +441,7 @@ jobs:
           bash .github/scripts/annotate.sh backups.log "kopia zapasowa" 60
           bash .github/scripts/annotate.sh panel.log "panel" 40
           bash .github/scripts/annotate.sh auth.log "logowanie" 40
+          bash .github/scripts/annotate.sh https.log "https" 40
           bash .github/scripts/annotate.sh lowdisk.log "mało miejsca" 40
           bash .github/scripts/annotate.sh cleanup.log "cleanup" 20
           bash .github/scripts/annotate.sh dashboard.log "dashboard" 40

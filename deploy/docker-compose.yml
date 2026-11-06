@@ -18,6 +18,11 @@ x-backend: &backend
     # updater-secret (tworzy go usługa aktualizacji przy pierwszym starcie)
     NETPULSE_UPDATER_URL: http://updater:8080
     NETPULSE_UPDATER_TOKEN_FILE: /run/netpulse/updater-token
+    # HTTPS (od 0.62.0, używa tylko API): certyfikat z kontenera proxy, port do linków w panelu; API nie ma
+    # opublikowanego portu, więc nagłówki X-Forwarded-* mogą przyjść tylko z sieci wewnętrznej (proxy)
+    NETPULSE_TLS_DIR: /tls
+    NETPULSE_HTTPS_PORT: ${NETPULSE_HTTPS_PORT:-8443}
+    NETPULSE_FORWARDED_ALLOW_IPS: "*"
   depends_on:
     db:
       condition: service_healthy
@@ -45,20 +50,39 @@ services:
     volumes:
       - keys:/var/lib/netpulse
 
+  # Bez opublikowanego portu – panel i agenci łączą się przez proxy (HTTP i HTTPS)
   api:
     <<: *backend
     command: ["netpulse", "api"]
     volumes:
       - updater-secret:/run/netpulse:ro
       - keys:/var/lib/netpulse
-    ports:
-      - "${NETPULSE_PORT:-8000}:8000"
+      - ${NETPULSE_DIR:?ustaw NETPULSE_DIR w .env}/deploy/tls:/tls
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 15s
+
+  # Wejście do panelu (od 0.62.0): HTTP na NETPULSE_PORT (jak dotąd) i HTTPS na NETPULSE_HTTPS_PORT.
+  # Certyfikat lokalnego CA NetPulse (albo własny w deploy/tls/custom/) – patrz deploy/proxy/tls.sh
+  proxy:
+    build:
+      context: ..
+      dockerfile: deploy/proxy/Dockerfile
+    image: netpulse-proxy:local
+    restart: unless-stopped
+    environment:
+      NETPULSE_TLS_NAMES: ${NETPULSE_TLS_NAMES:-}
+      TZ: ${TZ:-Europe/Warsaw}
+    volumes:
+      - ${NETPULSE_DIR:?ustaw NETPULSE_DIR w .env}/deploy/tls:/tls
+    ports:
+      - "${NETPULSE_PORT:-8000}:8080"
+      - "${NETPULSE_HTTPS_PORT:-8443}:8443"
+    depends_on:
+      - api
 
   # Usługa aktualizacji: jedyny kontener z dostępem do Dockera. Nie ma opublikowanego portu –
   # rozmawia z nią tylko API (token), a aktualizację może zlecić wyłącznie administrator.

@@ -11,6 +11,8 @@ backups/
 # Sekrety
 .env
 deploy/.env
+# Certyfikaty HTTPS i klucz CA (kontener proxy, od 0.62.0)
+deploy/tls/
 
 # Python
 __pycache__/

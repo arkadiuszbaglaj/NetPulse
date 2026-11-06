@@ -75,7 +75,7 @@ export function auditLabel(action: string): string {
   if (AUTH_LABEL[action]) return AUTH_LABEL[action];
   const [method, path = ""] = action.split(" ", 2);
   const parts = path.replace(/^\/api\//, "").split("/").filter(Boolean);
-  const resource = RESOURCE[parts[0]] ?? parts[0] ?? path;
+  const resource = parts[0] === "system" && parts[1] === "tls" ? "adresy certyfikatu HTTPS" : (RESOURCE[parts[0]] ?? parts[0] ?? path);
   const last = parts[parts.length - 1];
   if (last === "ack") return "Potwierdzenie alertu";
   if (last === "probe" || last === "test") return `Test: ${resource}`;

@@ -346,7 +346,13 @@ def cmd_collector(args) -> int:
 def cmd_api(args) -> int:
     import uvicorn
 
-    uvicorn.run("netpulse.api:app", host=settings.api_host, port=settings.api_port, proxy_headers=True)
+    uvicorn.run(
+        "netpulse.api:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        proxy_headers=True,
+        forwarded_allow_ips=settings.forwarded_allow_ips,
+    )
     return 0
 
 

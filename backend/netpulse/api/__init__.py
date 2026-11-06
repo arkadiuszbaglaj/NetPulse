@@ -47,6 +47,9 @@ from . import (
     vpn,
     wan,
 )
+from . import (
+    tls as tls_api,
+)
 from .security import check_origin, client_ip, route_template
 from .web import mount_web
 
@@ -103,6 +106,7 @@ app.include_router(proxmox.router)
 app.include_router(public.router)
 app.include_router(servers.router)
 app.include_router(system.router)
+app.include_router(tls_api.router)
 app.include_router(topology.router)
 app.include_router(updates.router)
 app.include_router(users.router)

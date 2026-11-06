@@ -201,6 +201,15 @@ wymaga administratora – **nowa trasa dla niższej roli = wpis w `ROLE_RULES` (
 żądań**, rok przechowywania). Panel: `lib/roles.ts` (`useCan`), pole `role` podstron Ustawień w `modules.tsx` (bez niego –
 tylko administrator). Opis: `docs/33-role-i-audyt.md`.
 
+## HTTPS (0.62.0)
+
+Kontener `proxy` (nginx, `deploy/proxy/`) przyjmuje `NETPULSE_PORT` (HTTP, jak dotąd) i `NETPULSE_HTTPS_PORT` (8443);
+**API nie ma już opublikowanego portu** (dlatego `NETPULSE_FORWARDED_ALLOW_IPS="*"` – adres klienta z `X-Forwarded-For`).
+Certyfikat lokalnego CA NetPulse wystawia i odnawia `deploy/proxy/tls.sh` w `<katalog>/deploy/tls` (adresy: `NETPULSE_TLS_NAMES`
+z instalatora/`netpulse update` – `np_tls_names` – oraz dopisane w panelu `request/names`; własny certyfikat w `custom/`).
+API: `netpulse/tls.py`, `api/tls.py` (`/api/system/tls`, `ca.pem`, `PUT names`), panel: `HttpsCard` w Ustawienia → System.
+Opis: `docs/34-https.md`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`

@@ -37,6 +37,11 @@ class Settings:
     # Dodatkowe dozwolone adresy panelu (np. za reverse proxy), oddzielone przecinkami:
     # https://netpulse.example.lan
     trusted_origins: str = _env("TRUSTED_ORIGINS", "")
+    # HTTPS (od 0.62.0): katalog certyfikatów kontenera proxy i port HTTPS na serwerze (do linków w panelu)
+    tls_dir: str = _env("TLS_DIR", "")
+    https_port: str = _env("HTTPS_PORT", "")
+    # Adresy proxy, którym API wierzy w X-Forwarded-For/-Proto (w Dockerze API jest dostępne tylko przez proxy: "*")
+    forwarded_allow_ips: str = _env("FORWARDED_ALLOW_IPS", "127.0.0.1")
     # Usługa aktualizacji (osobny kontener z dostępem do Dockera); bez tokenu aktualizacja z panelu jest wyłączona
     updater_url: str = _env("UPDATER_URL", "")
     # Token: z pliku we wspólnym wolumenie (tworzy go usługa aktualizacji) albo wprost ze zmiennej

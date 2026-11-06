@@ -105,7 +105,9 @@ Plik `/opt/netpulse/deploy/.env`:
 
 | Zmienna                   | Domyślnie | Opis                              |
 |---------------------------|-----------|-----------------------------------|
-| `NETPULSE_PORT`           | 8000      | port API/panelu                   |
+| `NETPULSE_PORT`           | 8000      | port panelu (HTTP)                |
+| `NETPULSE_HTTPS_PORT`     | 8443      | port panelu (HTTPS, od 0.62.0)    |
+| `NETPULSE_TLS_NAMES`      | (z instalatora) | adresy w certyfikacie HTTPS |
 | `NETPULSE_POLL_INTERVAL`  | 30        | co ile sekund odpytywać urządzenia |
 | `NETPULSE_RETENTION_DAYS` | 30        | ile dni trzymać metryki           |
 

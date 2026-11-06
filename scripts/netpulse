@@ -33,6 +33,28 @@ need_root() {
   fi
 }
 
+# Nazwa i adresy IPv4 serwera do certyfikatu HTTPS (bez sieci Dockera), przecinkami
+np_tls_names() {
+  local ips
+  ips=$(ip -4 -o addr show scope global 2>/dev/null | awk '$2 !~ /^(docker|br-|veth|virbr)/ {sub(/\/.*/, "", $4); print $4}')
+  [ -n "$ips" ] || ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9.]+$' | grep -v '^172\.1[7-9]\.' || true)
+  { hostname -s 2>/dev/null; hostname -f 2>/dev/null; echo "$ips"; } | tr 'A-Z' 'a-z' | grep -E '^[a-z0-9][a-z0-9.:-]*$' \
+    | grep -v '^localhost' | sort -u | paste -sd, -
+}
+
+# Uzupełnia NETPULSE_TLS_NAMES w .env, gdy brak albo puste (instalacja sprzed 0.62.0, aktualizacja z panelu)
+np_fill_tls_names() {
+  local env_file=$1 names
+  if grep -q '^NETPULSE_TLS_NAMES=..*' "$env_file" 2>/dev/null; then return 0; fi
+  names=$(np_tls_names || true)
+  [ -n "$names" ] || return 0
+  if grep -q '^NETPULSE_TLS_NAMES=' "$env_file"; then
+    sed -i "s|^NETPULSE_TLS_NAMES=.*|NETPULSE_TLS_NAMES=${names}|" "$env_file"
+  else
+    echo "NETPULSE_TLS_NAMES=${names}" >>"$env_file"
+  fi
+}
+
 compose() {
   docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
@@ -222,6 +244,7 @@ cmd_update() {
     [ "$key" = "NETPULSE_DIR" ] && value="$INSTALL_DIR"
     echo "${key}=${value}" >>"$ENV_FILE"
   done <"$INSTALL_DIR/deploy/.env.example"
+  np_fill_tls_names "$ENV_FILE"
   c_info "Buduję i uruchamiam nową wersję..."
   if ! compose up -d --build --remove-orphans; then
     c_err "Budowanie nie powiodło się. Usługi działają dalej na poprzedniej wersji."

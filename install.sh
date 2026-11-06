@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
 #
 # Zmienne (opcjonalnie): NETPULSE_DIR (domyślnie /opt/netpulse), NETPULSE_BRANCH (main),
-# NETPULSE_REPO (adres repozytorium), NETPULSE_PORT (8000).
+# NETPULSE_REPO (adres repozytorium), NETPULSE_PORT (8000), NETPULSE_HTTPS_PORT (8443).
 #
 # Ponowne uruchomienie jest bezpieczne – działa jak aktualizacja, nie rusza danych ani haseł.
 
@@ -46,6 +46,28 @@ np_ensure_disk() {
   fi
   if [ "$free" -lt "$warn" ]; then
     printf '\033[1;34m==>\033[0m Uwaga: wolne %s MB – wystarczy na instalację, ale warto zwolnić miejsce.\n' "$free"
+  fi
+}
+
+# Nazwa i adresy IPv4 serwera do certyfikatu HTTPS (bez sieci Dockera), przecinkami
+np_tls_names() {
+  local ips
+  ips=$(ip -4 -o addr show scope global 2>/dev/null | awk '$2 !~ /^(docker|br-|veth|virbr)/ {sub(/\/.*/, "", $4); print $4}')
+  [ -n "$ips" ] || ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9.]+$' | grep -v '^172\.1[7-9]\.' || true)
+  { hostname -s 2>/dev/null; hostname -f 2>/dev/null; echo "$ips"; } | tr 'A-Z' 'a-z' | grep -E '^[a-z0-9][a-z0-9.:-]*$' \
+    | grep -v '^localhost' | sort -u | paste -sd, -
+}
+
+# Uzupełnia NETPULSE_TLS_NAMES w .env, gdy brak albo puste (instalacja sprzed 0.62.0, aktualizacja z panelu)
+np_fill_tls_names() {
+  local env_file=$1 names
+  if grep -q '^NETPULSE_TLS_NAMES=..*' "$env_file" 2>/dev/null; then return 0; fi
+  names=$(np_tls_names || true)
+  [ -n "$names" ] || return 0
+  if grep -q '^NETPULSE_TLS_NAMES=' "$env_file"; then
+    sed -i "s|^NETPULSE_TLS_NAMES=.*|NETPULSE_TLS_NAMES=${names}|" "$env_file"
+  else
+    echo "NETPULSE_TLS_NAMES=${names}" >>"$env_file"
   fi
 }
 
@@ -115,6 +137,10 @@ main() {
     chmod 600 "$ENV_FILE"
   fi
 
+  # Adresy serwera w certyfikacie HTTPS (od 0.62.0) – także przy ponownym uruchomieniu na starej instalacji
+  np_fill_tls_names "$ENV_FILE"
+  grep -q '^NETPULSE_HTTPS_PORT=' "$ENV_FILE" || echo "NETPULSE_HTTPS_PORT=${NETPULSE_HTTPS_PORT:-8443}" >>"$ENV_FILE"
+
   # 5. Polecenie `netpulse`
   chmod +x "$DIR/scripts/netpulse"
   ln -sf "$DIR/scripts/netpulse" /usr/local/bin/netpulse
@@ -124,6 +150,8 @@ main() {
   docker compose -f "$DIR/deploy/docker-compose.yml" --env-file "$ENV_FILE" up -d --build --remove-orphans
 
   PORT=$(sed -n 's/^NETPULSE_PORT=//p' "$ENV_FILE")
+  local HTTPS_PORT
+  HTTPS_PORT=$(sed -n 's/^NETPULSE_HTTPS_PORT=//p' "$ENV_FILE")
   info "Czekam na start..."
   for _ in $(seq 1 90); do
     if curl -fsS "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
@@ -131,6 +159,8 @@ main() {
       ip=$(hostname -I 2>/dev/null | awk '{print $1}')
       echo
       ok "NetPulse działa!  Panel: http://${ip:-localhost}:${PORT}"
+      echo "  HTTPS: https://${ip:-localhost}:${HTTPS_PORT:-8443}  (certyfikat lokalnego CA NetPulse –"
+      echo "         CA do zaimportowania: panel → Ustawienia → System → HTTPS)"
       echo
       echo "  1. Otwórz panel i załóż konto administratora (kreator, tylko raz):"
       echo "     http://${ip:-localhost}:${PORT}"
