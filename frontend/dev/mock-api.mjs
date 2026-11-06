@@ -342,6 +342,14 @@ createServer(async (req, res) => {
       { ...base, id: 2, name: "Brama UCG", kind: "ping", target: "192.168.1.1", interval_s: 30, status: "up", last_ok_at: ago(5), last_error: null, last_latency_ms: 0.9, availability_24h: 100, loss_percent: 0, jitter_ms: 0.1, status_code: null, cert_days: null },
       { ...base, id: 3, name: "Pi-hole", kind: "http", target: "https://pihole.lan/admin", interval_s: 60, timeout_s: 10, verify_tls: false, status: "down", last_ok_at: ago(900), last_error: "Kod HTTP 502 (oczekiwany 200-399)", last_latency_ms: 41, availability_24h: 96.4, loss_percent: null, jitter_ms: null, status_code: 502, cert_days: 61 },
       { ...base, id: 4, name: "Proxmox – panel", kind: "tcp", target: "192.168.1.86", port: 8006, interval_s: 60, status: "up", last_ok_at: ago(20), last_error: null, last_latency_ms: 2.4, availability_24h: 100, loss_percent: null, jitter_ms: null, status_code: null, cert_days: null },
+      { ...base, id: 5, name: "DNS – NAS", kind: "dns", target: "nas.lan", dns_type: "A", dns_server: "192.168.1.1", keyword: "192.168.1.34", interval_s: 60, status: "up", last_ok_at: ago(20), last_error: null, last_latency_ms: 3.1, last_answer: "192.168.1.34", availability_24h: 100, loss_percent: null, jitter_ms: null, status_code: null, cert_days: null },
+    ]);
+  }
+  if (route === "GET /api/system/verification") {
+    return send(res, 200, [
+      { id: "snmp_ifmib", label: "SNMP: porty, ruch, błędy (IF-MIB), CPU i RAM (UCD-SNMP-MIB)", level: "verified", note: "UniFi UCG Ultra, USW Lite 8 PoE, U6+ i MikroTik RouterOS 7.18 (CHR)", drivers: ["generic", "unifi", "mikrotik", "omada", "linux"] },
+      { id: "mikrotik_hw", label: "MikroTik: czujniki, PoE, SFP, kilka rdzeni", level: "test", note: "zrzut syntetyczny według oficjalnego MIKROTIK-MIB 7.25.1", drivers: ["mikrotik"] },
+      { id: "proxmox", label: "Proxmox VE: węzły, maszyny VM i LXC, magazyny, kopie vzdump", level: "partial", note: "PVE 9.1 / 9.2 z jednym węzłem", drivers: ["proxmox"] },
     ]);
   }
   if (route === "POST /api/checks/test") return send(res, 200, { up: true, latency_ms: 14.8, loss_percent: 0, jitter_ms: 0.5, status_code: null, cert_days: null, error: null });

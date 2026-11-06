@@ -165,7 +165,7 @@ Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):
 ## Sprawdzanie dostępności
 
 Od 0.30.0: strona Dostępność (od 0.58.3 w Ustawieniach, `/settings/checks`) – ping (opóźnienie, utrata pakietów, jitter = jakość łącza), HTTP(S) (kod, tekst,
-ważność certyfikatu) i port TCP. Ping bez roota (gniazdo ICMP `SOCK_DGRAM`, działa w kontenerze kolektora), bez
+ważność certyfikatu), port TCP i od 0.64.0 DNS. Ping bez roota (gniazdo ICMP `SOCK_DGRAM`, działa w kontenerze kolektora), bez
 zewnętrznej biblioteki. Kod: `netpulse/checks.py`, `checks_collector.py` (pętla w kolektorze), `api/checks.py`,
 migracja 0010 (`checks`, hypertable `check_metrics`). Alerty: `check_down` + metryki `check_latency_ms`,
 `check_loss_percent`, `check_cert_days` (filtr nazwy w `match`, bez urządzenia). Pulpit: źródło `check`, kolekcja
@@ -217,6 +217,15 @@ TOTP (RFC 6238, `netpulse/totp.py`, bez biblioteki; QR z `segno`) i 10 jednorazo
 (liczony do limitu logowań) – panel czyta `ApiError.code`. Każdy krok czasu działa raz (`totp_last_step`). Własne konto:
 `/api/auth/totp*` (wszystkie role, wpisy w `ROLE_RULES`), administrator: `reset_totp` w `PATCH /api/users/{id}`,
 serwer: `netpulse user 2fa-off <login>`. Opis: `docs/35-logowanie-dwuskladnikowe.md`.
+
+## DNS i potwierdzenie danych (0.64.0)
+
+Sprawdzenie `kind = "dns"` (Ustawienia → Dostępność): własny klient `netpulse/dnsquery.py` (UDP, przy TC – TCP, bez biblioteki),
+typy A/AAAA/CNAME/MX/TXT/NS/PTR, serwer `dns_server` (puste = resolv.conf), oczekiwana odpowiedź w `keyword`, port serwera w `port`;
+migracja 0016 (`checks.dns_type|dns_server|last_answer`). Potwierdzenie danych: rejestr `netpulse/verification.py` (`SOURCES`,
+poziomy `verified|partial|test`) – **po sprawdzeniu źródła na prawdziwym sprzęcie zmienić tam poziom**; `Device.verification`,
+`GET /api/system/verification`, panel `components/Verification.tsx` (plakietka na stronie urządzenia, lista w Ustawienia → System).
+Nowy driver = wpis w `SOURCES` (pilnuje `test_verification.py`). Opis: `docs/36-dns-i-potwierdzenie-danych.md`.
 
 ## Wykresy (przebudowa w stylu Grafany)
 

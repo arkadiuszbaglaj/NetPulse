@@ -12,6 +12,8 @@ Ping do publicznego DNS (np. `8.8.8.8`) to **jakość łącza**: wzrost opóźni
 zanim spadnie ruch WAN. Uwaga: niektóre sieci nie przepuszczają pingu do części adresów (u nas `1.1.1.1` nie
 odpowiada nawet z serwera, `8.8.8.8` tak) – wtedy wybierz inny cel.
 
+Od 0.64.0 także **DNS** (rozwiązywanie nazwy, czas, zgodność odpowiedzi) – opis w `docs/36-dns-i-potwierdzenie-danych.md`.
+
 ## Ustawienia sprawdzenia
 
 - **Sprawdzaj co** – 30 s … 1 godz. (API przyjmuje 10–3600 s); **limit czasu** 1–30 s, krótszy niż odstęp.

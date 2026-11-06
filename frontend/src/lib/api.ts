@@ -119,6 +119,8 @@ export interface Device {
   stale?: boolean;
   /** Trwa okno serwisowe obejmujące urządzenie – bez powiadomień (od 0.60.0) */
   maintenance?: boolean;
+  /** Dane drivera sprawdzone na prawdziwym sprzęcie: verified | partial | test (od 0.64.0; brak w starszym API) */
+  verification?: "verified" | "partial" | "test" | string;
   /** Ostatni zapisany werdykt kolektora, także gdy jest nieaktualny (od 0.59.0) */
   last_status?: string | null;
   last_polled_at: string | null;

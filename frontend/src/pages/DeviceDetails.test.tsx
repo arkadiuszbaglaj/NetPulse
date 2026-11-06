@@ -28,6 +28,22 @@ describe("strona urządzenia", () => {
     expect(screen.getByText("Sieci WiFi")).toBeInTheDocument();
   });
 
+  it("plakietka: urządzenie sprawdzone tylko na danych testowych prowadzi do listy źródeł", async () => {
+    mockApi({ devices: [{ ...DEVICE, driver: "omada", verification: "test" }] });
+    renderApp("/devices/1");
+    const badge = await screen.findByRole("link", { name: "dane testowe" });
+    expect(badge).toHaveAttribute("href", "/settings/system#verification");
+    expect(badge).toHaveAttribute("title", expect.stringMatching(/tylko na danych testowych/));
+  });
+
+  it("potwierdzone urządzenie nie ma plakietki", async () => {
+    mockApi({ devices: [{ ...DEVICE, verification: "verified" }] });
+    renderApp("/devices/1");
+    expect(await screen.findByRole("heading", { level: 1, name: "UCG Ultra" })).toBeInTheDocument();
+    expect(screen.queryByText("dane testowe")).toBeNull();
+    expect(screen.queryByText("częściowo potwierdzone")).toBeNull();
+  });
+
   it("pokazuje klientów podłączonych do urządzenia", async () => {
     const client = { ...CLIENTS[0], uplink_device_id: 1 };
     mockApi({ clients: [client, { ...CLIENTS[0], mac: "aa:bb:cc:00:00:99", name: "Inny", uplink_device_id: 7 }] });

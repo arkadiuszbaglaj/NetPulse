@@ -1,4 +1,4 @@
-"""Sprawdzanie dostępności (od 0.30.0): ping, HTTP(S) i port TCP.
+"""Sprawdzanie dostępności (od 0.30.0): ping, HTTP(S), port TCP i DNS (od 0.64.0).
 
 - Ping: gniazdo ICMP bez uprawnień roota (`SOCK_DGRAM` + `IPPROTO_ICMP`, Linux; Docker domyślnie pozwala na nie
   wszystkim grupom – `net.ipv4.ping_group_range`). Seria `PING_COUNT` pakietów co `PING_GAP_S`: średnie opóźnienie,
@@ -7,6 +7,8 @@
 - HTTP(S): `GET` z przekierowaniami, oczekiwany kod (domyślnie 200–399), opcjonalnie tekst w treści;
   dla https osobnym połączeniem TLS – dni do wygaśnięcia certyfikatu (także gdy weryfikacja jest wyłączona).
 - TCP: czas nawiązania połączenia.
+- DNS: zapytanie o rekord (A, AAAA, MX, TXT…) do wskazanego serwera albo serwera systemu (dnsquery.py): czas
+  odpowiedzi, odpowiedzi i zgodność z oczekiwanymi wartościami; NXDOMAIN, SERVFAIL i pusta odpowiedź = niedostępne.
 
 Funkcje nie rzucają wyjątków – błąd to wynik `up=False` z opisem w `error`.
 """
@@ -25,6 +27,8 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from . import dnsquery
+
 PING_COUNT = 5
 PING_GAP_S = 0.2
 MAX_BODY = 1_000_000  # słowo kluczowe szukamy w pierwszym megabajcie odpowiedzi
@@ -40,6 +44,8 @@ class CheckResult:
     status_code: int | None = None
     cert_days: float | None = None
     error: str | None = None
+    # DNS: odpowiedzi serwera tekstem (po przecinku)
+    answer: str | None = None
 
 
 def _err(exc: BaseException) -> str:
@@ -251,8 +257,28 @@ async def tcp_check(host: str, port: int, timeout: float = 5.0) -> CheckResult:
     return CheckResult(up=True, latency_ms=round(latency, 2))
 
 
+async def dns_check(name: str, rtype: str = "A", server: str | None = None, port: int | None = None,
+                    timeout: float = 5.0, expected: str | None = None) -> CheckResult:  # fmt: skip
+    try:
+        res = await dnsquery.query(name, rtype, server=server, port=port or 53, timeout=timeout)
+    except TimeoutError:
+        return CheckResult(up=False, error=f"Serwer DNS {server or dnsquery.system_server()} nie odpowiedział w {timeout:g} s")
+    except (dnsquery.DnsError, OSError) as exc:
+        return CheckResult(up=False, error=f"DNS: {_err(exc)}")
+    answer = ", ".join(res.answers)[:255] or None
+    result = CheckResult(up=True, latency_ms=res.latency_ms, answer=answer)
+    if res.rcode != "NOERROR":
+        result.up, result.error = False, f"{res.rcode}: {'nazwa nie istnieje' if res.rcode == 'NXDOMAIN' else 'błąd serwera DNS'}"
+    elif not any(not a.startswith("CNAME ") for a in res.answers):
+        result.up, result.error = False, f"Brak rekordu {rtype.upper()} dla {name}"
+    elif missing := dnsquery.missing_expected(res.answers, expected, rtype):
+        result.up, result.error = False, f"Odpowiedź bez oczekiwanej wartości: {', '.join(missing)[:120]}"
+    return result
+
+
 async def run_check(kind: str, target: str, port: int | None = None, timeout: float = 5.0, expect: str | None = None,
-                    keyword: str | None = None, verify_tls: bool = True) -> CheckResult:  # fmt: skip
+                    keyword: str | None = None, verify_tls: bool = True, dns_type: str | None = None,
+                    dns_server: str | None = None) -> CheckResult:  # fmt: skip
     try:
         if kind == "ping":
             return await ping(target, timeout)
@@ -260,6 +286,8 @@ async def run_check(kind: str, target: str, port: int | None = None, timeout: fl
             return await http_check(target, timeout, expect, keyword, verify_tls)
         if kind == "tcp" and port:
             return await tcp_check(target, port, timeout)
+        if kind == "dns":
+            return await dns_check(target, dns_type or "A", dns_server, port, timeout, keyword)
         return CheckResult(up=False, error=f"Nieznany rodzaj sprawdzenia: {kind}")
     except Exception as exc:  # ostatnia linia obrony: jedno sprawdzenie nie może zatrzymać kolektora
         return CheckResult(up=False, error=_err(exc))

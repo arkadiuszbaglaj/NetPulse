@@ -40,6 +40,13 @@ export const USER: User = {
   last_login_at: "2026-10-24T20:05:00Z",
 };
 
+/** Źródła danych z poziomem potwierdzenia (GET /api/system/verification, od 0.64.0) */
+export const VERIFICATION = [
+  { id: "snmp_ifmib", label: "SNMP: porty, ruch, błędy", level: "verified", note: "UniFi UCG Ultra, USW Lite 8 PoE, U6+", drivers: ["generic", "unifi"] },
+  { id: "omada_snmp", label: "TP-Link Omada przez SNMP", level: "test", note: "zrzuty syntetyczne – czeka na prawdziwy sprzęt", drivers: ["omada"] },
+  { id: "proxmox", label: "Proxmox VE", level: "partial", note: "PVE 9 z jednym węzłem", drivers: ["proxmox"] },
+];
+
 export const TLS: TlsStatus = {
   available: true,
   mode: "local",
@@ -689,6 +696,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.totp = { enabled: false, pending: false, recovery_left: 0 };
         return json(200, state.totp);
       }
+      if (key === "GET /api/system/verification") return json(200, VERIFICATION);
       if (key === "GET /api/system/tls") return json(200, state.tls);
       if (key === "PUT /api/system/tls/names") {
         state.tls = { ...state.tls, requested: (body as { names: string[] }).names.map((n) => n.toLowerCase()) };

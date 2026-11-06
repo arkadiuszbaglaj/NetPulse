@@ -12,6 +12,8 @@ import {
   checkPresets,
   CHECKS_KEY,
   checkTarget,
+  DNS_TYPES,
+  type DnsType,
   useChecks,
   type Check,
   type CheckKind,
@@ -38,6 +40,13 @@ const KIND_LABEL: Record<CheckKind, TextKey> = {
   ping: "chk.kind.ping",
   http: "chk.kind.http",
   tcp: "chk.kind.tcp",
+  dns: "chk.kind.dns",
+};
+const TARGET_HINT: Record<CheckKind, TextKey> = {
+  ping: "chk.target.hint.ping",
+  http: "chk.target.hint.http",
+  tcp: "chk.target.hint.tcp",
+  dns: "chk.target.hint.dns",
 };
 const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : t("auth.error.generic"));
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
@@ -57,6 +66,8 @@ interface FormValues {
   keyword: string;
   verify_tls: boolean;
   enabled: boolean;
+  dns_type: DnsType;
+  dns_server: string;
 }
 
 const toValues = (c?: Partial<CheckPayload>): FormValues => ({
@@ -70,6 +81,8 @@ const toValues = (c?: Partial<CheckPayload>): FormValues => ({
   keyword: c?.keyword ?? "",
   verify_tls: c?.verify_tls ?? true,
   enabled: c?.enabled ?? true,
+  dns_type: c?.dns_type ?? "A",
+  dns_server: c?.dns_server ?? "",
 });
 
 /** Wynik sprawdzenia w jednej linii: opóźnienie, utrata, jitter, kod HTTP, certyfikat. */
@@ -79,6 +92,7 @@ export function resultParts(r: {
   jitter_ms: number | null;
   status_code: number | null;
   cert_days: number | null;
+  answer?: string | null;
 }): string[] {
   return [
     r.latency_ms != null ? t("chk.latency", { v: ms(r.latency_ms) }) : null,
@@ -86,6 +100,7 @@ export function resultParts(r: {
     r.jitter_ms != null ? t("chk.jitter", { v: ms(r.jitter_ms) }) : null,
     r.status_code != null ? t("chk.code", { v: r.status_code }) : null,
     r.cert_days != null ? t("chk.cert", { v: num(r.cert_days, 0) }) : null,
+    r.answer ? t("chk.answer", { v: r.answer }) : null,
   ].filter((x): x is string => x != null);
 }
 
@@ -106,13 +121,15 @@ function CheckForm({ check, preset, onClose }: { check?: Check; preset?: Partial
     name: values.name.trim(),
     kind: values.kind,
     target: values.target.trim(),
-    port: values.kind === "tcp" ? Number(values.port) : null,
+    port: values.kind === "tcp" || (values.kind === "dns" && values.port.trim()) ? Number(values.port) : null,
     interval_s: values.interval_s,
     timeout_s: Number(values.timeout_s.replace(",", ".")),
     enabled: values.enabled,
     expect_status: values.kind === "http" && values.expect_status.trim() ? values.expect_status.trim() : null,
-    keyword: values.kind === "http" && values.keyword.trim() ? values.keyword.trim() : null,
+    keyword: (values.kind === "http" || values.kind === "dns") && values.keyword.trim() ? values.keyword.trim() : null,
     verify_tls: values.verify_tls,
+    dns_type: values.kind === "dns" ? values.dns_type : null,
+    dns_server: values.kind === "dns" && values.dns_server.trim() ? values.dns_server.trim() : null,
   });
 
   function validate(): boolean {
@@ -121,10 +138,12 @@ function CheckForm({ check, preset, onClose }: { check?: Check; preset?: Partial
     const target = values.target.trim();
     if (!target) found.target = t("chk.err.target");
     else if (values.kind === "http" && !/^https?:\/\/[^/\s]+/i.test(target)) found.target = t("chk.err.url");
-    if (values.kind === "tcp") {
+    else if (values.kind === "dns" && /[\s/:]/.test(target)) found.target = t("chk.err.target");
+    if (values.kind === "tcp" || (values.kind === "dns" && values.port.trim())) {
       const port = Number(values.port);
       if (!Number.isInteger(port) || port < 1 || port > 65535) found.port = t("ctrl.err.port");
     }
+    if (values.kind === "dns" && /[\s/]/.test(values.dns_server.trim())) found.dns_server = t("chk.err.dnsServer");
     const timeout = Number(values.timeout_s.replace(",", "."));
     if (!Number.isFinite(timeout) || timeout < 1 || timeout > 30) found.timeout_s = t("chk.err.timeout");
     else if (timeout >= values.interval_s) found.timeout_s = t("chk.err.timeoutInterval");
@@ -143,7 +162,8 @@ function CheckForm({ check, preset, onClose }: { check?: Check; preset?: Partial
     },
   });
   const busy = test.isPending || save.isPending;
-  const targetHint: TextKey = values.kind === "http" ? "chk.target.hint.http" : values.kind === "tcp" ? "chk.target.hint.tcp" : "chk.target.hint.ping";
+  const targetHint: TextKey = TARGET_HINT[values.kind];
+  const targetLabel: TextKey = values.kind === "http" ? "chk.url" : values.kind === "dns" ? "chk.dns.name" : "devform.host";
 
   return (
     <Dialog
@@ -178,14 +198,14 @@ function CheckForm({ check, preset, onClose }: { check?: Check; preset?: Partial
             </option>
           ))}
         </Select>
-        <div className={`grid gap-4 ${values.kind === "tcp" ? "sm:grid-cols-[1fr_8rem]" : ""}`}>
+        <div className={`grid gap-4 ${values.kind === "tcp" || values.kind === "dns" ? "sm:grid-cols-[1fr_8rem]" : ""}`}>
           <Field
             id="chk-target"
-            label={t(values.kind === "http" ? "chk.url" : "devform.host")}
+            label={t(targetLabel)}
             value={values.target}
             error={errors.target}
             hint={t(targetHint)}
-            placeholder={values.kind === "http" ? "https://example.com" : "8.8.8.8"}
+            placeholder={values.kind === "http" ? "https://example.com" : values.kind === "dns" ? "example.com" : "8.8.8.8"}
             autoCapitalize="none"
             spellCheck={false}
             onChange={(e) => set("target", e.target.value)}
@@ -201,7 +221,53 @@ function CheckForm({ check, preset, onClose }: { check?: Check; preset?: Partial
               onChange={(e) => set("port", e.target.value)}
             />
           )}
+          {values.kind === "dns" && (
+            <Select id="chk-dns-type" label={t("chk.dns.type")} value={values.dns_type} onChange={(e) => set("dns_type", e.target.value as DnsType)}>
+              {DNS_TYPES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
+        {values.kind === "dns" && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
+              <Field
+                id="chk-dns-server"
+                label={t("chk.dns.server")}
+                value={values.dns_server}
+                error={errors.dns_server}
+                hint={t("chk.dns.server.hint")}
+                placeholder="8.8.8.8"
+                autoCapitalize="none"
+                spellCheck={false}
+                onChange={(e) => set("dns_server", e.target.value)}
+              />
+              <Field
+                id="chk-port"
+                label={t("chk.dns.port")}
+                inputMode="numeric"
+                value={values.port}
+                error={errors.port}
+                placeholder="53"
+                onChange={(e) => set("port", e.target.value)}
+              />
+            </div>
+            <Field
+              id="chk-keyword"
+              label={t("chk.dns.expect")}
+              value={values.keyword}
+              hint={t("chk.dns.expect.hint")}
+              maxLength={255}
+              autoCapitalize="none"
+              spellCheck={false}
+              onChange={(e) => set("keyword", e.target.value)}
+            />
+            <p className="text-xs text-text-2">{t("chk.dns.hint")}</p>
+          </>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <Select id="chk-interval" label={t("chk.interval")} value={values.interval_s} onChange={(e) => set("interval_s", Number(e.target.value))}>
             {CHECK_INTERVALS.map((s) => (
@@ -311,7 +377,7 @@ function CheckRow({
   const qc = useQueryClient();
   const toggle = useMutation({
     mutationFn: (enabled: boolean) => {
-      const { name, kind, target, port, interval_s, timeout_s, expect_status, keyword, verify_tls } = check;
+      const { name, kind, target, port, interval_s, timeout_s, expect_status, keyword, verify_tls, dns_type, dns_server } = check;
       return request<Check>("PUT", `/api/checks/${check.id}`, {
         name,
         kind,
@@ -322,6 +388,8 @@ function CheckRow({
         expect_status,
         keyword,
         verify_tls,
+        dns_type,
+        dns_server,
         enabled,
       });
     },
@@ -333,7 +401,7 @@ function CheckRow({
     : check.status_since
       ? relativeTime(check.status_since)
       : null;
-  const metrics = resultParts({ ...check, latency_ms: check.last_latency_ms });
+  const metrics = resultParts({ ...check, latency_ms: check.last_latency_ms, answer: check.last_answer });
 
   return (
     <li className={`flex flex-col gap-2 px-4 py-3 ${check.enabled ? "" : "opacity-70"}`}>
@@ -383,7 +451,7 @@ function CheckRow({
   );
 }
 
-/** Dostępność: ping (jakość łącza), HTTP(S) i porty TCP – lista, wykresy, dodawanie i edycja. */
+/** Dostępność: ping (jakość łącza), HTTP(S), porty TCP i DNS – lista, wykresy, dodawanie i edycja. */
 export function ChecksPage() {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useChecks();

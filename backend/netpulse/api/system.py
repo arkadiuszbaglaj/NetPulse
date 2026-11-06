@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
 
-from .. import __version__
+from .. import __version__, verification
 from ..config import settings
 from ..db import Session, engine, has_timescale
 from ..db.models import Controller, Device, SystemMetric
@@ -65,6 +65,20 @@ async def current():
         return None
     values = {c.name: getattr(row, c.name) for c in SystemMetric.__table__.columns if c.name != "time"}
     return SystemOut(sampled_at=row.time, poll_interval_s=settings.poll_interval, **values)
+
+
+class SourceOut(BaseModel):
+    id: str
+    label: str
+    level: str
+    note: str
+    drivers: list[str]
+
+
+@router.get("/verification", response_model=list[SourceOut])
+async def data_verification():
+    """Które źródła danych sprawdzono na prawdziwym sprzęcie, a które tylko na danych testowych (verification.py)."""
+    return [s.as_dict() for s in verification.SOURCES]
 
 
 @router.get("/metrics", response_model=list[Point])

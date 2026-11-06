@@ -145,6 +145,8 @@ class DeviceOut(BaseModel):
     stale: bool = False
     # Trwa okno serwisowe obejmujące urządzenie (od 0.60.0, api/maintenance.py) – bez powiadomień
     maintenance: bool = False
+    # Dane drivera potwierdzone na prawdziwym sprzęcie: verified | partial | test (od 0.64.0, verification.py)
+    verification: str = "verified"
     last_status: str | None = Field(None, validation_alias=AliasChoices("last_status", "status"))
     last_polled_at: datetime | None
     last_ok_at: datetime | None

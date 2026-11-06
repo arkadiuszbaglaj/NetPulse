@@ -58,7 +58,7 @@ class ChecksCollector:
         async with self._sem:
             result = await self.runner(
                 check.kind, check.target, port=check.port, timeout=check.timeout_s, expect=check.expect_status,
-                keyword=check.keyword, verify_tls=check.verify_tls,
+                keyword=check.keyword, verify_tls=check.verify_tls, dns_type=check.dns_type, dns_server=check.dns_server,
             )  # fmt: skip
         await save_result(check.id, result, datetime.now(UTC))
 
@@ -76,6 +76,7 @@ async def save_result(check_id: int, result: CheckResult, now: datetime) -> None
         check.last_checked_at = now
         check.last_latency_ms = result.latency_ms
         check.last_error = (result.error or None) and result.error[:255]
+        check.last_answer = result.answer
         if result.up:
             check.last_ok_at = now
         session.add(

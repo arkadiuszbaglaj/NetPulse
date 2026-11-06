@@ -4,6 +4,7 @@ import { ChartWidget } from "../../components/widgets/ChartWidget";
 import { ServerWidget } from "../../components/widgets/ServerWidget";
 import { DefaultCommunityNote } from "../../components/SnmpWarning";
 import { HttpsCard } from "../../components/HttpsCard";
+import { VerificationCard } from "../../components/Verification";
 import { Card, ErrorNote, PageHeader } from "../../components/ui";
 import { t, type TextKey } from "../../i18n";
 import { get } from "../../lib/api";
@@ -116,6 +117,14 @@ export function SystemPage() {
           {t("sys.https")}
         </h2>
         <HttpsCard />
+      </section>
+
+      <section id="verification" aria-labelledby="sys-verification" className="mb-6 scroll-mt-20">
+        <h2 id="sys-verification" className="mb-2 text-sm font-medium text-text-2">
+          {t("verify.title")}
+        </h2>
+        <p className="mb-2 max-w-2xl text-xs text-text-2">{t("verify.intro")}</p>
+        <VerificationCard />
       </section>
 
       <div className="grid gap-3 lg:grid-cols-12">

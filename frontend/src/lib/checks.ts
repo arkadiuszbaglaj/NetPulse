@@ -1,10 +1,13 @@
-/** Sprawdzanie dostępności: ping, HTTP(S), port TCP (API: backend/netpulse/api/checks.py). */
+/** Sprawdzanie dostępności: ping, HTTP(S), port TCP, DNS (API: backend/netpulse/api/checks.py). */
 import { useQuery } from "@tanstack/react-query";
 import { get, type Device } from "./api";
 import { useRefresh } from "./refresh";
 
-export type CheckKind = "ping" | "http" | "tcp";
-export const CHECK_KINDS: CheckKind[] = ["ping", "http", "tcp"];
+export type CheckKind = "ping" | "http" | "tcp" | "dns";
+export const CHECK_KINDS: CheckKind[] = ["ping", "http", "tcp", "dns"];
+/** Typy rekordów DNS (API: DnsType w backend/netpulse/api/checks.py). */
+export const DNS_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "PTR"] as const;
+export type DnsType = (typeof DNS_TYPES)[number];
 /** Odstępy między sprawdzeniami do wyboru (API przyjmuje 10–3600 s). */
 export const CHECK_INTERVALS = [30, 60, 120, 300, 600, 1800, 3600];
 
@@ -19,6 +22,9 @@ export interface CheckPayload {
   expect_status: string | null;
   keyword: string | null;
   verify_tls: boolean;
+  /** DNS (od 0.64.0): typ rekordu i serwer (null = serwer systemu); `keyword` = oczekiwana odpowiedź, `port` = port serwera */
+  dns_type?: DnsType | null;
+  dns_server?: string | null;
 }
 
 export interface Check extends CheckPayload {
@@ -37,6 +43,8 @@ export interface Check extends CheckPayload {
   jitter_ms: number | null;
   status_code: number | null;
   cert_days: number | null;
+  /** Ostatnia odpowiedź DNS, np. „192.0.2.1, 192.0.2.2” */
+  last_answer?: string | null;
 }
 
 export interface CheckTestResult {
@@ -46,6 +54,7 @@ export interface CheckTestResult {
   jitter_ms: number | null;
   status_code: number | null;
   cert_days: number | null;
+  answer?: string | null;
   error: string | null;
 }
 
@@ -124,7 +133,11 @@ export function checkPresets(devices: Pick<Device, "id" | "name" | "host" | "kin
   return [...gateways, ...CHECK_PRESETS].filter((p) => !taken.has(`${p.payload.kind} ${p.payload.target.toLowerCase()}`));
 }
 
-/** Cel w jednej linii: host, host:port albo adres URL. */
-export function checkTarget(c: Pick<Check, "kind" | "target" | "port">): string {
+/** Cel w jednej linii: host, host:port, adres URL albo „A example.com @ 8.8.8.8”. */
+export function checkTarget(c: Pick<Check, "kind" | "target" | "port" | "dns_type" | "dns_server">): string {
+  if (c.kind === "dns") {
+    const server = c.dns_server ? ` @ ${c.dns_server}${c.port && c.port !== 53 ? `:${c.port}` : ""}` : "";
+    return `${c.dns_type ?? "A"} ${c.target}${server}`;
+  }
   return c.kind === "tcp" && c.port ? `${c.target}:${c.port}` : c.target;
 }

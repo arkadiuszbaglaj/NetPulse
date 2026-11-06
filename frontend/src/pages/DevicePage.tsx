@@ -8,6 +8,7 @@ import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { ChartWidget } from "../components/widgets/ChartWidget";
 import { KIND_LABEL, MaintenanceBadge, STATUS_LABEL, STATUS_STYLE, deviceIcon, deviceState, staleHint } from "../components/widgets/DevicesWidget";
 import { ServerDetails } from "../components/widgets/ServerDetails";
+import { VerificationBadge } from "../components/Verification";
 import { t, type TextKey } from "../i18n";
 import { ApiError, type Device } from "../lib/api";
 import { formatSpeed, useDevice, useInterfaces, useSensors, useWifiNetworks, type InterfaceItem, type SensorsData } from "../lib/details";
@@ -312,6 +313,7 @@ export function DevicePage() {
             {t(STATUS_LABEL[status])}
           </span>
           <MaintenanceBadge device={d} />
+          <VerificationBadge device={d} />
           <DefaultCommunityBadge device={d} />
           <Link
             to="/settings/devices"

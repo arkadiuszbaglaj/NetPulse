@@ -1,4 +1,4 @@
-"""Sprawdzanie dostępności (od 0.30.0): ping, HTTP(S), port TCP.
+"""Sprawdzanie dostępności (od 0.30.0): ping, HTTP(S), port TCP, DNS (od 0.64.0).
 
 Zmiany może robić tylko administrator, odczyt – każdy zalogowany. Sprawdzenia wykonuje checks_collector.py;
 `POST /api/checks/test` wykonuje jedno sprawdzenie od razu, bez zapisu (przycisk „Sprawdź” w formularzu).
@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from ..checks import run_check, valid_expect
 from ..db import Session, engine, has_timescale
 from ..db.models import Check, CheckMetric
+from ..dnsquery import TYPES as DNS_TYPES
 from .metrics import MinutesQuery, OffsetQuery, _bucket_seconds, window
 from .schemas import Point, _check_host
 from .security import AdminUser, require_user
@@ -28,7 +29,9 @@ router = APIRouter(prefix="/api/checks", tags=["Dostępność"], dependencies=[D
 
 MAX_CHECKS = 100
 SERIES = ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"]
-Kind = Literal["ping", "http", "tcp"]
+Kind = Literal["ping", "http", "tcp", "dns"]
+DnsType = Literal["A", "AAAA", "CNAME", "MX", "TXT", "NS", "PTR"]
+assert set(DnsType.__args__) == set(DNS_TYPES)
 
 
 class CheckIn(BaseModel):
@@ -42,13 +45,16 @@ class CheckIn(BaseModel):
     expect_status: str | None = Field(None, max_length=32)
     keyword: str | None = Field(None, max_length=255)
     verify_tls: bool = True
+    # DNS: typ rekordu, serwer (puste = serwer systemu); `keyword` = oczekiwana odpowiedź, `port` = port serwera
+    dns_type: DnsType | None = None
+    dns_server: str | None = Field(None, max_length=255)
 
     @field_validator("name", "target")
     @classmethod
     def _strip(cls, v: str) -> str:
         return v.strip()
 
-    @field_validator("expect_status", "keyword")
+    @field_validator("expect_status", "keyword", "dns_server")
     @classmethod
     def _empty(cls, v: str | None) -> str | None:
         v = v.strip() if v else v
@@ -63,7 +69,22 @@ class CheckIn(BaseModel):
             if self.expect_status and not valid_expect(self.expect_status):
                 raise ValueError("Oczekiwany kod: np. 200, 200-399, 2xx albo lista po przecinku")
             self.port = None
+            self.dns_type = self.dns_server = None
+        elif self.kind == "dns":
+            name = self.target.rstrip(".")
+            try:
+                self.target = _check_host(name)
+            except ValueError:
+                raise ValueError("Podaj nazwę do sprawdzenia, np. example.com") from None
+            if self.dns_server:
+                try:
+                    self.dns_server = _check_host(self.dns_server)
+                except ValueError:
+                    raise ValueError("Serwer DNS: podaj adres IP albo nazwę") from None
+            self.dns_type = self.dns_type or "A"
+            self.expect_status = None
         else:
+            self.dns_type = self.dns_server = None
             self.target = _check_host(self.target)
             self.expect_status = self.keyword = None
             if self.kind == "tcp" and self.port is None:
@@ -89,6 +110,9 @@ class CheckOut(BaseModel):
     expect_status: str | None
     keyword: str | None
     verify_tls: bool
+    dns_type: str | None = None
+    dns_server: str | None = None
+    last_answer: str | None = None
     # `unknown`, gdy sprawdzenie dawno się nie wykonało (kolektor stoi) – freshness.py
     status: str = Field(validation_alias=AliasChoices("live_status", "status"))
     stale: bool = False
@@ -114,6 +138,7 @@ class TestOut(BaseModel):
     status_code: int | None
     cert_days: float | None
     error: str | None
+    answer: str | None = None
 
 
 async def _stats(session, ids: list[int]) -> tuple[dict[int, float], dict[int, CheckMetric]]:
@@ -182,11 +207,14 @@ async def update_check(check_id: int, body: CheckIn, _: AdminUser):
         row = await session.get(Check, check_id, with_for_update=True)
         if row is None:
             raise HTTPException(404, "Nie ma takiego sprawdzenia")
-        changed_target = (row.kind, row.target, row.port) != (body.kind, body.target, body.port)
+        changed_target = (row.kind, row.target, row.port, row.dns_type, row.dns_server) != (
+            body.kind, body.target, body.port, body.dns_type, body.dns_server
+        )
         for key, value in body.model_dump().items():
             setattr(row, key, value)
         if changed_target:  # inny cel – stary stan i błąd już nie pasują
             row.status, row.status_since, row.last_error, row.last_latency_ms = "unknown", None, None, None
+            row.last_answer = None
         await session.flush()
         await session.refresh(row)
         avail, latest = await _stats(session, [row.id])
@@ -203,7 +231,8 @@ async def delete_check(check_id: int, _: AdminUser):
 @router.post("/test", response_model=TestOut)
 async def test_check(body: CheckIn, _: AdminUser):
     r = await run_check(body.kind, body.target, port=body.port, timeout=body.timeout_s, expect=body.expect_status,
-                        keyword=body.keyword, verify_tls=body.verify_tls)  # fmt: skip
+                        keyword=body.keyword, verify_tls=body.verify_tls, dns_type=body.dns_type,
+                        dns_server=body.dns_server)  # fmt: skip
     return TestOut(**r.__dict__)
 
 

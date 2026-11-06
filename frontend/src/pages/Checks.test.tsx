@@ -89,6 +89,50 @@ describe("Dostępność", () => {
     expect(within(dialog).getByText("Podaj port od 1 do 65535.")).toBeInTheDocument();
   });
 
+  it("DNS: typ rekordu, serwer, oczekiwana odpowiedź – test i zapis", async () => {
+    const { state, calls } = mockApi();
+    state.checkTest = { up: true, latency_ms: 3.2, loss_percent: null, jitter_ms: null, status_code: null, cert_days: null, answer: "192.168.1.34", error: null };
+    renderApp("/settings/checks");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Dodaj sprawdzenie" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(within(dialog).getByLabelText("Rodzaj"), "dns");
+    const [name, target] = within(dialog).getAllByLabelText("Nazwa");
+    await user.type(name, "DNS – NAS");
+    await user.type(target, "nas.lan");
+    await user.selectOptions(within(dialog).getByLabelText("Typ rekordu"), "A");
+    await user.type(within(dialog).getByLabelText("Serwer DNS"), "zły serwer");
+    await user.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+    expect(await within(dialog).findByText("Podaj adres IP albo nazwę serwera DNS.")).toBeInTheDocument();
+    await user.clear(within(dialog).getByLabelText("Serwer DNS"));
+    await user.type(within(dialog).getByLabelText("Serwer DNS"), "192.168.1.1");
+    await user.type(within(dialog).getByLabelText("Oczekiwana odpowiedź"), "192.168.1.34");
+
+    await user.click(within(dialog).getByRole("button", { name: "Sprawdź teraz" }));
+    expect(await within(dialog).findByText(/Dostępne: opóźnienie 3,2 ms · odpowiedź: 192\.168\.1\.34/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Zapisz" }));
+    await waitFor(() => expect(state.checks).toHaveLength(1));
+    expect(calls.find((c) => c.method === "POST" && c.path === "/api/checks")?.body).toMatchObject({
+      kind: "dns",
+      target: "nas.lan",
+      dns_type: "A",
+      dns_server: "192.168.1.1",
+      keyword: "192.168.1.34",
+      port: null,
+      expect_status: null,
+    });
+  });
+
+  it("lista pokazuje sprawdzenie DNS z odpowiedzią", async () => {
+    mockApi({
+      checks: [check({ name: "DNS – NAS", kind: "dns", target: "nas.lan", dns_type: "MX", dns_server: "8.8.8.8", last_answer: "10 mail.example.com", loss_percent: null, jitter_ms: null })],
+    });
+    renderApp("/settings/checks");
+    const row = (await screen.findByText("DNS – NAS")).closest("li") as HTMLElement;
+    expect(within(row).getByText(/DNS · MX nas\.lan @ 8\.8\.8\.8 · co 30 s/)).toBeInTheDocument();
+    expect(within(row).getByText(/odpowiedź: 10 mail\.example\.com/)).toBeInTheDocument();
+  });
+
   it("lista pokazuje stan, wyniki i błąd niedostępnego sprawdzenia", async () => {
     mockApi({
       checks: [

@@ -89,6 +89,17 @@ describe("Ustawienia → System", () => {
     expect(await screen.findByText("Nie udało się pobrać stanu usług.")).toBeInTheDocument();
   });
 
+  it("pokazuje, które źródła danych potwierdzono na prawdziwym sprzęcie", async () => {
+    mockApi();
+    renderApp("/settings/system");
+    const list = await screen.findByRole("list", { name: "Potwierdzenie danych" });
+    const row = (await within(list).findByText("TP-Link Omada przez SNMP")).closest("li") as HTMLElement;
+    expect(within(row).getByText("dane testowe")).toBeInTheDocument();
+    expect(within(row).getByText(/czeka na prawdziwy sprzęt/)).toBeInTheDocument();
+    expect(within(within(list).getByText("Proxmox VE").closest("li") as HTMLElement).getByText("częściowo")).toBeInTheDocument();
+    expect(within(within(list).getByText("SNMP: porty, ruch, błędy").closest("li") as HTMLElement).getByText("potwierdzone")).toBeInTheDocument();
+  });
+
   it("jest w menu Ustawień", async () => {
     mockApi();
     renderApp("/settings/system");

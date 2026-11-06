@@ -29,6 +29,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ..crypto import EncryptedText
 from ..freshness import is_stale, live_status
+from ..verification import device_level
 
 
 class Base(DeclarativeBase):
@@ -94,6 +95,11 @@ class Device(Base):
     def live_status(self) -> str:
         """Status do pokazania: `unknown`, gdy dane są nieaktualne (awaria ≠ brak danych)."""
         return live_status(self.status, self.last_polled_at)
+
+    @property
+    def verification(self) -> str:
+        """Czy dane tego drivera potwierdzono na prawdziwym sprzęcie: verified | partial | test (verification.py)."""
+        return device_level(self.driver)
 
     @property
     def uses_default_community(self) -> bool:
@@ -696,7 +702,7 @@ class Check(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(80))
-    kind: Mapped[str] = mapped_column(String(8))  # ping | http | tcp
+    kind: Mapped[str] = mapped_column(String(8))  # ping | http | tcp | dns
     target: Mapped[str] = mapped_column(String(512))  # host (ping, tcp) albo adres URL (http)
     port: Mapped[int | None] = mapped_column(Integer)  # tylko tcp
     interval_s: Mapped[int] = mapped_column(Integer, default=60)
@@ -705,6 +711,9 @@ class Check(Base):
     expect_status: Mapped[str | None] = mapped_column(String(32))  # http: np. „200-399” albo „200,204”; puste = 200–399
     keyword: Mapped[str | None] = mapped_column(String(255))  # http: tekst, który musi być w odpowiedzi
     verify_tls: Mapped[bool] = mapped_column(Boolean, default=True)
+    # DNS (od 0.64.0): typ rekordu i serwer (puste = serwer systemu); `keyword` = oczekiwana odpowiedź
+    dns_type: Mapped[str | None] = mapped_column(String(8))
+    dns_server: Mapped[str | None] = mapped_column(String(255))
     # Stan z ostatniego sprawdzenia: up | down | unknown
     status: Mapped[str] = mapped_column(String(10), default="unknown")
     status_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -712,6 +721,7 @@ class Check(Base):
     last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(String(255))
     last_latency_ms: Mapped[float | None] = mapped_column(Float)
+    last_answer: Mapped[str | None] = mapped_column(String(255))  # DNS: ostatnia odpowiedź
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     @property
