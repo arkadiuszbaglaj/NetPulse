@@ -74,6 +74,8 @@ export interface User {
   id: number;
   username: string;
   is_admin: boolean;
+  /** admin | operator | viewer – od 0.61.0 (starsze API: tylko is_admin) */
+  role?: "admin" | "operator" | "viewer";
   created_at: string;
   last_login_at: string | null;
 }

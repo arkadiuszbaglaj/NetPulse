@@ -11,10 +11,10 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from sqlalchemy import text
 
-from .. import __version__
+from .. import __version__, audit
 from ..config import settings
 from ..db import engine, has_timescale
 from . import (
@@ -43,10 +43,11 @@ from . import (
     system,
     topology,
     updates,
+    users,
     vpn,
     wan,
 )
-from .security import check_origin
+from .security import check_origin, client_ip, route_template
 from .web import mount_web
 
 
@@ -61,6 +62,23 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)], lifespan=lifespan)
+
+
+@app.middleware("http")
+async def audit_changes(request: Request, call_next):
+    """Dziennik audytu: każda zmiana zalogowanego użytkownika (też odrzucona) – bez treści żądania (audit.py)."""
+    response = await call_next(request)
+    if audit.should_record(request.method, request.url.path):
+        user = getattr(request.state, "user", None)
+        if user is not None:
+            await audit.record(
+                f"{request.method} {route_template(request)}",
+                user=user,
+                ip=client_ip(request),
+                target=request.url.path,
+                status=response.status_code,
+            )
+    return response
 app.include_router(agents.admin_router)
 app.include_router(agents.push_router)
 app.include_router(alerts.router)
@@ -87,6 +105,7 @@ app.include_router(servers.router)
 app.include_router(system.router)
 app.include_router(topology.router)
 app.include_router(updates.router)
+app.include_router(users.router)
 app.include_router(vpn.router)
 app.include_router(wan.router)
 

@@ -13,7 +13,7 @@ from sqlalchemy import delete, func, select
 from .. import maintenance
 from ..db import Session
 from ..db.models import Device, MaintenanceWindow
-from .security import AdminUser, require_user
+from .security import OperatorUser, require_user
 
 router = APIRouter(prefix="/api/maintenance", tags=["okna serwisowe"], dependencies=[Depends(require_user)])
 
@@ -118,7 +118,7 @@ async def list_windows():
 
 
 @router.post("", response_model=WindowOut, status_code=201)
-async def create_window(body: WindowIn, _: AdminUser):
+async def create_window(body: WindowIn, _: OperatorUser):
     async with Session() as session, session.begin():
         if await session.scalar(select(func.count()).select_from(MaintenanceWindow)) >= MAX_WINDOWS:
             raise HTTPException(409, f"Można mieć najwyżej {MAX_WINDOWS} okien serwisowych")
@@ -131,7 +131,7 @@ async def create_window(body: WindowIn, _: AdminUser):
 
 
 @router.put("/{window_id}", response_model=WindowOut)
-async def update_window(window_id: int, body: WindowIn, _: AdminUser):
+async def update_window(window_id: int, body: WindowIn, _: OperatorUser):
     async with Session() as session, session.begin():
         row = await session.get(MaintenanceWindow, window_id, with_for_update=True)
         if row is None:
@@ -145,7 +145,7 @@ async def update_window(window_id: int, body: WindowIn, _: AdminUser):
 
 
 @router.delete("/{window_id}", status_code=204)
-async def delete_window(window_id: int, _: AdminUser):
+async def delete_window(window_id: int, _: OperatorUser):
     async with Session() as session, session.begin():
         if (await session.execute(delete(MaintenanceWindow).where(MaintenanceWindow.id == window_id))).rowcount == 0:
             raise HTTPException(404, "Nie ma takiego okna serwisowego")

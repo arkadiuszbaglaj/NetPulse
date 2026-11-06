@@ -191,6 +191,16 @@ bez „zakończony”. Dostępność odejmuje próbki z okien (z surowych tabel,
 (czysta logika), `api/maintenance.py`, migracja 0013 (`maintenance_windows`, `alerts.maintenance`), panel
 `pages/settings/MaintenancePage.tsx`, `MaintenanceBadge`. SLA WAN i dostępność sprawdzeń jeszcze bez okien. Opis: `docs/32-okna-serwisowe.md`.
 
+## Role i dziennik zdarzeń (0.61.0)
+
+Role kont: `admin` / `operator` (potwierdza alerty, okna serwisowe) / `viewer` (tylko odczyt + własne hasło, odświeżanie,
+własne pulpity); `users.role` (migracja 0014, `is_admin` zostaje i ustawia je `User.set_role`). API: domyślnie każda zmiana
+wymaga administratora – **nowa trasa dla niższej roli = wpis w `ROLE_RULES` (`api/security.py`)**, `test_roles.py` pilnuje,
+że wpisy wskazują istniejące trasy. Ustawienia → Konta (`api/users.py`, ostatni administrator chroniony) i Dziennik zdarzeń
+(`audit_log`, `netpulse/audit.py`, middleware `audit_changes`; logowania i każda zmiana z kodem odpowiedzi, **bez treści
+żądań**, rok przechowywania). Panel: `lib/roles.ts` (`useCan`), pole `role` podstron Ustawień w `modules.tsx` (bez niego –
+tylko administrator). Opis: `docs/33-role-i-audyt.md`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`

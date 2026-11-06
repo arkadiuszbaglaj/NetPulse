@@ -5,6 +5,7 @@ import { Button, Card, ErrorNote, PageHeader } from "../components/ui";
 import { t, type TextKey } from "../i18n";
 import { SEVERITIES, formatDuration, useAckAlert, useAlerts, type Alert, type Severity } from "../lib/alerts";
 import { formatDateTime, relativeTime } from "../lib/format";
+import { useCan } from "../lib/roles";
 
 type Tab = "firing" | "resolved";
 const TABS: Tab[] = ["firing", "resolved"];
@@ -22,6 +23,7 @@ const SEVERITY_STYLE: Record<Severity, string> = {
 
 function AlertRow({ alert, tab }: { alert: Alert; tab: Tab }) {
   const ack = useAckAlert();
+  const canAck = useCan("operator");
   const end = alert.resolved_at ? new Date(alert.resolved_at).getTime() : Date.now();
   const lasted = formatDuration((end - new Date(alert.started_at).getTime()) / 1000);
   return (
@@ -46,7 +48,7 @@ function AlertRow({ alert, tab }: { alert: Alert; tab: Tab }) {
           {alert.acked_by && ` · ${t("alerts.ackedBy", { user: alert.acked_by })}`}
         </p>
       </div>
-      {tab === "firing" && !alert.acked_at && (
+      {tab === "firing" && !alert.acked_at && canAck && (
         <Button disabled={ack.isPending} onClick={() => ack.mutate(alert.id)}>
           <IconCheck size={16} aria-hidden="true" />
           {t("alerts.ack")}

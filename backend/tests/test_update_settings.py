@@ -76,7 +76,7 @@ def test_ignores_old_interval_field(client):
 def test_non_admin_can_read_but_not_change(client):
     async def add_user():
         async with Session() as s, s.begin():
-            s.add(User(username=OTHER["username"], password_hash=hash_password(OTHER["password"]), is_admin=False))
+            s.add(User(username=OTHER["username"], password_hash=hash_password(OTHER["password"]), is_admin=False, role="viewer"))
 
     run(add_user)
     other = TestClient(app)

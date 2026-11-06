@@ -88,7 +88,7 @@ def client():
 def second_user_client() -> TestClient:
     async def go():
         async with Session() as s, s.begin():
-            s.add(User(username=OTHER["username"], password_hash=hash_password(OTHER["password"]), is_admin=False))
+            s.add(User(username=OTHER["username"], password_hash=hash_password(OTHER["password"]), is_admin=False, role="viewer"))
 
     run(go)
     c = TestClient(app)

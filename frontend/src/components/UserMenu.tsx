@@ -5,6 +5,7 @@ import { useAuth, useUser } from "../auth/AuthProvider";
 import { t } from "../i18n";
 import { initials } from "../lib/format";
 import { useDismiss } from "../lib/useDismiss";
+import { ROLE_LABEL, roleOf } from "../lib/roles";
 
 /** Nazwa zalogowanego użytkownika z rozwijanym menu: ustawienia konta i wylogowanie. */
 export function UserMenu() {
@@ -45,7 +46,7 @@ export function UserMenu() {
         >
           <div className="border-b border-border px-3 py-2">
             <p className="truncate text-sm font-medium">{user.username}</p>
-            <p className="text-xs text-muted">{user.is_admin ? t("user.role.admin") : ""}</p>
+            <p className="text-xs text-muted">{t(ROLE_LABEL[roleOf(user)])}</p>
           </div>
           <Link to="/settings/account" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <IconSettings size={18} aria-hidden="true" className="text-text-2" />

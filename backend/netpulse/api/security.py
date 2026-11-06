@@ -1,4 +1,8 @@
-"""Sesje logowania, ochrona CSRF i limit prób logowania."""
+"""Sesje logowania, role kont, ochrona CSRF i limit prób logowania.
+
+Role (od 0.61.0): zmiany (POST/PUT/PATCH/DELETE) robi tylko administrator, z wyjątkiem tras z `ROLE_RULES`
+– tam wystarczy rola operatora albo podglądu. Nowa trasa zmieniająca dane jest więc domyślnie tylko dla
+administratora; trasę dla innych ról trzeba dopisać tutaj świadomie."""
 
 from __future__ import annotations
 
@@ -88,12 +92,51 @@ async def user_from_request(request: Request, response: Response | None = None) 
         return user
 
 
+RANK = {"viewer": 0, "operator": 1, "admin": 2}
+# (metoda, szablon trasy) → najniższa rola, która może to zrobić; reszta zmian = administrator
+ROLE_RULES: dict[tuple[str, str], str] = {
+    # każdy: własne hasło, odświeżanie i własne pulpity (pulpity mają właściciela)
+    ("POST", "/api/auth/password"): "viewer",
+    ("PUT", "/api/preferences/refresh"): "viewer",
+    ("PUT", "/api/dashboards/default"): "viewer",
+    ("DELETE", "/api/dashboards/default"): "viewer",
+    ("POST", "/api/dashboards"): "viewer",
+    ("PATCH", "/api/dashboards/{dashboard_id}"): "viewer",
+    ("DELETE", "/api/dashboards/{dashboard_id}"): "viewer",
+    ("POST", "/api/dashboards/{dashboard_id}/default"): "viewer",
+    # operator: obsługa bieżąca
+    ("POST", "/api/alerts/{alert_id}/ack"): "operator",
+    ("POST", "/api/maintenance"): "operator",
+    ("PUT", "/api/maintenance/{window_id}"): "operator",
+    ("DELETE", "/api/maintenance/{window_id}"): "operator",
+}
+ROLE_NAMES = {"admin": "administratora", "operator": "operatora", "viewer": "podglądu"}
+
+
+def route_template(request: HTTPConnection) -> str:
+    route = request.scope.get("route")
+    return getattr(route, "path", None) or request.url.path
+
+
+def required_role(method: str, template: str) -> str:
+    if method not in UNSAFE_METHODS:
+        return "viewer"
+    return ROLE_RULES.get((method, template), "admin")
+
+
+def has_role(user: User, role: str) -> bool:
+    return RANK.get(user.role, 0) >= RANK[role]
+
+
 async def require_user(request: Request, response: Response) -> User:
-    """Zależność FastAPI: zalogowany użytkownik albo 401."""
+    """Zależność FastAPI: zalogowany użytkownik albo 401; zmiany zgodnie z rolą (ROLE_RULES) albo 403."""
     user = await user_from_request(request, response)
     if user is None:
         raise HTTPException(401, "Wymagane logowanie", headers={"WWW-Authenticate": "Cookie"})
     request.state.user = user
+    need = required_role(request.method, route_template(request))
+    if not has_role(user, need):
+        raise HTTPException(403, f"Ta operacja wymaga uprawnień {ROLE_NAMES[need]}")
     return user
 
 
@@ -101,13 +144,22 @@ CurrentUser = Annotated[User, Depends(require_user)]
 
 
 async def require_admin(user: CurrentUser) -> User:
-    """Zależność FastAPI: tylko administrator (np. zlecenie aktualizacji serwera)."""
-    if not user.is_admin:
+    """Zależność FastAPI: tylko administrator – także odczyt (kopie zapasowe, konta, dziennik audytu)."""
+    if user.role != "admin":
         raise HTTPException(403, "Ta operacja wymaga uprawnień administratora")
     return user
 
 
 AdminUser = Annotated[User, Depends(require_admin)]
+
+
+async def require_operator(user: CurrentUser) -> User:
+    if not has_role(user, "operator"):
+        raise HTTPException(403, "Ta operacja wymaga uprawnień operatora")
+    return user
+
+
+OperatorUser = Annotated[User, Depends(require_operator)]
 
 
 def allowed_hosts(request: HTTPConnection) -> set[str]:

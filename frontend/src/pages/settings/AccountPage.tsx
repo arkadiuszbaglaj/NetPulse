@@ -7,6 +7,7 @@ import { ApiError, post } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
 import { PasswordRequirements } from "../../components/PasswordRequirements";
 import { MIN_PASSWORD } from "../../lib/password";
+import { ROLE_LABEL, roleOf } from "../../lib/roles";
 
 
 function PasswordForm() {
@@ -93,7 +94,7 @@ export function AccountPage() {
             <dt className="text-text-2">{t("account.login")}</dt>
             <dd className="font-medium">{user.username}</dd>
             <dt className="text-text-2">{t("account.role")}</dt>
-            <dd>{user.is_admin ? t("user.role.admin") : "-"}</dd>
+            <dd>{t(ROLE_LABEL[roleOf(user)])}</dd>
             <dt className="text-text-2">{t("account.lastLogin")}</dt>
             <dd>{formatDateTime(user.last_login_at)}</dd>
           </dl>

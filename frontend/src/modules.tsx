@@ -23,6 +23,8 @@ import {
   IconSettings,
   IconTerminal2,
   IconTool,
+  IconUsers,
+  IconListDetails,
   IconUserCircle,
   IconWand,
   IconWorld,
@@ -31,6 +33,8 @@ import {
 import { lazy, type ComponentType, type ReactNode } from "react";
 import type { TextKey } from "./i18n";
 import { isOn, useModules, type ModuleId, type Modules } from "./lib/modules";
+import { hasRole, roleOf, type Role } from "./lib/roles";
+import { useAuth } from "./auth/AuthProvider";
 
 /** Strona ładowana dopiero przy pierwszym wejściu (osobny plik JS) – panel otwiera się szybciej. */
 function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
@@ -62,6 +66,8 @@ const SystemPage = page(() => import("./pages/settings/SystemPage"), "SystemPage
 const UpdatePage = page(() => import("./pages/settings/UpdatePage"), "UpdatePage");
 const WanLinksPage = page(() => import("./pages/settings/WanLinksPage"), "WanLinksPage");
 const MaintenancePage = page(() => import("./pages/settings/MaintenancePage"), "MaintenancePage");
+const UsersPage = page(() => import("./pages/settings/UsersPage"), "UsersPage");
+const AuditPage = page(() => import("./pages/settings/AuditPage"), "AuditPage");
 const DashboardPage = page(loadDashboard, "DashboardPage");
 const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
 const PortPage = page(() => import("./pages/PortPage"), "PortPage");
@@ -76,6 +82,8 @@ export interface NavChild {
   element: ReactNode;
   /** Podstrona modułu z Ustawienia → Moduły – znika, gdy moduł jest wyłączony */
   module?: ModuleId;
+  /** Najniższa rola, która widzi podstronę Ustawień (od 0.61.0); bez niej – tylko administrator */
+  role?: Role;
 }
 
 export interface NavModule {
@@ -206,7 +214,19 @@ export const modules: NavModule[] = [
     icon: IconSettings,
     group: "system",
     children: [
-      { path: "account", label: "nav.settings.account", icon: IconUserCircle, element: <AccountPage /> },
+      { path: "account", label: "nav.settings.account", icon: IconUserCircle, element: <AccountPage />, role: "viewer" },
+      {
+        path: "users",
+        label: "nav.settings.users",
+        icon: IconUsers,
+        element: <UsersPage />,
+      },
+      {
+        path: "audit",
+        label: "nav.settings.audit",
+        icon: IconListDetails,
+        element: <AuditPage />,
+      },
       {
         path: "devices",
         label: "nav.settings.devices",
@@ -224,6 +244,7 @@ export const modules: NavModule[] = [
         label: "nav.settings.dashboards",
         icon: IconLayoutDashboard,
         element: <DashboardsPage />,
+        role: "viewer",
       },
       {
         path: "wan",
@@ -263,6 +284,7 @@ export const modules: NavModule[] = [
         label: "nav.settings.maintenance",
         icon: IconTool,
         element: <MaintenancePage />,
+        role: "operator",
       },
       {
         path: "notifications",
@@ -275,12 +297,14 @@ export const modules: NavModule[] = [
         label: "nav.settings.refresh",
         icon: IconRefresh,
         element: <RefreshPage />,
+        role: "viewer",
       },
       {
         path: "system",
         label: "nav.settings.system",
         icon: IconHeartbeat,
         element: <SystemPage />,
+        role: "viewer",
       },
       {
         path: "backups",
@@ -294,24 +318,26 @@ export const modules: NavModule[] = [
         label: "nav.settings.modules",
         icon: IconPuzzle,
         element: <ModulesPage />,
+        role: "viewer",
       },
       {
         path: "update",
         label: "nav.settings.update",
         icon: IconDownload,
         element: <UpdatePage />,
+        role: "viewer",
       },
     ],
   },
 ];
 
-/** Rejestr bez pozycji wyłączonych modułów (menu i trasy). */
-export function visibleModules(mods: Modules | undefined): NavModule[] {
+/** Rejestr bez pozycji wyłączonych modułów i podstron Ustawień niedostępnych dla roli (menu i trasy). */
+export function visibleModules(mods: Modules | undefined, role: Role = "admin"): NavModule[] {
   return modules
     .filter((m) => isOn(mods, m.module))
-    .map((m) => (m.children ? { ...m, children: m.children.filter((c) => isOn(mods, c.module)) } : m));
+    .map((m) => (m.children ? { ...m, children: m.children.filter((c) => isOn(mods, c.module) && hasRole(role, c.role ?? "admin")) } : m));
 }
 
 export function useVisibleModules(): NavModule[] {
-  return visibleModules(useModules().data);
+  return visibleModules(useModules().data, roleOf(useAuth().status?.user));
 }

@@ -248,9 +248,9 @@ def cmd_user_list(args) -> int:
         if not users:
             print("Brak kont – załóż konto administratora w panelu (kreator) albo: netpulse user add NAZWA")
             return 0
-        print(f"  {'id':>3}  {'Login':<20} {'Admin':<6} Ostatnie logowanie")
+        print(f"  {'id':>3}  {'Login':<20} {'Rola':<9} Ostatnie logowanie")
         for u in users:
-            print(f"  {u.id:>3}  {u.username:<20} {'tak' if u.is_admin else 'nie':<6} {_fmt_time(u.last_login_at)}")
+            print(f"  {u.id:>3}  {u.username:<20} {u.role:<9} {_fmt_time(u.last_login_at)}")
         return 0
 
     return asyncio.run(run())
@@ -276,8 +276,10 @@ def cmd_user_add(args) -> int:
             if await session.scalar(select(User).where(User.username == args.username)):
                 print(f"Konto {args.username} już istnieje (zmiana hasła: netpulse user passwd).", file=sys.stderr)
                 return 1
-            session.add(User(username=args.username, password_hash=hash_password(password), is_admin=True))
-        print(f"Dodano konto administratora: {args.username}")
+            user = User(username=args.username, password_hash=hash_password(password))
+            user.set_role(getattr(args, "role", None) or "admin")
+            session.add(user)
+        print(f"Dodano konto ({user.role}): {args.username}")
         return 0
 
     return asyncio.run(run())
@@ -376,12 +378,14 @@ def build_parser() -> argparse.ArgumentParser:
     usr = sub.add_parser("user", help="konta panelu").add_subparsers(dest="action", required=True)
     usr.add_parser("list", help="lista kont").set_defaults(func=cmd_user_list)
     for name, func, help_ in (
-        ("add", cmd_user_add, "dodaj konto administratora"),
+        ("add", cmd_user_add, "dodaj konto (domyślnie administratora)"),
         ("passwd", cmd_user_passwd, "ustaw nowe hasło (np. gdy zapomniane)"),
     ):
         p = usr.add_parser(name, help=help_)
         p.add_argument("username")
         p.add_argument("--password-stdin", action="store_true", help="czytaj hasło z wejścia (do skryptów)")
+        if name == "add":
+            p.add_argument("--role", choices=("admin", "operator", "viewer"), default="admin", help="rola konta")
         p.set_defaults(func=func)
 
     db = sub.add_parser("db", help="baza danych").add_subparsers(dest="action", required=True)

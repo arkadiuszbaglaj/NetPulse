@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import delete, func, select, text
 
-from .. import __version__
+from .. import __version__, audit
 from ..auth import hash_password, hash_token, needs_rehash, password_error, username_error, verify_password
 from ..db import Session
 from ..db.models import AuthSession, User
@@ -54,12 +54,14 @@ async def setup(body: Credentials, request: Request, response: Response):
         await session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _SETUP_LOCK})
         if await _user_count(session) > 0:
             raise HTTPException(409, "Konto administratora już istnieje – zaloguj się")
-        user = User(username=body.username, password_hash=hash_password(body.password), is_admin=True)
+        user = User(username=body.username, password_hash=hash_password(body.password))
+        user.set_role("admin")
         session.add(user)
         await session.flush()
         await session.refresh(user)  # created_at nadaje baza
         token = await start_session(session, user, request)
     set_session_cookie(response, request, token)
+    await audit.record("setup", user=user, ip=client_ip(request))
     return user
 
 
@@ -72,23 +74,30 @@ async def login(body: Credentials, request: Request, response: Response):
         )
     async with Session() as session, session.begin():
         user = await session.scalar(select(User).where(User.username == body.username))
-        if not verify_password(user.password_hash if user else None, body.password):
-            login_limiter.failure(ip)
-            raise HTTPException(401, "Nieprawidłowy login lub hasło")
-        if needs_rehash(user.password_hash):
-            user.password_hash = hash_password(body.password)
-        token = await start_session(session, user, request)
+        failed = not verify_password(user.password_hash if user else None, body.password)
+        if not failed:
+            if needs_rehash(user.password_hash):
+                user.password_hash = hash_password(body.password)
+            token = await start_session(session, user, request)
+    if failed:
+        login_limiter.failure(ip)
+        await audit.record("login_failed", username=body.username, ip=ip, detail=None if user else "nieznany login")
+        raise HTTPException(401, "Nieprawidłowy login lub hasło")
     login_limiter.success(ip)
     set_session_cookie(response, request, token)
+    await audit.record("login", user=user, ip=ip)
     return user
 
 
 @router.post("/logout", status_code=204)
 async def logout(request: Request, response: Response):
+    user = await user_from_request(request)
     if token := request.cookies.get(COOKIE):
         async with Session() as session, session.begin():
             await session.execute(delete(AuthSession).where(AuthSession.token_hash == hash_token(token)))
     clear_session_cookie(response)
+    if user is not None:
+        await audit.record("logout", user=user, ip=client_ip(request))
 
 
 @router.get("/me", response_model=UserOut)
@@ -110,3 +119,4 @@ async def change_password(body: PasswordChange, request: Request, user: CurrentU
         await session.execute(
             delete(AuthSession).where(AuthSession.user_id == user.id, AuthSession.token_hash != current)
         )
+    await audit.record("password", user=user, ip=client_ip(request))

@@ -1,5 +1,6 @@
 import type { Check, CheckPayload, CheckTestResult } from "../lib/checks";
 import type { MaintenanceWindow, MaintenanceWindowIn } from "../lib/maintenance";
+import type { AuditEntry } from "../lib/audit";
 import { vi } from "vitest";
 import type {
   AuthStatus,
@@ -272,6 +273,11 @@ interface MockState {
   probe: ProbeResult;
   /** Czy zalogowany użytkownik jest administratorem */
   admin: boolean;
+  /** Rola zalogowanego konta (od 0.61.0); bez niej – z `admin` */
+  role?: "admin" | "operator" | "viewer";
+  /** Konta (Ustawienia → Konta) */
+  users: User[];
+  audit: AuditEntry[];
   updates: UpdatesResponse;
   /** Odpowiedź na POST /api/updates/check (domyślnie bez zmian) */
   afterCheck?: UpdatesResponse;
@@ -350,6 +356,8 @@ export function mockApi(initial: Partial<MockState> = {}) {
     layout: CLASSIC_LAYOUT,
     controllers: [],
     maintenance: [],
+    users: [USER],
+    audit: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },
     modules: { proxmox: true, unifi: true, agents: true, backups: true },
@@ -401,7 +409,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
   const status = (): AuthStatus => ({
     setup_required: state.setupRequired,
     authenticated: state.authenticated && !state.setupRequired,
-    user: state.authenticated && !state.setupRequired ? { ...USER, is_admin: state.admin } : null,
+    user: state.authenticated && !state.setupRequired ? { ...USER, is_admin: state.admin, role: state.role ?? (state.admin ? "admin" : "viewer") } : null,
     version: "0.2.0",
   });
 
@@ -642,6 +650,46 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.agents = state.agents.filter((a) => a.device_id !== Number(agentDevice[1]));
         state.devices = state.devices.filter((d) => d.id !== Number(agentDevice[1]));
         return json(204);
+      }
+      if (key === "GET /api/users") return json(200, state.users);
+      if (key === "POST /api/users") {
+        const b = body as { username: string; password: string; role: "admin" | "operator" | "viewer" };
+        if (state.users.some((u) => u.username.toLowerCase() === b.username.toLowerCase())) return json(409, { detail: `Konto ${b.username} już istnieje` });
+        const created: User = { id: state.users.length + 1, username: b.username, role: b.role, is_admin: b.role === "admin", created_at: "2026-11-06T10:00:00Z", last_login_at: null };
+        state.users.push(created);
+        return json(201, created);
+      }
+      const mu = /^(PATCH|DELETE) \/api\/users\/(\d+)$/.exec(key);
+      if (mu) {
+        const u = state.users.find((x) => x.id === Number(mu[2]));
+        if (!u) return json(404, { detail: "Nie ma takiego konta" });
+        const admins = state.users.filter((x) => (x.role ?? "admin") === "admin").length;
+        const b = (body ?? {}) as { role?: "admin" | "operator" | "viewer" };
+        if ((u.role ?? "admin") === "admin" && admins <= 1 && (mu[1] === "DELETE" || (b.role && b.role !== "admin")))
+          return json(409, { detail: "To ostatni administrator" });
+        if (mu[1] === "DELETE") {
+          state.users = state.users.filter((x) => x !== u);
+          return json(204);
+        }
+        if (b.role) Object.assign(u, { role: b.role, is_admin: b.role === "admin" });
+        return json(200, u);
+      }
+      if (key === "GET /api/audit") {
+        const params = new URL(path, "http://x").searchParams;
+        const kind = params.get("kind") ?? "all";
+        const q = (params.get("q") ?? "").toLowerCase();
+        const offset = Number(params.get("offset") ?? 0);
+        const limit = Number(params.get("limit") ?? 100);
+        const auth = ["login", "login_failed", "logout", "password", "setup"];
+        const items = state.audit.filter(
+          (e) =>
+            (kind === "all" ||
+              (kind === "auth" && auth.includes(e.action)) ||
+              (kind === "changes" && !auth.includes(e.action)) ||
+              (kind === "denied" && (e.action === "login_failed" || e.status === 403))) &&
+            (!q || [e.username, e.action, e.target, e.ip].some((v) => v?.toLowerCase().includes(q))),
+        );
+        return json(200, { items: items.slice(offset, offset + limit), total: items.length });
       }
       if (key === "GET /api/maintenance") return json(200, state.maintenance);
       if (key === "POST /api/maintenance") {

@@ -64,7 +64,7 @@ def configure(monkeypatch, url: str = "", token: str = TOKEN) -> None:
 
 
 def as_user(is_admin: bool) -> None:
-    app.dependency_overrides[require_user] = lambda: User(id=1, username="jan", password_hash="x", is_admin=is_admin)
+    app.dependency_overrides[require_user] = lambda: User(id=1, username="jan", password_hash="x", is_admin=is_admin, role="admin" if is_admin else "viewer")
 
 
 @pytest.fixture(autouse=True)

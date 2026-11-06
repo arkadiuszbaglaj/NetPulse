@@ -272,6 +272,8 @@ class UserOut(BaseModel):
     id: int
     username: str
     is_admin: bool
+    # admin | operator | viewer (od 0.61.0)
+    role: str = "admin"
     created_at: datetime
     last_login_at: datetime | None
 
