@@ -207,7 +207,9 @@ jobs:
           assert e["action"] == "login" and e["ip"] and e["ip"] != proxy, (e, proxy)
           PY
           # API nie ma już opublikowanego portu – wszystko idzie przez proxy
-          if dc port api 8000 2>/dev/null | grep -q .; then echo "API ma opublikowany port"; exit 1; fi
+          BINDINGS=$(sudo docker inspect -f '{{json .HostConfig.PortBindings}}' "$(dc ps -q api)")
+          echo "porty API: $BINDINGS" | tee -a https.log
+          if grep -q '8000' <<<"$BINDINGS"; then echo "API ma opublikowany port"; exit 1; fi
       - name: Kolektor zapisuje dane, API je zwraca
         run: |
           api() { curl -fsS -b cookies.txt "http://127.0.0.1:8000$1"; }
