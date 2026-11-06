@@ -90,7 +90,7 @@ def test_crud_test_endpoint_and_validation(client, monkeypatch):
 
     monkeypatch.setattr(checks_api, "run_check", fake)
     test = client.post("/api/checks/test", json=PING).json()
-    assert test == {"up": True, "latency_ms": 14.2, "loss_percent": 0.0, "jitter_ms": 0.4, "status_code": None, "cert_days": None, "error": None}
+    assert test == {"up": True, "latency_ms": 14.2, "loss_percent": 0.0, "jitter_ms": 0.4, "status_code": None, "cert_days": None, "answer": None, "error": None}
 
     assert client.delete(f"/api/checks/{created['id']}").status_code == 204
     assert client.get("/api/checks").json() == []

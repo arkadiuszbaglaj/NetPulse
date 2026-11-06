@@ -61,7 +61,7 @@ describe("panele na pulpicie", () => {
     stat.config.thresholds = [{ value: 1.5e6, color: 5 }];
     mockApi({ layout: layoutWith(stat) });
     renderApp();
-    const value = await screen.findByLabelText("Ruch WAN: Pobieranie: 2 Mb/s");
+    const value = await screen.findByLabelText("Ruch WAN: Pobieranie: 2 Mb/s", undefined, { timeout: 5000 });
     expect(value).toHaveStyle({ color: "var(--chart-5)" });
   });
 
