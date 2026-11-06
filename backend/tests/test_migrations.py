@@ -47,7 +47,7 @@ COLUMNS_AFTER_BASELINE = {
     "dashboards": ["public_token_hash", "public_token", "public_expires_at", "public_pin_hash", "public_options"],
     "notification_channels": ["secret", "config", "quiet_from", "quiet_to", "quiet_critical", "quiet_backlog"],
     "alerts": ["muted", "maintenance"],
-    "users": ["role"],
+    "users": ["role", "totp_secret", "totp_enabled", "totp_last_step", "totp_recovery"],
 }
 
 

@@ -97,6 +97,10 @@ RANK = {"viewer": 0, "operator": 1, "admin": 2}
 ROLE_RULES: dict[tuple[str, str], str] = {
     # każdy: własne hasło, odświeżanie i własne pulpity (pulpity mają właściciela)
     ("POST", "/api/auth/password"): "viewer",
+    ("POST", "/api/auth/totp/setup"): "viewer",
+    ("POST", "/api/auth/totp/enable"): "viewer",
+    ("POST", "/api/auth/totp/disable"): "viewer",
+    ("POST", "/api/auth/totp/recovery"): "viewer",
     ("PUT", "/api/preferences/refresh"): "viewer",
     ("PUT", "/api/dashboards/default"): "viewer",
     ("DELETE", "/api/dashboards/default"): "viewer",

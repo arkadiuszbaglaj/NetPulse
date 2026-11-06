@@ -294,6 +294,10 @@ interface MockState {
   users: User[];
   /** Stan HTTPS (Ustawienia → System, od 0.62.0) */
   tls: TlsStatus;
+  /** Logowanie dwuskładnikowe zalogowanego konta (od 0.63.0) */
+  totp: { enabled: boolean; pending: boolean; recovery_left: number };
+  /** Login wymaga kodu: pierwsze POST /api/auth/login bez kodu → 401 totp_required */
+  loginNeedsCode?: boolean;
   audit: AuditEntry[];
   updates: UpdatesResponse;
   /** Odpowiedź na POST /api/updates/check (domyślnie bez zmian) */
@@ -375,6 +379,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     maintenance: [],
     users: [USER],
     tls: TLS,
+    totp: { enabled: false, pending: false, recovery_left: 0 },
     audit: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },
@@ -669,6 +674,21 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.devices = state.devices.filter((d) => d.id !== Number(agentDevice[1]));
         return json(204);
       }
+      if (key === "GET /api/auth/totp") return json(200, state.totp);
+      if (key === "POST /api/auth/totp/setup") {
+        if ((body as { password: string }).password !== "haslo-testowe-1") return json(403, { detail: "Hasło jest nieprawidłowe" });
+        state.totp = { ...state.totp, pending: true };
+        return json(200, { secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP", uri: "otpauth://totp/NetPulse:admin?secret=JBSWY3DPEHPK3PXP", qr_svg: "<svg xmlns='http://www.w3.org/2000/svg'></svg>" });
+      }
+      if (key === "POST /api/auth/totp/enable") {
+        if ((body as { code: string }).code !== "123456") return json(422, { detail: "Nieprawidłowy kod – sprawdź czas w telefonie i spróbuj ponownie" });
+        state.totp = { enabled: true, pending: false, recovery_left: 10 };
+        return json(200, { recovery_codes: ["abcd-efgh", "jkmn-pqrs"] });
+      }
+      if (key === "POST /api/auth/totp/disable") {
+        state.totp = { enabled: false, pending: false, recovery_left: 0 };
+        return json(200, state.totp);
+      }
       if (key === "GET /api/system/tls") return json(200, state.tls);
       if (key === "PUT /api/system/tls/names") {
         state.tls = { ...state.tls, requested: (body as { names: string[] }).names.map((n) => n.toLowerCase()) };
@@ -959,9 +979,13 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.setupRequired = false;
         state.authenticated = true;
         return json(201, USER);
-      case "POST /api/auth/login":
+      case "POST /api/auth/login": {
+        const code = (body as { code?: string }).code;
+        if (state.loginNeedsCode && !code) return json(401, { detail: { code: "totp_required", message: "Podaj kod z aplikacji uwierzytelniającej" } });
+        if (state.loginNeedsCode && code !== "123456") return json(401, { detail: { code: "totp_invalid", message: "Nieprawidłowy kod" } });
         state.authenticated = true;
         return json(200, USER);
+      }
       case "POST /api/auth/logout":
         state.authenticated = false;
         return json(204);

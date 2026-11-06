@@ -6,6 +6,7 @@
     netpulse device remove 3
     netpulse user list                               # konta panelu
     netpulse user passwd admin                       # nowe hasło (np. zapomniane)
+    netpulse user 2fa-off admin                      # wyłącz logowanie dwuskładnikowe (zgubiony telefon)
     netpulse db init
     netpulse collector                               # usługa kolektora
     netpulse api                                     # usługa API
@@ -248,9 +249,10 @@ def cmd_user_list(args) -> int:
         if not users:
             print("Brak kont – załóż konto administratora w panelu (kreator) albo: netpulse user add NAZWA")
             return 0
-        print(f"  {'id':>3}  {'Login':<20} {'Rola':<9} Ostatnie logowanie")
+        print(f"  {'id':>3}  {'Login':<20} {'Rola':<9} {'2FA':<4} Ostatnie logowanie")
         for u in users:
-            print(f"  {u.id:>3}  {u.username:<20} {u.role:<9} {_fmt_time(u.last_login_at)}")
+            tfa = "tak" if u.totp_enabled else "-"
+            print(f"  {u.id:>3}  {u.username:<20} {u.role:<9} {tfa:<4} {_fmt_time(u.last_login_at)}")
         return 0
 
     return asyncio.run(run())
@@ -305,6 +307,31 @@ def cmd_user_passwd(args) -> int:
             user.password_hash = hash_password(password)
             await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
         print(f"Zmieniono hasło konta {args.username}. Wszystkie jego sesje zostały wylogowane.")
+        return 0
+
+    return asyncio.run(run())
+
+
+def cmd_user_2fa_off(args) -> int:
+    from sqlalchemy import delete, select
+
+    from .api.auth_routes import clear_totp
+    from .db import Session
+    from .db.models import AuthSession, User
+
+    async def run() -> int:
+        async with Session() as session, session.begin():
+            user = await session.scalar(select(User).where(User.username == args.username))
+            if user is None:
+                print(f"Nie ma konta {args.username} (lista: netpulse user list).", file=sys.stderr)
+                return 1
+            was = user.totp_enabled
+            clear_totp(user)
+            await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
+        if was:
+            print(f"Wyłączono logowanie dwuskładnikowe konta {args.username}. Wszystkie jego sesje zostały wylogowane.")
+        else:
+            print(f"Konto {args.username} nie miało włączonego logowania dwuskładnikowego.")
         return 0
 
     return asyncio.run(run())
@@ -393,6 +420,9 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "add":
             p.add_argument("--role", choices=("admin", "operator", "viewer"), default="admin", help="rola konta")
         p.set_defaults(func=func)
+    p = usr.add_parser("2fa-off", help="wyłącz logowanie dwuskładnikowe konta (zgubiony telefon i kody zapasowe)")
+    p.add_argument("username")
+    p.set_defaults(func=cmd_user_2fa_off)
 
     db = sub.add_parser("db", help="baza danych").add_subparsers(dest="action", required=True)
     db.add_parser("init", help="utwórz albo zaktualizuj schemat (migracje)").set_defaults(func=cmd_db_init)

@@ -156,3 +156,91 @@ def test_audit_log_records_logins_and_changes(admin):
     assert {e["username"] for e in admin.get("/api/audit", params={"q": "widz"}).json()["items"]} == {"widz"}
     assert admin.get("/api/audit", params={"limit": 2}).json()["items"].__len__() == 2
 
+
+
+def test_two_factor_login_flow(admin):
+    from netpulse import totp
+
+    add_user(admin, "jan", "viewer")
+    jan = login("jan")
+    assert jan.get("/api/auth/totp").json() == {"enabled": False, "pending": False, "recovery_left": 0}
+    assert jan.post("/api/auth/totp/setup", json={"password": "zle-haslo-000"}).status_code == 403
+    setup = jan.post("/api/auth/totp/setup", json={"password": PASSWORD}).json()
+    secret = setup["secret"]
+    assert setup["uri"].startswith("otpauth://totp/NetPulse%3Ajan?") and setup["qr_svg"].startswith("<svg")
+    assert jan.get("/api/auth/totp").json()["pending"] is True
+    # bez potwierdzenia kodem logowanie dalej działa samym hasłem
+    login("jan")
+
+    step = totp.current_step()
+    assert jan.post("/api/auth/totp/enable", json={"code": "000000" if totp.code_at(secret, step) != "000000" else "111111"}).status_code == 422
+    other = login("jan")  # druga sesja – po włączeniu 2FA ma się wylogować
+    res = jan.post("/api/auth/totp/enable", json={"code": totp.code_at(secret, step)})
+    assert res.status_code == 200, res.text
+    codes = res.json()["recovery_codes"]
+    assert len(codes) == 10
+    assert jan.get("/api/auth/me").json()["totp_enabled"] is True
+    assert other.get("/api/auth/me").status_code == 401
+
+    # logowanie: hasło → prośba o kod (bez blokady), zły kod → 401, kod użyty przy włączaniu nie przechodzi drugi raz
+    c = TestClient(app)
+    need = c.post("/api/auth/login", json={"username": "jan", "password": PASSWORD})
+    assert need.status_code == 401 and need.json()["detail"]["code"] == "totp_required"
+    bad = c.post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": "999999"})
+    assert bad.status_code == 401 and bad.json()["detail"]["code"] == "totp_invalid"
+    replay = c.post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": totp.code_at(secret, step)})
+    assert replay.status_code == 401
+    ok = c.post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": totp.code_at(secret, step + 1)})
+    assert ok.status_code == 200, ok.text
+    # zły kod nie pomaga przy złym haśle
+    assert c.post("/api/auth/login", json={"username": "jan", "password": "zle-haslo-000", "code": "123456"}).json()["detail"] == "Nieprawidłowy login lub hasło"
+
+    # kod zapasowy działa raz
+    r1 = TestClient(app).post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": codes[0]})
+    assert r1.status_code == 200
+    assert TestClient(app).post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": codes[0]}).status_code == 401
+    assert jan.get("/api/auth/totp").json()["recovery_left"] == 9
+
+    # nowe kody zapasowe: stare przestają działać
+    fresh = jan.post("/api/auth/totp/recovery", json={"password": PASSWORD, "code": codes[1]}).json()["recovery_codes"]
+    assert TestClient(app).post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": codes[2]}).status_code == 401
+    assert TestClient(app).post("/api/auth/login", json={"username": "jan", "password": PASSWORD, "code": fresh[0]}).status_code == 200
+
+    # administrator widzi 2FA i może je wyłączyć (zgubiony telefon) – konto loguje się od nowa samym hasłem
+    users = {u["username"]: u for u in admin.get("/api/users").json()}
+    assert users["jan"]["totp_enabled"] is True
+    assert admin.patch(f"/api/users/{users['jan']['id']}", json={"reset_totp": True}).json()["totp_enabled"] is False
+    assert jan.get("/api/auth/me").status_code == 401
+    login("jan")
+
+    # wyłączenie przez właściciela: hasło + kod
+    again = login("jan")
+    s2 = again.post("/api/auth/totp/setup", json={"password": PASSWORD}).json()["secret"]
+    again.post("/api/auth/totp/enable", json={"code": totp.code_at(s2, totp.current_step())})
+    assert again.post("/api/auth/totp/disable", json={"password": PASSWORD, "code": "999999"}).status_code == 403
+    off = again.post("/api/auth/totp/disable", json={"password": PASSWORD, "code": totp.code_at(s2, totp.current_step() + 1)})
+    assert off.status_code == 200 and off.json()["enabled"] is False
+
+    actions = [e["action"] for e in admin.get("/api/audit", params={"q": "jan"}).json()["items"]]
+    assert {"totp_enable", "totp_disable", "totp_recovery"} <= set(actions)
+    details = [e["detail"] for e in admin.get("/api/audit", params={"kind": "denied"}).json()["items"]]
+    assert "zły kod 2FA" in details
+
+
+def test_totp_secret_is_encrypted(admin):
+    from sqlalchemy import text as sql
+
+    from netpulse import crypto
+
+    me = admin.get("/api/auth/me").json()
+    crypto.set_key("klucz-testowy-totp")
+    try:
+        assert admin.post("/api/auth/totp/setup", json={"password": ADMIN["password"]}).status_code == 200
+    finally:
+        crypto.set_key(None)
+
+    async def stored():
+        async with Session() as s:
+            return await s.scalar(sql("SELECT totp_secret FROM users WHERE id = :id"), {"id": me["id"]})
+
+    assert run(stored).startswith("enc:v1:")

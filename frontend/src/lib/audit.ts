@@ -42,6 +42,9 @@ const AUTH_LABEL: Record<string, string> = {
   login_failed: "Nieudane logowanie",
   logout: "Wylogowanie",
   password: "Zmiana własnego hasła",
+  totp_enable: "Włączenie logowania dwuskładnikowego",
+  totp_disable: "Wyłączenie logowania dwuskładnikowego",
+  totp_recovery: "Nowe kody zapasowe 2FA",
 };
 
 /** Zasób z pierwszego członu ścieżki API (szablon trasy, np. /api/devices/{device_id}). */

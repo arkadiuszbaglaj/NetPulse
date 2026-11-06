@@ -29,6 +29,7 @@ function UserForm({ user, onClose }: { user?: User; onClose: () => void }) {
   const [username, setUsername] = useState(user?.username ?? "");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>(user ? roleOf(user) : "viewer");
+  const [resetTotp, setResetTotp] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
 
   function validate(): boolean {
@@ -42,7 +43,11 @@ function UserForm({ user, onClose }: { user?: User; onClose: () => void }) {
   const save = useMutation({
     mutationFn: () =>
       user
-        ? patch<User>(`/api/users/${user.id}`, { ...(role !== roleOf(user) ? { role } : {}), ...(password ? { password } : {}) })
+        ? patch<User>(`/api/users/${user.id}`, {
+            ...(role !== roleOf(user) ? { role } : {}),
+            ...(password ? { password } : {}),
+            ...(resetTotp ? { reset_totp: true } : {}),
+          })
         : post<User>("/api/users", { username: username.trim(), password, role }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: USERS_KEY });
@@ -95,6 +100,12 @@ function UserForm({ user, onClose }: { user?: User; onClose: () => void }) {
           ))}
         </Select>
         <p className="text-xs text-muted">{t(`users.role.hint.${role}`)}</p>
+        {user?.totp_enabled && (
+          <label htmlFor="user-reset-totp" className="flex items-start gap-2 text-sm">
+            <input id="user-reset-totp" type="checkbox" checked={resetTotp} onChange={(e) => setResetTotp(e.target.checked)} className="mt-0.5 size-4 accent-accent" />
+            <span>{t("users.tfa.reset")}</span>
+          </label>
+        )}
         {editing && <p className="text-xs text-muted">{t("users.relogin")}</p>}
         {save.isError && <ErrorNote>{errorMessage(save.error)}</ErrorNote>}
       </div>
@@ -142,6 +153,7 @@ export function UsersPage() {
                     {u.last_login_at ? t("users.lastLogin", { when: relativeTime(u.last_login_at) ?? "" }) : t("users.neverLogged")}
                   </p>
                 </div>
+                {u.totp_enabled && <span className="rounded-md bg-success-soft px-2 py-0.5 text-xs text-success">{t("users.tfa")}</span>}
                 <RoleBadge role={roleOf(u)} />
                 <div className="flex items-center gap-1">
                   <button type="button" className={iconButton} aria-label={`${t("common.edit")} ${u.username}`} title={t("common.edit")} onClick={() => setForm({ user: u })}>

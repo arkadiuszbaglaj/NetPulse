@@ -276,11 +276,18 @@ class UserOut(BaseModel):
     role: str = "admin"
     created_at: datetime
     last_login_at: datetime | None
+    # Logowanie dwuskładnikowe włączone (od 0.63.0)
+    totp_enabled: bool = False
 
 
 class Credentials(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=256)
+
+
+class LoginBody(Credentials):
+    # Kod z aplikacji uwierzytelniającej albo kod zapasowy – gdy konto ma włączone logowanie dwuskładnikowe
+    code: str | None = Field(None, max_length=32)
 
 
 class PasswordChange(BaseModel):

@@ -2,17 +2,21 @@
 
 export class ApiError extends Error {
   readonly status: number;
+  /** Kod błędu z `detail.code` (np. `totp_required` przy logowaniu dwuskładnikowym) */
+  readonly code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
-/** FastAPI zwraca `detail` jako tekst (nasze błędy) albo listę (walidacja Pydantic). */
+/** FastAPI zwraca `detail` jako tekst (nasze błędy), listę (walidacja Pydantic) albo obiekt `{code, message}`. */
 export function messageFromDetail(detail: unknown, fallback: string): string {
   if (typeof detail === "string" && detail) return detail;
+  if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") return detail.message;
   if (Array.isArray(detail)) {
     const msgs = detail
       .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
@@ -56,7 +60,8 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     } catch {
       /* odpowiedź bez JSON-a */
     }
-    throw new ApiError(res.status, messageFromDetail(detail, res.statusText || `HTTP ${res.status}`));
+    const code = detail && typeof detail === "object" && "code" in detail && typeof detail.code === "string" ? detail.code : undefined;
+    throw new ApiError(res.status, messageFromDetail(detail, res.statusText || `HTTP ${res.status}`), code);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -76,6 +81,8 @@ export interface User {
   is_admin: boolean;
   /** admin | operator | viewer – od 0.61.0 (starsze API: tylko is_admin) */
   role?: "admin" | "operator" | "viewer";
+  /** Logowanie dwuskładnikowe włączone (od 0.63.0) */
+  totp_enabled?: boolean;
   created_at: string;
   last_login_at: string | null;
 }

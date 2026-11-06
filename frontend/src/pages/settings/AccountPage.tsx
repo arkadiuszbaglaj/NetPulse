@@ -8,6 +8,7 @@ import { formatDateTime } from "../../lib/format";
 import { PasswordRequirements } from "../../components/PasswordRequirements";
 import { MIN_PASSWORD } from "../../lib/password";
 import { ROLE_LABEL, roleOf } from "../../lib/roles";
+import { TwoFactorCard } from "../../components/TwoFactorCard";
 
 
 function PasswordForm() {
@@ -100,6 +101,7 @@ export function AccountPage() {
           </dl>
         </Card>
         <PasswordForm />
+        <TwoFactorCard />
       </div>
     </>
   );

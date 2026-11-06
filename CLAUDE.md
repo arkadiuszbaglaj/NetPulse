@@ -210,6 +210,14 @@ z instalatora/`netpulse update` – `np_tls_names` – oraz dopisane w panelu `r
 API: `netpulse/tls.py`, `api/tls.py` (`/api/system/tls`, `ca.pem`, `PUT names`), panel: `HttpsCard` w Ustawienia → System.
 Opis: `docs/34-https.md`.
 
+## Logowanie dwuskładnikowe (0.63.0)
+
+TOTP (RFC 6238, `netpulse/totp.py`, bez biblioteki; QR z `segno`) i 10 jednorazowych kodów zapasowych; kolumny `users.totp_*`
+(migracja 0015, sekret w `SECRET_COLUMNS`). Login: bez kodu 401 `detail.code = "totp_required"`, zły kod `totp_invalid`
+(liczony do limitu logowań) – panel czyta `ApiError.code`. Każdy krok czasu działa raz (`totp_last_step`). Własne konto:
+`/api/auth/totp*` (wszystkie role, wpisy w `ROLE_RULES`), administrator: `reset_totp` w `PATCH /api/users/{id}`,
+serwer: `netpulse user 2fa-off <login>`. Opis: `docs/35-logowanie-dwuskladnikowe.md`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`

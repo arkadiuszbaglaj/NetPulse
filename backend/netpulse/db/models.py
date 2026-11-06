@@ -169,6 +169,12 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(16), default="admin")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Logowanie dwuskładnikowe (od 0.63.0, totp.py): sekret (zaszyfrowany; zapisany już przy konfiguracji,
+    # ale działa dopiero po potwierdzeniu kodem – totp_enabled), ostatni użyty krok czasu, skróty kodów zapasowych
+    totp_secret: Mapped[str | None] = mapped_column(EncryptedText)
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    totp_last_step: Mapped[int | None] = mapped_column(BigInteger)
+    totp_recovery: Mapped[list | None] = mapped_column(JSONB)
 
     def set_role(self, role: str) -> None:
         if role not in ROLES:

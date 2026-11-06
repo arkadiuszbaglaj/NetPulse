@@ -16,9 +16,17 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
+  // Drugi krok logowania: konto z logowaniem dwuskładnikowym (serwer odpowiada `totp_required`)
+  const [needCode, setNeedCode] = useState(false);
+  const [code, setCode] = useState("");
 
   const submit = useMutation({
-    mutationFn: () => post<User>(setup ? "/api/auth/setup" : "/api/auth/login", { username, password }),
+    mutationFn: () =>
+      post<User>(setup ? "/api/auth/setup" : "/api/auth/login", { username, password, ...(needCode && code.trim() ? { code: code.trim() } : {}) }),
+    onError: (err) => {
+      if (err instanceof ApiError && err.code === "totp_required") setNeedCode(true);
+      if (err instanceof ApiError && err.code === "totp_invalid") setCode("");
+    },
     onSuccess: () => {
       // Po założeniu konta panel otwiera się na kreatorze pierwszej konfiguracji (pierwsze urządzenie)
       if (setup) window.history.replaceState(null, "", "/setup");
@@ -36,7 +44,8 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
     submit.mutate();
   }
 
-  const serverError = submit.error
+  const askedForCode = submit.error instanceof ApiError && submit.error.code === "totp_required";
+  const serverError = submit.error && !askedForCode
     ? submit.error instanceof ApiError
       ? submit.error.message
       : t("auth.error.generic")
@@ -60,8 +69,9 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
             id="username"
             label={t("auth.username")}
             autoComplete="username"
-            autoFocus
+            autoFocus={!needCode}
             required
+            readOnly={needCode}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
@@ -71,10 +81,37 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
             type="password"
             autoComplete={setup ? "new-password" : "current-password"}
             required
+            readOnly={needCode}
             aria-describedby={setup ? "password-rules" : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {needCode && (
+            <>
+              <Field
+                id="totp-code"
+                label={t("auth.code")}
+                inputMode="text"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={32}
+                hint={t("auth.code.hint")}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <button
+                type="button"
+                className="self-start text-xs text-text-2 underline-offset-2 hover:underline"
+                onClick={() => {
+                  setNeedCode(false);
+                  setCode("");
+                  submit.reset();
+                }}
+              >
+                {t("auth.code.back")}
+              </button>
+            </>
+          )}
           {setup && <PasswordRequirements id="password-rules" password={password} />}
           {setup && (
             <Field
@@ -88,7 +125,7 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
             />
           )}
           {error && <ErrorNote>{error}</ErrorNote>}
-          <Button type="submit" variant="primary" disabled={submit.isPending || !username || !password}>
+          <Button type="submit" variant="primary" disabled={submit.isPending || !username || !password || (needCode && !code.trim())}>
             {submit.isPending
               ? setup
                 ? t("auth.setup.busy")

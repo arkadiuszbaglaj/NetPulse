@@ -2,7 +2,7 @@
 
 Konta: lista, dodanie (login, hasło, rola), zmiana roli albo hasła, usunięcie. Ostatniego administratora nie da się
 usunąć ani zdegradować, a własnego konta nie da się usunąć (zostałby panel bez nikogo, kto nim zarządza).
-Zmiana hasła albo roli wylogowuje to konto ze wszystkich sesji.
+Zmiana hasła albo roli i wyłączenie logowania dwuskładnikowego (`reset_totp`) wylogowują to konto ze wszystkich sesji.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from sqlalchemy import delete, func, or_, select
 from ..auth import hash_password, password_error, username_error
 from ..db import Session
 from ..db.models import AuditEntry, AuthSession, User
+from .auth_routes import clear_totp
 from .schemas import UserOut
 from .security import AdminUser, require_admin
 
@@ -35,6 +36,8 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     role: Role | None = None
     password: str | None = Field(None, min_length=1, max_length=256)
+    # Wyłącza logowanie dwuskładnikowe (zgubiony telefon i kody zapasowe)
+    reset_totp: bool = False
 
 
 class AuditOut(BaseModel):
@@ -100,6 +103,9 @@ async def update_user(user_id: int, body: UserUpdate, me: AdminUser):
             changed = True
         if body.password is not None:
             user.password_hash = hash_password(body.password)
+            changed = True
+        if body.reset_totp and (user.totp_enabled or user.totp_secret):
+            clear_totp(user)
             changed = True
         if changed and user.id != me.id:
             # Nowa rola albo hasło obowiązują od razu: konto loguje się od nowa
