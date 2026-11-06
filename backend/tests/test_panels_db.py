@@ -77,6 +77,8 @@ def lab():
             await s.flush()
             port = Interface(device_id=sw.id, if_index=3, name="0/3", label="Port 3", alias="AP U6+", oper_status="up", speed_mbps=1000)
             s.add(port)
+            # Tunel, którego nie ma w ostatnim odczycie – nie wisi w tabeli
+            s.add(Interface(device_id=sw.id, if_index=20, name="wgclt1", label="wgclt1", role="vpn", oper_status="notPresent"))
             wifi = WifiNetwork(device_id=ap.id, key="ra0", ssid="Dom", radio="ng", clients=7)
             s.add(wifi)
             await s.flush()
@@ -123,7 +125,7 @@ def test_collections(lab):
     assert devices["USW"]["up"] == 1.0 and devices["USW"]["cpu_percent"] == 13.0 and devices["USW"]["uptime_s"] == 3600
     assert devices["U6+"]["up"] == 0.0
     ports = rows(client, "ports", device_id=ids["sw"])
-    assert ports["Port 3 (AP U6+)"] == {"up": 1.0, "in_bps": 4e6, "out_bps": 2e5, "speed_mbps": 1000.0}
+    assert ports == {"Port 3 (AP U6+)": {"up": 1.0, "in_bps": 4e6, "out_bps": 2e5, "speed_mbps": 1000.0}}
     assert client.get("/api/collections/ports").status_code == 422  # bez urządzenia
     assert client.get("/api/collections/ports", params={"device_id": 999999}).status_code == 404
     assert rows(client, "wifi") == {"Dom (2,4 GHz)": {"clients": 7.0, "rx_bps": 5e5, "tx_bps": 1e6}}

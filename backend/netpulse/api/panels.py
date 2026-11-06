@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import distinct_on
 
+from ..collector import NOT_PRESENT
 from ..config import settings
 from ..db import Session
 from ..db.models import (
@@ -114,8 +115,13 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                 )
         elif kind == "ports":
             device = await _device(session, device_id)
+            # Bez interfejsów, których nie ma w ostatnim odczycie (zakończony tunel VPN, Teleport) – wracają same z sesją
             ports = (
-                await session.scalars(select(Interface).where(Interface.device_id == device.id, Interface.hidden.is_(False)).order_by(Interface.if_index))
+                await session.scalars(
+                    select(Interface)
+                    .where(Interface.device_id == device.id, Interface.hidden.is_(False), Interface.oper_status != NOT_PRESENT)
+                    .order_by(Interface.if_index)
+                )
             ).all()
             latest = {
                 r.interface_id: r
@@ -132,8 +138,7 @@ async def collection(kind: CollectionKind, device_id: int | None = Query(None, g
                     label=f"{p.label or p.name}" + (f" ({p.alias})" if p.alias and p.alias != p.label else ""),
                     device_id=device.id,
                     values={
-                        # Nieobecny w ostatnim odczycie (VPN bez sesji): ani „działa”, ani „nie działa”
-                        "up": None if p.oper_status == "notPresent" else 1.0 if p.oper_status == "up" else 0.0,
+                        "up": 1.0 if p.oper_status == "up" else 0.0,
                         "in_bps": _num(latest[p.id].in_bps) if p.id in latest else None,
                         "out_bps": _num(latest[p.id].out_bps) if p.id in latest else None,
                         "speed_mbps": _num(p.speed_mbps) if p.oper_status == "up" else None,

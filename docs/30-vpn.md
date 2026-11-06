@@ -46,4 +46,5 @@ stan („działa”). Od 0.57.0:
 - driver UniFi daje mu rolę `vpn` i nazwę sieci VPN (np. „WG-Home”);
 - kolektor ustawia każdemu interfejsowi, którego nie ma w odczycie, stan `notPresent` (bez próbek – więc bez alertu
   „port nie działa” i bez fałszywego skoku ruchu po powrocie);
-- panel pokazuje „brak sesji” (VPN) albo „nieobecny”, a w tabeli portów „–”.
+- panel pokazuje na stronie urządzenia „brak sesji” (VPN) albo „nieobecny”; od 0.65.1 tabela i paski portów na pulpicie
+  (kolekcja `ports`) pomijają taki interfejs – wraca sam, gdy pojawi się w odczycie (nowa sesja).
