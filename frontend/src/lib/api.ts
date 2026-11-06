@@ -65,6 +65,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
 export const get = <T>(path: string) => request<T>("GET", path);
 export const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
 export const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
+export const put = <T>(path: string, body: unknown) => request<T>("PUT", path, body);
 export const del = (path: string) => request<void>("DELETE", path);
 
 // --- typy odpowiedzi (zgodne z backend/netpulse/api/schemas.py) -------------------
@@ -107,6 +108,8 @@ export interface Device {
   status: "up" | "down" | "unknown" | string;
   /** Dane nieaktualne – kolektor nie odświeża urządzenia (od 0.59.0; brak w starszym API) */
   stale?: boolean;
+  /** Trwa okno serwisowe obejmujące urządzenie – bez powiadomień (od 0.60.0) */
+  maintenance?: boolean;
   /** Ostatni zapisany werdykt kolektora, także gdy jest nieaktualny (od 0.59.0) */
   last_status?: string | null;
   last_polled_at: string | null;

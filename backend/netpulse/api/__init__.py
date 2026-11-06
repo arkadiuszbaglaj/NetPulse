@@ -31,6 +31,7 @@ from . import (
     devices,
     events,
     live,
+    maintenance,
     metrics,
     modules_api,
     notifications,
@@ -74,6 +75,7 @@ app.include_router(dashboards.router)
 app.include_router(events.router)
 app.include_router(devices.router)
 app.include_router(live.router)
+app.include_router(maintenance.router)
 app.include_router(metrics.router)
 app.include_router(modules_api.router)
 app.include_router(notifications.router)

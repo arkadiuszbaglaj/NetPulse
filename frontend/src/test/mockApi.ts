@@ -1,4 +1,5 @@
 import type { Check, CheckPayload, CheckTestResult } from "../lib/checks";
+import type { MaintenanceWindow, MaintenanceWindowIn } from "../lib/maintenance";
 import { vi } from "vitest";
 import type {
   AuthStatus,
@@ -281,6 +282,8 @@ interface MockState {
   /** Zapisany układ pulpitu (null = domyślny) */
   layout: DashboardLayout | null;
   controllers: Controller[];
+  /** Okna serwisowe (od 0.60.0) */
+  maintenance: MaintenanceWindow[];
   agents: Agent[];
   backups: BackupsResponse;
   modules: Modules;
@@ -346,6 +349,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     // Zapisany pulpit sprzed 0.42.0; `layout: null` = nic nie zapisano (układ domyślny z panelu)
     layout: CLASSIC_LAYOUT,
     controllers: [],
+    maintenance: [],
     agents: [],
     backups: { backups: [], restore: { state: "idle" } },
     modules: { proxmox: true, unifi: true, agents: true, backups: true },
@@ -638,6 +642,30 @@ export function mockApi(initial: Partial<MockState> = {}) {
         state.agents = state.agents.filter((a) => a.device_id !== Number(agentDevice[1]));
         state.devices = state.devices.filter((d) => d.id !== Number(agentDevice[1]));
         return json(204);
+      }
+      if (key === "GET /api/maintenance") return json(200, state.maintenance);
+      if (key === "POST /api/maintenance") {
+        const created: MaintenanceWindow = {
+          ...(body as MaintenanceWindowIn),
+          id: state.maintenance.length + 1,
+          created_at: "2026-11-06T10:00:00Z",
+          active: false,
+          active_until: null,
+          next_start: (body as MaintenanceWindowIn).starts_at,
+        };
+        state.maintenance.push(created);
+        return json(201, created);
+      }
+      const mw = /^(PUT|DELETE) \/api\/maintenance\/(\d+)$/.exec(key);
+      if (mw) {
+        const w = state.maintenance.find((x) => x.id === Number(mw[2]));
+        if (!w) return json(404, { detail: "Nie ma takiego okna serwisowego" });
+        if (mw[1] === "DELETE") {
+          state.maintenance = state.maintenance.filter((x) => x !== w);
+          return json(204);
+        }
+        Object.assign(w, body);
+        return json(200, w);
       }
       if (key === "GET /api/controllers") return json(200, state.controllers);
       if (key === "POST /api/controllers/probe") {

@@ -16,7 +16,7 @@ from fnmatch import fnmatchcase
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 
-from . import vpn, wan_links
+from . import maintenance, vpn, wan_links
 from .config import settings
 from .db import Session
 from .db.models import (
@@ -312,6 +312,12 @@ class AlertEngine:
             # Brak świeżego werdyktu (pętla kolektora albo integracji stoi): brak danych to nie awaria ani powrót
             # do normy – takie urządzenie nie otwiera alertu „nie odpowiada”, a jego otwarte alerty trwają bez zmian
             stale = {d.id for d in devices.values() if is_stale(d.last_polled_at, now)}
+            # Okna serwisowe: alert powstaje w panelu, ale bez powiadomienia (początku ani końca); trwa po oknie –
+            # powiadomienie wtedy (maintenance.py)
+            windows = maintenance.active(await maintenance.load(session), now)
+
+            def in_window(device_id: int | None) -> bool:
+                return maintenance.in_maintenance(windows, device_id)
 
             # Grupowanie: urządzenie za niedziałającym urządzeniem (np. AP za switchem) nie dostaje osobnego
             # powiadomienia – wymieniamy je w wiadomości o przyczynie. Alert w panelu powstaje normalnie.
@@ -329,6 +335,7 @@ class AlertEngine:
                     offline = rule.kind == "device_offline" and hit.device_id is not None
                     root = down_root(hit.device_id, parent, devices) if offline else None
                     device = devices.get(hit.device_id) if hit.device_id is not None else None
+                    planned = in_window(hit.device_id)
                     if alert is None:
                         session.add(
                             Alert(
@@ -342,10 +349,13 @@ class AlertEngine:
                                 value=hit.value,
                                 peak=hit.value,
                                 started_at=now,
-                                muted=root is not None,
+                                muted=root is not None or planned,
+                                maintenance=planned,
                             )
                         )
-                        log.info("ALERT: %s", hit.title)
+                        log.info("ALERT: %s%s", hit.title, " (okno serwisowe)" if planned else "")
+                        if planned:
+                            continue
                         if root is not None:
                             behind[root].append(device.name if device else hit.title)
                             continue
@@ -357,9 +367,9 @@ class AlertEngine:
                             )
                         )
                     else:
-                        if alert.muted and root is None:
-                            # Przyczyna wróciła, a to urządzenie dalej nie odpowiada – teraz już osobne powiadomienie
-                            alert.muted = False
+                        if alert.muted and root is None and not planned:
+                            # Przyczyna wróciła (albo skończyło się okno serwisowe), a problem trwa – teraz powiadomienie
+                            alert.muted = alert.maintenance = False
                             events.append(
                                 AlertEvent(
                                     "firing", alert.severity, hit.title, hit.message, device.name if device else None,
@@ -384,8 +394,9 @@ class AlertEngine:
                     alert.state = "resolved"
                     alert.resolved_at = now
                     log.info("Alert zakończony: %s", alert.title)
-                    if alert.muted or rule_kind.get(alert.rule_id) in EVENT_KINDS:
-                        continue  # nie było powiadomienia o początku albo to zdarzenie chwilowe – bez „zakończony”
+                    if alert.muted or rule_kind.get(alert.rule_id) in EVENT_KINDS or in_window(alert.device_id):
+                        # nie było powiadomienia o początku, zdarzenie chwilowe albo koniec w trakcie prac – bez „zakończony”
+                        continue
                     device = devices.get(alert.device_id) if alert.device_id is not None else None
                     events.append(
                         AlertEvent(

@@ -143,6 +143,8 @@ class DeviceOut(BaseModel):
     # Status do pokazania: `unknown`, gdy kolektor dawno nie wydał werdyktu (freshness.py); zapisany – w `last_status`
     status: str = Field(validation_alias=AliasChoices("live_status", "status"))
     stale: bool = False
+    # Trwa okno serwisowe obejmujące urządzenie (od 0.60.0, api/maintenance.py) – bez powiadomień
+    maintenance: bool = False
     last_status: str | None = Field(None, validation_alias=AliasChoices("last_status", "status"))
     last_polled_at: datetime | None
     last_ok_at: datetime | None

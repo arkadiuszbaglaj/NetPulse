@@ -53,6 +53,8 @@ export interface Availability {
   /** Przybliżony czas niedostępności w sekundach */
   down_s: number;
   daily: AvailabilityDay[];
+  /** Pominięty czas okien serwisowych w sekundach (od 0.60.0) */
+  maintenance_s?: number;
 }
 
 export interface DeviceAvailability {

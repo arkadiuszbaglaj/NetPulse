@@ -22,6 +22,7 @@ import {
   IconServer2,
   IconSettings,
   IconTerminal2,
+  IconTool,
   IconUserCircle,
   IconWand,
   IconWorld,
@@ -60,6 +61,7 @@ const RefreshPage = page(() => import("./pages/settings/RefreshPage"), "RefreshP
 const SystemPage = page(() => import("./pages/settings/SystemPage"), "SystemPage");
 const UpdatePage = page(() => import("./pages/settings/UpdatePage"), "UpdatePage");
 const WanLinksPage = page(() => import("./pages/settings/WanLinksPage"), "WanLinksPage");
+const MaintenancePage = page(() => import("./pages/settings/MaintenancePage"), "MaintenancePage");
 const DashboardPage = page(loadDashboard, "DashboardPage");
 const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
 const PortPage = page(() => import("./pages/PortPage"), "PortPage");
@@ -255,6 +257,12 @@ export const modules: NavModule[] = [
         label: "nav.settings.alertRules",
         icon: IconBell,
         element: <AlertRulesPage />,
+      },
+      {
+        path: "maintenance",
+        label: "nav.settings.maintenance",
+        icon: IconTool,
+        element: <MaintenancePage />,
       },
       {
         path: "notifications",
