@@ -235,6 +235,15 @@ z `fonts-dejavu-core` w Dockerfile, bez niej Helvetica bez ogonków), `api/repor
 panel `pages/ReportsPage.tsx`. Urządzenia i ruch WAN z agregatów godzinowych (cały miesiąc), sprawdzenia i SLA WAN z surowych
 próbek (tylko `retention_days` – raport podaje `raw_from`). Bez zapisu raportów i wysyłki e-mailem. Opis: `docs/37-raport-miesieczny.md`.
 
+## Aplikacja Android (0.1.0)
+
+`mobile/android/` – Kotlin + Jetpack Compose, OkHttp, bez zmian na serwerze: logowanie ciasteczkiem jak panel (adres,
+login, hasło, kod 2FA), ekran ruchu WAN (`/api/wan/status`, `/api/dashboard/traffic`, WebSocket `/api/live/device`).
+Buduje GitHub Actions (`.github/workflows/android.yml`, lokalnie brak Javy/SDK), podpis kluczem z sekretów
+`NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `NetPulse-android-klucz/`), na `main` wydanie `android-v<wersja>`.
+Wersja aplikacji osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
+Android 12, instalacja ręczna (bez konta Google Play). Opis: `docs/38-aplikacja-android.md`.
+
 ## Wykresy (przebudowa w stylu Grafany)
 
 Plan etapów A–C: `docs/22-wykresy.md` (wzory: folder `graf/`, poza repo). Etap A ✅ (0.26.0): widget `chart` ma `queries`
