@@ -6,8 +6,8 @@ plugins {
 
 // Wersja aplikacji niezależna od serwera: versionName widać w aplikacji, versionCode musi rosnąć przy każdym wydaniu,
 // inaczej Android odmówi instalacji aktualizacji.
-val appVersionName = "0.1.0"
-val appVersionCode = 1
+val appVersionName = "0.2.0"
+val appVersionCode = 2
 
 // Podpis wydania z sekretów CI (NETPULSE_KEYSTORE = ścieżka do pliku .p12). Bez nich – klucz debug (tylko lokalnie).
 val keystorePath: String? = System.getenv("NETPULSE_KEYSTORE")
@@ -67,4 +67,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Widget na ekran główny (Glance) i odświeżanie w tle
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.datastore:datastore-preferences-core:1.1.1")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 }

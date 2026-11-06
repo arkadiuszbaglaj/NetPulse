@@ -52,6 +52,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
+            if (WidgetData.hasWidgets(app)) WidgetData.schedule(app)
             screen = try {
                 if (api.checkSession()) Screen.Wan else Screen.Login
             } catch (e: ApiException) {
@@ -86,6 +87,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         stopWan()
         viewModelScope.launch {
             api.logout()
+            WidgetData.publishStatus(getApplication(), "login")
             links = emptyList()
             traffic = emptyList()
             screen = Screen.Login
@@ -132,6 +134,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         loading = true
         try {
             links = api.wanStatus()
+            WidgetData.publish(getApplication(), links)
             traffic = api.wanTraffic(rangeMinutes)
             loadError = null
         } catch (e: ApiException) {

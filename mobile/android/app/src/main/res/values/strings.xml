@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NetPulse</string>
+    <string name="widget_name">Ruch WAN</string>
+    <string name="widget_description">Pobieranie i wysyłanie na łączu WAN</string>
 </resources>

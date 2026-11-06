@@ -1,6 +1,6 @@
 # Aplikacja na Androida
 
-Pierwsza wersja (aplikacja 0.1.0): logowanie do serwera NetPulse i ruch na porcie WAN. Kod: `mobile/android/`
+Aplikacja 0.1.0: logowanie do serwera NetPulse i ruch na porcie WAN; 0.2.0: widget „Ruch WAN” na ekran główny. Kod: `mobile/android/`
 (Kotlin + Jetpack Compose, bez dodatkowych bibliotek poza OkHttp).
 
 ## Co umie
@@ -13,6 +13,18 @@ Pierwsza wersja (aplikacja 0.1.0): logowanie do serwera NetPulse i ruch na porci
 - **Na żywo**: gdy aplikacja jest na ekranie, odczyty idą co ~1,5 s (ten sam WebSocket co „Na żywo” w panelu);
   wykres i stan łączy odświeżają się co 30 s. W tle aplikacja nic nie pobiera.
 - Motyw jasny i ciemny według ustawień telefonu, kolory wyglądu „Błękit” z panelu.
+
+## Widget „Ruch WAN” (0.2.0)
+
+- Dodanie: przytrzymaj palec na pustym miejscu ekranu głównego → Widżety → NetPulse → „Ruch WAN”.
+- Mały (3×1, domyślny): łącze aktywne – pobieranie ↓ i wysyłanie ↑, kropka stanu, godzina odczytu.
+  Po powiększeniu w pionie: wszystkie łącza WAN (do trzech), każde ze stanem.
+- Odświeżanie: w tle co 15 min (najczęściej, jak Android pozwala – Samsung przy oszczędzaniu baterii potrafi
+  to opóźnić), od razu po stuknięciu ikony ↻ na widgecie i przy każdym odświeżeniu ekranu WAN w aplikacji (co 30 s).
+  Widget nie pokazuje odczytów „na żywo” – to wartości z kolektora (próbka co 30 s).
+- Stuknięcie widgetu otwiera aplikację. Bez sieci domowej widget zostawia ostatnie wartości z dopiskiem
+  „Brak połączenia · godzina”; po wylogowaniu albo wygaśnięciu sesji – „Zaloguj się w aplikacji”.
+- Kod: `WanWidget.kt` (Glance), `WidgetData.kt` (odczyt, zapis stanu, WorkManager).
 
 ## Jak to działa z serwerem
 
