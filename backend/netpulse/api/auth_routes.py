@@ -12,11 +12,11 @@ from ..db import Session
 from ..db.models import AuthSession, User
 from .schemas import AuthStatus, Credentials, LoginBody, PasswordChange, UserOut
 from .security import (
-    COOKIE,
     CurrentUser,
     clear_session_cookie,
     client_ip,
     login_limiter,
+    session_token,
     set_session_cookie,
     start_session,
     user_from_request,
@@ -134,10 +134,10 @@ async def login(body: LoginBody, request: Request, response: Response):
 @router.post("/logout", status_code=204)
 async def logout(request: Request, response: Response):
     user = await user_from_request(request)
-    if token := request.cookies.get(COOKIE):
+    if token := session_token(request):
         async with Session() as session, session.begin():
             await session.execute(delete(AuthSession).where(AuthSession.token_hash == hash_token(token)))
-    clear_session_cookie(response)
+    clear_session_cookie(response, request)
     if user is not None:
         await audit.record("logout", user=user, ip=client_ip(request))
 
@@ -157,7 +157,7 @@ async def change_password(body: PasswordChange, request: Request, user: CurrentU
         if db_user is None or not verify_password(db_user.password_hash, body.current_password):
             raise HTTPException(403, "Obecne hasło jest nieprawidłowe")
         db_user.password_hash = hash_password(body.new_password)
-        current = hash_token(request.cookies.get(COOKIE, ""))
+        current = hash_token(session_token(request) or "")
         await session.execute(
             delete(AuthSession).where(AuthSession.user_id == user.id, AuthSession.token_hash != current)
         )
@@ -253,7 +253,7 @@ async def totp_enable(body: CodeOnly, request: Request, user: CurrentUser):
         db_user.totp_last_step = step
         db_user.totp_recovery = [totp.hash_recovery(c) for c in codes]
         # Pozostałe sesje tego konta logują się od nowa – już z kodem
-        current = hash_token(request.cookies.get(COOKIE, ""))
+        current = hash_token(session_token(request) or "")
         await session.execute(
             delete(AuthSession).where(AuthSession.user_id == user.id, AuthSession.token_hash != current)
         )

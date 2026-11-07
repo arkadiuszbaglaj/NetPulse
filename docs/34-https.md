@@ -36,6 +36,15 @@ Wgraj pełny łańcuch i klucz jako `deploy/tls/custom/cert.pem` i `deploy/tls/c
 albo firmowego CA). Proxy użyje ich w ciągu 30 s; gdy klucz nie pasuje do certyfikatu, zostaje certyfikat lokalnego CA
 (wpis w `netpulse logs proxy`). Usunięcie plików przywraca certyfikat lokalnego CA.
 
+## Sesja przez HTTP i HTTPS (0.65.5)
+
+Ciasteczko sesji ma dwie nazwy: `netpulse_session` przez HTTPS (z flagą Secure) i `netpulse_session_http` przez HTTP.
+Wcześniej była jedna nazwa i po zalogowaniu przez `https://…:8443` przeglądarka nie pozwalała panelowi pod
+`http://…:8080` nadpisać tego ciasteczka (porty go nie rozdzielają), a przez HTTP go nie wysyłała – logowanie się
+udawało, a panel wracał do ekranu logowania. Serwer czyta obie nazwy (najpierw tę dla protokołu), więc sesje sprzed
+0.65.5 i aplikacja Android 0.2.0 dalej działają; od 0.2.1 aplikacja przyjmuje obie. Kod: `api/security.py`
+(`cookie_name`, `session_token`), test: `tests/test_session_cookie.py`.
+
 ## Kod
 
 `deploy/proxy/` (Dockerfile, `nginx.conf`, `proxy-common.conf`, `tls.sh`), `backend/netpulse/tls.py`,

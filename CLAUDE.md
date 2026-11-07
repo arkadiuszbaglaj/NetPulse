@@ -209,6 +209,8 @@ Kontener `proxy` (nginx, `deploy/proxy/`) przyjmuje `NETPULSE_PORT` (HTTP, jak d
 Certyfikat lokalnego CA NetPulse wystawia i odnawia `deploy/proxy/tls.sh` w `<katalog>/deploy/tls` (adresy: `NETPULSE_TLS_NAMES`
 z instalatora/`netpulse update` – `np_tls_names` – oraz dopisane w panelu `request/names`; własny certyfikat w `custom/`).
 API: `netpulse/tls.py`, `api/tls.py` (`/api/system/tls`, `ca.pem`, `PUT names`), panel: `HttpsCard` w Ustawienia → System.
+Ciasteczko sesji: `netpulse_session` (HTTPS, Secure) i `netpulse_session_http` (HTTP) – jedna nazwa blokowała logowanie przez HTTP
+po HTTPS (0.65.5); token czytać przez `session_token()`, nie `request.cookies`.
 Opis: `docs/34-https.md`.
 
 ## Logowanie dwuskładnikowe (0.63.0)
@@ -244,7 +246,7 @@ Od 0.2.0 widget „Ruch WAN” (Glance, `WanWidget.kt`; odświeżanie WorkManage
 0.1.0 sprawdzona przez użytkownika na telefonie (7.11.2026).
 Buduje GitHub Actions (`.github/workflows/android.yml`, lokalnie brak Javy/SDK), podpis kluczem z sekretów
 `NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `NetPulse-android-klucz/`), na `main` wydanie `android-v<wersja>`.
-Wersja aplikacji osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
+Wersja aplikacji (0.2.1 przyjmuje obie nazwy ciasteczka) osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
 Android 12, instalacja ręczna (bez konta Google Play). Opis: `docs/38-aplikacja-android.md`.
 
 ## Wykresy (przebudowa w stylu Grafany)

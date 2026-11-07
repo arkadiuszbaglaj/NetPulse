@@ -40,7 +40,7 @@ data class WanLink(
 data class TrafficPoint(val time: Instant, val inBps: Double?, val outBps: Double?)
 
 /**
- * Klient API serwera NetPulse. Loguje tak samo jak panel (ciasteczko sesji `netpulse_session`),
+ * Klient API serwera NetPulse. Loguje tak samo jak panel (ciasteczko sesji `netpulse_session`, przez HTTP `netpulse_session_http`),
  * więc serwer nie potrzebuje nic dodatkowego. Adres serwera i ciasteczko zostają w pamięci telefonu,
  * hasło – nigdy.
  */
@@ -55,14 +55,19 @@ class NetPulseApi(context: Context) {
 
     private val cookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            val session = cookies.firstOrNull { it.name == COOKIE } ?: return
+            // Serwer od 0.65.5: przez HTTP `netpulse_session_http`, przez HTTPS `netpulse_session`
+            val session = cookies.firstOrNull { it.name in COOKIES } ?: return
             val expired = session.value.isEmpty() || session.expiresAt < System.currentTimeMillis()
-            prefs.edit().putString(KEY_COOKIE, if (expired) null else session.value).apply()
+            prefs.edit()
+                .putString(KEY_COOKIE, if (expired) null else session.value)
+                .putString(KEY_COOKIE_NAME, session.name)
+                .apply()
         }
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
             val value = prefs.getString(KEY_COOKIE, null) ?: return emptyList()
-            return listOf(Cookie.Builder().name(COOKIE).value(value).hostOnlyDomain(url.host).path("/").build())
+            val name = prefs.getString(KEY_COOKIE_NAME, null) ?: COOKIE
+            return listOf(Cookie.Builder().name(name).value(value).hostOnlyDomain(url.host).path("/").build())
         }
     }
 
@@ -188,6 +193,8 @@ class NetPulseApi(context: Context) {
 
     companion object {
         private const val COOKIE = "netpulse_session"
+        private val COOKIES = setOf(COOKIE, "netpulse_session_http")
+        private const val KEY_COOKIE_NAME = "session_cookie"
         private const val KEY_URL = "base_url"
         private const val KEY_ADDRESS = "address"
         private const val KEY_USER = "username"

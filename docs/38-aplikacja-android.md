@@ -1,6 +1,6 @@
 # Aplikacja na Androida
 
-Aplikacja 0.1.0: logowanie do serwera NetPulse i ruch na porcie WAN; 0.2.0: widget „Ruch WAN” na ekran główny. Kod: `mobile/android/`
+Aplikacja 0.1.0: logowanie do serwera NetPulse i ruch na porcie WAN; 0.2.0: widget „Ruch WAN” na ekran główny; 0.2.1: logowanie z serwerem 0.65.5+ przez HTTP (ciasteczko `netpulse_session_http`). Kod: `mobile/android/`
 (Kotlin + Jetpack Compose, bez dodatkowych bibliotek poza OkHttp).
 
 ## Co umie

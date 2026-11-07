@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import delete  # noqa: E402
 
 from netpulse.api import app  # noqa: E402
-from netpulse.api.security import COOKIE, login_limiter  # noqa: E402
+from netpulse.api.security import COOKIE, COOKIE_HTTP, login_limiter  # noqa: E402
 from netpulse.db import Session, engine, init_db  # noqa: E402
 from netpulse.db.models import Device, User  # noqa: E402
 
@@ -59,7 +59,8 @@ def test_setup_login_logout(client):
     assert r.status_code == 201, r.text
     assert r.json()["username"] == "admin"
     cookie = r.headers["set-cookie"]
-    assert COOKIE in cookie and "HttpOnly" in cookie and "samesite=lax" in cookie.lower()
+    assert cookie.startswith(f"{COOKIE_HTTP}=") and "HttpOnly" in cookie and "secure" not in cookie.lower()
+    assert "HttpOnly" in cookie and "samesite=lax" in cookie.lower()
 
     st = client.get("/api/auth/status").json()
     assert st["setup_required"] is False and st["authenticated"] is True
@@ -81,12 +82,28 @@ def test_setup_login_logout(client):
 
 def test_logout_invalidates_token(client):
     client.post("/api/auth/setup", json=ADMIN)
-    token = client.cookies.get(COOKIE)
+    token = client.cookies.get(COOKIE_HTTP)
     assert token
     client.post("/api/auth/logout")
     client.cookies.clear()
-    # stary token po wylogowaniu nic nie daje
+    # stary token po wylogowaniu nic nie daje (pod żadną nazwą ciasteczka)
+    assert client.get("/api/devices", headers={"Cookie": f"{COOKIE_HTTP}={token}"}).status_code == 401
     assert client.get("/api/devices", headers={"Cookie": f"{COOKIE}={token}"}).status_code == 401
+
+
+def test_https_login_uses_secure_cookie_and_old_cookie_still_works(client):
+    """HTTPS: ciasteczko `netpulse_session` z Secure; sesja sprzed 0.65.5 (ta nazwa przez HTTP) dalej działa."""
+    client.post("/api/auth/setup", json=ADMIN)
+    client.cookies.clear()
+    with TestClient(app, base_url="https://testserver") as tls:
+        r = tls.post("/api/auth/login", json=ADMIN)
+        assert r.status_code == 200
+        cookie = r.headers["set-cookie"]
+        assert cookie.startswith(f"{COOKIE}=") and "secure" in cookie.lower()
+        token = tls.cookies.get(COOKIE)
+        assert tls.get("/api/devices").status_code == 200
+    # Stara nazwa przez HTTP (aplikacja Android 0.2.0, sesje sprzed 0.65.5)
+    assert client.get("/api/devices", headers={"Cookie": f"{COOKIE}={token}"}).status_code == 200
 
 
 def test_password_change(client):

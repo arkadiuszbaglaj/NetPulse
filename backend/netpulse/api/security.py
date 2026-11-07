@@ -21,7 +21,11 @@ from ..config import settings
 from ..db import Session
 from ..db.models import AuthSession, User
 
+# Ciasteczko sesji: przez HTTPS (z flagą Secure) i osobne przez HTTP (od 0.65.5). Przy jednej nazwie przeglądarka po
+# logowaniu przez HTTPS (:8443) nie pozwala stronie HTTP (:8080) nadpisać tego ciasteczka (porty go nie rozdzielają),
+# a przez HTTP go nie wysyła – logowanie się udawało, a panel od razu wracał do ekranu logowania.
 COOKIE = "netpulse_session"
+COOKIE_HTTP = "netpulse_session_http"
 # Co ile przedłużać sesję przy aktywności (żeby nie pisać do bazy przy każdym żądaniu)
 REFRESH_EVERY = timedelta(hours=1)
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -35,20 +39,40 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
-def set_session_cookie(response: Response, request: Request, token: str) -> None:
+def _secure(conn: HTTPConnection) -> bool:
+    return conn.url.scheme in ("https", "wss")
+
+
+def cookie_name(conn: HTTPConnection) -> str:
+    return COOKIE if _secure(conn) else COOKIE_HTTP
+
+
+def session_token(conn: HTTPConnection) -> str | None:
+    """Token sesji z ciasteczka – najpierw z nazwy dla tego protokołu, potem z drugiej (sesje sprzed 0.65.5,
+    aplikacja Android 0.2.0 i HTTPS, do którego przeglądarka dosyła też ciasteczko z HTTP)."""
+    first = cookie_name(conn)
+    for name in (first, COOKIE_HTTP if first == COOKIE else COOKIE):
+        if token := conn.cookies.get(name):
+            return token
+    return None
+
+
+def set_session_cookie(response: Response, request: HTTPConnection, token: str) -> None:
     response.set_cookie(
-        COOKIE,
+        cookie_name(request),
         token,
         max_age=int(_session_ttl().total_seconds()),
         httponly=True,
         samesite="lax",
-        secure=request.url.scheme == "https",
+        secure=_secure(request),
         path="/",
     )
 
 
-def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(COOKIE, path="/")
+def clear_session_cookie(response: Response, request: HTTPConnection) -> None:
+    response.delete_cookie(COOKIE_HTTP, path="/")
+    # Ciasteczko Secure usuwa tylko odpowiedź przez HTTPS; przez HTTP usuwamy stare `netpulse_session` sprzed 0.65.5
+    response.delete_cookie(COOKIE, path="/", secure=_secure(request), httponly=True, samesite="lax")
 
 
 async def start_session(session, user: User, request: Request) -> str:
@@ -73,7 +97,7 @@ async def start_session(session, user: User, request: Request) -> str:
 
 
 async def user_from_request(request: Request, response: Response | None = None) -> User | None:
-    token = request.cookies.get(COOKIE)
+    token = session_token(request)
     if not token:
         return None
     now = datetime.now(UTC)
