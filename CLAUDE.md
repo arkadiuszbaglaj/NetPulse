@@ -211,6 +211,8 @@ z instalatora/`netpulse update` – `np_tls_names` – oraz dopisane w panelu `r
 API: `netpulse/tls.py`, `api/tls.py` (`/api/system/tls`, `ca.pem`, `PUT names`), panel: `HttpsCard` w Ustawienia → System.
 Ciasteczko sesji: `netpulse_session` (HTTPS, Secure) i `netpulse_session_http` (HTTP) – jedna nazwa blokowała logowanie przez HTTP
 po HTTPS (0.65.5); token czytać przez `session_token()`, nie `request.cookies`.
+Od 0.65.6 nagłówki bezpieczeństwa w każdej odpowiedzi (`SECURITY_HEADERS`, `frame-ancestors 'self'`), `/docs` i wersja tylko po zalogowaniu,
+dymek wykresu escapuje nazwy serii (`tooltipHtml`) – **nowy formatter ECharts składający HTML = `escapeHtml` na tekstach z danych**.
 Opis: `docs/34-https.md`.
 
 ## Logowanie dwuskładnikowe (0.63.0)

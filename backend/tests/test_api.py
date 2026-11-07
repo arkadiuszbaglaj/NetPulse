@@ -74,6 +74,25 @@ def test_setup_login_logout(client):
     client.cookies.clear()
     assert client.get("/api/devices").status_code == 401
 
+
+def test_version_docs_and_headers_only_for_logged_in(client):
+    """0.65.6: bez logowania ani numeru wersji, ani dokumentacji API; nagłówki bezpieczeństwa w każdej odpowiedzi."""
+    health = client.get("/api/health")
+    assert "version" not in health.json()
+    assert health.headers["x-content-type-options"] == "nosniff"
+    assert health.headers["x-frame-options"] == "SAMEORIGIN"
+    assert "frame-ancestors 'self'" in health.headers["content-security-policy"]
+    assert client.get("/api/auth/status").json()["version"] is None
+    assert client.get("/openapi.json").status_code == 401
+    assert client.get("/docs").status_code == 401
+
+    assert client.post("/api/auth/setup", json=ADMIN).status_code == 201
+    assert client.get("/api/auth/status").json()["version"]
+    assert "/api/auth/setup" in client.get("/openapi.json").json()["paths"]
+    assert "swagger" in client.get("/docs").text.lower()
+    # Pulpit publiczny zostawia własne Referrer-Policy (no-referrer)
+    assert client.get("/api/public/dashboards/" + "x" * 40).headers["referrer-policy"] == "no-referrer"
+
     assert client.post("/api/auth/login", json={**ADMIN, "password": "zle-haslo"}).status_code == 401
     assert client.post("/api/auth/login", json={"username": "nikt", "password": "x"}).status_code == 401
     assert client.post("/api/auth/login", json=ADMIN).status_code == 200

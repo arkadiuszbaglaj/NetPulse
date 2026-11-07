@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backupSpans } from "./panelData";
+import { backupSpans, escapeHtml, tooltipHtml } from "./panelData";
 
 describe("backupSpans – kiedy internet szedł łączem zapasowym", () => {
   const links = [
@@ -24,5 +24,19 @@ describe("backupSpans – kiedy internet szedł łączem zapasowym", () => {
   it("bez historii albo z jednym łączem – nic", () => {
     expect(backupSpans(undefined)).toEqual([]);
     expect(backupSpans({ links: [links[0]], segments: [seg(5, "active", "2026-11-04T03:00:00Z", "2026-11-04T04:00:00Z")] })).toEqual([]);
+  });
+});
+
+describe("tooltipHtml – dymek wykresu bez wstrzykiwania HTML-a", () => {
+  it("nazwa serii z kontenera albo maszyny jest tekstem, nie znacznikiem", () => {
+    const html = tooltipHtml("12:00", "#000", [{ marker: "<span class=m></span>", name: '<img src=x onerror="alert(1)">', value: "5 Mb/s" }]);
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+    expect(html).toContain("<span class=m></span> "); // znacznik koloru z ECharts zostaje
+    expect(html).toContain("<b>5 Mb/s</b>");
+  });
+
+  it("escapeHtml zamienia wszystkie znaki specjalne", () => {
+    expect(escapeHtml(`a&b<c>"d'`)).toBe("a&amp;b&lt;c&gt;&quot;d&#39;");
   });
 });

@@ -14,7 +14,7 @@ import { linkChart } from "./chartSync";
 import { plotSizeClass } from "./legendFit";
 import { ZoomLayer } from "./ZoomLayer";
 import type { ChartRow } from "./chartData";
-import { leftTop, thresholdBands, type PanelLine, type TimeSpan } from "./panelData";
+import { leftTop, thresholdBands, tooltipHtml, type PanelLine, type TimeSpan } from "./panelData";
 
 echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, VisualMapPiecewiseComponent, CanvasRenderer]);
 
@@ -146,13 +146,11 @@ export default function PanelChart({ lines, kind, stack, smooth, left, right, th
           textStyle: { color: css("--text") },
           formatter: (params: { axisValue: number; marker: string; seriesName: string; seriesIndex: number; value: [number, number | null] }[]) => {
             const head = timeFmt.format(new Date(params[0].axisValue));
-            const rows = params
-              .map((p) => {
-                const fmt = lines[p.seriesIndex]?.axis === "right" && right ? right.format : left.format;
-                return `${p.marker} ${p.seriesName}: <b>${p.value[1] == null ? "–" : fmt(p.value[1])}</b>`;
-              })
-              .join("<br/>");
-            return `<div style="font-size:12px;color:${text}">${head}</div>${rows}`;
+            const rows = params.map((p) => {
+              const fmt = lines[p.seriesIndex]?.axis === "right" && right ? right.format : left.format;
+              return { marker: p.marker, name: p.seriesName, value: p.value[1] == null ? "–" : fmt(p.value[1]) };
+            });
+            return tooltipHtml(head, text, rows);
           },
         },
         xAxis: {

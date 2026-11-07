@@ -46,7 +46,7 @@ async def status(request: Request, response: Response):
         setup_required=setup_required,
         authenticated=user is not None,
         user=UserOut.model_validate(user) if user else None,
-        version=__version__,
+        version=__version__ if user is not None else None,  # numer wersji tylko po zalogowaniu (od 0.65.6)
     )
 
 

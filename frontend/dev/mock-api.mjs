@@ -88,9 +88,9 @@ createServer(async (req, res) => {
   const route = `${req.method} ${url.pathname}`;
   const body = ["POST", "PATCH", "PUT"].includes(req.method) ? await readBody(req) : {};
 
-  if (route === "GET /api/health") return send(res, 200, { status: "ok", version: VERSION, timescaledb: true });
+  if (route === "GET /api/health") return send(res, 200, { status: "ok", timescaledb: true });
   if (route === "GET /api/auth/status") {
-    return send(res, 200, { setup_required: !user, authenticated: !!user && authed(req), user: user && authed(req) ? publicUser() : null, version: VERSION });
+    return send(res, 200, { setup_required: !user, authenticated: !!user && authed(req), user: user && authed(req) ? publicUser() : null, version: user && authed(req) ? VERSION : null });
   }
   if (route === "POST /api/auth/setup") {
     if (user) return send(res, 409, { detail: "Konto administratora już istnieje – zaloguj się" });

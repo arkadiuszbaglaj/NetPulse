@@ -73,7 +73,7 @@ export function Shell() {
         ].join(" ")}
       >
         <Sidebar
-          version={status?.version}
+          version={status?.version ?? undefined}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((v) => !v)}
           onNavigate={() => setDrawer(false)}

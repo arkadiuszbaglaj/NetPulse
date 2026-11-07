@@ -91,7 +91,7 @@ export interface AuthStatus {
   setup_required: boolean;
   authenticated: boolean;
   user: User | null;
-  version: string;
+  version: string | null; // tylko dla zalogowanych (od 0.65.6)
 }
 
 export interface Device {

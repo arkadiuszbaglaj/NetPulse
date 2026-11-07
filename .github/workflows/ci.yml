@@ -141,9 +141,13 @@ jobs:
           done
           MANIFEST=$(curl -fsS $API/manifest.webmanifest)
           grep -q '"NetPulse"' <<<"$MANIFEST"
-          # dokumentacja API nadal działa
-          OPENAPI=$(curl -fsS $API/openapi.json)
-          grep -q '/api/auth/setup' <<<"$OPENAPI"
+          # nagłówki bezpieczeństwa; dokumentacja API i numer wersji tylko po zalogowaniu (od 0.65.6)
+          curl -fsS -D headers.txt -o /dev/null $API/
+          grep -qi '^x-frame-options: SAMEORIGIN' headers.txt
+          grep -qi "^content-security-policy: frame-ancestors 'self'" headers.txt
+          test "$(curl -s -o /dev/null -w '%{http_code}' $API/openapi.json)" = 401
+          HEALTH=$(curl -fsS $API/api/health)
+          if grep -q '"version"' <<<"$HEALTH"; then echo "health zdradza wersję"; exit 1; fi
       - name: Kreator konta i logowanie
         run: |
           API=http://127.0.0.1:8000
@@ -158,6 +162,9 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -b cookies.txt $API/api/devices)" = 401
           curl -fsS -c cookies.txt -H 'Content-Type: application/json' \
             -d '{"username":"admin","password":"nowe-haslo-ci-1"}' $API/api/auth/login | tee -a auth.log; echo
+          # po zalogowaniu dokumentacja API działa
+          OPENAPI=$(curl -fsS -b cookies.txt $API/openapi.json)
+          grep -q '/api/auth/setup' <<<"$OPENAPI"
       - name: HTTPS przez proxy (lokalne CA)
         run: |
           dc() { sudo docker compose -f /opt/netpulse/deploy/docker-compose.yml --env-file /opt/netpulse/deploy/.env "$@"; }

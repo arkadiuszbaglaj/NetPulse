@@ -158,3 +158,14 @@ export function backupSpans(history: { links: { id: number; position: number }[]
   }
   return out;
 }
+
+/** Tekst do HTML-a dymka ECharts: nazwy serii pochodzą m.in. z nazw kontenerów, maszyn i etykiet użytkownika (od 0.65.6). */
+export function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
+}
+
+/** HTML dymka wykresu: nagłówek z czasem i wiersz na serię. `marker` to gotowy znacznik koloru z ECharts. */
+export function tooltipHtml(head: string, color: string, rows: { marker: string; name: string; value: string }[]): string {
+  const body = rows.map((r) => `${r.marker} ${escapeHtml(r.name)}: <b>${escapeHtml(r.value)}</b>`).join("<br/>");
+  return `<div style="font-size:12px;color:${color}">${escapeHtml(head)}</div>${body}`;
+}

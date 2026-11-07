@@ -45,6 +45,18 @@ udawało, a panel wracał do ekranu logowania. Serwer czyta obie nazwy (najpierw
 0.65.5 i aplikacja Android 0.2.0 dalej działają; od 0.2.1 aplikacja przyjmuje obie. Kod: `api/security.py`
 (`cookie_name`, `session_token`), test: `tests/test_session_cookie.py`.
 
+## Nagłówki bezpieczeństwa i dokumentacja API (0.65.6)
+
+Każda odpowiedź API i panelu ma `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`,
+`Referrer-Policy: same-origin` i `Content-Security-Policy: frame-ancestors 'self'; base-uri 'self'; object-src 'none';
+form-action 'self'` – panelu nie da się osadzić w obcej stronie i podsunąć kliknięć (clickjacking). Odpowiedź może
+ustawić własną wartość (pulpit publiczny: `Referrer-Policy: no-referrer`). Kod: `SECURITY_HEADERS` w `api/__init__.py`.
+
+Dokumentacja API (`/docs`, `/openapi.json`) i numer wersji (`/api/auth/status`) są tylko dla zalogowanych;
+`/api/health` (healthcheck Dockera, instalator) odpowiada bez wersji. Dymek wykresu zamienia nazwy serii (nazwy
+kontenerów, maszyn, etykiety) na tekst – wcześniej nazwa z HTML-em mogła uruchomić skrypt w panelu
+(`tooltipHtml` w `components/charts/panelData.ts`).
+
 ## Kod
 
 `deploy/proxy/` (Dockerfile, `nginx.conf`, `proxy-common.conf`, `tls.sh`), `backend/netpulse/tls.py`,

@@ -301,4 +301,4 @@ class AuthStatus(BaseModel):
     setup_required: bool
     authenticated: bool
     user: UserOut | None
-    version: str
+    version: str | None  # tylko dla zalogowanych

@@ -3,7 +3,7 @@
 Wszystko poza /api/health i /api/auth/{status,setup,login} wymaga zalogowania
 (ciasteczko sesji). Wyjątki: agenci serwerów (/api/agent/v1/report) logują się tokenem, a pulpity publiczne
 (/api/public/dashboards/<token>) mają własne API tylko do odczytu z białą listą danych (public.py). Pierwsze konto administratora zakłada kreator: POST /api/auth/setup.
-Dokumentacja interaktywna: http://<serwer>:8000/docs
+Dokumentacja interaktywna (od 0.65.6 tylko po zalogowaniu): http://<serwer>:8000/docs
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.openapi.docs import get_swagger_ui_html
 from sqlalchemy import text
 
 from .. import __version__, audit
@@ -51,7 +52,7 @@ from . import (
 from . import (
     tls as tls_api,
 )
-from .security import check_origin, client_ip, route_template
+from .security import CurrentUser, check_origin, client_ip, route_template
 from .web import mount_web
 
 
@@ -65,7 +66,33 @@ async def lifespan(_: FastAPI):
         task.cancel()
 
 
-app = FastAPI(title="NetPulse API", version=__version__, dependencies=[Depends(check_origin)], lifespan=lifespan)
+# Dokumentacja i schemat API tylko dla zalogowanych (od 0.65.6) – trasy niżej, standardowe są wyłączone
+app = FastAPI(
+    title="NetPulse API",
+    version=__version__,
+    dependencies=[Depends(check_origin)],
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+
+# Nagłówki bezpieczeństwa każdej odpowiedzi HTTP (od 0.65.6). Bez osadzania panelu w obcych stronach (clickjacking),
+# bez zgadywania typu treści; odpowiedź może ustawić własną wartość (np. pulpit publiczny: Referrer-Policy no-referrer).
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "same-origin",
+    "Content-Security-Policy": "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 
 @app.middleware("http")
@@ -118,10 +145,21 @@ app.include_router(wan.router)
 
 @app.get("/api/health", tags=["system"])
 async def health() -> dict:
+    """Publiczne (healthcheck Dockera, instalator) – bez numeru wersji (od 0.65.6; wersję podaje /api/auth/status po zalogowaniu)."""
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
         timescale = await has_timescale(conn)
-    return {"status": "ok", "version": __version__, "timescaledb": timescale}
+    return {"status": "ok", "timescaledb": timescale}
+
+
+@app.get("/openapi.json", include_in_schema=False)
+async def openapi_schema(_: CurrentUser) -> dict:
+    return app.openapi()
+
+
+@app.get("/docs", include_in_schema=False)
+async def api_docs(_: CurrentUser):
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="NetPulse API")
 
 
 # Panel (frontend/dist) – na końcu, żeby nie przesłaniał tras API. W obrazie Dockera NETPULSE_WEB_DIR=/app/web
