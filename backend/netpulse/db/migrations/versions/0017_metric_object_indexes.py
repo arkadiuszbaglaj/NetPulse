@@ -2,7 +2,8 @@
 
 Klucz główny tych hypertables zaczyna się od czasu, więc zapytanie o jeden port (urządzenie, sieć WiFi …) w oknie
 czytało wiersze wszystkich obiektów z tego okna. Pozostałe tabele metryk (`metrics`, `wan_link_metrics`,
-`check_metrics`, `client_metrics`) mają taki indeks od początku.
+`check_metrics`, `client_metrics`) mają taki indeks od początku. `IF NOT EXISTS`: baza założona z modeli (np. stara instalacja sprzed migracji,
+którą przejmuje 0001) może już mieć te indeksy.
 
 Revision ID: 0017
 Revises: 0016
@@ -30,9 +31,9 @@ INDEXES = (
 
 def upgrade() -> None:
     for name, table, columns in INDEXES:
-        op.create_index(name, table, columns, unique=False)
+        op.create_index(name, table, columns, unique=False, if_not_exists=True)
 
 
 def downgrade() -> None:
     for name, table, _ in reversed(INDEXES):
-        op.drop_index(name, table_name=table)
+        op.drop_index(name, table_name=table, if_exists=True)
