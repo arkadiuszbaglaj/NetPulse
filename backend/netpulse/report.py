@@ -27,7 +27,7 @@ from sqlalchemy import select, text
 
 from . import __version__, maintenance, wan_links
 from .config import settings
-from .db import Session, engine, has_timescale
+from .db import Session, timescale_available
 from .db.models import Alert, Check, Device, Interface, WanLink, WanLinkMetric
 from .modules import hidden_drivers, read_modules
 from .wan import Sample, compute_sla
@@ -317,8 +317,7 @@ async def _alerts(session, start: datetime, end: datetime) -> tuple[list[AlertRo
 async def build(year: int, month: int, now: datetime | None = None) -> Report:
     now = now or datetime.now(UTC)
     start, end = month_range(year, month, now=now)
-    async with engine.connect() as conn:
-        timescale = await has_timescale(conn)
+    timescale = await timescale_available()
     raw_limit = now - timedelta(days=settings.retention_days)
     report = Report(
         year=year,

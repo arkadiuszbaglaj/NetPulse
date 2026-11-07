@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 
 from .. import aggregates
 from ..config import settings
-from ..db import Session, engine, has_timescale
+from ..db import Session, timescale_available
 from ..db.models import Device, Interface, InterfaceMetric, WifiNetwork
 from ..freshness import status_sql
 from ..modules import hidden_drivers, read_modules
@@ -169,8 +169,7 @@ _WIFI_1H_SQL = text(
 async def _aggregate(sql, sql_1h, minutes: int, columns: list[str], offset: int = 0) -> SeriesOut:
     stride = _bucket_seconds(minutes)
     since, until = window(minutes, offset)
-    async with engine.connect() as conn:
-        timescale = await has_timescale(conn)
+    timescale = await timescale_available()
     if aggregates.use_aggregate(minutes, timescale):
         sql = sql_1h
     async with Session() as session:

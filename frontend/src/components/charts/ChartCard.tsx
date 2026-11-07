@@ -10,7 +10,7 @@ import { t } from "../../i18n";
 import type { Series } from "../../lib/api";
 import { download, fileName } from "../../lib/download";
 import { formatRange } from "../../lib/format";
-import { autoColor, DEFAULT_LEGEND, type ColorIndex } from "../../lib/layout";
+import { autoColor, DEFAULT_LEGEND, NO_THRESHOLDS, type ColorIndex } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 import { GridCellContext } from "../DashboardGrid";
 import { Card } from "../ui";
@@ -156,7 +156,7 @@ export function ChartCard({
                 smooth={smooth}
                 left={left}
                 right={null}
-                thresholds={[]}
+                thresholds={NO_THRESHOLDS}
                 thresholdStyle="off"
                 height={fill ? "100%" : height}
                 ariaLabel={t("chart.summary", { title, range: formatRange(range) })}

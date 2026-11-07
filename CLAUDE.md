@@ -70,7 +70,8 @@ zapisuje do TimescaleDB.
 Schemat bazy zmieniają **migracje Alembic** (od 0.10.0; `backend/netpulse/db/migrations/`, opis:
 `docs/13-migracje-bazy.md`). `init_db` (kolektor przy starcie, `netpulse db init`) wykonuje `upgrade head` pod blokadą
 w jednej transakcji, potem zakłada hypertables. Każda zmiana w `models.py` = nowa migracja (`--rev-id 0002`, …);
-brak migracji wyłapie `test_migrations.py::test_fresh_db_matches_models`. Migracja bazowa `0001` = schemat 0.9.0
+brak migracji wyłapie `test_migrations.py::test_fresh_db_matches_models`. Nowa hypertable = indeks (obiekt, `time`) – klucz główny zaczyna się od czasu (0017, 0.65.4).
+Czy jest TimescaleDB, API sprawdza przez `timescale_available()` (zapamiętane w procesie), nie `has_timescale(conn)` przy każdym żądaniu. Migracja bazowa `0001` = schemat 0.9.0
 i przejmuje bazy sprzed migracji bez utraty danych.
 
 ## Wyniki analizy SNMP (szczegóły: `docs/02-wyniki-snmp.md`)

@@ -18,7 +18,7 @@ from sqlalchemy import Integer, cast, delete, func, select, text
 from sqlalchemy.dialects.postgresql import distinct_on
 
 from ..checks import run_check, valid_expect
-from ..db import Session, engine, has_timescale
+from ..db import Session, timescale_available
 from ..db.models import Check, CheckMetric
 from ..dnsquery import TYPES as DNS_TYPES
 from .metrics import MinutesQuery, OffsetQuery, _bucket_seconds, window
@@ -238,8 +238,7 @@ async def test_check(body: CheckIn, _: AdminUser):
 
 async def check_series(check_id: int, minutes: int, offset: int = 0) -> list[Point]:
     since, until = window(minutes, offset)
-    async with engine.connect() as conn:
-        timescale = await has_timescale(conn)
+    timescale = await timescale_available()
     async with Session() as session:
         if await session.get(Check, check_id) is None:
             raise HTTPException(404, "Nie ma takiego sprawdzenia")

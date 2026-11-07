@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import column, func, select, table, text
 
 from .. import aggregates
-from ..db import Session, engine, has_timescale
+from ..db import Session, timescale_available
 from ..db.models import (
     NON_SNMP_DRIVERS,
     Device,
@@ -72,8 +72,7 @@ async def _series(
 ) -> list[Point]:
     """Szereg czasowy; `id_col=None` dla tabel bez klucza obiektu (np. stan serwera)."""
     since, until = window(minutes, offset)
-    async with engine.connect() as conn:
-        timescale = await has_timescale(conn)
+    timescale = await timescale_available()
     agg = aggregates.BY_SOURCE.get(model.__tablename__)
     if agg is not None and obj_id is not None and aggregates.use_aggregate(minutes, timescale):
         return await _aggregate_series(agg, obj_id, columns, minutes, offset)
@@ -239,8 +238,7 @@ async def agent_metrics(device_id: int, source: AgentSourceKind, key: str = "", 
     """Szereg z ogólnej tabeli `metrics` dla wykresu. `agent_cpu`: najbardziej i średnio obciążony rdzeń."""
     await _exists(Device, device_id, "urządzenie")
     since, until = window(minutes, offset)
-    async with engine.connect() as conn:
-        timescale = await has_timescale(conn)
+    timescale = await timescale_available()
     bucket = _bucket(minutes, timescale).label("bucket")
     async with Session() as session:
         devices = await _same_server_devices(session, device_id) if source == "pve_guest" else [device_id]

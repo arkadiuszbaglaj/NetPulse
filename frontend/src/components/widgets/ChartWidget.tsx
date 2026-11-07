@@ -4,7 +4,7 @@ import { lazy, Suspense, useContext, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { ApiError, type Series } from "../../lib/api";
 import { formatRange, metricFormatter } from "../../lib/format";
-import { DEFAULT_LEGEND, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
+import { DEFAULT_LEGEND, NO_THRESHOLDS, axisClass, upgradeChartConfig, type ChartConfig, type LegacyChartConfig } from "../../lib/layout";
 import { ChartLegend, type LegendItem } from "../charts/ChartLegend";
 import { fitLegend, rightLegendWidth, useBoxSize } from "../charts/legendFit";
 import { backupSpans, buildLines, lineStats, linesToCsv } from "../charts/panelData";
@@ -177,7 +177,7 @@ export function ChartWidget({ config: raw, className = "" }: { config: ChartConf
                 smooth={config.smooth}
                 left={left}
                 right={right}
-                thresholds={config.thresholds ?? []}
+                thresholds={config.thresholds ?? NO_THRESHOLDS}
                 thresholdStyle={config.threshold_style ?? "line"}
                 height={fill ? "100%" : HEIGHT[config.height]}
                 ariaLabel={t("chart.summary", { title, range: formatRange(result.minutes) })}

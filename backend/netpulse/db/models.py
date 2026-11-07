@@ -252,6 +252,8 @@ class AppSetting(Base):
 
 class InterfaceMetric(Base):
     __tablename__ = "interface_metrics"
+    # Wykres i ostatni odczyt jednego obiektu (od 0.65.4; klucz główny zaczyna się od czasu)
+    __table_args__ = (Index("ix_interface_metrics_interface_time", "interface_id", "time"),)
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     interface_id: Mapped[int] = mapped_column(
@@ -268,6 +270,8 @@ class InterfaceMetric(Base):
 
 class DeviceMetric(Base):
     __tablename__ = "device_metrics"
+    # Wykres i ostatni odczyt jednego obiektu (od 0.65.4; klucz główny zaczyna się od czasu)
+    __table_args__ = (Index("ix_device_metrics_device_time", "device_id", "time"),)
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     device_id: Mapped[int] = mapped_column(
@@ -283,6 +287,8 @@ class DeviceMetric(Base):
 
 class WifiMetric(Base):
     __tablename__ = "wifi_metrics"
+    # Wykres i ostatni odczyt jednego obiektu (od 0.65.4; klucz główny zaczyna się od czasu)
+    __table_args__ = (Index("ix_wifi_metrics_wifi_time", "wifi_id", "time"),)
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     wifi_id: Mapped[int] = mapped_column(
@@ -478,6 +484,8 @@ class DiskMetric(Base):
     """Zajętość partycji serwera (jedna próbka na punkt montowania i cykl)."""
 
     __tablename__ = "disk_metrics"
+    # Wykres i ostatni odczyt jednego obiektu (od 0.65.4; klucz główny zaczyna się od czasu)
+    __table_args__ = (Index("ix_disk_metrics_device_time", "device_id", "time"),)
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
@@ -490,6 +498,8 @@ class ServerMetric(Base):
     """Dodatkowe metryki serwera Linux, których nie ma w `device_metrics` (swap, liczba procesów)."""
 
     __tablename__ = "server_metrics"
+    # Wykres i ostatni odczyt jednego obiektu (od 0.65.4; klucz główny zaczyna się od czasu)
+    __table_args__ = (Index("ix_server_metrics_device_time", "device_id", "time"),)
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)
@@ -501,6 +511,8 @@ class PoePortMetric(Base):
     """PoE na porcie switcha (moc w W). Tylko porty z PoE; port_idx jak w kontrolerze (1, 2, …)."""
 
     __tablename__ = "poe_port_metrics"
+    # Wykres i ostatni odczyt jednego obiektu (od 0.65.4; klucz główny zaczyna się od czasu)
+    __table_args__ = (Index("ix_poe_port_metrics_device_port_time", "device_id", "port_idx", "time"),)
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True)

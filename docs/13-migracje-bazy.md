@@ -55,3 +55,13 @@ tabela metryk to: model, migracja i dopisanie nazwy do `HYPERTABLES`.
 
 Cofanie migracji (`downgrade`) nie jest używane przy aktualizacjach. Do cofnięcia wersji służy kopia bazy
 sprzed aktualizacji (Ustawienia → Kopia zapasowa → Przywróć).
+
+## Indeksy tabel metryk (0017, wersja 0.65.4)
+
+Klucz główny hypertables zaczyna się od czasu (`time`, obiekt), więc zapytanie o jeden port, urządzenie czy sieć WiFi
+w oknie czasu czytało wiersze wszystkich obiektów z tego okna. Migracja `0017` dokłada indeksy (obiekt, `time`) na
+`interface_metrics`, `device_metrics`, `wifi_metrics`, `disk_metrics`, `server_metrics` i `poe_port_metrics`
+(pozostałe tabele metryk miały je od początku). Przy pierwszym starcie po aktualizacji zakładanie indeksów na
+30 dniach danych może potrwać chwilę – kolektor zaczyna odpytywać dopiero po nim.
+
+**Nowa tabela metryk (hypertable) = od razu indeks (obiekt, `time`)** w `__table_args__` modelu i w migracji.

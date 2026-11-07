@@ -15,7 +15,7 @@ from sqlalchemy import select, text
 
 from .. import maintenance
 from ..config import settings
-from ..db import Session, engine, has_timescale
+from ..db import Session, timescale_available
 from ..db.models import Device, Interface
 from .security import require_user
 
@@ -102,8 +102,7 @@ async def _excluded(session, kind: str, spans: dict[int, list[tuple[datetime, da
 
 
 async def _timescale() -> bool:
-    async with engine.connect() as conn:
-        return await has_timescale(conn)
+    return await timescale_available()
 
 
 async def availability(kind: str, obj_id: int, days: int) -> AvailabilityOut:

@@ -117,6 +117,9 @@ export interface Threshold {
   color: ColorIndex;
 }
 
+/** Brak progów jako jedna stała tablica: nowa `[]` przy każdym renderze przerysowywała cały wykres (0.65.4). */
+export const NO_THRESHOLDS: Threshold[] = [];
+
 export interface LegendConfig {
   mode: LegendMode;
   placement: "bottom" | "right";

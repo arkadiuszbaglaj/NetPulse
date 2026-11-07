@@ -1,5 +1,6 @@
 /** Skąd bierze dane wykres: ścieżki API dla każdego rodzaju źródła i normalizacja odpowiedzi. */
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, type UseQueryResult } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { t } from "../../i18n";
 import { get, type Series, type SeriesPoint } from "../../lib/api";
 import type { ChartConfig, ChartQuery, Source } from "../../lib/layout";
@@ -103,7 +104,21 @@ export function useChartQueries(config: ChartConfig) {
   const back = zoom?.offset ?? 0;
   const own = config.refresh_s;
   const refetchInterval = zoom ? false : own == null ? global.refetchInterval : own > 0 ? own * 1000 : false;
-  const results = useQueries({
+  // `combine`: wynik (z `queries`) zostaje tym samym obiektem, dopóki dane się nie zmienią – bez tego każdy render
+  // widgetu (np. odczyt „Na żywo” w nagłówku co ~1,5 s) przerysowywał cały wykres (od 0.65.4)
+  const combine = useCallback(
+    (results: UseQueryResult<Series>[]) => ({
+      queries: config.queries.map(
+        (query, i): QueryResult => ({ query, data: results[i]?.data, isError: results[i]?.isError ?? false, error: results[i]?.error }),
+      ),
+      isLoading: results.some((r) => r.isLoading),
+      // Błąd wykresu tylko wtedy, gdy żadne zapytanie nie dało danych (jedno brakujące źródło nie gasi reszty)
+      isError: results.length > 0 && results.every((r) => r.isError && !r.data),
+      error: results.find((r) => r.error)?.error,
+    }),
+    [config.queries],
+  );
+  const combined = useQueries({
     queries: config.queries.map((q) => ({
       queryKey: back ? ["chart", q.source, minutes, q.offset_min ?? 0, back] : ["chart", q.source, minutes, q.offset_min ?? 0],
       queryFn: () => fetchSeries(q.source, minutes, q.offset_min ?? 0, back),
@@ -111,19 +126,7 @@ export function useChartQueries(config: ChartConfig) {
       placeholderData: (previous: Series | undefined) => previous, // przy zmianie zakresu stary wykres zostaje do czasu nowych danych
       retry: false,
     })),
+    combine,
   });
-  const queries: QueryResult[] = config.queries.map((query, i) => ({
-    query,
-    data: results[i]?.data,
-    isError: results[i]?.isError ?? false,
-    error: results[i]?.error,
-  }));
-  return {
-    queries,
-    minutes,
-    isLoading: results.some((r) => r.isLoading),
-    // Błąd wykresu tylko wtedy, gdy żadne zapytanie nie dało danych (jedno brakujące źródło nie gasi reszty)
-    isError: results.length > 0 && results.every((r) => r.isError && !r.data),
-    error: results.find((r) => r.error)?.error,
-  };
+  return { ...combined, minutes };
 }

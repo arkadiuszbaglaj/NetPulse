@@ -44,6 +44,19 @@ async def has_timescale(conn) -> bool:
     return res.scalar() is not None
 
 
+_timescale_seen = False
+
+
+async def timescale_available() -> bool:
+    """`has_timescale` bez pytania bazy przy każdym żądaniu API (od 0.65.4). Zapamiętuje tylko „jest” – API może
+    wystartować przed `init_db` kolektora, który zakłada rozszerzenie, a raz założonego nikt nie usuwa."""
+    global _timescale_seen
+    if not _timescale_seen:
+        async with engine.connect() as conn:
+            _timescale_seen = await has_timescale(conn)
+    return _timescale_seen
+
+
 async def encrypt_existing(conn) -> int:
     """Szyfruje sekrety zapisane jawnym tekstem (sprzed 0.15 albo sprzed ustawienia klucza). Zwraca liczbę wartości."""
     if not crypto.enabled():
@@ -120,4 +133,4 @@ async def init_db(retention_days: int | None = None) -> bool:
     return timescale
 
 
-__all__ = ["SchemaMismatchError", "Session", "encrypt_existing", "engine", "has_timescale", "init_db", "missing_columns"]
+__all__ = ["SchemaMismatchError", "Session", "encrypt_existing", "engine", "has_timescale", "init_db", "timescale_available", "missing_columns"]
