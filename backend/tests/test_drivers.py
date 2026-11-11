@@ -48,6 +48,20 @@ def test_ucg_ultra_gateway():
     assert r.health.load1 is not None
 
 
+def test_ucg_ultra_unifi_os_6():
+    """UniFi OS 6.0.17 (prawdziwy zrzut 11.11.2026): inne numery ifIndex, te same role po nazwach, WireGuard stale."""
+    r = poll("ucg-ultra-6")
+    assert (r.system.model, r.system.firmware, r.system.kind) == ("UCG-Ultra", "6.0.17", "gateway")
+    ifs = by_name(r)
+    assert (ifs["eth4"].if_index, ifs["eth4"].role, ifs["eth4"].label) == (7, "wan", "WAN")
+    assert [ifs[f"eth{n}"].label for n in range(4)] == ["LAN 1", "LAN 2", "LAN 3", "LAN 4"]
+    assert ifs["eth3"].if_index == 12
+    assert not {"bond0", "ifb0", "ifb1"} & set(ifs)
+    assert {i.name for i in r.visible_interfaces()} == {"eth0", "eth1", "eth2", "eth3", "eth4", "wgsrv1", "wgsrv2"}
+    assert (ifs["wgsrv1"].role, ifs["wgsrv1"].label) == ("vpn", "WG-Server-1")
+    assert r.health.mem_total_kb and r.health.load1 is not None
+
+
 def test_unifi_gateway_vpn_interface_has_vpn_role():
     """WireGuard bramy (`wgsrv1`, alias = nazwa sieci VPN w UniFi) jest widoczny z rolą „vpn” (od 0.57.0)."""
     from netpulse.drivers.base import InterfaceSample

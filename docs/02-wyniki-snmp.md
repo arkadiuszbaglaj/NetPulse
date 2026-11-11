@@ -8,7 +8,8 @@ Wszystkie trzy urządzenia odpowiadają na SNMP v2c (community `public`).
 - **Aktualizacja do UniFi OS 6.0.17 (11.11.2026) przesunęła `ifIndex`**: zniknęły `bond0`, `ifb0`, `ifb1`,
   `eth4` (WAN) 8 → 7, `eth0`–`eth3` 12–15 → 9–12, `wgsrv1`/`wgsrv2` stale pod 15/16 (alias = nazwa VPN w UniFi).
   Od 0.65.7 kolektor dopasowuje porty po nazwie (`netpulse/ifindex.py`), więc historia i łącza WAN idą za portem.
-  Tabela niżej to numeracja z 5.1.33 (fixture `ucg-ultra.snmprec`). USW Lite 8 PoE i U6+ bez zmian.
+  Tabela niżej to numeracja z 5.1.33 (fixture `ucg-ultra.snmprec`); zrzut z 6.0.17 to `ucg-ultra-6.snmprec`
+  (0.65.8, zanonimizowany, aliasy WireGuard zamienione na `WG-Server-1/2`). USW Lite 8 PoE i U6+ bez zmian.
 - Porty fizyczne (IF-MIB, liczniki 64-bit `ifHCIn/OutOctets` działają):
 
 | ifIndex | ifName | Rola (do potwierdzenia) | Status |

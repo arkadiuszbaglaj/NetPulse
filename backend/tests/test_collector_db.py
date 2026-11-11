@@ -180,26 +180,6 @@ def _check_api(client):
     assert len(wifi) == 3
 
 
-# UniFi OS 5.1 → 6.0 na UCG Ultra: zniknęły bond0 (7), ifb0 (10), ifb1 (11), reszta przesunęła się w dół
-UCG_6_RENUMBER = {8: 7, 9: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14}
-IF_TABLES = ("1.3.6.1.2.1.2.2.1.", "1.3.6.1.2.1.31.1.1.1.")  # ifTable, ifXTable
-
-
-def _renumbered(data: dict) -> dict:
-    out = {}
-    for oid, value in data.items():
-        table = next((t for t in IF_TABLES if oid.startswith(t)), None)
-        if table is None:
-            out[oid] = value
-            continue
-        column, idx = oid[len(table) :].split(".", 1)
-        if int(idx) in UCG_6_RENUMBER:
-            out[f"{table}{column}.{UCG_6_RENUMBER[int(idx)]}"] = value
-        elif int(idx) not in (7, 10, 11):
-            out[oid] = value
-    return out
-
-
 def test_ifindex_renumbering_keeps_port_rows():
     """Po przesunięciu numerów ifIndex wiersz portu (historia, łącza WAN) idzie za nazwą."""
     from netpulse.db.models import WanLink
@@ -234,7 +214,8 @@ def test_ifindex_renumbering_keeps_port_rows():
             # WAN 1 założony sam (eth4), WAN 2 = eth3 (jak GSM użytkownika)
             s.add(WanLink(device_id=dev.id, interface_id=ids["eth3"], position=2, name="GSM", state="unknown"))
 
-        after = SnmprecClient(_renumbered(dict(before._data)))
+        # Prawdziwy zrzut po aktualizacji do UniFi OS 6.0.17: bez bond0/ifb0/ifb1, eth4 8 → 7, eth3 15 → 12
+        after = SnmprecClient.from_file(FIXTURES / "ucg-ultra-6.snmprec")
         clients["now"] = after
         cut = datetime.now(UTC)
         await collector.poll_all()
@@ -249,6 +230,7 @@ def test_ifindex_renumbering_keeps_port_rows():
             assert rows[ids["bond0"]].if_index == -ids["bond0"] and rows[ids["bond0"]].oper_status == "notPresent"
             links = {link.name: link.interface_id for link in (await s.scalars(select(WanLink))).all()}
             assert links == {"WAN 1": ids["eth4"], "GSM": ids["eth3"]}
+            assert rows[ids["eth4"]].label == "WAN" and rows[ids["eth3"]].label == "GSM"
             # Liczniki pod numerem 7 należały wcześniej do bond0 – bez fałszywego ruchu (fixture stoi, więc ruch = 0)
             rates = (
                 await s.scalars(
