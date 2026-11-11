@@ -13,7 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DBAPIError
 
-from . import wan_links
+from . import ifindex, wan_links
 from .config import settings
 from .db import Session
 from .db.models import (
@@ -82,6 +82,9 @@ class Collector:
         self.client_factory = client_factory
         self._clients: dict[int, tuple[DeviceTarget, SnmpClient]] = {}
         self._last_uptime: dict[int, float] = {}
+        # Nazwa portu pod każdym ifIndex: inna nazwa = przesunięte numery (np. po aktualizacji firmware),
+        # liczniki pod tym numerem należą do innego portu – zaczynamy od nowa
+        self._if_names: dict[tuple[int, int], str] = {}
 
     # --- pętla główna -----------------------------------------------------------
 
@@ -224,6 +227,11 @@ class Collector:
             self._oper[key] = NOT_PRESENT
         for i in result.interfaces:
             key = (dev_id, "if", i.if_index)
+            prev_name = self._if_names.get((dev_id, i.if_index))
+            self._if_names[(dev_id, i.if_index)] = i.name
+            if prev_name is not None and prev_name != i.name:
+                self.tracker.forget(lambda k, key=key: k[:3] == key)
+                self._oper.pop(key, None)
             factor = rate_factor(i.if_type)
             values = {
                 "in_bps": self.tracker.bps(key + ("in",), ts, i.in_octets, i.counter_bits, i.speed_mbps, factor),
@@ -291,6 +299,10 @@ class Collector:
             )
 
             if result.interfaces:
+                # Przesunięte numery ifIndex: wiersz portu (historia, łącza WAN, widgety) idzie za nazwą
+                moved = await ifindex.follow_names(session, dev_id, {i.if_index: i.name for i in result.interfaces})
+                if moved:
+                    log.info("%s: zmiana numeracji interfejsów – przeniesione %d, odstawione %d", target.name, len(moved.moves), len(moved.parked))
                 # Port ustawiony jako łącze WAN (np. LAN 4 jako WAN 2) liczy się jak WAN: ruch WAN, „Na żywo”, alerty
                 wan_ports = await wan_links.configured(session, dev_id)
                 rows = [

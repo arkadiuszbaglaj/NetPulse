@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import UTC, datetime
 
 import pytest
 from conftest import FIXTURES
@@ -177,3 +178,76 @@ def _check_api(client):
     ap = next(d for d in devices if d["kind"] == "ap")
     wifi = client.get(f"/api/devices/{ap['id']}/wifi").json()
     assert len(wifi) == 3
+
+
+# UniFi OS 5.1 → 6.0 na UCG Ultra: zniknęły bond0 (7), ifb0 (10), ifb1 (11), reszta przesunęła się w dół
+UCG_6_RENUMBER = {8: 7, 9: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14}
+IF_TABLES = ("1.3.6.1.2.1.2.2.1.", "1.3.6.1.2.1.31.1.1.1.")  # ifTable, ifXTable
+
+
+def _renumbered(data: dict) -> dict:
+    out = {}
+    for oid, value in data.items():
+        table = next((t for t in IF_TABLES if oid.startswith(t)), None)
+        if table is None:
+            out[oid] = value
+            continue
+        column, idx = oid[len(table) :].split(".", 1)
+        if int(idx) in UCG_6_RENUMBER:
+            out[f"{table}{column}.{UCG_6_RENUMBER[int(idx)]}"] = value
+        elif int(idx) not in (7, 10, 11):
+            out[oid] = value
+    return out
+
+
+def test_ifindex_renumbering_keeps_port_rows():
+    """Po przesunięciu numerów ifIndex wiersz portu (historia, łącza WAN) idzie za nazwą."""
+    from netpulse.db.models import WanLink
+
+    before = SnmprecClient.from_file(FIXTURES / "ucg-ultra.snmprec")
+    clients = {"before": before}
+
+    async def scenario():
+        await init_db()
+        async with Session() as s, s.begin():
+            await s.execute(delete(Device))
+            s.add(Device(name="ucg", host="10.0.0.1", community="public"))
+        collector = Collector(client_factory=lambda target: clients["now"])
+        clients["now"] = before
+        await collector.poll_all()
+        await collector.poll_all()
+        async with Session() as s, s.begin():
+            dev = await s.scalar(select(Device))
+            rows = {i.name: i for i in (await s.scalars(select(Interface).where(Interface.device_id == dev.id))).all()}
+            assert rows["eth4"].if_index == 8 and rows["eth3"].if_index == 15
+            ids = {name: rows[name].id for name in ("eth4", "eth3", "bond0", "switch0")}
+            # WAN 1 założony sam (eth4), WAN 2 = eth3 (jak GSM użytkownika)
+            s.add(WanLink(device_id=dev.id, interface_id=ids["eth3"], position=2, name="GSM", state="unknown"))
+
+        after = SnmprecClient(_renumbered(dict(before._data)))
+        clients["now"] = after
+        cut = datetime.now(UTC)
+        await collector.poll_all()
+        await collector.poll_all()
+
+        async with Session() as s:
+            rows = {i.id: i for i in (await s.scalars(select(Interface).where(Interface.device_id == dev.id))).all()}
+            assert (rows[ids["eth4"]].name, rows[ids["eth4"]].if_index, rows[ids["eth4"]].role) == ("eth4", 7, "wan")
+            assert (rows[ids["eth3"]].name, rows[ids["eth3"]].if_index, rows[ids["eth3"]].role) == ("eth3", 12, "wan")
+            assert (rows[ids["switch0"]].name, rows[ids["switch0"]].if_index) == ("switch0", 8)
+            # bond0 zniknął, a jego numer zajął eth4 – odstawiony, nieobecny
+            assert rows[ids["bond0"]].if_index == -ids["bond0"] and rows[ids["bond0"]].oper_status == "notPresent"
+            links = {link.name: link.interface_id for link in (await s.scalars(select(WanLink))).all()}
+            assert links == {"WAN 1": ids["eth4"], "GSM": ids["eth3"]}
+            # Liczniki pod numerem 7 należały wcześniej do bond0 – bez fałszywego ruchu (fixture stoi, więc ruch = 0)
+            rates = (
+                await s.scalars(
+                    select(InterfaceMetric.in_bps).where(InterfaceMetric.interface_id == ids["eth4"], InterfaceMetric.time >= cut)
+                )
+            ).all()
+            assert all(not v for v in rates), rates
+        async with Session() as s, s.begin():
+            await s.execute(delete(Device))
+        await engine.dispose()
+
+    asyncio.run(scenario())

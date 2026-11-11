@@ -107,7 +107,8 @@ class LiveHub:
             ports = (
                 await session.scalars(
                     select(Interface)
-                    .where(Interface.device_id.in_([d.id for d in devices] or [0]), Interface.hidden.is_(False))
+                    # if_index < 0 = port odstawiony po zmianie numeracji (netpulse/ifindex.py)
+                    .where(Interface.device_id.in_([d.id for d in devices] or [0]), Interface.hidden.is_(False), Interface.if_index > 0)
                     .order_by(Interface.if_index)
                 )
             ).all()
@@ -165,7 +166,7 @@ class LiveHub:
             }
         ports = []
         for p in target.ports:
-            key = (target.device.id, p.if_index)
+            key = (target.device.id, p.id, p.if_index)  # przeniesiony port = nowe liczniki
             oper = as_int(values.get(f"{O.IF_OPER_STATUS}.{p.if_index}"))
             ports.append(
                 {

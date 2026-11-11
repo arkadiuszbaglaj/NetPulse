@@ -65,7 +65,8 @@ po `sysObjectID` / `sysDescr`.
 Kolektor co 30 s: odpytuje urządzenia równolegle, liczy przepływ z różnic liczników
 (`ifHCInOctets`/`ifHCOutOctets`; obsługa przepełnienia Counter32 i resetu urządzenia; od 0.54.4 próbka z chwili,
 gdy łącze padło albo wróciło, albo z resetem w jednym kierunku – bez ruchu, porty Ethernet odrzucają > 1,1× prędkości: `rates.py`),
-zapisuje do TimescaleDB.
+zapisuje do TimescaleDB. Port idzie za nazwą (`ifName`), nie numerem: przesunięty `ifIndex` (UCG Ultra po UniFi OS 6.0)
+przenosi wiersz `interfaces` (`netpulse/ifindex.py`, od 0.65.7), port, którego numer zajął inny, dostaje `if_index = -id`.
 
 Schemat bazy zmieniają **migracje Alembic** (od 0.10.0; `backend/netpulse/db/migrations/`, opis:
 `docs/13-migracje-bazy.md`). `init_db` (kolektor przy starcie, `netpulse db init`) wykonuje `upgrade head` pod blokadą

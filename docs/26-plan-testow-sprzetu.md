@@ -87,7 +87,8 @@ Wynik: nowe fixtures z prawdziwych systemów + decyzje, czy potrzebne nowe drive
 - **R2**: ukrywanie interfejsów technicznych także w driverze ogólnym (po `ifType`: loopback, tunnel, l2vlan,
   propVirtual), z możliwością pokazania w panelu,
 - **R3**: podpowiedź w kreatorze `/setup` i na stronie routera „Wskaż port WAN”, gdy driver go nie zna,
-- **R4**: dopasowanie portów po `ifName` / `ifDescr`, gdy `ifIndex` się zmienił,
+- **R4** ✅ (0.65.7, po aktualizacji UCG Ultra do UniFi OS 6.0.17): dopasowanie portów po `ifName`, gdy `ifIndex`
+  się zmienił (`netpulse/ifindex.py`, test `test_ifindex.py` i `test_collector_db.py`),
 - **R5**: `GETBULK` z większym `max-repetitions`, timeout i liczba ponowień ustawiane per urządzenie,
 - **R8**: drivery NAS (Synology, QNAP, TrueNAS) albo profile z `docs/25-wlasne-oid-propozycja.md` (warstwa 3),
 - **R10**: oficjalnie wspierane systemy w `docs/04-instalacja-i-aktualizacja.md`, `install.sh` z jasnym
