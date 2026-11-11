@@ -176,6 +176,31 @@ def test_gateway_dual_wan_failover():
     assert parse_wans({"type": "udm", "wan2": {"ifname": "eth3", "enable": False, "up": False}}) == ()
 
 
+def test_real_ucg_ultra_dual_wan_from_controller():
+    """Prawdziwa brama z dwoma łączami (UCG Ultra, UniFi OS 6.0.17, 11.11.2026; zanonimizowany `stat/device`).
+
+    `wan1`/`wan2` mają `ifname`, `uplink` – tylko `name` (bez `ifname`); GSM w gotowości pingowany osobno."""
+    raw = json.loads((FIXTURES / "unifi_gateway_dual_wan.json").read_text(encoding="utf-8"))
+    (gateway,) = parse_devices(raw)
+    gsm, wan1 = gateway.wans
+    assert (wan1.ifname, wan1.up, wan1.active, wan1.slot) == ("eth4", True, True, 1)
+    assert (gsm.ifname, gsm.up, gsm.active, gsm.slot) == ("eth3", True, False, 2)
+    assert gsm.latency_ms and gsm.latency_ms > wan1.latency_ms  # internet mobilny wolniejszy
+    assert len(gsm.monitors) == len(wan1.monitors) == 4 and ("google.com", 11.0) in wan1.monitors
+    # Awaria WAN 1 tak, jak ją pokazał kontroler podczas testu (kabel wyjęty): uplink = eth3
+    down = json.loads(json.dumps(raw))
+    d = down["data"][0]
+    d["wan1"].update(up=False, is_uplink=False)
+    d["wan2"]["is_uplink"] = True
+    d["uplink"].update(name="eth3", port_idx=4)
+    for port in d["port_table"]:
+        port["is_uplink"] = port["ifname"] == "eth3"
+        if port["ifname"] == "eth4":
+            port["up"] = False
+    gsm, wan1 = parse_wans(d)
+    assert (gsm.active, wan1.active, wan1.up) == (True, False, False)
+
+
 def test_gateway_pings_each_wan_including_standby():
     """Brama pinguje internet każdym łączem, także zapasowym w gotowości (UCG Ultra, 4.11.2026: GSM ~75–99 ms)."""
     from datetime import UTC, datetime

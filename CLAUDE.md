@@ -141,7 +141,8 @@ bez kontrolera – link (`ifOperStatus`) i ruch. Logika: `backend/netpulse/wan.p
 API: `api/wan.py` (`/api/wan/status|history|sla|links`), widgety `wan_status`, `wan_chart`, `wan_sla`.
 Od 0.46.0 kolejność łączy jest wspólna dla wszystkich routerów (migracja 0011): WAN 1 główne, łącza innych routerów
 są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outranked_by)`). Od 0.47.0 podpowiedź w Łączach WAN: łącze WAN zgłoszone przez kontroler, którego nie ma na liście
-(`wan_links.save_detected`, `GET /api/wan/suggestions`). Od 0.55.0 pingi każdego łącza (też zapasowego) z bramy UniFi (`wan1.latency`, `uptime_stats.WAN*.monitors`) w `metrics` (`wan_latency_ms`, `wan_ping_ms`, źródła wykresu `wan_latency`/`wan_ping`) i opcja wykresu `wan_backup` – ruch przez łącze zapasowe innym kolorem (`backupSpans`, visualMap). Opis: `docs/19-dual-wan.md`. **Testowane na zrzutach i atrapie – czeka na prawdziwe drugie łącze.**
+(`wan_links.save_detected`, `GET /api/wan/suggestions`). Od 0.55.0 pingi każdego łącza (też zapasowego) z bramy UniFi (`wan1.latency`, `uptime_stats.WAN*.monitors`) w `metrics` (`wan_latency_ms`, `wan_ping_ms`, źródła wykresu `wan_latency`/`wan_ping`) i opcja wykresu `wan_backup` – ruch przez łącze zapasowe innym kolorem (`backupSpans`, visualMap). Opis: `docs/19-dual-wan.md`. **Sprawdzone 11.11.2026 na prawdziwym sprzęcie** (UCG Ultra, GSM na `eth3`: awaria WAN 1, praca na GSM, powrót;
+zrzut kontrolera `unifi_gateway_dual_wan.json`). Krótkie mignięcia łącza (< 30 s) instancje łapią zależnie od chwili odczytu.
 
 ## VPN (0.57.0)
 
@@ -320,8 +321,5 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
 - **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.2.24 (192.168.1.86, VM 100 + LXC 101, kopia LXC 101) działa;
   po 0.28.5 sprawdzić „ostatnia kopia” LXC 101 w panelu i alert „brak świeżej kopii” po 36 h bez nowej kopii.
-- **Dual WAN na prawdziwym sprzęcie** – po podłączeniu drugiego łącza: ustawić WAN 2 w panelu, wyciągnąć kabel WAN 1
-  i sprawdzić przełączenie w widgetach. Pobrać `unifi_probe.py` i sprawdzić, czy `stat/device` bramy ma `wan1`/`wan2`/`uplink`
-  z `ifname` (parser zakłada port N = ethN-1, gdy go brak); zanonimizowany zrzut (`probe2fixtures.py`) podmienić w fixtures.
 - **Wersja 0.9.0 na serwerze** – użytkownik jeszcze nie potwierdził `netpulse update` i działania: karta serwera
   NetPulse, serwery Linux przez SNMP, reguły alertów dla dysku i błędów portów, powiadomienia webhookiem.

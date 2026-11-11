@@ -1,0 +1,265 @@
+{
+ "meta": {
+  "rc": "ok"
+ },
+ "data": [
+  {
+   "type": "udm",
+   "model": "UDRULT",
+   "name": "name-717434",
+   "mac": "02:00:32:f2:24:9a",
+   "ip": "10.0.0.76",
+   "state": 1,
+   "version": "6.0.17.36539",
+   "num_sta": 7,
+   "uptime": 74254,
+   "overheating": false,
+   "port_table": [
+    {
+     "port_idx": 1,
+     "name": "name-cd90f5",
+     "up": true,
+     "enable": true,
+     "speed": 1000,
+     "full_duplex": true,
+     "is_uplink": false,
+     "port_poe": false,
+     "poe_enable": false,
+     "poe_good": false,
+     "poe_class": "Class 0",
+     "poe_power": "0.00",
+     "poe_voltage": "0.00",
+     "poe_current": "0.00",
+     "rx_bytes": 789967971,
+     "tx_bytes": 20053791426,
+     "rx_bytes-r": 0.0,
+     "tx_bytes-r": 0.0,
+     "rx_errors": 0,
+     "tx_errors": 0,
+     "rx_dropped": 1,
+     "tx_dropped": 0,
+     "ifname": "eth0",
+     "network_name": "lan"
+    },
+    {
+     "port_idx": 2,
+     "name": "name-217358",
+     "up": false,
+     "enable": true,
+     "speed": 10,
+     "full_duplex": false,
+     "is_uplink": false,
+     "port_poe": false,
+     "poe_enable": false,
+     "poe_good": false,
+     "poe_class": "Class 0",
+     "poe_power": "0.00",
+     "poe_voltage": "0.00",
+     "poe_current": "0.00",
+     "rx_bytes": 0,
+     "tx_bytes": 0,
+     "rx_bytes-r": 0.0,
+     "tx_bytes-r": 0.0,
+     "rx_errors": 0,
+     "tx_errors": 0,
+     "rx_dropped": 0,
+     "tx_dropped": 0,
+     "ifname": "eth1",
+     "network_name": "lan"
+    },
+    {
+     "port_idx": 3,
+     "name": "name-2269ab",
+     "up": true,
+     "enable": true,
+     "speed": 1000,
+     "full_duplex": true,
+     "is_uplink": false,
+     "port_poe": false,
+     "poe_enable": false,
+     "poe_good": false,
+     "poe_class": "Class 0",
+     "poe_power": "0.00",
+     "poe_voltage": "0.00",
+     "poe_current": "0.00",
+     "rx_bytes": 230400277,
+     "tx_bytes": 9664024521,
+     "rx_bytes-r": 0.0,
+     "tx_bytes-r": 0.0,
+     "rx_errors": 0,
+     "tx_errors": 0,
+     "rx_dropped": 10,
+     "tx_dropped": 0,
+     "ifname": "eth2",
+     "network_name": "lan"
+    },
+    {
+     "port_idx": 4,
+     "name": "name-4c95b8",
+     "up": true,
+     "enable": true,
+     "speed": 10,
+     "full_duplex": true,
+     "is_uplink": false,
+     "port_poe": false,
+     "poe_enable": false,
+     "poe_good": false,
+     "poe_class": "Class 0",
+     "poe_power": "0.00",
+     "poe_voltage": "0.00",
+     "poe_current": "0.00",
+     "rx_bytes": 421210358,
+     "tx_bytes": 104169585,
+     "rx_bytes-r": 1077,
+     "tx_bytes-r": 1161,
+     "rx_errors": 1194,
+     "tx_errors": 0,
+     "rx_dropped": 1165,
+     "tx_dropped": 0,
+     "ifname": "eth3",
+     "network_name": "wan2"
+    },
+    {
+     "port_idx": 5,
+     "name": "name-3dbfb7",
+     "up": true,
+     "enable": true,
+     "speed": 1000,
+     "full_duplex": true,
+     "is_uplink": true,
+     "port_poe": false,
+     "poe_enable": false,
+     "poe_good": false,
+     "poe_class": "Class 0",
+     "poe_power": "0.00",
+     "poe_voltage": "0.00",
+     "poe_current": "0.00",
+     "rx_bytes": 29048351133,
+     "tx_bytes": 897906622,
+     "rx_bytes-r": 2673,
+     "tx_bytes-r": 1477,
+     "rx_errors": 47,
+     "tx_errors": 0,
+     "rx_dropped": 98,
+     "tx_dropped": 0,
+     "ifname": "eth4",
+     "network_name": "wan"
+    }
+   ],
+   "lldp_table": [
+    {
+     "chassis_id": "02:00:ff:33:66:69",
+     "local_port_idx": 5,
+     "local_port_name": "eth4",
+     "port_id": "local 5"
+    },
+    {
+     "chassis_id": "02:00:21:97:7f:07",
+     "local_port_idx": 1,
+     "local_port_name": "eth0",
+     "port_id": "local Port 8"
+    }
+   ],
+   "ethernet_table": [
+    {
+     "mac": "02:00:32:f2:24:9a"
+    },
+    {
+     "mac": "02:00:71:c4:e5:b2"
+    },
+    {
+     "mac": "02:00:f3:43:f0:f7"
+    },
+    {
+     "mac": "02:00:35:93:fa:8b"
+    },
+    {
+     "mac": "02:00:f9:a3:d9:1c"
+    }
+   ],
+   "uplink": {
+    "name": "eth4",
+    "up": true,
+    "type": "wire",
+    "port_idx": 5,
+    "latency": 10
+   },
+   "wan2": {
+    "ifname": "eth3",
+    "name": "eth3",
+    "up": true,
+    "enable": true,
+    "type": "ethernet",
+    "port_idx": 4,
+    "is_uplink": false,
+    "latency": 134,
+    "availability": 100
+   },
+   "wan1": {
+    "ifname": "eth4",
+    "name": "eth4",
+    "up": true,
+    "enable": true,
+    "type": "ethernet",
+    "port_idx": 5,
+    "is_uplink": true,
+    "latency": 11,
+    "availability": 100
+   },
+   "uptime_stats": {
+    "WAN": {
+     "availability": 100.0,
+     "latency_average": 11,
+     "monitors": [
+      {
+       "target": "ping.ui.com",
+       "type": "icmp",
+       "latency_average": 11
+      },
+      {
+       "target": "www.microsoft.com",
+       "type": "icmp",
+       "latency_average": 38
+      },
+      {
+       "target": "google.com",
+       "type": "icmp",
+       "latency_average": 11
+      },
+      {
+       "target": "10.0.0.109",
+       "type": "icmp",
+       "latency_average": 24
+      }
+     ]
+    },
+    "WAN2": {
+     "availability": 100.0,
+     "latency_average": 121,
+     "monitors": [
+      {
+       "target": "ping.ui.com",
+       "type": "icmp",
+       "latency_average": 121
+      },
+      {
+       "target": "www.microsoft.com",
+       "type": "icmp",
+       "latency_average": 66
+      },
+      {
+       "target": "google.com",
+       "type": "icmp",
+       "latency_average": 146
+      },
+      {
+       "target": "10.0.0.109",
+       "type": "icmp",
+       "latency_average": 131
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

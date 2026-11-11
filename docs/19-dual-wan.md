@@ -127,10 +127,16 @@ publiczny przepuszcza `/api/wan/history`, gdy jakiś wykres ma tę opcję.
 
 ## Stan
 
-Zrobione i przetestowane na zrzutach (`ucg-ultra.snmprec`, `unifi_devices.json`) i atrapach. Do sprawdzenia na
-prawdziwym drugim łączu:
+**Sprawdzone na prawdziwym sprzęcie 11.11.2026 (0.65.9):** UCG Ultra z UniFi OS 6.0.17, WAN 1 = `eth4`, internet
+mobilny jako WAN 2 („GSM”) na `eth3`, kontroler z kluczem API; dwie instancje NetPulse naraz (serwer lokalny i VPS).
 
-1. Ustawić WAN 2 w panelu.
-2. Odłączyć WAN 1 i sprawdzić przełączenie w widgetach.
-3. Zrobić zrzut kontrolera (`unifi_probe.py`, `probe2fixtures.py`). Sprawdzić, czy `wan1`/`wan2`/`uplink` mają
-   `ifname`, i podmienić fixture.
+- Awaria WAN 1 (kabel wyjęty na 27 min): przełączenie na GSM w pierwszym cyklu (≤ 30 s), alerty „Port WAN wyłączony”
+  i „Przełączenie WAN: WAN 1 → GSM”, ruch zapisany na GSM bez przerw.
+- Powrót: alert portu zakończony sam, „Przełączenie WAN: GSM → WAN 1”. Brama przerzuca ruch z powrotem dopiero po
+  sprawdzeniu łącza (jeszcze ok. 30 s na GSM, gdy WAN 1 już działa).
+- Kontroler: `wan1`/`wan2` mają `ifname`, `uplink` tylko `name` (`eth4`) – parser to obsługuje. Pingi bramy każdym łączem
+  (`uptime_stats.WAN`, `WAN2`), też zapasowym: WAN 1 ok. 11 ms, GSM ok. 120–200 ms.
+- Zrzut: `tests/fixtures/unifi_gateway_dual_wan.json` (zanonimizowany `stat/device` bramy, `probe2fixtures.device_fixture`),
+  test `test_wan.py::test_real_ucg_ultra_dual_wan_from_controller`.
+- Krótkie mignięcia (< 30 s) widać tylko wtedy, gdy trafi w nie odczyt – dwie instancje z innym momentem cyklu
+  zobaczą różne mignięcia. Możliwa poprawka: `ifLastChange` (IF-MIB) między odczytami.

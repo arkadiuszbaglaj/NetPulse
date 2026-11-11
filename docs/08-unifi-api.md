@@ -25,6 +25,7 @@ UNIFI_API_KEY='wklej-klucz' python3 unifi_probe.py 192.168.1.1
 3. Sonda wypisuje kody odpowiedzi dla kolejnych adresów API i zapisuje `unifi_probe_192.168.1.1.json`.
    MAC-i, IP, nazwy, SSID, numery seryjne i identyfikatory są w nim zastąpione pseudonimami,
    a struktura i liczby (PoE, sygnał, ruch) zostają. Przejrzyj plik i podaj go do dalszej pracy.
+   Nazwy interfejsów (`eth4`, `wgsrv1`, …) zostają bez zmian – od 0.65.9, bo parser WAN czyta z nich `uplink.name`.
 
 Wersja aplikacji UniFi Network (Settings → System → About) też się przyda: API integracji zmienia się
 między wersjami.

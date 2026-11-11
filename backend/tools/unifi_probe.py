@@ -29,6 +29,8 @@ MAC_RE = re.compile(r"\b[0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5}\b")
 IP_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 UUID_RE = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
 # Klucze, których wartości tekstowe zastępujemy pseudonimem w całości
+# Nazwa interfejsu (np. `uplink.name = "eth4"`) to nie dane prywatne – parser WAN jej potrzebuje
+IFACE_RE = re.compile(r"^(eth\d+(\.\d+)?|sfp\d+|ppp\d+|wgsrv\d+|wgclt\d+|br\d+|switch\d+(\.\d+)?)$")
 NAME_KEYS = {"name", "hostname", "ssid", "essid", "serial", "serialnumber", "displayname", "note", "alias", "oui", "fingerprint"}
 
 
@@ -47,7 +49,7 @@ def anonymize(value, key: str = ""):
     if isinstance(value, list):
         return [anonymize(v, key) for v in value]
     if isinstance(value, str):
-        if key.lower() in NAME_KEYS:
+        if key.lower() in NAME_KEYS and not IFACE_RE.match(value):
             return pseudo(value, key.lower())
         value = MAC_RE.sub(fake_mac, value)
         value = UUID_RE.sub(lambda m: pseudo(m.group(), "id"), value)

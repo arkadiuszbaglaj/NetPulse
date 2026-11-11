@@ -23,7 +23,9 @@ PORT_KEYS = (
     "rx_bytes-r", "tx_bytes-r", "rx_errors", "tx_errors", "rx_dropped", "tx_dropped", "ifname", "network_name",
 )  # fmt: skip
 # Łącza WAN bramy (dual WAN): bez adresów IP, DNS-ów i bramy operatora
-WAN_KEYS = ("ifname", "name", "up", "enable", "type", "port_idx")
+WAN_KEYS = ("ifname", "name", "up", "enable", "type", "port_idx", "is_uplink", "latency", "availability")
+# Pingi bramy każdym łączem (`uptime_stats.WAN`, `WAN2` …): serwery i średnie opóźnienia
+MONITOR_KEYS = ("target", "type", "latency_average")
 LLDP_KEYS = ("chassis_id", "local_port_idx", "local_port_name", "port_id", "mgmt_ips")
 STA_KEYS = (
     "mac", "name", "hostname", "ip", "is_wired", "is_guest", "essid", "radio", "channel", "signal", "rssi", "noise",
@@ -36,6 +38,27 @@ def pick(obj: dict, keys: tuple[str, ...]) -> dict:
     return {k: obj[k] for k in keys if k in obj}
 
 
+def device_fixture(d: dict) -> dict:
+    """Jedno urządzenie ze `stat/device` – tylko pola, których używa NetPulse."""
+    item = pick(d, DEVICE_KEYS)
+    item["port_table"] = [pick(p, PORT_KEYS) for p in d.get("port_table", [])]
+    if "ethernet_table" in d:
+        item["ethernet_table"] = [pick(e, ("mac",)) for e in d["ethernet_table"]]
+    for key in [k for k in d if k == "uplink" or (k.startswith("wan") and k[3:].isdigit())]:
+        if isinstance(d[key], dict):
+            item[key] = pick(d[key], WAN_KEYS)
+    stats = d.get("uptime_stats")
+    if isinstance(stats, dict):
+        item["uptime_stats"] = {
+            k: {**pick(v, ("availability", "latency_average")), "monitors": [pick(m, MONITOR_KEYS) for m in v.get("monitors") or []]}
+            for k, v in stats.items()
+            if k.startswith("WAN") and isinstance(v, dict)
+        }
+    if "lldp_table" in d:
+        item["lldp_table"] = [pick(x, LLDP_KEYS) for x in d["lldp_table"]]
+    return item
+
+
 def main() -> int:
     if len(sys.argv) != 3:
         print(__doc__)
@@ -44,18 +67,7 @@ def main() -> int:
     out = Path(sys.argv[2])
     by_suffix = {path.rsplit("/", 1)[-1]: res["json"] for path, res in probe.items() if "/api/s/default/" in path and "json" in res}
 
-    devices = []
-    for d in by_suffix["device"]["data"]:
-        item = pick(d, DEVICE_KEYS)
-        item["port_table"] = [pick(p, PORT_KEYS) for p in d.get("port_table", [])]
-        if "ethernet_table" in d:
-            item["ethernet_table"] = [pick(e, ("mac",)) for e in d["ethernet_table"]]
-        for key in [k for k in d if k == "uplink" or (k.startswith("wan") and k[3:].isdigit())]:
-            if isinstance(d[key], dict):
-                item[key] = pick(d[key], WAN_KEYS)
-        if "lldp_table" in d:
-            item["lldp_table"] = [pick(x, LLDP_KEYS) for x in d["lldp_table"]]
-        devices.append(item)
+    devices = [device_fixture(d) for d in by_suffix["device"]["data"]]
     clients = [pick(s, STA_KEYS) for s in by_suffix["sta"]["data"]]
 
     meta = {"meta": {"rc": "ok"}}

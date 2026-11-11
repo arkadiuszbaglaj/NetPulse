@@ -44,4 +44,5 @@ def test_api_lists_sources():
         app.dependency_overrides.clear()
     assert res.status_code == 200
     by_id = {s["id"]: s for s in res.json()}
-    assert by_id["dual_wan"]["level"] == "test" and by_id["unifi_snmp"]["level"] == "verified"
+    assert by_id["dual_wan"]["level"] == "verified" and by_id["unifi_snmp"]["level"] == "verified"
+    assert any(s["level"] == "test" for s in by_id.values())  # są źródła tylko na danych testowych

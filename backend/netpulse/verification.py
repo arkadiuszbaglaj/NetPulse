@@ -105,8 +105,9 @@ SOURCES: tuple[Source, ...] = (
     Source(
         "dual_wan",
         "Dual WAN: drugie łącze i przełączanie",
-        "test",
-        "zrzuty i atrapa kontrolera – czeka na prawdziwe drugie łącze",
+        "verified",
+        "UCG Ultra (UniFi OS 6.0.17) z internetem mobilnym jako WAN 2: awaria WAN 1, praca na GSM i powrót "
+        "(11.11.2026); zrzut kontrolera unifi_gateway_dual_wan.json",
     ),
     Source(
         "checks",
