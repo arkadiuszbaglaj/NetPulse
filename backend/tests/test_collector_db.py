@@ -212,7 +212,17 @@ def test_ifindex_renumbering_keeps_port_rows():
         async with Session() as s, s.begin():
             await s.execute(delete(Device))
             s.add(Device(name="ucg", host="10.0.0.1", community="public"))
-        collector = Collector(client_factory=lambda target: clients["now"])
+        class Current:  # kolektor trzyma klienta urządzenia – podmiana danych przez pośrednika
+            async def get(self, oids):
+                return await clients["now"].get(oids)
+
+            async def walk(self, oid):
+                return await clients["now"].walk(oid)
+
+            async def close(self):
+                pass
+
+        collector = Collector(client_factory=lambda target: Current())
         clients["now"] = before
         await collector.poll_all()
         await collector.poll_all()
