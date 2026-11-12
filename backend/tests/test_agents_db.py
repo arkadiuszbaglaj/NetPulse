@@ -164,6 +164,7 @@ def test_agent_report_flow(client):
         "snmp_poe": [],
         "snmp_sfp": [],
         "wan_latency": [],
+        "speedtest": [],
         "wan_ping": [],
         "vpn": [],
     }

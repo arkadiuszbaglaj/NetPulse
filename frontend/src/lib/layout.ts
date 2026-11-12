@@ -52,6 +52,7 @@ export type AgentSourceKind =
   | "snmp_sfp"
   | "wan_latency"
   | "wan_ping"
+  | "speedtest"
   | "vpn";
 export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
   "agent_cpu",
@@ -65,11 +66,14 @@ export const AGENT_SOURCE_KINDS: AgentSourceKind[] = [
   "snmp_sfp",
   "wan_latency",
   "wan_ping",
+  "speedtest",
   "vpn",
 ];
 /** Pingi łączy WAN mierzone przez bramę UniFi (od 0.55.0): urządzenie = brama, klucz = interfejs łącza (`eth3`)
  * albo interfejs i serwer (`eth3 · google.com`). */
 export const isWanPingSource = (kind: SourceKind): boolean => kind === "wan_latency" || kind === "wan_ping";
+/** Testy prędkości bramy UniFi (od 0.70.0): urządzenie = brama, klucz = interfejs łącza; punkt w chwili testu. */
+export const isSpeedtestSource = (kind: SourceKind): boolean => kind === "speedtest";
 /** Separator w kluczu pingu bramy do serwera (jak WAN_PING_SEP w unifi_collector.py) */
 export const WAN_PING_SEP = " · ";
 /** Czujniki urządzeń SNMP (od 0.50.0: MikroTik) – te same endpointy co agent, inne urządzenia do wyboru. */
@@ -386,6 +390,10 @@ export type UnitClass =
 export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> = {
   in_bps: { label: "metric.in_bps", unitClass: "rate" },
   out_bps: { label: "metric.out_bps", unitClass: "rate" },
+  // Szczyt w cyklu (od 0.70.0, porty WAN): najwyższa średnia z ok. 5 s
+  in_bps_max: { label: "metric.in_bps_max", unitClass: "rate" },
+  out_bps_max: { label: "metric.out_bps_max", unitClass: "rate" },
+  ping_ms: { label: "metric.ping_ms", unitClass: "ms" },
   rx_bps: { label: "metric.rx_bps", unitClass: "rate" },
   tx_bps: { label: "metric.tx_bps", unitClass: "rate" },
   in_errors: { label: "metric.in_errors", unitClass: "count" },
@@ -450,8 +458,8 @@ export const METRICS: Record<string, { label: TextKey; unitClass: UnitClass }> =
 
 /** Metryki dostępne dla źródła (zgodnie z endpointami metryk i schematem serwera). */
 export const SOURCE_METRICS: Record<SourceKind, string[]> = {
-  wan: ["in_bps", "out_bps"],
-  interface: ["in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards"],
+  wan: ["in_bps", "out_bps", "in_bps_max", "out_bps_max"],
+  interface: ["in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards", "in_bps_max", "out_bps_max"],
   device: ["cpu_percent", "mem_used_percent", "load1", "poll_ms"],
   wifi_total: ["clients"],
   wifi_network: ["clients", "rx_bps", "tx_bps"],
@@ -467,6 +475,7 @@ export const SOURCE_METRICS: Record<SourceKind, string[]> = {
   snmp_sfp: ["sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"],
   wan_latency: ["latency_ms", "availability_percent"],
   wan_ping: ["latency_ms"],
+  speedtest: ["down_bps", "up_bps", "ping_ms"],
   vpn: ["down_bps", "up_bps", "connected"],
   check: ["latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"],
 };
@@ -528,6 +537,7 @@ export function defaultSeries(kind: SourceKind): SeriesConfig[] {
     case "wan_ping":
       return [{ key: "latency_ms", color: 1 }];
     case "vpn":
+    case "speedtest":
       return [
         { key: "down_bps", color: 1 },
         { key: "up_bps", color: 8 },

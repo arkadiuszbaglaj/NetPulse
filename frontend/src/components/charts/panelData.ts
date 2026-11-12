@@ -35,6 +35,8 @@ export function seriesName(source: Source, s: SeriesConfig, offset: OffsetMinute
   if (s.label) name = s.label;
   else if (source.kind === "wan" && s.key === "in_bps") name = t("chart.traffic.in");
   else if (source.kind === "wan" && s.key === "out_bps") name = t("chart.traffic.out");
+  else if (source.kind === "wan" && s.key === "in_bps_max") name = t("chart.traffic.inMax");
+  else if (source.kind === "wan" && s.key === "out_bps_max") name = t("chart.traffic.outMax");
   else name = METRICS[s.key] ? t(METRICS[s.key].label) : s.key;
   if (!s.label && sourceLabel) name = `${sourceLabel}: ${name}`;
   return offset && !s.label ? `${name} ${t(OFFSET_SUFFIX[offset])}` : name;

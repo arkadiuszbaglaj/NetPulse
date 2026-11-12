@@ -34,7 +34,16 @@ from .db.models import (
     UnifiApiDevice,
 )
 from .modules import is_enabled
-from .unifi import GATEWAY_TYPES, OfficialDevice, UnifiApi, UnifiClient, UnifiDevice, UnifiError, WanPort
+from .unifi import (
+    GATEWAY_TYPES,
+    OfficialDevice,
+    Speedtest,
+    UnifiApi,
+    UnifiClient,
+    UnifiDevice,
+    UnifiError,
+    WanPort,
+)
 from .unifi_devices import DRIVER as API_DRIVER
 from .unifi_devices import build_poll_result, device_kind
 
@@ -60,6 +69,28 @@ def wan_metrics(dev_id: int, wans: tuple[WanPort, ...], now: datetime) -> list[M
                 seen.add(key)
                 rows.append(Metric(time=now, device_id=dev_id, name="wan_ping_ms", key=key, value=ms))
     return rows
+
+
+def speedtest_rows(dev_id: int, st: Speedtest) -> list[dict]:
+    """Wynik testu prędkości bramy (od 0.70.0) do tabeli `metrics`, z czasem samego testu i kluczem = interfejs łącza.
+    Prędkości w b/s (jak reszta przepustowości), żeby wykres rysował je w tej samej skali co ruch WAN."""
+    when = datetime.fromtimestamp(st.ran_at, UTC)
+    rows = [
+        {"time": when, "device_id": dev_id, "name": "speedtest_down_bps", "key": st.ifname, "value": st.download_mbps * 1_000_000},
+        {"time": when, "device_id": dev_id, "name": "speedtest_up_bps", "key": st.ifname, "value": st.upload_mbps * 1_000_000},
+    ]
+    if st.latency_ms is not None:
+        rows.append({"time": when, "device_id": dev_id, "name": "speedtest_ping_ms", "key": st.ifname, "value": st.latency_ms})
+    return rows
+
+
+async def save_speedtest(session, dev_id: int, st: Speedtest, now: datetime, retention_days: int) -> None:
+    """Zapisuje test raz: klucz główny (czas testu, urządzenie, nazwa, łącze) odrzuca powtórkę przy kolejnych odczytach.
+    Test starszy niż retencja surowych danych pomijamy – wiersz trafiłby do usuniętego już okresu."""
+    age = now.timestamp() - st.ran_at
+    if age < -300 or age > (retention_days - 1) * 86400:
+        return
+    await session.execute(insert(Metric).values(speedtest_rows(dev_id, st)).on_conflict_do_nothing())
 
 
 @dataclass(frozen=True)
@@ -369,6 +400,8 @@ class UnifiCollector:
                 if d.wans:
                     await wan_links.apply_controller(session, dev_id, d.wans, now)
                     session.add_all(wan_metrics(dev_id, d.wans, now))
+                if d.speedtest is not None:
+                    await save_speedtest(session, dev_id, d.speedtest, now, settings.retention_days)
                 if d.type in GATEWAY_TYPES:
                     await wan_links.save_detected(session, dev_id, d.wans)
 

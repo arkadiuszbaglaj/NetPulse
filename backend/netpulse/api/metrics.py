@@ -49,6 +49,8 @@ def _bucket_seconds(minutes: int) -> int:
 async def _aggregate_series(agg: aggregates.Aggregate, obj_id: int, columns: list[str], minutes: int, offset: int = 0) -> list[Point]:
     """Szereg z agregatu godzinowego, przeliczony na większe kubełki (długie zakresy wykresów)."""
     since, until = window(minutes, offset)
+    # Agregat godzinowy nie ma wszystkich kolumn tabeli (np. szczytu ruchu) – te serie są wtedy puste
+    wanted, columns = columns, [c for c in columns if c in agg.columns]
     view = table(agg.view, column("bucket"), column(agg.key), *[column(c) for c in columns])
     bucket = func.date_bin(
         text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), view.c.bucket, text("TIMESTAMPTZ '2000-01-01 00:00:00+00'")
@@ -62,7 +64,10 @@ async def _aggregate_series(agg: aggregates.Aggregate, obj_id: int, columns: lis
     async with Session() as session:
         rows = (await session.execute(stmt)).all()
     return [
-        Point(time=r[0], values={c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)})
+        Point(
+            time=r[0],
+            values={**dict.fromkeys(wanted), **{c: (float(v) if v is not None else None) for c, v in zip(columns, r[1:], strict=True)}},
+        )
         for r in rows
     ]
 
@@ -82,7 +87,8 @@ async def _series(
         if timescale:
             bucket = func.time_bucket(text(f"INTERVAL '{_bucket_seconds(minutes)} seconds'"), model.time)
             stmt = (
-                select(bucket.label("bucket"), *[func.avg(c).label(c.key) for c in cols])
+                # Kolumny szczytu (`…_max`) w kubełku to maksimum, reszta – średnia
+                select(bucket.label("bucket"), *[(func.max(c) if c.key.endswith("_max") else func.avg(c)).label(c.key) for c in cols])
                 .where(*where)
                 .group_by("bucket")
                 .order_by("bucket")
@@ -126,7 +132,7 @@ async def interface_metrics(interface_id: int, minutes: int = MinutesQuery, offs
         InterfaceMetric,
         InterfaceMetric.interface_id,
         interface_id,
-        ["in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards"],
+        ["in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards", "in_bps_max", "out_bps_max"],
         minutes,
         offset=offset,
     )
@@ -180,6 +186,8 @@ AGENT_SOURCES: dict[str, dict[str, tuple[str, float]]] = {
     # Łącza WAN bramy UniFi (od 0.55.0): brama pinguje internet każdym łączem, też zapasowym; klucz = interfejs łącza
     "wan_latency": {"latency_ms": ("wan_latency_ms", 1.0), "availability_percent": ("wan_availability_percent", 1.0)},
     "wan_ping": {"latency_ms": ("wan_ping_ms", 1.0)},
+    # Testy prędkości bramy UniFi (od 0.70.0): wynik dokładnie z bramy, punkt w chwili testu; klucz = interfejs łącza
+    "speedtest": {"down_bps": ("speedtest_down_bps", 1.0), "up_bps": ("speedtest_up_bps", 1.0), "ping_ms": ("speedtest_ping_ms", 1.0)},
     # Klienci VPN bramy UniFi (od 0.57.0): klucz = nazwa klienta; pobieranie = ruch do klienta
     "vpn": {"down_bps": ("vpn_down_bps", 1.0), "up_bps": ("vpn_up_bps", 1.0), "connected": ("vpn_connected", 1.0)},
     "snmp_sfp": {
@@ -201,6 +209,7 @@ AgentSourceKind = Literal[
     "snmp_sfp",
     "wan_latency",
     "wan_ping",
+    "speedtest",
     "vpn",
 ]
 # Lista kluczy do edytora wykresu: źródło → nazwy metryk, z których bierzemy klucze
@@ -215,8 +224,13 @@ AGENT_KEY_NAMES: dict[str, tuple[str, ...]] = {
     "snmp_sfp": ("sfp_rx_dbm",),
     "wan_latency": ("wan_latency_ms",),
     "wan_ping": ("wan_ping_ms",),
+    "speedtest": ("speedtest_down_bps",),
     "vpn": ("vpn_connected",),
 }
+
+
+# Źródła z rzadkimi punktami (zdarzenia, nie pomiar co cykl): klucze szukane w ostatnich 30 dniach, nie w godzinie
+RARE_SOURCES = ("speedtest",)
 
 
 async def _same_server_devices(session, device_id: int) -> list[int]:
@@ -274,20 +288,32 @@ async def agent_metrics(device_id: int, source: AgentSourceKind, key: str = "", 
 async def agent_keys(device_id: int) -> dict[str, list[str]]:
     """Interfejsy, dyski, czujniki i kontenery widziane w ostatniej godzinie – do wyboru w edytorze wykresu.
     Źródła `snmp_*` tylko dla urządzeń SNMP: temperatury serwera z agentem to `agent_temp`."""
-    since = datetime.now(UTC) - timedelta(hours=1)
+    now = datetime.now(UTC)
+    since = now - timedelta(hours=1)
+    rare = sorted({n for source in RARE_SOURCES for n in AGENT_KEY_NAMES[source]})
     async with Session() as session:
         device = await session.get(Device, device_id)
         if device is None:
             raise HTTPException(404, "Nie ma takiego obiektu: urządzenie")
         snmp = device.driver not in NON_SNMP_DRIVERS
+        devices = await _same_server_devices(session, device_id)
         rows = (
             await session.execute(
                 select(Metric.name, Metric.key)
                 .where(
-                    Metric.device_id.in_(await _same_server_devices(session, device_id)),
+                    Metric.device_id.in_(devices),
                     Metric.time >= since,
-                    Metric.name.in_(sorted({n for names in AGENT_KEY_NAMES.values() for n in names})),
+                    Metric.name.in_(sorted({n for names in AGENT_KEY_NAMES.values() for n in names} - set(rare))),
                 )
+                .distinct()
+                .order_by(Metric.key, Metric.name)
+            )
+        ).all()
+        # Testy prędkości zdarzają się rzadko – łącze z testem z ostatnich 30 dni też jest do wyboru
+        rows += (
+            await session.execute(
+                select(Metric.name, Metric.key)
+                .where(Metric.device_id.in_(devices), Metric.time >= now - timedelta(days=30), Metric.name.in_(rare))
                 .distinct()
                 .order_by(Metric.key, Metric.name)
             )

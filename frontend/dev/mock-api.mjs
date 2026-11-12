@@ -162,8 +162,15 @@ createServer(async (req, res) => {
     for (let i = n; i >= 0; i--) {
       if (!back && i > n * 0.55 && i < n * 0.62) continue; // przerwa w danych – urządzenie nie odpowiadało
       const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
+      // Szczyt (od 0.70.0): zwykle nieco ponad średnią, a raz w zakresie – test prędkości 455 / 51 Mb/s
+      const test = i === Math.round(n * 0.2);
       const values = route.endsWith("traffic")
-        ? { in_bps: wave(i, 0) * 1e6, out_bps: wave(i, 1) * 1e6 }
+        ? {
+            in_bps: wave(i, 0) * 1e6 + (test ? 9e7 : 0),
+            out_bps: wave(i, 1) * 1e6 + (test ? 1.4e7 : 0),
+            in_bps_max: minutes > 10080 ? null : test ? 4.55e8 : wave(i, 0) * 1.25e6,
+            out_bps_max: minutes > 10080 ? null : test ? 5.1e7 : wave(i, 1) * 1.3e6,
+          }
         : { clients: Math.round(12 + 5 * Math.sin(i / 9) + (i % 3)) };
       points.push({ time, values });
     }
@@ -311,7 +318,7 @@ createServer(async (req, res) => {
   }
   // Źródła z tabeli `metrics` na bramie: klienci VPN (0.57.0) – klient połączony w ostatnich 14 minutach
   if (req.method === "GET" && /^\/api\/devices\/\d+\/agent-keys$/.test(url.pathname)) {
-    return send(res, 200, { agent_net: [], agent_disk: [], agent_temp: [], agent_container: [], pve_guest: [], snmp_sensor: [], snmp_poe: [], snmp_sfp: [], wan_latency: [], wan_ping: [], vpn: ["iPhone", "Laptop"] });
+    return send(res, 200, { agent_net: [], agent_disk: [], agent_temp: [], agent_container: [], pve_guest: [], snmp_sensor: [], snmp_poe: [], snmp_sfp: [], wan_latency: [], wan_ping: [], speedtest: ["eth4"], vpn: ["iPhone", "Laptop"] });
   }
   if (req.method === "GET" && /^\/api\/devices\/\d+\/agent-metrics$/.test(url.pathname) && url.searchParams.get("source") === "vpn") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
@@ -323,6 +330,12 @@ createServer(async (req, res) => {
     }
     return send(res, 200, points);
   }
+  // Testy prędkości bramy (od 0.70.0): kilka punktów w zakresie, wynik jak z bramy
+  if (req.method === "GET" && /^\/api\/devices\/\d+\/agent-metrics$/.test(url.pathname) && url.searchParams.get("source") === "speedtest") {
+    const minutes = Number(url.searchParams.get("minutes") ?? 60);
+    const results = [[0.9, 448, 50.2, 7], [0.62, 455, 51, 6], [0.35, 431, 49.5, 8], [0.08, 455, 51, 6]];
+    return send(res, 200, results.map(([at, down, up, ping]) => ({ time: new Date(Date.now() - at * minutes * 60_000).toISOString(), values: { down_bps: down * 1e6, up_bps: up * 1e6, ping_ms: ping } })));
+  }
   const series = /^\/api\/(devices|interfaces|wifi)\/(\d+)\/metrics$/.exec(url.pathname) || url.pathname === "/api/system/metrics";
   if (req.method === "GET" && series) {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
@@ -332,7 +345,7 @@ createServer(async (req, res) => {
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
       const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
       const cpu = 20 + 15 * Math.sin(i / 11) + (i % 5);
-      points.push({ time, values: { cpu_percent: cpu, mem_used_percent: 48 + 4 * Math.sin(i / 23), load1: cpu / 40, poll_ms: 40 + (i % 7) * 3, in_bps: wave(i, 0) * 4e5, out_bps: wave(i, 1) * 4e5, clients: 5 + (i % 4), disk_used_percent: 63, temp_c: 52 + (i % 6) } });
+      points.push({ time, values: { cpu_percent: cpu, mem_used_percent: 48 + 4 * Math.sin(i / 23), load1: cpu / 40, poll_ms: 40 + (i % 7) * 3, in_bps: wave(i, 0) * 4e5, out_bps: wave(i, 1) * 4e5, in_bps_max: wave(i, 0) * 5e5, out_bps_max: wave(i, 1) * 5.2e5, clients: 5 + (i % 4), disk_used_percent: 63, temp_c: 52 + (i % 6) } });
     }
     return send(res, 200, points);
   }

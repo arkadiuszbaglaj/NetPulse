@@ -61,6 +61,20 @@ class WanPort:
 
 
 @dataclass(frozen=True)
+class Speedtest:
+    """Ostatni test prędkości bramy (`speedtest-status` w `stat/device`, od 0.70.0): wynik dokładnie taki, jaki
+    pokazuje UniFi. Kontroler podaje tylko ostatni test – historię buduje kolektor, zapisując każdy nowy."""
+
+    ifname: str  # interfejs łącza, którym szedł test (jak `ifName` z SNMP)
+    ran_at: float  # czas testu, sekundy od epoki (`rundate`)
+    download_mbps: float
+    upload_mbps: float
+    latency_ms: float | None = None
+    runtime_s: float | None = None
+    server: str | None = None  # dostawca i miasto serwera testu
+
+
+@dataclass(frozen=True)
 class PortStats:
     """Port urządzenia ze starszego `stat/device` (`port_table`): liczniki ruchu – oficjalne API ich nie ma."""
 
@@ -137,6 +151,7 @@ class UnifiDevice:
     lldp: list[LldpLink] = field(default_factory=list)
     macs: tuple[str, ...] = ()  # wszystkie adresy MAC interfejsów urządzenia (ethernet_table)
     wans: tuple[WanPort, ...] = ()  # tylko bramy: porty WAN i który jest uplinkiem (dual WAN / failover)
+    speedtest: Speedtest | None = None  # tylko bramy: ostatni test prędkości (od 0.70.0)
     ports: tuple[PortStats, ...] = ()  # wszystkie porty z licznikami ruchu (urządzenia bez SNMP)
 
 
@@ -234,6 +249,33 @@ def parse_wans(d: dict) -> tuple[WanPort, ...]:
     )
 
 
+def parse_speedtest(d: dict) -> Speedtest | None:
+    """Ostatni zakończony test prędkości bramy. None, gdy testu nie było, trwa albo się nie udał.
+
+    `status_summary` = 2 oznacza test zakończony; `source_interface` ma postać `if!eth4`, starsze wersje podają
+    `interface_name`. Wynik bez prędkości (0 / -1) pomijamy – to nieudany pomiar, nie „0 Mb/s”."""
+    if str(d.get("type") or "") not in GATEWAY_TYPES:
+        return None
+    st = d.get("speedtest-status")
+    if not isinstance(st, dict):
+        return None
+    summary = st.get("status_summary")
+    if summary is not None and summary != 2:
+        return None
+    down, up, ran_at = _num(st.get("xput_download")), _num(st.get("xput_upload")), _num(st.get("rundate"))
+    if not down or not up or not ran_at:
+        return None
+    ifname = (_str(st.get("source_interface")) or "").removeprefix("if!") or _str(st.get("interface_name"))
+    if not ifname:
+        uplink = d.get("uplink") if isinstance(d.get("uplink"), dict) else {}
+        ifname = _str(uplink.get("ifname")) or _str(uplink.get("name"))
+    if not ifname or not IFNAME_RE.match(ifname):
+        return None
+    server = st.get("server") if isinstance(st.get("server"), dict) else {}
+    place = ", ".join(x for x in (_str(server.get("provider")), _str(server.get("city"))) if x)
+    return Speedtest(ifname, ran_at, down, up, _num(st.get("latency")), _num(st.get("runtime")), place[:120] or None)
+
+
 def _num(value) -> float | None:
     """Liczba ≥ 0 z pola kontrolera; brak, tekst albo wartość ujemna (UniFi: -1 = brak pomiaru) – None."""
     if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
@@ -309,6 +351,7 @@ def parse_devices(raw: dict) -> list[UnifiDevice]:
                     )
                 ),
                 wans=parse_wans(d),
+                speedtest=parse_speedtest(d),
                 ports=tuple(
                     PortStats(
                         port_idx=int(p["port_idx"]),

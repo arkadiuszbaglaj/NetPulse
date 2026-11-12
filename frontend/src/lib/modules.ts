@@ -22,6 +22,7 @@ export function sourceModule(kind: string): ModuleId | null {
   if (kind === "pve_guest") return "proxmox";
   if (kind.startsWith("agent_")) return "agents";
   if (kind === "wan_latency" || kind === "wan_ping") return "unifi"; // pomiary bramy z kontrolera UniFi
+  if (kind === "speedtest") return "unifi"; // testy prędkości bramy z kontrolera UniFi (od 0.70.0)
   if (kind === "vpn") return "unifi"; // klienci VPN bramy z kontrolera UniFi (od 0.57.0)
   return null;
 }

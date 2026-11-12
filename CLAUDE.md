@@ -149,6 +149,17 @@ są zapasem (`source = "priority"`), dopóki WAN 1 działa (`decide(..., outrank
 (`wan_links.save_detected`, `GET /api/wan/suggestions`). Od 0.55.0 pingi każdego łącza (też zapasowego) z bramy UniFi (`wan1.latency`, `uptime_stats.WAN*.monitors`) w `metrics` (`wan_latency_ms`, `wan_ping_ms`, źródła wykresu `wan_latency`/`wan_ping`) i opcja wykresu `wan_backup` – ruch przez łącze zapasowe innym kolorem (`backupSpans`, visualMap). Opis: `docs/19-dual-wan.md`. **Sprawdzone 11.11.2026 na prawdziwym sprzęcie** (UCG Ultra, GSM na `eth3`: awaria WAN 1, praca na GSM, powrót;
 zrzut kontrolera `unifi_gateway_dual_wan.json`). Krótkie mignięcia łącza (< 30 s) instancje łapią zależnie od chwili odczytu.
 
+## Szczyt ruchu WAN i testy prędkości bramy (0.70.0)
+
+Wykres to średnia z 30 s, więc krótki test prędkości wyglądał na kilka razy wolniejszy niż na bramie. Od 0.70.0: (1) wynik testu
+prędkości bramy UniFi z kontrolera (`speedtest-status` → `unifi.parse_speedtest`, zapis każdego nowego testu do `metrics` z czasem testu:
+`speedtest_down_bps|up_bps|ping_ms`, źródło wykresu `speedtest`, szablon „Testy prędkości bramy”) – zgodność 1:1 z bramą;
+(2) szczyt portów WAN: `netpulse/peaks.py` czyta liczniki co sekundę (`NETPULSE_PEAK_INTERVAL`, 0 = wyłączone) i kolektor zapisuje
+najwyższą średnią z ok. 5 s w `interface_metrics.in_bps_max|out_bps_max` (migracja 0018; serie `in_bps_max`/`out_bps_max` źródeł Ruch WAN
+i Port, puste powyżej 7 dni – agregat godzinowy ich nie ma). Prędkość liczona między zmianami licznika (UCG odświeża co ~1 s), dokładność
+ok. ±20 %. `Collector(peaks=None)` w testach działa jak dotąd. Opis: `docs/42-szczyt-i-testy-predkosci.md`. Szczyt na prawdziwym
+teście prędkości jeszcze niepotwierdzony na serwerze.
+
 ## VPN (0.57.0)
 
 Klienci VPN bramy UniFi z kontrolera (`rest/networkconf` → `remote-user-vpn`, `v2/.../wireguard/users`, `stat/remoteuservpn`):

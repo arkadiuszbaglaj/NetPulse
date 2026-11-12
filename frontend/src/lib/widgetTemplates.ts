@@ -15,7 +15,7 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = ["overview", "internet", "device
 /** O co pyta szablon przed dodaniem. */
 export type Ask = "device" | "port" | "check";
 /** Opcje do włączenia w kroku pytań. */
-export type TemplateOption = "limitLine" | "compare";
+export type TemplateOption = "limitLine" | "compare" | "peak";
 /** Kształt miniatury w oknie (`WidgetThumb`). */
 export type ThumbKind = "line" | "lineth" | "bars" | "table" | "gauge" | "heat" | "stat" | "status" | "list" | "timeline" | "poe";
 
@@ -112,16 +112,38 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     group: "internet",
     thumb: "line",
     asks: [],
-    options: ["compare"],
+    options: ["peak", "compare"],
     sizes: [8, 12, 6],
     recommended: true,
     build: (ctx) => {
       const w = chart(ctx, 8, [{ kind: "wan" }], { title: titled(ctx, null), legend: { mode: "table", placement: "bottom", values: ["last", "max", "avg"] } });
+      // Szczyt (od 0.70.0): najwyższa średnia z ok. 5 s w każdym odczycie – krótkie skoki, których średnia nie pokaże
+      if (w.type === "chart" && ctx.options?.peak) {
+        w.config.queries[0].series.push({ key: "in_bps_max", color: 4 }, { key: "out_bps_max", color: 3 });
+        w.config.chart = "line";
+      }
       if (w.type === "chart" && ctx.options?.compare) {
         w.config.queries.push({ id: "B", source: { kind: "wan" }, series: [{ key: "in_bps", color: 8 }], offset_min: 1440 });
       }
       return w;
     },
+  },
+  {
+    // Testy prędkości bramy UniFi (od 0.70.0): wyniki dokładnie z bramy, słupek w chwili każdego testu
+    id: "speedtest",
+    group: "internet",
+    thumb: "bars",
+    asks: ["device", "port"],
+    fits: (d) => d.kind === "gateway",
+    sizes: [6, 8, 12],
+    module: "unifi",
+    build: (ctx) =>
+      chart(ctx, 6, [{ kind: "speedtest", id: ctx.device!.id, key: ctx.port!.name }], {
+        title: titled(ctx, t("tplt.speedtest", { name: portName(ctx.port!) })),
+        chart: "bar",
+        range_min: 10080,
+        legend: { mode: "table", placement: "bottom", values: ["last", "max", "avg"] },
+      }),
   },
   { id: "wan_status", group: "internet", thumb: "status", asks: [], sizes: [4, 6], build: (ctx) => sized(newWidget("wan_status"), ctx, 4) },
   { id: "vpn", group: "internet", thumb: "list", asks: [], sizes: [4, 6], module: "unifi", build: (ctx) => sized(newWidget("vpn"), ctx, 4) },

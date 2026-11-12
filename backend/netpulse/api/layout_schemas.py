@@ -77,6 +77,7 @@ class AgentSource(Strict):
         "snmp_sfp",
         "wan_latency",
         "wan_ping",
+        "speedtest",
         "vpn",
     ]
     id: int = Field(ge=1)  # urządzenie (serwer z agentem, węzeł Proxmox, urządzenie SNMP albo brama – `wan_*`)
@@ -99,8 +100,8 @@ Source = Annotated[
 
 # Metryki dostępne dla źródła (klucze z odpowiedzi endpointów metryk)
 ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
-    "wan": ("in_bps", "out_bps"),
-    "interface": ("in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards"),
+    "wan": ("in_bps", "out_bps", "in_bps_max", "out_bps_max"),
+    "interface": ("in_bps", "out_bps", "in_errors", "out_errors", "in_discards", "out_discards", "in_bps_max", "out_bps_max"),
     "device": ("cpu_percent", "mem_used_percent", "load1", "poll_ms"),
     "wifi_total": ("clients",),
     "wifi_network": ("clients", "rx_bps", "tx_bps"),
@@ -115,6 +116,7 @@ ALLOWED_METRICS: dict[str, tuple[str, ...]] = {
     "snmp_poe": ("poe_power_w", "poe_voltage_v"),
     "snmp_sfp": ("sfp_rx_dbm", "sfp_tx_dbm", "sfp_temp_c", "sfp_voltage_v"),
     "wan_latency": ("latency_ms", "availability_percent"),
+    "speedtest": ("down_bps", "up_bps", "ping_ms"),
     "wan_ping": ("latency_ms",),
     "vpn": ("down_bps", "up_bps", "connected"),
     "check": ("latency_ms", "loss_percent", "jitter_ms", "availability_percent", "cert_days"),

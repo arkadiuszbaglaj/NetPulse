@@ -51,6 +51,7 @@ const AGENT_TITLE = {
   snmp_sfp: "ce.source.snmp_sfp",
   wan_latency: "ce.source.wan_latency",
   wan_ping: "ce.source.wan_ping",
+  speedtest: "ce.source.speedtest",
   vpn: "ce.source.vpn",
 } as const;
 
