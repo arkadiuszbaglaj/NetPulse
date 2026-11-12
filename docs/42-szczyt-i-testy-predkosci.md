@@ -71,6 +71,12 @@ Domyślne pulpity zostają bez szczytu (na łączu z samym spokojnym ruchem dwie
 
 ## Stan
 
+**Pierwszy test na serwerach (12.11.2026, 0.70.0):** brama podała 576 / 51 Mb/s, ping 5 ms. Wynik testu zapisał się na obu
+serwerach dokładnie (576,0 / 51,0 / 5). Szczyt: VPS 599 / 59 Mb/s (+4 % / +16 %), serwer domowy 341 / 36 Mb/s – za mało.
+Przyczyna: na serwerze domowym jest też MikroTik z portem WAN, który nie odpowiadał; próbnik czekał na jego limit czasu
+(2 s i ponowienie) przy każdym odczycie, więc bramę czytał co ok. 4 s zamiast co sekundę. Od 0.70.1 próbnik ma własny,
+krótki limit czasu (0,8 s, bez ponowień), a router, który nie odpowiada, jest pomijany na 30 s (`READ_TIMEOUT_S`, `BACKOFF_S`).
+
 Test prędkości: pola sprawdzone 12.11.2026 na prawdziwej bramie (UCG Ultra, wynik 455 / 51 Mb/s, ping 6 ms, 17 s) –
 z tej odpowiedzi jest test `test_speedtest_from_real_controller_answer`. Szczyt: logika i zapis w testach; odświeżanie
 liczników zmierzone na UCG Ultra (ok. 1 s). **Do potwierdzenia na serwerze po aktualizacji:** szczyt w czasie

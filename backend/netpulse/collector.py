@@ -450,6 +450,6 @@ async def run() -> None:
     await ensure_modules()
     engine = AlertEngine(notifier=Notifier())
     await engine.ensure_default_rules()
-    peaks = PeakSampler(make_client)
+    peaks = PeakSampler()
     await asyncio.gather(Collector(alert_engine=engine, peaks=peaks).run_forever(), peaks.run_forever(), UnifiCollector().run_forever(), SystemCollector().run_forever(), ProxmoxCollector().run_forever(),
                          ChecksCollector().run_forever())

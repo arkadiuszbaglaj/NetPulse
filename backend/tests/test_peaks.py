@@ -168,3 +168,45 @@ def test_speedtest_missing_running_or_failed_is_skipped():
     del old["speedtest-status"]["interface_name"]
     assert parse_speedtest(old).ifname == "eth4"
     assert parse_speedtest(with_status(latency=-1)).latency_ms is None
+
+
+def test_silent_router_does_not_slow_down_sampling_of_others():
+    """Router, który nie odpowiada, jest pomijany na pół minuty – pozostałe są dalej czytane co sekundę (0.70.1)."""
+    import asyncio
+    import time
+
+    from netpulse import peaks
+    from netpulse.snmp import SnmpError
+
+    class Client:
+        def __init__(self, alive: bool) -> None:
+            self.alive, self.reads, self.octets = alive, 0, 0
+
+        async def get(self, oids):
+            self.reads += 1
+            if not self.alive:
+                raise SnmpError("timeout")
+            self.octets += 1000
+            return {oid: self.octets for oid in oids}
+
+        async def close(self) -> None:
+            pass
+
+    clients = {1: Client(alive=True), 2: Client(alive=False)}
+    sampler = peaks.PeakSampler(client_factory=lambda target: clients[target.id], interval=1)
+    port = (peaks.PeakPort(5, 1000, 6),)
+    sampler._targets = {dev_id: (SimpleNamespace(id=dev_id, name=f"r{dev_id}"), port) for dev_id in clients}
+    sampler._targets_at = time.monotonic()  # lista portów świeża – bez pytania bazy
+
+    async def go() -> None:
+        for _ in range(5):
+            await sampler.sample()
+
+    asyncio.run(go())
+    assert clients[1].reads == 5
+    assert clients[2].reads == 1  # jedna próba, potem przerwa
+    sampler._skip_until[2] = 0.0  # przerwa minęła
+    asyncio.run(sampler.sample())
+    assert clients[2].reads == 2
+    # Klient próbnika nie czeka jak zwykłe odpytywanie
+    assert peaks.READ_TIMEOUT_S < 1 and peaks.BACKOFF_S >= 10

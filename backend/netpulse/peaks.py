@@ -36,6 +36,19 @@ log = logging.getLogger("netpulse.peaks")
 WINDOW_S = 5.0  # najkrótsze okno szczytu
 KEEP_S = 60.0  # jak długo pamiętać zmiany licznika (z zapasem na liczniki odświeżane rzadko)
 TARGETS_TTL = 60.0  # jak często odświeżać listę portów WAN z bazy
+# Odczyt co sekundę nie może czekać jak zwykłe odpytywanie (2 s i ponowienie): zgubiony pakiet nadrobi następny odczyt
+READ_TIMEOUT_S = 0.8
+# Router, który nie odpowiada, pomijamy na pół minuty. Bez tego jego limit czasu wstrzymywał odczyt WSZYSTKICH
+# routerów (od 0.70.1; na serwerze z wyłączonym MikroTikiem brama była czytana co ~4 s zamiast co sekundę
+# i szczyt testu prędkości 576 Mb/s wyszedł 341 Mb/s)
+BACKOFF_S = 30.0
+
+
+def make_client(target) -> SnmpClient:
+    """Klient SNMP próbnika: krótki limit czasu, bez ponowień."""
+    from .snmp.client import PySnmpClient
+
+    return PySnmpClient(target.host, target.credentials, port=target.port, timeout=READ_TIMEOUT_S, retries=0)
 
 
 class PeakTracker:
@@ -93,8 +106,9 @@ class PeakSampler:
     """Pętla w kolektorze: co `interval` sekund liczniki portów WAN każdego routera SNMP. Kolektor odbiera szczyt
     przy zapisie próbki (`take`). `interval <= 0` wyłącza pomiar – wykresy mają wtedy samą średnią."""
 
-    def __init__(self, client_factory, interval: float | None = None) -> None:
+    def __init__(self, client_factory=make_client, interval: float | None = None) -> None:
         self.client_factory = client_factory
+        self._skip_until: dict[int, float] = {}  # urządzenie → kiedy spróbować ponownie po braku odpowiedzi
         self.interval = settings.peak_interval if interval is None else interval
         self.tracker = PeakTracker()
         self._clients: dict[int, tuple[object, SnmpClient]] = {}
@@ -153,6 +167,7 @@ class PeakSampler:
         except (SnmpError, TimeoutError, OSError) as exc:
             log.debug("%s: brak odpowiedzi przy pomiarze szczytu – %s", target.name, exc)
             await self._drop(target.id)
+            self._skip_until[target.id] = time.monotonic() + BACKOFF_S
             return
         for p in ports:
             limit = p.speed_mbps * 1_000_000 * rate_factor(p.if_type) if p.speed_mbps else None
@@ -167,7 +182,8 @@ class PeakSampler:
             for dev_id in [d for d in self._clients if d not in self._targets]:
                 await self._drop(dev_id)
             self.tracker.forget(lambda k: k[0] not in self._targets)
-        await asyncio.gather(*(self.sample_device(t, ports, time.monotonic()) for t, ports in self._targets.values()))
+        due = [(t, ports) for dev_id, (t, ports) in self._targets.items() if self._skip_until.get(dev_id, 0.0) <= now]
+        await asyncio.gather(*(self.sample_device(t, ports, time.monotonic()) for t, ports in due))
 
     async def run_forever(self) -> None:
         if self.interval <= 0:

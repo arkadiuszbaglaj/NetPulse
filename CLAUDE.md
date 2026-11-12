@@ -157,8 +157,9 @@ prędkości bramy UniFi z kontrolera (`speedtest-status` → `unifi.parse_speedt
 (2) szczyt portów WAN: `netpulse/peaks.py` czyta liczniki co sekundę (`NETPULSE_PEAK_INTERVAL`, 0 = wyłączone) i kolektor zapisuje
 najwyższą średnią z ok. 5 s w `interface_metrics.in_bps_max|out_bps_max` (migracja 0018; serie `in_bps_max`/`out_bps_max` źródeł Ruch WAN
 i Port, puste powyżej 7 dni – agregat godzinowy ich nie ma). Prędkość liczona między zmianami licznika (UCG odświeża co ~1 s), dokładność
-ok. ±20 %. `Collector(peaks=None)` w testach działa jak dotąd. Opis: `docs/42-szczyt-i-testy-predkosci.md`. Szczyt na prawdziwym
-teście prędkości jeszcze niepotwierdzony na serwerze.
+ok. ±20 %. `Collector(peaks=None)` w testach działa jak dotąd. Opis: `docs/42-szczyt-i-testy-predkosci.md`. Pierwszy test na serwerach
+(12.11.2026): wynik testu 1:1 na obu, szczyt na VPS +4 %, na domowym zaniżony przez nieodpowiadający router – poprawione w 0.70.1
+(próbnik: limit czasu 0,8 s, pomijanie milczącego routera na 30 s); do ponownego sprawdzenia.
 
 ## VPN (0.57.0)
 
