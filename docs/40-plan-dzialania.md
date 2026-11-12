@@ -62,11 +62,12 @@ Pliki statyczne dalej serwuje API (przez nginx z kompresją) – przeniesienie i
 
 **Gotowe, gdy:** pierwsze wejście pobiera ok. 0,4 MB zamiast 1,1 MB, a rozmiar bazy po kilku dniach wyraźnie spada.
 
-## Etap 2 – bezpieczeństwo przed pokazaniem światu (część ✅ w 0.68.0)
+## Etap 2 – bezpieczeństwo przed pokazaniem światu ✅ (0.68.0 i 0.69.0)
 
 Zrobione 12.11.2026 (opis: `docs/34-https.md`, „Utwardzenie”): pełny CSP, limit logowań na konto, utwardzenie kontenerów,
-przypięty obraz bazy i plik blokady Pythona. **Zostało:** podpisane aktualizacje (czeka na decyzję o kluczu). Osobna rola
-bazy odłożona – uzasadnienie w `docs/34-https.md`.
+przypięty obraz bazy i plik blokady Pythona. Podpisane aktualizacje (0.69.0): commity na `main` podpisane kluczem SSH,
+updater i `netpulse update` sprawdzają podpis – `docs/41-podpisane-aktualizacje.md`. Aktualizacje idą dalej z `main` (nie z tagów
+wydań) – podpis commita daje tę samą ochronę bez zmiany sposobu pracy. Osobna rola bazy odłożona – uzasadnienie w `docs/34-https.md`.
 
 - Aktualizacje z podpisanych tagów wydań zamiast gałęzi `main`; updater odrzuca niepodpisany kod,
   `install.sh` instaluje ostatnie wydanie.

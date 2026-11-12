@@ -127,7 +127,7 @@ kontrolę nad serwerem – dostał tylko `no-new-privileges`. System plików tyl
 
 ### Czego w 0.68.0 nie ma (z etapu 2)
 
-- **Podpisane aktualizacje** – wymagają klucza, który tworzy i trzyma użytkownik; do decyzji.
+- **Podpisane aktualizacje** – zrobione w 0.69.0, opis: `docs/41-podpisane-aktualizacje.md`.
 - **Osobna rola bazy bez uprawnień superużytkownika** – odłożona po analizie: przywracanie kopii zapasowej i tak
   musi działać jako superużytkownik (wymaga tego TimescaleDB), więc osobna rola nie zamyka drogi „wgrana kopia wykonuje
   kod”. Kopię wgrywa tylko administrator, który i tak może zainstalować dowolną wersję NetPulse. Zysk byłby tylko przy
