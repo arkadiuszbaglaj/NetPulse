@@ -13,6 +13,13 @@ from .state import now_iso
 VERSION_RE = re.compile(r'^__version__\s*=\s*"([^"]+)"', re.MULTILINE)
 VERSION_FILE = "backend/netpulse/__init__.py"
 MAX_CHANGES = 50
+# Klucze, którymi wolno podpisać aktualizację (format allowed_signers z ssh-keygen). Zaufany jest plik z ZAINSTALOWANEJ
+# wersji – nowy klucz może więc wprowadzić tylko aktualizacja podpisana kluczem dotychczasowym.
+SIGNERS_FILE = "deploy/update-signers"
+UNSIGNED = (
+    "Aktualizacja w źródle nie ma prawidłowego podpisu NetPulse – nie zostanie zainstalowana. "
+    "Jeśli świadomie używasz własnego źródła aktualizacji, ustaw NETPULSE_UPDATE_VERIFY=off w deploy/.env."
+)
 
 
 class UpdateError(Exception):
@@ -38,6 +45,29 @@ def _out(s: Settings, *args: str, timeout: int = 60) -> str:
     if r.returncode != 0:
         raise UpdateError(f"git {args[0]}: {(r.stderr or r.stdout).strip()[-300:]}")
     return r.stdout.strip()
+
+
+def signature_required(s: Settings) -> bool:
+    """Podpis sprawdzamy, gdy instalacja ma listę zaufanych kluczy (wersje od 0.69.0) i nie wyłączono tego w .env."""
+    return s.verify_signatures and (s.install_dir / SIGNERS_FILE).is_file()
+
+
+def verify_commit(s: Settings, commit: str) -> None:
+    """Sprawdza, że `commit` jest podpisany kluczem SSH z listy zaufanych zainstalowanej wersji (od 0.69.0).
+
+    Podpis ostatniego commita obejmuje całą historię przed nim (skróty), więc wystarczy jeden. Chroni przed
+    podmianą kodu w źródle: ktoś, kto przejmie konto na GitHubie, nie ma klucza i nie podpisze zmiany.
+    Wywoływać z pełnym skrótem commita i ten sam skrót instalować – nie nazwę gałęzi, która może się przesunąć."""
+    if not signature_required(s):
+        return
+    signers = s.install_dir / SIGNERS_FILE
+    r = sh(
+        ["git", "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={signers}", "verify-commit", commit],
+        s.install_dir,
+    )
+    if r.returncode != 0:
+        detail = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["brak podpisu"]
+        raise UpdateError(f"{UNSIGNED} ({detail[0][:160]})")
 
 
 def branch_name(s: Settings) -> str:
@@ -78,6 +108,9 @@ def check(s: Settings, fetch: bool = True) -> dict[str, Any]:
 
     remote = f"origin/{branch}"
     behind = int(_out(s, "rev-list", "--count", f"HEAD..{remote}"))
+    if behind:
+        # Niepodpisanej wersji nie pokazujemy jako dostępnej – panel dostaje czytelny błąd zamiast przycisku „Zainstaluj”
+        verify_commit(s, _out(s, "rev-parse", remote))
     ahead = int(_out(s, "rev-list", "--count", f"{remote}..HEAD"))
     changes = []
     if behind:

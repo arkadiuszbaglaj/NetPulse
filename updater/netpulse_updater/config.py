@@ -20,6 +20,9 @@ class Settings:
     port: int = 8080
     repo_url: str = ""  # puste = adres `origin` z instalacji; ustawienie pozwala wskazać inne źródło
     branch: str = ""  # puste = bieżąca gałąź instalacji
+    # Sprawdzanie podpisu aktualizacji (od 0.69.0), gdy instalacja ma plik deploy/update-signers.
+    # Wyłączenie (NETPULSE_UPDATE_VERIFY=off) jest dla własnego źródła aktualizacji (fork bez podpisów NetPulse).
+    verify_signatures: bool = True
     min_free_mb: int = 2000
     keep_cache_hours: int = 72
     # Górny limit cache budowania (format Dockera, np. 2gb): wiele aktualizacji w krótkim czasie nie zapcha dysku
@@ -48,6 +51,7 @@ class Settings:
             port=int(env.get("NETPULSE_UPDATER_PORT", "8080")),
             repo_url=env.get("NETPULSE_UPDATE_REPO", ""),
             branch=env.get("NETPULSE_UPDATE_BRANCH", ""),
+            verify_signatures=env.get("NETPULSE_UPDATE_VERIFY", "on").lower() not in ("off", "0", "false", "no"),
             min_free_mb=int(env.get("NETPULSE_MIN_FREE_MB", "2000")),
             keep_cache_hours=int(env.get("NETPULSE_KEEP_BUILD_CACHE_HOURS", "72")),
             build_cache_max=env.get("NETPULSE_BUILD_CACHE_MAX", "2gb").strip() or "2gb",

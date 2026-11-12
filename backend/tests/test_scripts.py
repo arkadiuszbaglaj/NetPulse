@@ -232,3 +232,56 @@ def test_fill_tls_names_only_when_missing_or_empty(env, script):
     f.write_text("NETPULSE_TLS_NAMES=moj.serwer\n")
     env.run(script, f'np_fill_tls_names "{posix(f)}"')
     assert f.read_text() == "NETPULSE_TLS_NAMES=moj.serwer\n"
+
+
+# --- podpis aktualizacji w `netpulse update` (od 0.69.0) ---------------------------------
+
+
+@pytest.mark.skipif(shutil.which("ssh-keygen") is None or shutil.which("git") is None, reason="brak ssh-keygen albo gita")
+def test_verify_update_accepts_only_commits_signed_with_trusted_key(tmp_path):
+    """`verify_update` z scripts/netpulse: podpis kluczem z deploy/update-signers przechodzi, brak podpisu i obcy klucz nie;
+    bez pliku z kluczami (wersje sprzed 0.69.0) i z NETPULSE_UPDATE_VERIFY=off – bez sprawdzania."""
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
+    repo = tmp_path / "install"
+    (repo / "deploy").mkdir(parents=True)
+
+    def git(*args: str) -> str:
+        r = subprocess.run(["git", *args], cwd=repo, env=env, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        return r.stdout.strip()
+
+    def key(name: str) -> Path:
+        k = tmp_path / name
+        assert subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(k)], capture_output=True).returncode == 0
+        return k
+
+    def commit(name: str, signing: Path | None) -> str:
+        (repo / name).write_text(name)
+        git("add", "-A")
+        if signing:
+            git("-c", "gpg.format=ssh", "-c", f"user.signingkey={signing.with_suffix('.pub')}", "commit", "-q", "-S", "-m", name)
+        else:
+            git("commit", "-q", "--no-gpg-sign", "-m", name)
+        return git("rev-parse", "HEAD")
+
+    def verify(commit_id: str, extra_env: str = "") -> int:
+        script = f'source "{posix(NETPULSE)}"; INSTALL_DIR="{posix(repo)}"; ENV_FILE="$INSTALL_DIR/deploy/.env"; {extra_env} verify_update {commit_id}'
+        return subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True).returncode
+
+    git("init", "-q", "-b", "main")
+    trusted, other = key("zaufany"), key("obcy")
+    unsigned = commit("a", None)
+    assert verify(unsigned) == 0  # brak listy kluczy – jak przed 0.69.0
+
+    kind, blob = trusted.with_suffix(".pub").read_text().split()[:2]
+    (repo / "deploy" / "update-signers").write_text(f'netpulse-release namespaces="git" {kind} {blob}\n')
+    good = commit("b", trusted)
+    bad = commit("c", other)
+    plain = commit("d", None)
+    assert verify(good) == 0
+    assert verify(bad) != 0
+    assert verify(plain) != 0
+    assert verify(unsigned) != 0
+    assert verify(plain, "NETPULSE_UPDATE_VERIFY=off") == 0
+    (repo / "deploy" / ".env").write_text("POSTGRES_PASSWORD=x\nNETPULSE_UPDATE_VERIFY=off\n")
+    assert verify(plain) == 0

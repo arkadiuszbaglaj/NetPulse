@@ -70,7 +70,7 @@ def launch_job(s: Settings) -> None:
         "-v", f"{d}:{d}",
         "-e", f"NETPULSE_DIR={d}",
     ]  # fmt: skip
-    for name in ("NETPULSE_UPDATE_REPO", "NETPULSE_UPDATE_BRANCH", "NETPULSE_MIN_FREE_MB", "NETPULSE_KEEP_BUILD_CACHE_HOURS", "TZ"):
+    for name in ("NETPULSE_UPDATE_REPO", "NETPULSE_UPDATE_BRANCH", "NETPULSE_UPDATE_VERIFY", "NETPULSE_MIN_FREE_MB", "NETPULSE_KEEP_BUILD_CACHE_HOURS", "TZ"):
         if os.environ.get(name):
             cmd += ["-e", f"{name}={os.environ[name]}"]
     cmd += ["--entrypoint", "python3", image, "-m", "netpulse_updater.job"]

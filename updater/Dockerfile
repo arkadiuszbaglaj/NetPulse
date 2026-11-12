@@ -3,7 +3,8 @@
 # i nie wystawia żadnego portu poza siecią wewnętrzną.
 FROM docker:27-cli
 
-RUN apk add --no-cache git python3 tzdata \
+# openssh-keygen: sprawdzanie podpisu SSH aktualizacji (git verify-commit, od 0.69.0)
+RUN apk add --no-cache git openssh-keygen python3 tzdata \
     && git config --system --add safe.directory '*' \
     && docker compose version
 

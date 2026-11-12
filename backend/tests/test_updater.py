@@ -566,3 +566,127 @@ def test_cache_cap_falls_back_to_keep_storage_on_older_docker(repo):
     result, docker, _ = run_job(repo, docker=FakeDocker(fail=("--max-used-space",)), build_cache_max="3gb")
     assert result == "ok"
     assert docker.has("builder prune -f --max-used-space 3gb") and docker.has("builder prune -f --keep-storage 3gb")
+
+
+# --- podpis aktualizacji (od 0.69.0) -------------------------------------------------
+
+import shutil  # noqa: E402
+
+needs_ssh_keygen = pytest.mark.skipif(shutil.which("ssh-keygen") is None, reason="brak ssh-keygen")
+
+
+def new_key(tmp: Path, name: str) -> Path:
+    """Tymczasowy klucz podpisujący (bez hasła); zwraca ścieżkę klucza prywatnego."""
+    key = tmp / name
+    r = subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", name, "-f", str(key)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return key
+
+
+def signers_line(key: Path) -> str:
+    kind, blob = key.with_suffix(".pub").read_text().split()[:2]
+    return f'netpulse-release namespaces="git" {kind} {blob}\n'
+
+
+def sign_with(repo: Repo, key: Path | None) -> None:
+    """Autor podpisuje kolejne commity kluczem `key` (None = bez podpisu)."""
+    git(repo.author, "config", "gpg.format", "ssh")
+    git(repo.author, "config", "commit.gpgsign", "true" if key else "false")
+    if key:
+        git(repo.author, "config", "user.signingkey", str(key.with_suffix(".pub")))
+
+
+def trust(repo: Repo, *keys: Path) -> None:
+    (repo.author / "deploy" / "update-signers").write_text("".join(signers_line(k) for k in keys))
+
+
+@pytest.fixture
+def signed(repo, tmp_path):
+    """Instalacja w wersji, która ma już listę zaufanych kluczy (jak każda od 0.69.0)."""
+    key = new_key(tmp_path, "klucz-wydan")
+    sign_with(repo, key)
+    trust(repo, key)
+    repo.commit("0.2.0", "Lista zaufanych kluczy")
+    git(repo.install, "pull", "-q", "--ff-only")
+    repo.key = key
+    return repo
+
+
+@needs_ssh_keygen
+def test_signed_update_is_offered_and_installed(signed):
+    new = signed.commit("0.3.0", "Podpisana wersja")
+    s = settings(signed)
+    assert git_ops.signature_required(s)
+    assert git_ops.check(s)["update_available"] is True
+    result, docker, s = run_job(signed)
+    assert result == "ok" and signed.head() == new
+    assert any("Podpis aktualizacji prawidłowy" in line for line in state.log_tail(s))
+
+
+@needs_ssh_keygen
+def test_unsigned_update_is_refused(signed):
+    old = signed.head()
+    sign_with(signed, None)
+    signed.commit("0.3.0", "Bez podpisu – np. zmiana z przejętego konta")
+    with pytest.raises(git_ops.UpdateError, match="nie ma prawidłowego podpisu"):
+        git_ops.check(settings(signed))
+    result, docker, s = run_job(signed)
+    assert result == "failed" and signed.head() == old
+    st = state.read_status(s)
+    assert "nie ma prawidłowego podpisu" in st["error"] and "Nic nie zostało zmienione" in st["error"]
+    assert not docker.has("git merge") and not docker.has(" build") and not docker.has(" up -d")
+
+
+@needs_ssh_keygen
+def test_update_signed_with_unknown_key_is_refused(signed, tmp_path):
+    old = signed.head()
+    sign_with(signed, new_key(tmp_path, "obcy-klucz"))
+    signed.commit("0.3.0", "Podpis obcym kluczem")
+    with pytest.raises(git_ops.UpdateError, match="nie ma prawidłowego podpisu"):
+        git_ops.check(settings(signed))
+    result, _, _ = run_job(signed)
+    assert result == "failed" and signed.head() == old
+
+
+@needs_ssh_keygen
+def test_attacker_cannot_swap_trusted_keys_in_the_same_update(signed, tmp_path):
+    """Zaufana jest lista z zainstalowanej wersji: commit, który sam dopisuje swój klucz, nie przechodzi."""
+    old = signed.head()
+    evil = new_key(tmp_path, "klucz-napastnika")
+    sign_with(signed, evil)
+    trust(signed, evil)
+    signed.commit("0.3.0", "Podmiana listy kluczy")
+    result, _, _ = run_job(signed)
+    assert result == "failed" and signed.head() == old
+
+
+@needs_ssh_keygen
+def test_key_rotation_through_signed_update(signed, tmp_path):
+    """Nowy klucz wprowadza aktualizacja podpisana starym; potem działa nowy, a stary już nie."""
+    fresh = new_key(tmp_path, "nowy-klucz")
+    trust(signed, fresh)
+    signed.commit("0.3.0", "Wymiana klucza (podpis starym)")
+    assert run_job(signed)[0] == "ok"
+    sign_with(signed, fresh)
+    new = signed.commit("0.4.0", "Podpis nowym kluczem")
+    assert run_job(signed)[0] == "ok" and signed.head() == new
+    sign_with(signed, signed.key)
+    signed.commit("0.5.0", "Podpis wycofanym kluczem")
+    assert run_job(signed)[0] == "failed" and signed.head() == new
+
+
+@needs_ssh_keygen
+def test_verification_can_be_switched_off_for_own_source(signed):
+    sign_with(signed, None)
+    new = signed.commit("0.3.0", "Własny fork bez podpisów")
+    s = settings(signed, verify_signatures=False)
+    assert not git_ops.signature_required(s)
+    assert git_ops.check(s)["update_available"] is True
+    assert run_job(signed, verify_signatures=False)[0] == "ok" and signed.head() == new
+
+
+def test_install_without_signers_file_updates_as_before(repo):
+    """Wersje sprzed 0.69.0 nie mają listy kluczy – pierwsza aktualizacja do wersji z podpisami przechodzi bez sprawdzania."""
+    assert not git_ops.signature_required(settings(repo))
+    new = repo.commit("0.2.0", "Zwykła wersja")
+    assert run_job(repo)[0] == "ok" and repo.head() == new

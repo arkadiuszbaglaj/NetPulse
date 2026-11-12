@@ -137,8 +137,20 @@ class Job:
             self.sh(["git", "remote", "set-url", "origin", self.s.repo_url])
         self.must(["git", "fetch", "--quiet", "origin", branch], "Nie udało się pobrać aktualizacji ze źródła.")
         before = self.status["from_commit"]
+        # Instalujemy dokładnie ten commit, którego podpis sprawdziliśmy (nie nazwę gałęzi – mogłaby się przesunąć)
+        target = git_ops.sh(["git", "rev-parse", f"origin/{branch}"], self.s.install_dir).stdout.strip()
+        if not target:
+            raise StepError("Nie udało się ustalić wersji w źródle aktualizacji.")
+        head = git_ops.sh(["git", "rev-parse", "HEAD"], self.s.install_dir).stdout.strip()
+        if target != head:
+            try:
+                git_ops.verify_commit(self.s, target)
+            except git_ops.UpdateError as exc:
+                raise StepError(f"{exc} Nic nie zostało zmienione.") from exc
+            if git_ops.signature_required(self.s):
+                self.log(f"Podpis aktualizacji prawidłowy ({target[:7]})")
         self.must(
-            ["git", "merge", "--ff-only", "--quiet", f"origin/{branch}"],
+            ["git", "merge", "--ff-only", "--quiet", target],
             "Nie można prosto zaktualizować kodu (instalacja ma lokalne zmiany). Zaktualizuj ręcznie: netpulse update",
         )
         after = git_ops.current(self.s)

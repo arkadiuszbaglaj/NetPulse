@@ -197,6 +197,20 @@ cmd_backup() {
   c_ok "Kopia: $target ($(du -h "$target" | cut -f1))"
 }
 
+# Podpis aktualizacji (od 0.69.0): commit musi być podpisany kluczem z deploy/update-signers ZAINSTALOWANEJ wersji.
+# Bez pliku (wersje sprzed 0.69.0) albo z NETPULSE_UPDATE_VERIFY=off (własne źródło aktualizacji) – bez sprawdzania.
+verify_update() {
+  local commit="$1" signers="$INSTALL_DIR/deploy/update-signers"
+  [ -f "$signers" ] || return 0
+  [ "${NETPULSE_UPDATE_VERIFY:-}" = "off" ] && return 0
+  grep -qx 'NETPULSE_UPDATE_VERIFY=off' "$ENV_FILE" 2>/dev/null && return 0
+  if ! command -v ssh-keygen >/dev/null 2>&1; then
+    c_err "Brak programu ssh-keygen (pakiet openssh-client) – nie da się sprawdzić podpisu aktualizacji."
+    return 1
+  fi
+  git -C "$INSTALL_DIR" -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$signers" verify-commit "$commit" >/dev/null 2>&1
+}
+
 cmd_update() {
   need_root update "$@"
   # Aktualizacja podmienia ten plik – uruchom kopię, żeby bash nie czytał zmienianego skryptu
@@ -219,6 +233,11 @@ cmd_update() {
     return 0
   fi
   if [ "$before" != "$after" ]; then
+    if ! verify_update "$after"; then
+      c_err "Aktualizacja w źródle nie ma prawidłowego podpisu NetPulse – nie zostanie zainstalowana. Nic nie zostało zmienione."
+      c_err "Jeśli świadomie używasz własnego źródła aktualizacji, ustaw NETPULSE_UPDATE_VERIFY=off w deploy/.env."
+      exit 1
+    fi
     echo "Zmiany:"
     git log --oneline --no-decorate "$before..$after" | sed 's/^/  /'
   fi
@@ -234,7 +253,8 @@ cmd_update() {
     c_ok "Kopia bazy: $backup"
   fi
   if [ "$before" != "$after" ]; then
-    git merge --ff-only --quiet "origin/$branch"
+    # dokładnie ten commit, którego podpis sprawdziliśmy
+    git merge --ff-only --quiet "$after"
   fi
   # Uzupełnij .env o nowe zmienne z .env.example (bez nadpisywania istniejących)
   while IFS='=' read -r key value; do
