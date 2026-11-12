@@ -97,3 +97,26 @@ def test_credential_rules():
     assert credential_error("3", None, "mon", "SHA", None, None, None)  # protokół bez klucza
     assert credential_error("3", None, "mon", None, None, "AES", "privpass1")  # priv bez auth
     assert credential_error("3", None, "mon", "SHA", "krotki", None, None)  # klucz < 8 znaków
+
+
+def test_login_limiter_prunes_idle_addresses():
+    """Adresy bez prób w oknie znikają ze słownika (od 0.67.0) – inaczej rósłby bez końca."""
+    limiter = LoginLimiter(max_failures=3, window_s=60)
+    limiter.failure("10.0.0.1", now=0)
+    limiter.failure("10.0.0.2", now=50)
+    limiter.prune(now=70)
+    assert set(limiter._failures) == {"10.0.0.2"}
+    limiter.prune(now=200)
+    assert limiter._failures == {}
+
+
+def test_password_helpers_run_off_the_event_loop():
+    """Wersje asynchroniczne liczą argon2 w wątku i dają ten sam wynik."""
+    from netpulse.auth import hash_password_async, verify_password_async
+
+    async def go():
+        h = await hash_password_async("tajne-haslo")
+        return h, await verify_password_async(h, "tajne-haslo"), await verify_password_async(h, "zle"), await verify_password_async(None, "x")
+
+    h, ok, bad, missing = asyncio.run(go())
+    assert h.startswith("$argon2") and ok and not bad and not missing

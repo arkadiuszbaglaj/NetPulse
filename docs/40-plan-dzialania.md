@@ -46,7 +46,13 @@ Do poprawy, od najważniejszego:
 
 Panel jest nowoczesny i spójny – **bez przebudowy**, tylko dopracowanie (lista w etapie 3).
 
-## Etap 1 – szybkie poprawki wydajności (0.66.x)
+## Etap 1 – szybkie poprawki wydajności ✅ (0.67.0)
+
+Zrobione 12.11.2026. Gzip: `deploy/proxy/nginx.conf` (sprawdzany w teście end-to-end CI). Kompresja bazy:
+`netpulse/compression.py`, opis w `docs/13-migracje-bazy.md`. Pamięć sesji (`NETPULSE_SESSION_CACHE_S`, 10 s) i czyszczenie
+jej przy zmianach kont: `api/security.py` (`forget_sessions`). Hasła w wątku: `hash_password_async`, `verify_password_async`.
+Wstępne ładowanie wykresów: `Shell.tsx`. Przy okazji: limit logowań czyści nieużywane adresy (punkt z etapu 2).
+Pliki statyczne dalej serwuje API (przez nginx z kompresją) – przeniesienie ich do nginx nie było potrzebne.
 
 - Kompresja gzip w nginx dla paczki panelu i odpowiedzi JSON.
 - Kompresja TimescaleDB na hypertables (dane starsze niż ok. 7 dni), także na istniejących bazach.

@@ -14,12 +14,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, or_, select
 
-from ..auth import hash_password, password_error, username_error
+from ..auth import hash_password_async, password_error, username_error
 from ..db import Session
 from ..db.models import AuditEntry, AuthSession, User
 from .auth_routes import clear_totp
 from .schemas import UserOut
-from .security import AdminUser, require_admin
+from .security import AdminUser, forget_sessions, require_admin
 
 router = APIRouter(prefix="/api", tags=["konta"], dependencies=[Depends(require_admin)])
 
@@ -79,7 +79,7 @@ async def create_user(body: UserCreate):
             raise HTTPException(409, f"Można mieć najwyżej {MAX_USERS} kont")
         if await session.scalar(select(User.id).where(func.lower(User.username) == username.lower())) is not None:
             raise HTTPException(409, f"Konto {username} już istnieje")
-        user = User(username=username, password_hash=hash_password(body.password))
+        user = User(username=username, password_hash=await hash_password_async(body.password))
         user.set_role(body.role)
         session.add(user)
         await session.flush()
@@ -102,7 +102,7 @@ async def update_user(user_id: int, body: UserUpdate, me: AdminUser):
             user.set_role(body.role)
             changed = True
         if body.password is not None:
-            user.password_hash = hash_password(body.password)
+            user.password_hash = await hash_password_async(body.password)
             changed = True
         if body.reset_totp and (user.totp_enabled or user.totp_secret):
             clear_totp(user)
@@ -112,6 +112,7 @@ async def update_user(user_id: int, body: UserUpdate, me: AdminUser):
             await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
         await session.flush()
         await session.refresh(user)
+    forget_sessions()  # rola i hasło obowiązują od razu, także w pamięci sesji (security.py)
     return user
 
 
@@ -126,6 +127,7 @@ async def delete_user(user_id: int, me: AdminUser):
         if user.role == "admin" and await _admins(session) <= 1:
             raise HTTPException(409, "To ostatni administrator")
         await session.delete(user)  # sesje i pulpity konta usuwa baza (ON DELETE CASCADE)
+    forget_sessions()
 
 
 @router.get("/audit", response_model=AuditPage)

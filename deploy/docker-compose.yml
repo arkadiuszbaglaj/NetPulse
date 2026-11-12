@@ -10,6 +10,8 @@ x-backend: &backend
     NETPULSE_DATABASE_URL: postgresql+asyncpg://netpulse:${POSTGRES_PASSWORD:?ustaw POSTGRES_PASSWORD w .env}@db:5432/netpulse
     NETPULSE_POLL_INTERVAL: ${NETPULSE_POLL_INTERVAL:-30}
     NETPULSE_RETENTION_DAYS: ${NETPULSE_RETENTION_DAYS:-30}
+    # Kompresja metryk starszych niż tyle dni (od 0.67.0); 0 = bez kompresji
+    NETPULSE_COMPRESS_AFTER_DAYS: ${NETPULSE_COMPRESS_AFTER_DAYS:-7}
     NETPULSE_LOG_LEVEL: ${NETPULSE_LOG_LEVEL:-INFO}
     # Klucz szyfrowania sekretów w bazie: plik w wolumenie keys (powstaje sam); zmienna z .env ma pierwszeństwo
     NETPULSE_SECRET_KEY: ${NETPULSE_SECRET_KEY:-}

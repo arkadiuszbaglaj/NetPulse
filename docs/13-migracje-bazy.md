@@ -65,3 +65,26 @@ w oknie czasu czytało wiersze wszystkich obiektów z tego okna. Migracja `0017`
 30 dniach danych może potrwać chwilę – kolektor zaczyna odpytywać dopiero po nim.
 
 **Nowa tabela metryk (hypertable) = od razu indeks (obiekt, `time`)** w `__table_args__` modelu i w migracji.
+
+## Kompresja metryk (wersja 0.67.0)
+
+Od 0.67.0 TimescaleDB kompresuje chunki tabel metryk starsze niż 7 dni (`NETPULSE_COMPRESS_AFTER_DAYS`, `0` wyłącza).
+Zakłada to `init_db` przy starcie kolektora (`netpulse/compression.py`), poza Alembikiem – tak jak hypertables
+i agregaty godzinowe. Po aktualizacji istniejąca baza kompresuje starsze dane sama, w tle, w ciągu kilkunastu minut;
+nic nie trzeba uruchamiać ręcznie.
+
+- **Co się zmienia dla użytkownika:** baza zajmuje wyraźnie mniej miejsca (metryki kompresują się zwykle kilka–kilkanaście
+  razy), a wykresy 30 dni, raport miesięczny i dostępność czytają mniej danych z dysku. Wykresy do 7 dni czytają
+  dane nieskompresowane – bez zmian.
+- **Podział na segmenty** (`SEGMENT_BY`): wiersze jednego obiektu (portu, urządzenia, sprawdzenia) leżą razem – te same
+  kolumny co indeks (obiekt, `time`). **Nowa hypertable = wpis w `SEGMENT_BY`** (pilnuje `test_compression.py`).
+- **Zapis i usuwanie działają dalej:** spóźniona próbka trafia do skompresowanego chunku, usunięcie urządzenia usuwa
+  też jego skompresowane metryki (`test_compression_db.py`).
+- **Migracje tabel metryk:** do skompresowanej hypertable można dodać kolumnę (bez wartości domyślnej albo ze stałą).
+  Zmiana typu kolumny albo nowe ograniczenie wymagają wcześniejszej dekompresji chunków
+  (`SELECT decompress_chunk(c, true) FROM show_chunks('tabela') c`) w tej samej migracji.
+- **Sprawdzenie na serwerze** (z katalogu `deploy/` instalacji) – ile chunków każdej tabeli jest już skompresowanych:
+  `docker compose exec db psql -U netpulse -d netpulse -c "SELECT hypertable_name, count(*) FILTER (WHERE is_compressed) AS skompresowane, count(*) AS wszystkie FROM timescaledb_information.chunks GROUP BY 1 ORDER BY 1"`
+- Błąd kompresji jednej tabeli nie zatrzymuje startu – tabela zostaje nieskompresowana, w logu kolektora jest wpis
+  „Kompresja tabeli …”.
+

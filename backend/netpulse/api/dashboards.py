@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import func, select, text, update
 
-from ..auth import hash_password, hash_token, new_token
+from ..auth import hash_password_async, hash_token, new_token
 from ..db import Session
 from ..db.models import Dashboard
 from .layout_schemas import SCHEMA_VERSION, DashboardLayout, PublicOptions, Strict
@@ -286,7 +286,7 @@ async def set_public(dashboard_id: int, body: PublicIn, user: CurrentUser):
         if body.clear_pin:
             row.public_pin_hash = None
         elif body.pin:
-            row.public_pin_hash = hash_password(body.pin)
+            row.public_pin_hash = await hash_password_async(body.pin)
     return _info(row)
 
 

@@ -110,6 +110,7 @@ Plik `/opt/netpulse/deploy/.env`:
 | `NETPULSE_TLS_NAMES`      | (z instalatora) | adresy w certyfikacie HTTPS |
 | `NETPULSE_POLL_INTERVAL`  | 30        | co ile sekund odpytywać urządzenia |
 | `NETPULSE_RETENTION_DAYS` | 30        | ile dni trzymać metryki           |
+| `NETPULSE_COMPRESS_AFTER_DAYS` | 7    | po ilu dniach baza kompresuje metryki (0 = bez kompresji) |
 
 Progi kontroli miejsca (zmienne środowiskowe polecenia, nie `.env`): `NETPULSE_MIN_FREE_MB` (domyślnie
 2000), `NETPULSE_WARN_FREE_MB` (4000), `NETPULSE_KEEP_BUILD_CACHE_HOURS` (72), np.

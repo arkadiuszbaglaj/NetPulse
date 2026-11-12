@@ -23,7 +23,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from ..auth import hash_token, verify_password
+from ..auth import hash_token, verify_password_async
 from ..db import Session
 from ..db.models import Dashboard
 from ..modules import get_modules
@@ -116,7 +116,7 @@ async def unlock(token: str, body: UnlockIn, request: Request, response: Respons
     response.headers.update(NO_STORE)
     if row.public_pin_hash is None:
         return UnlockOut(access=access_key(row))
-    if not verify_password(row.public_pin_hash, body.pin):
+    if not await verify_password_async(row.public_pin_hash, body.pin):
         pin_limiter.failure(key)
         raise HTTPException(403, "Nieprawidłowy PIN")
     pin_limiter.success(key)

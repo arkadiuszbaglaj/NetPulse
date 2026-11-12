@@ -72,6 +72,8 @@ Schemat bazy zmieniają **migracje Alembic** (od 0.10.0; `backend/netpulse/db/mi
 `docs/13-migracje-bazy.md`). `init_db` (kolektor przy starcie, `netpulse db init`) wykonuje `upgrade head` pod blokadą
 w jednej transakcji, potem zakłada hypertables. Każda zmiana w `models.py` = nowa migracja (`--rev-id 0002`, …);
 brak migracji wyłapie `test_migrations.py::test_fresh_db_matches_models`. Nowa hypertable = indeks (obiekt, `time`) – klucz główny zaczyna się od czasu (0017, 0.65.4).
+Od 0.67.0 kompresja chunków starszych niż 7 dni (`netpulse/compression.py`, zakłada `init_db`; `NETPULSE_COMPRESS_AFTER_DAYS`, 0 = wyłączona):
+**nowa hypertable = wpis w `SEGMENT_BY`**, migracja zmieniająca typ kolumny tabeli metryk musi najpierw zdekompresować chunki (`docs/13`).
 Czy jest TimescaleDB, API sprawdza przez `timescale_available()` (zapamiętane w procesie), nie `has_timescale(conn)` przy każdym żądaniu. Migracja bazowa `0001` = schemat 0.9.0
 i przejmuje bazy sprzed migracji bez utraty danych.
 
@@ -204,6 +206,12 @@ wymaga administratora – **nowa trasa dla niższej roli = wpis w `ROLE_RULES` (
 żądań**, rok przechowywania). Panel: `lib/roles.ts` (`useCan`), pole `role` podstron Ustawień w `modules.tsx` (bez niego –
 tylko administrator). Opis: `docs/33-role-i-audyt.md`.
 
+## Wydajność API (0.67.0)
+
+Proxy kompresuje odpowiedzi (gzip w `deploy/proxy/nginx.conf`). API pamięta sprawdzoną sesję 10 s (`_sessions` w `api/security.py`,
+`NETPULSE_SESSION_CACHE_S`; w testach wyłączona przez `conftest.py`) – **nowa trasa zmieniająca sesje, role, hasła albo 2FA woła
+`forget_sessions()`**. Argon2 w trasach API tylko przez `hash_password_async` / `verify_password_async` (wątek, nie pętla asyncio).
+
 ## HTTPS (0.62.0)
 
 Kontener `proxy` (nginx, `deploy/proxy/`) przyjmuje `NETPULSE_PORT` (HTTP, jak dotąd) i `NETPULSE_HTTPS_PORT` (8443);
@@ -317,7 +325,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 3 ✅ (0.66.0, został widok na telefonie); etap 1 czeka na zgodę użytkownika.
+  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 3 ✅ (0.66.0, został widok na telefonie); następny: etap 2.
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.

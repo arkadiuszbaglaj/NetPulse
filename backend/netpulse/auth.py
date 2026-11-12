@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 import secrets
@@ -26,6 +27,17 @@ def verify_password(password_hash: str | None, password: str) -> bool:
         return _hasher.verify(password_hash or _DUMMY_HASH, password) and password_hash is not None
     except (VerificationError, InvalidHashError):
         return False
+
+
+async def hash_password_async(password: str) -> str:
+    """`hash_password` w wątku: argon2 liczy się kilkadziesiąt ms i w pętli asyncio wstrzymywałby w tym czasie
+    wszystkie inne żądania API (od 0.67.0). W trasach API używać tej wersji."""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(password_hash: str | None, password: str) -> bool:
+    """`verify_password` w wątku – patrz `hash_password_async`."""
+    return await asyncio.to_thread(verify_password, password_hash, password)
 
 
 def needs_rehash(password_hash: str) -> bool:

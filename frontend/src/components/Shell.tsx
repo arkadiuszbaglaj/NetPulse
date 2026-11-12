@@ -60,6 +60,18 @@ export function Shell() {
   }, [collapsed]);
 
   useEffect(() => {
+    // Plik wykresów (ECharts, ~190 kB po kompresji) pobieramy w wolnej chwili zaraz po wejściu do panelu –
+    // pierwszy wykres nie czeka wtedy na niego w kolejce za pulpitem i widgetem (od 0.67.0)
+    const load = () => void import("./charts/PanelChart").catch(() => undefined);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(load, { timeout: 2000 });
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(load, 300);
+    return () => clearTimeout(id);
+  }, []);
+
+  useEffect(() => {
     // Ctrl+K (⌘K) otwiera i zamyka paletę z każdego miejsca panelu, także z pola formularza
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {

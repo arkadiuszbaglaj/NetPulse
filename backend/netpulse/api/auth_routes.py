@@ -7,7 +7,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, text
 
 from .. import __version__, audit, totp
-from ..auth import hash_password, hash_token, needs_rehash, password_error, username_error, verify_password
+from ..auth import (
+    hash_password_async,
+    hash_token,
+    needs_rehash,
+    password_error,
+    username_error,
+    verify_password_async,
+)
 from ..db import Session
 from ..db.models import AuthSession, User
 from .schemas import AuthStatus, Credentials, LoginBody, PasswordChange, UserOut
@@ -15,6 +22,7 @@ from .security import (
     CurrentUser,
     clear_session_cookie,
     client_ip,
+    forget_sessions,
     login_limiter,
     session_token,
     set_session_cookie,
@@ -59,7 +67,7 @@ async def setup(body: Credentials, request: Request, response: Response):
         await session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _SETUP_LOCK})
         if await _user_count(session) > 0:
             raise HTTPException(409, "Konto administratora już istnieje – zaloguj się")
-        user = User(username=body.username, password_hash=hash_password(body.password))
+        user = User(username=body.username, password_hash=await hash_password_async(body.password))
         user.set_role("admin")
         session.add(user)
         await session.flush()
@@ -103,7 +111,7 @@ async def login(body: LoginBody, request: Request, response: Response):
     factor = None
     async with Session() as session, session.begin():
         user = await session.scalar(select(User).where(User.username == body.username))
-        failed = not verify_password(user.password_hash if user else None, body.password)
+        failed = not await verify_password_async(user.password_hash if user else None, body.password)
         if not failed and user.totp_enabled:
             if not body.code:
                 # Hasło dobre – panel dopyta o kod (to nie jest nieudana próba)
@@ -111,7 +119,7 @@ async def login(body: LoginBody, request: Request, response: Response):
             factor = check_second_factor(user, body.code)
         if not failed and (factor is not None or not user.totp_enabled):
             if needs_rehash(user.password_hash):
-                user.password_hash = hash_password(body.password)
+                user.password_hash = await hash_password_async(body.password)
             token = await start_session(session, user, request)
     if failed:
         login_limiter.failure(ip)
@@ -137,6 +145,7 @@ async def logout(request: Request, response: Response):
     if token := session_token(request):
         async with Session() as session, session.begin():
             await session.execute(delete(AuthSession).where(AuthSession.token_hash == hash_token(token)))
+    forget_sessions()
     clear_session_cookie(response, request)
     if user is not None:
         await audit.record("logout", user=user, ip=client_ip(request))
@@ -154,13 +163,14 @@ async def change_password(body: PasswordChange, request: Request, user: CurrentU
         raise HTTPException(422, err)
     async with Session() as session, session.begin():
         db_user = await session.get(User, user.id)
-        if db_user is None or not verify_password(db_user.password_hash, body.current_password):
+        if db_user is None or not await verify_password_async(db_user.password_hash, body.current_password):
             raise HTTPException(403, "Obecne hasło jest nieprawidłowe")
-        db_user.password_hash = hash_password(body.new_password)
+        db_user.password_hash = await hash_password_async(body.new_password)
         current = hash_token(session_token(request) or "")
         await session.execute(
             delete(AuthSession).where(AuthSession.user_id == user.id, AuthSession.token_hash != current)
         )
+    forget_sessions()
     await audit.record("password", user=user, ip=client_ip(request))
 
 
@@ -211,8 +221,8 @@ async def _locked(session, user: User) -> User:
     return db_user
 
 
-def _require_password(user: User, password: str) -> None:
-    if not verify_password(user.password_hash, password):
+async def _require_password(user: User, password: str) -> None:
+    if not await verify_password_async(user.password_hash, password):
         raise HTTPException(403, "Hasło jest nieprawidłowe")
 
 
@@ -226,12 +236,13 @@ async def totp_setup(body: PasswordOnly, user: CurrentUser):
     """Krok 1: nowy sekret (kod QR do aplikacji). Logowanie zmieni się dopiero po potwierdzeniu kodem."""
     async with Session() as session, session.begin():
         db_user = await _locked(session, user)
-        _require_password(db_user, body.password)
+        await _require_password(db_user, body.password)
         if db_user.totp_enabled:
             raise HTTPException(409, "Logowanie dwuskładnikowe jest już włączone")
         secret = totp.new_secret()
         db_user.totp_secret = secret
         db_user.totp_last_step = None
+    forget_sessions()
     uri = totp.otpauth_uri(secret, user.username)
     return TotpSetup(secret=secret, uri=uri, qr_svg=totp.qr_svg(uri))
 
@@ -257,6 +268,7 @@ async def totp_enable(body: CodeOnly, request: Request, user: CurrentUser):
         await session.execute(
             delete(AuthSession).where(AuthSession.user_id == user.id, AuthSession.token_hash != current)
         )
+    forget_sessions()
     await audit.record("totp_enable", user=user, ip=client_ip(request))
     return RecoveryCodes(recovery_codes=codes)
 
@@ -265,13 +277,14 @@ async def totp_enable(body: CodeOnly, request: Request, user: CurrentUser):
 async def totp_disable(body: PasswordAndCode, request: Request, user: CurrentUser):
     async with Session() as session, session.begin():
         db_user = await _locked(session, user)
-        _require_password(db_user, body.password)
+        await _require_password(db_user, body.password)
         if not db_user.totp_enabled:
             raise HTTPException(409, "Logowanie dwuskładnikowe nie jest włączone")
         if check_second_factor(db_user, body.code) is None:
             raise HTTPException(403, "Nieprawidłowy kod")
         clear_totp(db_user)
         result = _status(db_user)
+    forget_sessions()
     await audit.record("totp_disable", user=user, ip=client_ip(request))
     return result
 
@@ -281,12 +294,13 @@ async def totp_new_recovery(body: PasswordAndCode, request: Request, user: Curre
     """Nowe kody zapasowe (stare przestają działać)."""
     async with Session() as session, session.begin():
         db_user = await _locked(session, user)
-        _require_password(db_user, body.password)
+        await _require_password(db_user, body.password)
         if not db_user.totp_enabled:
             raise HTTPException(409, "Logowanie dwuskładnikowe nie jest włączone")
         if check_second_factor(db_user, body.code) is None:
             raise HTTPException(403, "Nieprawidłowy kod")
         codes = totp.new_recovery_codes()
         db_user.totp_recovery = [totp.hash_recovery(c) for c in codes]
+    forget_sessions()
     await audit.record("totp_recovery", user=user, ip=client_ip(request))
     return RecoveryCodes(recovery_codes=codes)

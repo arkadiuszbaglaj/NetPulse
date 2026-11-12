@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import urlsplit
@@ -96,13 +97,44 @@ async def start_session(session, user: User, request: Request) -> str:
     return token
 
 
+@dataclass
+class _CachedSession:
+    user: User
+    expires_at: datetime
+    last_seen_at: datetime
+    checked: float  # time.monotonic() ostatniego sprawdzenia w bazie
+
+
+# Pamięć sprawdzonych sesji (od 0.67.0): skrót tokenu → użytkownik. Pulpit z kilkunastoma widgetami pyta API
+# kilkadziesiąt razy na odświeżenie, a każde żądanie czytało z bazy sesję i użytkownika. Wpis żyje
+# `settings.session_cache_s` sekund; zmiany sesji i kont w API czyszczą pamięć od razu (`forget_sessions`).
+# Zmiana z innego procesu (`netpulse user passwd`, `2fa-off`) działa najpóźniej po tym czasie.
+SESSION_CACHE_S = settings.session_cache_s  # osobna zmienna: testy włączają pamięć u siebie
+_sessions: dict[str, _CachedSession] = {}
+_SESSIONS_MAX = 1000
+
+
+def forget_sessions() -> None:
+    """Czyści pamięć sesji – wołać po każdej zmianie sesji albo konta (wylogowanie, hasło, rola, usunięcie, 2FA)."""
+    _sessions.clear()
+
+
 async def user_from_request(request: Request, response: Response | None = None) -> User | None:
     token = session_token(request)
     if not token:
         return None
     now = datetime.now(UTC)
+    key = hash_token(token)
+    ttl = SESSION_CACHE_S
+    cached = _sessions.get(key) if ttl > 0 else None
+    if cached is not None:
+        fresh = time.monotonic() - cached.checked < ttl and cached.expires_at > now
+        # Sesja do przedłużenia (raz na godzinę) idzie zwykłą drogą – z zapisem do bazy i nowym ciasteczkiem
+        if fresh and now - cached.last_seen_at <= REFRESH_EVERY:
+            return cached.user
+        _sessions.pop(key, None)
     async with Session() as session, session.begin():
-        auth = await session.get(AuthSession, hash_token(token))
+        auth = await session.get(AuthSession, key)
         if auth is None or auth.expires_at <= now:
             return None
         user = await session.get(User, auth.user_id)
@@ -113,6 +145,10 @@ async def user_from_request(request: Request, response: Response | None = None) 
             auth.expires_at = now + _session_ttl()
             if response is not None:
                 set_session_cookie(response, request, token)
+        if ttl > 0:
+            if len(_sessions) >= _SESSIONS_MAX:
+                _sessions.clear()
+            _sessions[key] = _CachedSession(user, auth.expires_at, auth.last_seen_at, time.monotonic())
         return user
 
 
@@ -242,10 +278,18 @@ class LoginLimiter:
 
     def failure(self, key: str, now: float | None = None) -> None:
         now = time.monotonic() if now is None else now
+        if len(self._failures) > 5000:
+            self.prune(now)
         self._recent(key, now).append(now)
 
     def success(self, key: str) -> None:
         self._failures.pop(key, None)
+
+    def prune(self, now: float | None = None) -> None:
+        """Usuwa adresy bez prób w oknie – bez tego słownik rósłby z każdym adresem, który kiedyś się pomylił."""
+        now = time.monotonic() if now is None else now
+        for key in [k for k in self._failures if not self._recent(k, now)]:
+            del self._failures[key]
 
 
 login_limiter = LoginLimiter()

@@ -8,7 +8,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from .. import aggregates, crypto
+from .. import aggregates, compression, crypto
 from ..config import settings
 from . import migrate
 from .models import HYPERTABLES, Base
@@ -126,6 +126,13 @@ async def init_db(retention_days: int | None = None) -> bool:
                         "SELECT add_retention_policy(:t, make_interval(days => :d), if_not_exists => TRUE)"
                     ),
                     {"t": table, "d": retention_days},
+                )
+            compressed = await compression.ensure(conn, HYPERTABLES, retention_days, settings.compress_after_days)
+            if compressed:
+                log.info(
+                    "Kompresja metryk starszych niż %d dni: %d tabel",
+                    compression.compress_after_days(retention_days, settings.compress_after_days),
+                    len(compressed),
                 )
     if timescale:
         await aggregates.ensure(engine, retention_days, settings.aggregate_retention_days)

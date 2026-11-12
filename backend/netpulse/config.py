@@ -25,6 +25,8 @@ class Settings:
     retention_days: int = int(_env("RETENTION_DAYS", "30"))
     # Ile dni trzymać agregaty godzinowe (wykresy z całego roku i dostępność; aggregates.py)
     aggregate_retention_days: int = int(_env("AGGREGATE_RETENTION_DAYS", "730"))
+    # Po ilu dniach TimescaleDB kompresuje surowe metryki (compression.py); 0 = bez kompresji
+    compress_after_days: int = int(_env("COMPRESS_AFTER_DAYS", "7"))
     api_host: str = _env("API_HOST", "0.0.0.0")
     api_port: int = int(_env("API_PORT", "8000"))
     log_level: str = _env("LOG_LEVEL", "INFO")
@@ -34,6 +36,8 @@ class Settings:
     web_dir: str = _env("WEB_DIR", "")
     # Ważność sesji logowania (dni)
     session_days: int = int(_env("SESSION_DAYS", "30"))
+    # Ile sekund API pamięta sprawdzoną sesję (bez pytania bazy przy każdym żądaniu); 0 = zawsze pytaj bazę
+    session_cache_s: float = float(_env("SESSION_CACHE_S", "10"))
     # Dodatkowe dozwolone adresy panelu (np. za reverse proxy), oddzielone przecinkami:
     # https://netpulse.example.lan
     trusted_origins: str = _env("TRUSTED_ORIGINS", "")
