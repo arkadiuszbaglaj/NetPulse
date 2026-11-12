@@ -290,6 +290,10 @@ nowy widget z listą = dopisać do `AUTO_HEIGHT`. Opis: `docs/29-responsywnosc-w
 Od 0.58.0 wygląd „Błękit” (wybrany przez użytkownika z projektów na płótnie): niebieski akcent `#1f6feb`/`#4c9bff`,
 chłodne tła, font Geist + Geist Mono w paczce, karty 16 px, kolor wykresu 8 = błękit (druga seria). Tekst w kolorze
 akcentu = `text-accent-text` (nie `text-accent` – za mały kontrast na `bg-accent-soft`). Opis: `docs/06-projekt-panelu.md`.
+Od 0.66.0 (etap 3 planu `docs/40`): tabela urządzeń bez przewijania (kolumny znikają z szerokością karty), paski dostępności
+kolorują dzień dopiero poniżej 99 %, mapa sieci z plakietkami (ruch, klienci) i układem poziomym (`layoutTopology(…, "horizontal")`),
+skrót stanu sieci w menu (`lib/status.ts`), paleta poleceń Ctrl+K (`lib/palette.ts`, `CommandPalette.tsx` – strony z rejestru
+modułów trafiają do niej same). **Widget, który może być pusty = `EmptyHint` (`ui.tsx`), nie `return null`.**
 Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `group` w `modules.tsx` (nowa integracja = `"integrations"`). Grupa według przeznaczenia, nie źródła danych: Klienci (z UniFi) są w Monitoringu (0.58.4).
 
 ## Do sprawdzenia później
@@ -313,7 +317,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 czeka na zgodę użytkownika.
+  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 3 ✅ (0.66.0, został widok na telefonie); etap 1 czeka na zgodę użytkownika.
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.

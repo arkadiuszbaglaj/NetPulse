@@ -69,7 +69,10 @@ Panel jest nowoczesny i spójny – **bez przebudowy**, tylko dopracowanie (list
 **Gotowe, gdy:** CI przechodzi z nowym sposobem aktualizacji (`install.sh` → `netpulse update`), a aktualizacja
 serwera użytkownika działa bez ręcznych kroków.
 
-## Etap 3 – dopracowanie wyglądu (0.68.0)
+## Etap 3 – dopracowanie wyglądu ✅ (0.66.0, poza widokiem na telefonie)
+
+Zrobione 12.11.2026 przed etapami 1–2 (na prośbę użytkownika), opis: `docs/06-projekt-panelu.md` („Dopracowanie wyglądu”).
+Zostało: telefon (mini-wykresy w kafelkach, pasek górny).
 
 - Tabela urządzeń bez poziomego przewijania (widoczne przy 1440 px).
 - Paski dostępności: kolor tylko dla okresów z prawdziwą awarią (dziś 99,4 % wygląda na ciągłe problemy).

@@ -1,5 +1,7 @@
 /** Małe, wspólne elementy interfejsu. Jedno miejsce na style przycisków, pól i kart. */
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { Link } from "react-router";
+import { useDetailLinks } from "../lib/publicMode";
 
 export function Logo({ size = 28 }: { size?: number }) {
   return (
@@ -149,6 +151,25 @@ export function SuccessNote({ children }: { children: ReactNode }) {
     <p role="status" className="rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
       {children}
     </p>
+  );
+}
+
+/**
+ * Pusty stan widgetu albo listy z podpowiedzią, co zrobić (od 0.66.0): zdanie „czego nie ma”, wyjaśnienie i – w panelu
+ * po zalogowaniu – link do miejsca, gdzie się to dodaje. Na pulpicie publicznym (bez linków do szczegółów) sam tekst.
+ */
+export function EmptyHint({ text, hint, to, action }: { text: string; hint?: string; to?: string; action?: string }) {
+  const linked = useDetailLinks();
+  return (
+    <div role="status" className="flex flex-1 flex-col items-center justify-center gap-1 px-3 py-6 text-center">
+      <p className="text-sm font-medium text-text-2">{text}</p>
+      {hint && <p className="max-w-sm text-xs text-muted">{hint}</p>}
+      {linked && to && action && (
+        <Link to={to} className="mt-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-accent-text hover:border-accent">
+          {action} →
+        </Link>
+      )}
+    </div>
   );
 }
 

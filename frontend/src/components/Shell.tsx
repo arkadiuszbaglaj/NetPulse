@@ -1,5 +1,5 @@
-import { IconMenu2, IconX } from "@tabler/icons-react";
-import { Suspense, useEffect, useState } from "react";
+import { IconMenu2, IconSearch, IconX } from "@tabler/icons-react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "../auth/AuthProvider";
 import { t } from "../i18n";
@@ -13,6 +13,10 @@ import { ThemeToggle } from "./ThemeToggle";
 import { UpdateBadge } from "./UpdateBadge";
 import { UserMenu } from "./UserMenu";
 import { Logo } from "./ui";
+
+// Paleta poleceń (Ctrl+K) – osobny plik pobierany przy pierwszym otwarciu
+const CommandPalette = lazy(() => import("./CommandPalette").then((m) => ({ default: m.CommandPalette })));
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform ?? "");
 
 const SIDEBAR_KEY = "netpulse.sidebar";
 
@@ -40,6 +44,7 @@ export function Shell() {
   const visible = useVisibleModules();
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawer, setDrawer] = useState(false);
+  const [palette, setPalette] = useState(false);
   const { pathname } = useLocation();
   const { clearZoom } = useRefresh();
 
@@ -53,6 +58,18 @@ export function Shell() {
       /* bez zapamiętywania */
     }
   }, [collapsed]);
+
+  useEffect(() => {
+    // Ctrl+K (⌘K) otwiera i zamyka paletę z każdego miejsca panelu, także z pola formularza
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPalette((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     if (!drawer) return;
@@ -95,6 +112,17 @@ export function Shell() {
             <Logo size={28} />
             <span className="hidden text-base font-bold tracking-tight sm:inline">{t("app.name")}</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setPalette(true)}
+            aria-label={t("palette.open")}
+            title={t("palette.open")}
+            className="flex h-9 items-center gap-2 rounded-lg px-2 text-sm text-muted hover:bg-surface-2 hover:text-text lg:w-64 lg:border lg:border-border lg:bg-surface lg:px-3"
+          >
+            <IconSearch size={18} aria-hidden="true" className="shrink-0" />
+            <span className="hidden flex-1 text-left lg:block">{t("palette.button")}</span>
+            <kbd className="hidden rounded-md border border-border px-1.5 py-0.5 text-[11px] lg:block">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
+          </button>
           <div className="ml-auto flex items-center gap-1.5">
             <UpdateBadge />
             <AlertBell />
@@ -104,6 +132,12 @@ export function Shell() {
             <UserMenu />
           </div>
         </header>
+
+        {palette && (
+          <Suspense fallback={null}>
+            <CommandPalette onClose={() => setPalette(false)} />
+          </Suspense>
+        )}
 
         <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-10 pt-2 sm:px-6 lg:px-8">
           <Suspense fallback={<PageLoading />}>

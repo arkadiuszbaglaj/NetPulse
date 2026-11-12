@@ -1,7 +1,10 @@
 import { IconChevronsLeft, IconChevronsRight } from "@tabler/icons-react";
-import { NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 import { t } from "../i18n";
 import { useAlertSummary } from "../lib/alerts";
+import { formatBps } from "../lib/format";
+import { useDashboardSummary } from "../lib/queries";
+import { networkStatus, type Tone } from "../lib/status";
 import { NAV_GROUPS, useVisibleModules, type NavModule } from "../modules";
 import { Logo } from "./ui";
 
@@ -10,6 +13,47 @@ const linkBase = "relative flex min-h-10 items-center gap-3 rounded-[10px] borde
 const linkIdle = "border-transparent font-medium text-text-2 hover:bg-surface hover:text-text";
 const linkActive = "border-border bg-surface font-semibold text-text shadow-[var(--shadow-card)] [&>svg]:text-accent";
 
+
+const TONE_DOT: Record<Tone, string> = { success: "bg-success", warning: "bg-warning", danger: "bg-danger" };
+
+/**
+ * Skrót stanu sieci w wolnym miejscu menu (od 0.66.0): to samo zdanie co pasek stanu na pulpicie, liczba urządzeń
+ * online i bieżący ruch WAN – widoczne na każdej stronie. Prowadzi do alertów, gdy coś jest nie tak. Zwinięte menu: kropka.
+ */
+function SidebarStatus({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: () => void }) {
+  const { data: s } = useDashboardSummary();
+  const { data: alerts } = useAlertSummary();
+  if (!s) return null;
+  const { tone, title } = networkStatus(s.devices, alerts ?? null);
+  const to = tone === "success" ? "/" : "/alerts";
+  if (collapsed) {
+    return (
+      <Link to={to} onClick={onNavigate} title={title} aria-label={title} className="mx-auto mb-2 flex size-10 items-center justify-center rounded-[10px] hover:bg-surface">
+        <span aria-hidden="true" className={`size-2.5 rounded-full ${TONE_DOT[tone]}`} />
+      </Link>
+    );
+  }
+  const wan = s.wan.interfaces > 0 && (s.wan.in_bps != null || s.wan.out_bps != null);
+  return (
+    <Link
+      to={to}
+      onClick={onNavigate}
+      aria-label={t("nav.status")}
+      className="mb-2 flex flex-col gap-1.5 rounded-xl border border-border bg-surface px-3 py-2.5 text-xs shadow-[var(--shadow-card)] hover:border-border-strong"
+    >
+      <span className="flex items-center gap-2 text-[13px] font-semibold leading-tight">
+        <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${TONE_DOT[tone]}`} />
+        {title}
+      </span>
+      {s.devices.total > 0 && <span className="text-text-2">{t("status.devices", { up: s.devices.up, total: s.devices.total })}</span>}
+      {wan && (
+        <span className="tabular-nums text-text-2">
+          WAN ↓ {formatBps(s.wan.in_bps)} · ↑ {formatBps(s.wan.out_bps)}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 interface SidebarProps {
   version?: string;
@@ -110,7 +154,10 @@ export function Sidebar({ version, collapsed, onToggleCollapsed, onNavigate }: S
         </div>
       ))}
 
-      <div className="mt-auto flex items-center gap-2 pt-4">
+      <div className="mt-auto pt-4">
+        <SidebarStatus collapsed={collapsed} onNavigate={onNavigate} />
+      </div>
+      <div className="flex items-center gap-2">
         {!collapsed && version && (
           <div className="flex min-w-0 flex-1 flex-col rounded-xl bg-accent-soft px-3 py-2">
             <span className="text-[13px] font-semibold text-accent-text">

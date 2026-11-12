@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import type { Device } from "../../lib/api";
 import { useDevices } from "../../lib/queries";
 import { formatWatts, usePoe } from "../../lib/unifi";
-import { Card } from "../ui";
+import { Card, EmptyHint } from "../ui";
 
 function SwitchPoe({ device }: { device: Device }) {
   const { data } = usePoe(device.id);
@@ -50,7 +50,18 @@ function SwitchPoe({ device }: { device: Device }) {
 export function PoeWidget({ deviceId }: { deviceId?: number | null }) {
   const { data } = useDevices();
   const devices = (data ?? []).filter((d) => d.kind === "switch" && (deviceId == null || d.id === deviceId));
-  if (devices.length === 0) return null;
+  if (!data) return null;
+  if (devices.length === 0) {
+    return (
+      <Card className="flex flex-col p-5">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <IconBolt size={18} aria-hidden="true" className="shrink-0 text-accent-text" />
+          PoE
+        </h2>
+        <EmptyHint text={t("poe.empty")} hint={t("poe.empty.hint")} to="/settings/controllers" action={t("poe.empty.add")} />
+      </Card>
+    );
+  }
   return (
     <div className="grid gap-3 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
       {devices.map((d) => (

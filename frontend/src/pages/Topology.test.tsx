@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { NODE_H, NODE_W, fitScale, groupByPort, isInternetNode, layoutTopology, loadLevel, pickRoot, speedLabel, zoomAt, type Topology, type TopologyNode } from "../lib/topology";
+import { NODE_H, NODE_W, fitScale, groupByPort, isInternetNode, layoutTopology, loadLevel, pickRoot, preferredOrientation, speedLabel, uplinkTraffic, zoomAt, type Topology, type TopologyNode } from "../lib/topology";
 import type { NetworkClient } from "../lib/unifi";
 import { mockApi } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
@@ -77,7 +77,40 @@ describe("układ mapy sieci", () => {
   });
 
   it("pusta mapa daje pusty układ", () => {
-    expect(layoutTopology([], [])).toEqual({ places: {}, width: 0, height: 0 });
+    expect(layoutTopology([], [])).toMatchObject({ places: {}, width: 0, height: 0 });
+  });
+
+  it("układ poziomy: warstwy od lewej do prawej, wszystko mieści się w wymiarach mapy", () => {
+    const { places, width, height, orientation } = layoutTopology(TOPO.nodes, TOPO.edges, "horizontal");
+    expect(orientation).toBe("horizontal");
+    // Brama na lewo od switcha, a ten na lewo od AP – z odstępem na opisy kabla
+    expect(places.d2.x - places.d1.x).toBeGreaterThan(NODE_W);
+    expect(places.d3.x).toBeGreaterThan(places.d2.x);
+    for (const p of Object.values(places)) {
+      expect(p.x).toBeGreaterThanOrEqual(0);
+      expect(p.y).toBeGreaterThanOrEqual(0);
+      expect(p.x + NODE_W).toBeLessThanOrEqual(width);
+      expect(p.y + NODE_H).toBeLessThanOrEqual(height);
+    }
+  });
+
+  it("domyślny kierunek: łańcuszek na szerokim ekranie poziomo, na telefonie i przy szerokim drzewie pionowo", () => {
+    expect(preferredOrientation({ levels: 4, widest: 1 }, true)).toBe("horizontal");
+    expect(preferredOrientation({ levels: 4, widest: 1 }, false)).toBe("vertical");
+    expect(preferredOrientation({ levels: 2, widest: 5 }, true)).toBe("vertical");
+  });
+
+  it("ruch węzła to ruch kabla w stronę bramy", () => {
+    const nodes = [node("d1", "UCG", "gateway"), node("d2", "Switch", "switch"), node("d3", "AP", "ap")];
+    const edges = [
+      { a: "d1", a_port: 1, b: "d2", b_port: 8, traffic_bps: 5_000_000 },
+      { a: "d2", a_port: 1, b: "d3", b_port: 1, traffic_bps: 1_000_000 },
+    ];
+    const { places } = layoutTopology(nodes, edges);
+    expect(uplinkTraffic("d3", edges, places)).toBe(1_000_000);
+    expect(uplinkTraffic("d2", edges, places)).toBe(5_000_000);
+    expect(uplinkTraffic("d1", edges, places)).toBe(5_000_000); // brama bez węzła nad nią: jej jedyny kabel
+    expect(uplinkTraffic("x", edges, places)).toBeNull();
   });
 });
 

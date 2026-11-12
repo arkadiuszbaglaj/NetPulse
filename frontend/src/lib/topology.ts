@@ -96,10 +96,18 @@ export function groupByPort<T extends { uplink_port: number | null }>(clients: T
 }
 
 export const NODE_W = 200;
-export const NODE_H = 132;
+// Nagłówek, model, plakietki (ruch, WiFi, kabel) i do trzech wierszy klientów po kablu
+export const NODE_H = 166;
 const GAP_X = 32;
 // Między warstwami mieszczą się trzy opisy: port u góry, prędkość i ruch w połowie, port na dole
 const GAP_Y = 100;
+// Układ poziomy (od 0.66.0): warstwy od lewej do prawej; w odstępie opis kabla, numery portów nad kablem przy końcach
+const GAP_LAYER_H = 150;
+const GAP_SLOT_H = 24;
+// Miejsce na przyciski mapy (prawy górny róg) – w układzie poziomym ostatnia warstwa sięga prawej krawędzi
+const TOP_H = 44;
+
+export type Orientation = "vertical" | "horizontal";
 
 export interface Placement {
   x: number;
@@ -111,6 +119,27 @@ export interface TopologyLayout {
   places: Record<string, Placement>;
   width: number;
   height: number;
+  orientation: Orientation;
+  /** Liczba warstw i najwięcej węzłów w jednej warstwie – z nich wynika domyślny kierunek mapy */
+  levels: number;
+  widest: number;
+}
+
+/** Domyślny kierunek: sieć „w łańcuszku” (więcej warstw niż urządzeń obok siebie) na szerokim ekranie rysujemy
+ * poziomo – wypełnia ekran zamiast wąskiej kolumny; na telefonie zawsze pionowo. */
+export function preferredOrientation(layout: Pick<TopologyLayout, "levels" | "widest">, wide: boolean): Orientation {
+  return wide && layout.levels > layout.widest ? "horizontal" : "vertical";
+}
+
+/** Ruch urządzenia na mapie = ruch kabla w stronę bramy (uplink); dla węzła nad bramą (Internet) – kabla do bramy. */
+export function uplinkTraffic(nodeId: string, edges: TopologyEdge[], places: Record<string, Placement>): number | null {
+  const me = places[nodeId];
+  if (!me) return null;
+  const links = edges.filter((e) => (e.a === nodeId || e.b === nodeId) && e.traffic_bps != null);
+  const other = (e: TopologyEdge) => places[e.a === nodeId ? e.b : e.a];
+  // Brama (warstwa z węzłem nad nią) pokazuje kabel do Internetu; reszta – kabel do warstwy bliżej bramy
+  const up = links.find((e) => (other(e)?.level ?? Infinity) < me.level) ?? (links.length === 1 ? links[0] : undefined);
+  return up?.traffic_bps ?? null;
 }
 
 /** Korzeń drzewa: brama (router), a gdy jej nie ma, pierwsze urządzenie. */
@@ -122,10 +151,11 @@ export function pickRoot(nodes: TopologyNode[]): TopologyNode | undefined {
  * Układ warstwowy: brama w środku, sąsiedzi z zewnątrz (np. modem na WAN) nad nią, dalsze urządzenia w dół
  * według odległości od bramy. W warstwie kolejność wynika ze średniego położenia sąsiadów z warstwy wyżej,
  * żeby kable się nie krzyżowały. Urządzenia niepołączone z bramą trafiają do ostatniej warstwy.
+ * `orientation = "horizontal"` obraca układ: warstwy od lewej do prawej, węzły warstwy jeden pod drugim.
  */
-export function layoutTopology(nodes: TopologyNode[], edges: TopologyEdge[]): TopologyLayout {
+export function layoutTopology(nodes: TopologyNode[], edges: TopologyEdge[], orientation: Orientation = "vertical"): TopologyLayout {
   const root = pickRoot(nodes);
-  if (!root) return { places: {}, width: 0, height: 0 };
+  if (!root) return { places: {}, width: 0, height: 0, orientation, levels: 0, widest: 0 };
 
   const neighbors = new Map<string, string[]>();
   for (const n of nodes) neighbors.set(n.id, []);
@@ -164,24 +194,35 @@ export function layoutTopology(nodes: TopologyNode[], edges: TopologyEdge[]): To
   }
   const levels = [...byLevel.keys()].sort((a, b) => a - b);
   const widest = Math.max(...levels.map((l) => byLevel.get(l)!.length));
-  const width = widest * NODE_W + (widest + 1) * GAP_X;
+  const horizontal = orientation === "horizontal";
+  // „across” = oś, wzdłuż której leżą węzły jednej warstwy (pionowo: x, poziomo: y)
+  const size = horizontal ? NODE_H : NODE_W;
+  const gap = horizontal ? GAP_SLOT_H : GAP_X;
+  const across = widest * size + (widest + 1) * gap;
+  const pos = (p: Placement) => (horizontal ? p.y : p.x);
 
   const places: Record<string, Placement> = {};
   for (const l of levels) {
     let row = byLevel.get(l)!;
     if (l > 0) {
       const center = (id: string) => {
-        const xs = (neighbors.get(id) ?? []).filter((x) => places[x] && places[x].level < l).map((x) => places[x].x);
-        return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : width / 2;
+        const xs = (neighbors.get(id) ?? []).filter((x) => places[x] && places[x].level < l).map((x) => pos(places[x]));
+        return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : across / 2;
       };
       row = [...row].sort((a, b) => center(a.id) - center(b.id));
     }
-    const rowWidth = row.length * NODE_W + (row.length - 1) * GAP_X;
-    const start = (width - rowWidth) / 2;
+    const rowSize = row.length * size + (row.length - 1) * gap;
+    const start = (across - rowSize) / 2;
     row.forEach((n, i) => {
-      places[n.id] = { x: start + i * (NODE_W + GAP_X), y: GAP_Y / 2 + l * (NODE_H + GAP_Y), level: l };
+      const a = start + i * (size + gap);
+      places[n.id] = horizontal
+        ? { x: GAP_X + l * (NODE_W + GAP_LAYER_H), y: TOP_H + a, level: l }
+        : { x: a, y: GAP_Y / 2 + l * (NODE_H + GAP_Y), level: l };
     });
   }
-  const height = levels.length * NODE_H + (levels.length - 1) * GAP_Y + GAP_Y;
-  return { places, width, height };
+  const shape = { orientation, levels: levels.length, widest };
+  if (horizontal) {
+    return { places, width: levels.length * NODE_W + (levels.length - 1) * GAP_LAYER_H + 2 * GAP_X, height: TOP_H + across, ...shape };
+  }
+  return { places, width: across, height: levels.length * NODE_H + (levels.length - 1) * GAP_Y + GAP_Y, ...shape };
 }

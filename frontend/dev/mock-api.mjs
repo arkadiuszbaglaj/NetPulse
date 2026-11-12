@@ -3,9 +3,11 @@
 // Dane są w pamięci i znikają po restarcie. Pierwsze konto zakłada kreator, jak w prawdziwym API.
 import { createServer } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 const PORT = Number(process.env.PORT ?? 8000);
-const VERSION = "0.6.0";
+// Wersja jak w panelu (package.json) – zrzuty ekranu z atrapy pokazują aktualny numer
+const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
 const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
@@ -389,8 +391,14 @@ createServer(async (req, res) => {
     const points = [];
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
       const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
-      const spike = i % 37 === 0;
-      points.push({ time, values: { latency_ms: 15 + 3 * Math.sin(i / 7) + (spike ? 40 : 0), jitter_ms: 0.5 + (i % 4) * 0.2, loss_percent: spike ? 20 : 0, availability_percent: spike ? 80 : 100, cert_days: null } });
+      // Krótkie zakresy: pojedyncze zgubione pingi; 30 dni: większość dni czysta, jeden dzień z krótką przerwą
+      // i jeden z awarią (różne dni dla każdego sprawdzenia) – paski dostępności kolorują tylko te dni
+      const id = Number(url.pathname.split("/")[3]);
+      const long = minutes > 1440;
+      const outage = long && i >= 100 + id * 20 && i < 103 + id * 20;
+      const spike = long ? i === 40 + id * 30 : i % 37 === 0;
+      const availability = outage ? 20 : spike ? 80 : long && i % 9 === 0 ? 99.5 : 100;
+      points.push({ time, values: { latency_ms: 15 + 3 * Math.sin(i / 7) + (spike ? 40 : 0), jitter_ms: 0.5 + (i % 4) * 0.2, loss_percent: 100 - availability, availability_percent: availability, cert_days: null } });
     }
     return send(res, 200, points);
   }

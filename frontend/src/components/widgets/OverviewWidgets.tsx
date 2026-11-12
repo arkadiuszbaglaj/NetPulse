@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
 import { Link } from "react-router";
 import { t } from "../../i18n";
+import { networkStatus, plural, type Tone } from "../../lib/status";
 import { ALERTS_KEY, useAlertSummary, type Alert, type Severity } from "../../lib/alerts";
 import { get, type SeriesPoint } from "../../lib/api";
 import { relativeTime } from "../../lib/format";
@@ -15,15 +16,9 @@ import { useCollection, type CollectionRow } from "../../lib/panels";
 import { useDetailLinks } from "../../lib/publicMode";
 import { useDashboardSummary } from "../../lib/queries";
 import { useRefresh } from "../../lib/refresh";
-import { Card, ErrorNote } from "../ui";
+import { Card, EmptyHint, ErrorNote } from "../ui";
 
-/** Odmiana liczebnika: 1 ostrzeżenie, 2 ostrzeżenia, 5 ostrzeżeń. */
-export function plural(n: number, one: string, few: string, many: string): string {
-  if (n === 1) return one;
-  const tens = n % 100;
-  const units = n % 10;
-  return units >= 2 && units <= 4 && (tens < 12 || tens > 14) ? few : many;
-}
+export { networkStatus, plural };
 
 function CardTitle({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
@@ -35,24 +30,6 @@ function CardTitle({ title, children }: { title: string; children?: React.ReactN
 }
 
 // --- pasek stanu ------------------------------------------------------------------------
-
-type Tone = "success" | "warning" | "danger";
-
-/** Stan sieci jednym zdaniem: co nie działa, ile ostrzeżeń, kiedy ostatni odczyt. Czysta funkcja (testy). */
-export function networkStatus(
-  devices: { total: number; up: number; down: number },
-  alerts: { critical: number; warning: number; info: number } | null,
-): { tone: Tone; title: string; parts: string[] } {
-  const parts = [t("status.devices", { up: devices.up, total: devices.total })];
-  const critical = alerts?.critical ?? 0;
-  const warning = alerts?.warning ?? 0;
-  if (critical) parts.push(`${critical} ${plural(critical, t("status.critical.one"), t("status.critical.few"), t("status.critical.many"))}`);
-  if (warning) parts.push(`${warning} ${plural(warning, t("status.warning.one"), t("status.warning.few"), t("status.warning.many"))}`);
-  if (devices.down > 0) return { tone: "danger", title: t("status.down", { n: devices.down }), parts };
-  if (critical) return { tone: "danger", title: t("status.problems"), parts };
-  if (devices.total === 0) return { tone: "warning", title: t("status.empty"), parts: [] };
-  return { tone: warning ? "warning" : "success", title: t("status.ok"), parts };
-}
 
 const TONE_STYLE: Record<Tone, string> = {
   success: "bg-success-soft text-success",
@@ -84,6 +61,11 @@ export function StatusWidget() {
       {linked && firing > 0 && (
         <Link to="/alerts" className="text-[13px] font-medium text-text-2 hover:text-text">
           {t("status.showAlerts")} →
+        </Link>
+      )}
+      {linked && s.devices.total === 0 && (
+        <Link to="/settings/devices" className="text-[13px] font-medium text-accent-text hover:underline">
+          {t("devEmpty.add")} →
         </Link>
       )}
     </Card>
@@ -191,14 +173,30 @@ export function dailyBars(points: SeriesPoint[], days: number, now: Date = new D
   });
 }
 
-/** Kolor paska dnia: zielony = pełna dostępność (≥ 99,9 %, od 0.58.2; wcześniej szary), pomarańczowy, czerwony. */
+/** Od ilu procent dzień liczy się jako bez awarii: 99 % to do ok. 14 min przerwy – pojedyncze zgubione pingi, nie awaria. */
+export const DAY_OK_PERCENT = 99;
+
+/** Kolor paska dnia (od 0.66.0): kolor ostrzeżenia tylko dla dni z prawdziwą awarią – poniżej 99 % pomarańczowy,
+ * poniżej 95 % (ponad godzina przerwy) czerwony. Wcześniej próg 99,9 % barwił co drugi dzień przy 99,4 % średniej. */
 export function barClass(v: number | null): string {
   if (v == null) return "bg-surface-2";
-  if (v >= 99.9) return "bg-success";
+  if (v >= DAY_OK_PERCENT) return "bg-success";
   return v >= 95 ? "bg-warning" : "bg-danger";
 }
 
+/** Przybliżony czas przerwy w ciągu dnia przy danej dostępności, w minutach. */
+export function downMinutes(v: number): number {
+  return Math.round(((100 - v) / 100) * 1440);
+}
+
 const pct = (v: number) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: v >= 99.9 && v < 100 ? 2 : 1 })} %`;
+
+/** Opis dnia w dymku paska: procent i – gdy była przerwa – jej przybliżony czas. */
+export function dayTitle(b: DayBar): string {
+  if (b.value == null) return `${b.day}: ${t("checksWidget.noData")}`;
+  const down = downMinutes(b.value);
+  return `${b.day}: ${pct(b.value)}${down > 0 ? ` (${t("checksWidget.down", { time: down >= 60 ? `${Math.floor(down / 60)} h ${down % 60} min` : `${down} min` })})` : ""}`;
+}
 
 function CheckRow({ row, days }: { row: CollectionRow; days: ChecksDays }) {
   const { refetchInterval } = useRefresh();
@@ -227,7 +225,7 @@ function CheckRow({ row, days }: { row: CollectionRow; days: ChecksDays }) {
       </div>
       <div className="flex gap-0.5" role="img" aria-label={t("checksWidget.bars", { days })}>
         {bars.map((b) => (
-          <span key={b.day} title={`${b.day}: ${b.value == null ? t("checksWidget.noData") : pct(b.value)}`} className={`h-5 flex-1 rounded-sm ${barClass(b.value)}`} />
+          <span key={b.day} title={dayTitle(b)} className={`h-5 flex-1 rounded-sm ${barClass(b.value)}`} />
         ))}
       </div>
     </li>
@@ -235,7 +233,6 @@ function CheckRow({ row, days }: { row: CollectionRow; days: ChecksDays }) {
 }
 
 export function ChecksWidget({ days }: { days: ChecksDays }) {
-  const linked = useDetailLinks();
   const { data, isError } = useCollection({ kind: "checks" });
   return (
     <Card className="flex flex-col p-5">
@@ -244,14 +241,7 @@ export function ChecksWidget({ days }: { days: ChecksDays }) {
       </CardTitle>
       {isError && <ErrorNote>{t("dash.error")}</ErrorNote>}
       {data && data.length === 0 && (
-        <p className="text-sm text-muted">
-          {t("checksWidget.none")}{" "}
-          {linked && (
-            <Link to="/settings/checks" className="font-medium text-text-2 underline hover:text-text">
-              {t("checksWidget.add")}
-            </Link>
-          )}
-        </p>
+        <EmptyHint text={t("checksWidget.none")} hint={t("checksWidget.hint")} to="/settings/checks" action={t("checksWidget.add")} />
       )}
       <ul className="np-list flex flex-col" style={{ "--np-row-max": "7rem" } as CSSProperties}>
         {(data ?? []).map((row) => (

@@ -9,7 +9,7 @@ import { formatUptime, relativeTime } from "../../lib/format";
 import type { DeviceKind, DevicesDisplay } from "../../lib/layout";
 import { useCollection } from "../../lib/panels";
 import { useDevices } from "../../lib/queries";
-import { Card } from "../ui";
+import { Card, EmptyHint } from "../ui";
 import { ServerDetails } from "./ServerDetails";
 
 export const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint, server: IconServer2 } as const;
@@ -126,12 +126,18 @@ function PercentBar({ value }: { value: number | null | undefined }) {
   return (
     <span className="flex items-center gap-2">
       <span className="w-10 text-right">{Math.round(v)} %</span>
-      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+      <span className="hidden h-1.5 w-10 overflow-hidden rounded-full bg-surface-2 @[560px]:block @[720px]:w-16" aria-hidden="true">
         <span className={`block h-full rounded-full ${v >= 90 ? "bg-danger" : v >= 75 ? "bg-warning" : "bg-accent"}`} style={{ width: `${v}%` }} />
       </span>
     </span>
   );
 }
+
+// Kolumny tabeli zależne od szerokości karty (zapytania kontenera): adres od 480 px, czas pracy od 640 px
+const HOST_COL = "hidden @[480px]:table-cell";
+const UPTIME_COL = "hidden @[640px]:table-cell";
+// Nazwa bierze resztę szerokości i skraca się wielokropkiem (max-w-0 + w-full: komórka nie rozpycha tabeli)
+const NAME_CELL = "w-full max-w-0 py-3 pl-5 pr-3";
 
 /** Tabela urządzeń (od 0.42.0): stan, adres, CPU i RAM z ostatniego odczytu, czas pracy. */
 function DevicesTable({ list }: { list: Device[] }) {
@@ -144,15 +150,16 @@ function DevicesTable({ list }: { list: Device[] }) {
       <h2 id="devices-heading" className="flex items-baseline gap-2 px-5 pb-2 text-base font-semibold">
         {t("dash.devicesTitle")} <span className="text-sm font-medium text-muted">{list.length}</span>
       </h2>
-      <div className="overflow-x-auto">
-        <table aria-labelledby="devices-heading" className="w-full min-w-[640px] border-collapse text-sm">
+      {/* Od 0.66.0 bez przewijania w bok: nazwa się skraca, a w wąskiej karcie znikają kolejno paski, czas pracy i adres */}
+      <div className="@container">
+        <table aria-labelledby="devices-heading" className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-border">
               <th className={`${th} pl-5`}>{t("devTable.name")}</th>
-              <th className={th}>{t("devTable.host")}</th>
+              <th className={`${th} ${HOST_COL}`}>{t("devTable.host")}</th>
               <th className={th}>CPU</th>
               <th className={th}>RAM</th>
-              <th className={th}>{t("devTable.uptime")}</th>
+              <th className={`${th} ${UPTIME_COL}`}>{t("devTable.uptime")}</th>
               <th className={`${th} pr-5`}>{t("devTable.state")}</th>
             </tr>
           </thead>
@@ -164,14 +171,16 @@ function DevicesTable({ list }: { list: Device[] }) {
                 // Wyłączone (bez odpytywania) – na końcu, wyszarzone; pasek stanu ich nie liczy
                 return (
                   <tr key={d.id} className="border-b border-border/60 text-muted last:border-b-0">
-                    <td className="whitespace-nowrap py-3 pl-5 pr-3">
-                      <p className="font-medium">{d.name}</p>
-                      <p className="text-xs">{t(KIND_LABEL[d.kind] ?? "dash.kind.other")}</p>
+                    <td className={NAME_CELL}>
+                      <p className="truncate font-medium" title={d.name}>
+                        {d.name}
+                      </p>
+                      <p className="truncate text-xs">{t(KIND_LABEL[d.kind] ?? "dash.kind.other")}</p>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3">{d.host || "–"}</td>
+                    <td className={`whitespace-nowrap px-3 py-3 ${HOST_COL}`}>{d.host || "–"}</td>
                     <td className="px-3 py-3">–</td>
                     <td className="px-3 py-3">–</td>
-                    <td className="px-3 py-3">–</td>
+                    <td className={`px-3 py-3 ${UPTIME_COL}`}>–</td>
                     <td className="whitespace-nowrap py-3 pl-3 pr-5">
                       <span className="inline-flex items-center gap-1.5 text-[13px]">
                         <span className="size-2 rounded-full border border-border-strong" aria-hidden="true" />
@@ -183,8 +192,8 @@ function DevicesTable({ list }: { list: Device[] }) {
               }
               return (
                 <tr key={d.id} className="border-b border-border/60 last:border-b-0">
-                  <td className="whitespace-nowrap py-3 pl-5 pr-3">
-                    <p className="font-medium">
+                  <td className={NAME_CELL}>
+                    <p className="truncate font-medium" title={d.name}>
                       {linked ? (
                         <Link to={`/devices/${d.id}`} className="hover:underline">
                           {d.name}
@@ -193,16 +202,16 @@ function DevicesTable({ list }: { list: Device[] }) {
                         d.name
                       )}
                     </p>
-                    <p className="text-xs text-muted">{[t(KIND_LABEL[d.kind] ?? "dash.kind.other"), d.model].filter(Boolean).join(" · ")}</p>
+                    <p className="truncate text-xs text-muted">{[t(KIND_LABEL[d.kind] ?? "dash.kind.other"), d.model].filter(Boolean).join(" · ")}</p>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.host || "–"}</td>
+                  <td className={`whitespace-nowrap px-3 py-3 text-text-2 ${HOST_COL}`}>{d.host || "–"}</td>
                   <td className="px-3 py-3">
                     <PercentBar value={v?.cpu_percent} />
                   </td>
                   <td className="px-3 py-3">
                     <PercentBar value={v?.mem_used_percent} />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-text-2">{d.status === "up" && d.uptime_s != null ? formatUptime(d.uptime_s) : "–"}</td>
+                  <td className={`whitespace-nowrap px-3 py-3 text-text-2 ${UPTIME_COL}`}>{d.status === "up" && d.uptime_s != null ? formatUptime(d.uptime_s) : "–"}</td>
                   <td className="whitespace-nowrap py-3 pl-3 pr-5">
                     <span className="inline-flex items-center gap-1.5 text-[13px] text-text-2" title={status === "down" ? (d.last_error ?? undefined) : staleHint(d)}>
                       <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} aria-hidden="true" />
@@ -229,7 +238,21 @@ export function DevicesWidget({ kinds, display = "cards" }: { kinds?: DeviceKind
   const { data } = useDevices();
   const availability = useDevicesAvailability(30, display === "cards");
   const list = (data ?? []).filter((d) => !kinds?.length || kinds.includes((d.kind as DeviceKind) ?? "other"));
-  if (list.length === 0) return null;
+  if (!data) return null;
+  if (list.length === 0) {
+    // Pusty widget z podpowiedzią (od 0.66.0) zamiast znikania: brak urządzeń albo filtr rodzajów nic nie zostawia
+    const filtered = data.length > 0;
+    return (
+      <Card className="flex flex-col p-5">
+        <h2 className="text-base font-semibold">{t("dash.devicesTitle")}</h2>
+        {filtered ? (
+          <EmptyHint text={t("devEmpty.kinds")} hint={t("devEmpty.kinds.hint")} />
+        ) : (
+          <EmptyHint text={t("devEmpty.none")} hint={t("devEmpty.none.hint")} to="/settings/devices" action={t("devEmpty.add")} />
+        )}
+      </Card>
+    );
+  }
   if (display === "table") return <DevicesTable list={list} />;
   return (
     <section aria-labelledby="devices-heading">

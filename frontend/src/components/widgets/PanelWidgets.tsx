@@ -14,7 +14,7 @@ import { useRefresh } from "../../lib/refresh";
 import { seriesName } from "../charts/panelData";
 import { StateBar } from "../charts/StateBar";
 import { LiveBadge } from "../LiveBadge";
-import { Card } from "../ui";
+import { EmptyHint, Card } from "../ui";
 import { defaultTitle, fetchSeries } from "./chartSource";
 import { WidgetActions } from "./WidgetActions";
 
@@ -266,7 +266,7 @@ export function BarGaugeWidget({ config }: { config: BarGaugeConfig }) {
       ) : query.isLoading ? (
         <Status>{t("chart.loading")}</Status>
       ) : rows.length === 0 ? (
-        <Status>{t("panel.empty")}</Status>
+        <EmptyHint text={t("panel.empty")} hint={t("panel.empty.hint")} />
       ) : (
         <ul
           aria-label={title}
@@ -346,7 +346,7 @@ export function TableWidget({ config }: { config: TableConfig }) {
       ) : query.isLoading ? (
         <Status>{t("chart.loading")}</Status>
       ) : rows.length === 0 ? (
-        <Status>{t("panel.empty")}</Status>
+        <EmptyHint text={t("panel.empty")} hint={t("panel.empty.hint")} />
       ) : (
         <div className="-mx-1 overflow-x-auto px-1">
           <table aria-label={title} className="w-full text-left text-sm">
@@ -407,7 +407,7 @@ export function StateTimelineWidget({ config }: { config: StateTimelineConfig })
       ) : !data ? (
         <Status>{t("chart.loading")}</Status>
       ) : data.items.length === 0 ? (
-        <Status>{t("panel.empty")}</Status>
+        <EmptyHint text={t("panel.empty")} hint={t("panel.empty.hint")} />
       ) : (
         <div className="np-tl flex flex-col gap-1.5">
           <div className="np-tl-rows flex flex-col gap-1.5" style={{ "--np-rows": data.items.length } as CSSProperties}>

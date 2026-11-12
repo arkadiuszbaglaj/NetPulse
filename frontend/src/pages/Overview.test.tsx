@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barClass, dailyBars, networkStatus, plural, recentAlerts, sortAlerts } from "../components/widgets/OverviewWidgets";
+import { barClass, dayTitle, dailyBars, networkStatus, plural, recentAlerts, sortAlerts } from "../components/widgets/OverviewWidgets";
 import { peakOf } from "../components/widgets/SummaryWidget";
 import type { Alert } from "../lib/alerts";
 
@@ -54,12 +54,22 @@ describe("paski dostępności", () => {
 });
 
 describe("kolor paska dostępności", () => {
-  it("pełna dostępność na zielono, spadki pomarańczowo i czerwono, brak danych – tło", () => {
+  it("kolor ostrzeżenia tylko dla dni z prawdziwą awarią (od 0.66.0: poniżej 99 %), brak danych – tło", () => {
     expect(barClass(100)).toBe("bg-success");
     expect(barClass(99.95)).toBe("bg-success");
-    expect(barClass(99)).toBe("bg-warning");
+    expect(barClass(99.4)).toBe("bg-success"); // kilka zgubionych pingów to nie awaria
+    expect(barClass(99)).toBe("bg-success");
+    expect(barClass(98.9)).toBe("bg-warning");
+    expect(barClass(95)).toBe("bg-warning");
     expect(barClass(80)).toBe("bg-danger");
     expect(barClass(null)).toBe("bg-surface-2");
+  });
+
+  it("dymek dnia podaje przybliżony czas przerwy", () => {
+    expect(dayTitle({ day: "2026-11-01", value: 100 })).toBe("2026-11-01: 100 %");
+    expect(dayTitle({ day: "2026-11-02", value: 99 })).toBe("2026-11-02: 99 % (ok. 14 min przerwy)");
+    expect(dayTitle({ day: "2026-11-03", value: 90 })).toBe("2026-11-03: 90 % (ok. 2 h 24 min przerwy)");
+    expect(dayTitle({ day: "2026-11-04", value: null })).toBe("2026-11-04: brak pomiarów");
   });
 });
 

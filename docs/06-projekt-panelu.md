@@ -213,6 +213,37 @@ Nie budujemy tego teraz, ale unikamy decyzji, które by to blokowały:
   dojdzie rola tylko-do-odczytu (np. do wyświetlacza na ścianie).
 - **Bez telemetrii:** instalacja niczego nie wysyła na zewnątrz poza sprawdzaniem wydań.
 
+## Dopracowanie wyglądu (0.66.0)
+
+Etap 3 planu z `docs/40-plan-dzialania.md` – bez zmian w API i bazie, sam panel.
+
+- **Tabela urządzeń bez przewijania w bok.** Karta tabeli jest kontenerem zapytań (`@container`): nazwa bierze resztę
+  szerokości i skraca się wielokropkiem, a w wąskiej karcie znikają kolejno paski CPU/RAM (same liczby zostają,
+  poniżej 560 px), czas pracy (640 px) i adres IP (480 px). Stałe `HOST_COL`, `UPTIME_COL`, `NAME_CELL` w `DevicesWidget.tsx`.
+- **Paski dostępności kolorują tylko dni z prawdziwą awarią.** Dzień jest zielony od 99 % (`DAY_OK_PERCENT`, do ok. 14 min
+  przerwy), pomarańczowy poniżej 99 %, czerwony poniżej 95 %. Wcześniejszy próg 99,9 % barwił dzień po jednym zgubionym
+  pingu. Dymek paska podaje przybliżony czas przerwy (`dayTitle`, `downMinutes`).
+- **Mapa sieci.** Węzeł ma plakietki: ruch na kablu w stronę bramy (`uplinkTraffic` – z danych kabli, bez zmian w API),
+  liczba klientów WiFi i po kablu; węzeł „Internet” – ruch łącza WAN. Układ poziomy (`layoutTopology(…, "horizontal")`):
+  warstwy od lewej do prawej, numery portów nad kablem. Domyślny kierunek z kształtu sieci (`preferredOrientation`:
+  więcej warstw niż urządzeń obok siebie i ekran od 1024 px = poziomo), przycisk na mapie przełącza i zapamiętuje wybór
+  w przeglądarce (`netpulse.topology.orientation`).
+- **Skrót stanu sieci w menu** (`SidebarStatus` w `Sidebar.tsx`): to samo zdanie co pasek stanu na pulpicie, liczba
+  urządzeń online i ruch WAN – na każdej stronie; prowadzi do alertów, gdy coś nie działa. Zwinięte menu: kropka
+  w kolorze stanu. Logika zdania przeniesiona do `lib/status.ts` (menu nie ładuje pliku widgetów).
+- **Puste widgety z podpowiedzią** (`EmptyHint` w `ui.tsx`): czego nie ma, dlaczego i link „dodaj” (na pulpicie publicznym
+  bez linku). Urządzenia (brak urządzeń / filtr rodzajów nic nie zostawia), PoE (brak kontrolera UniFi), sprawdzenia,
+  paski, tabela i oś stanów bez danych. Widget nie znika już z siatki w trybie edycji. **Nowy widget, który może być
+  pusty = `EmptyHint`, nie `return null`.**
+- **Paleta poleceń Ctrl+K** (⌘K na Macu; też pole „Szukaj…” w pasku górnym): strony i podstrony Ustawień (według roli
+  i modułów), urządzenia, porty i klienci. Szuka bez polskich znaków, każde słowo zapytania musi pasować (nazwa, opis,
+  adres IP, MAC, nazwa techniczna portu), strzałki + Enter. Kod: `lib/palette.ts` (czyste funkcje, testy),
+  `components/CommandPalette.tsx` – osobny plik pobierany przy pierwszym otwarciu; porty i klientów pobiera dopiero
+  wtedy (porty: jedno zapytanie na urządzenie, do 40 urządzeń). **Nowa strona w rejestrze modułów trafia do palety sama.**
+- Atrapa `frontend/dev/mock-api.mjs` pokazuje wersję z `package.json` i realistyczną dostępność (pojedyncze dni z awarią).
+
+Z etapu 3 zostało: widok na telefonie (mini-wykresy w kafelkach, pasek górny).
+
 ## Technologia
 
 | Warstwa       | Wybór                                                                 |

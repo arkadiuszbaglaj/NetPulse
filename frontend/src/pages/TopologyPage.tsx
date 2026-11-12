@@ -1,4 +1,18 @@
-import { IconAccessPoint, IconArrowsMinimize, IconDeviceDesktop, IconMinus, IconNetwork, IconPlus, IconRouter, IconWorld } from "@tabler/icons-react";
+import {
+  IconAccessPoint,
+  IconArrowsHorizontal,
+  IconArrowsMinimize,
+  IconArrowsUpDown,
+  IconArrowsVertical,
+  IconDeviceDesktop,
+  IconMinus,
+  IconNetwork,
+  IconPlug,
+  IconPlus,
+  IconRouter,
+  IconWifi,
+  IconWorld,
+} from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
@@ -12,9 +26,13 @@ import {
   isInternetNode,
   layoutTopology,
   loadLevel,
+  preferredOrientation,
   speedLabel,
+  uplinkTraffic,
   zoomAt,
   type LoadLevel,
+  type Orientation,
+  type Placement,
   useTopology,
   type TopologyEdge,
   type TopologyNode,
@@ -35,6 +53,27 @@ const STATUS_LABEL: Record<string, TextKey> = {
   unknown: "dash.status.unknown",
 };
 const MAX_LISTED = 3;
+const ORIENTATION_KEY = "netpulse.topology.orientation";
+
+function readOrientation(): Orientation | null {
+  try {
+    const v = localStorage.getItem(ORIENTATION_KEY);
+    return v === "vertical" || v === "horizontal" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Plakietka w węźle: ikona i krótka wartość (ruch, liczba klientów). */
+function Chip({ icon: Icon, label, children }: { icon: typeof IconWifi; label: string; children: ReactNode }) {
+  return (
+    <span title={label} className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium tabular-nums text-text-2">
+      <Icon size={12} aria-hidden="true" className="shrink-0" />
+      <span className="sr-only">{label}: </span>
+      {children}
+    </span>
+  );
+}
 
 function clientName(c: NetworkClient): string {
   return c.name ?? c.ip ?? c.mac;
@@ -46,7 +85,7 @@ function devicesLabel(n: number): string {
   return t(few ? "topo.devices.few" : "topo.devices.many", { n });
 }
 
-function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: NetworkClient[]; internet: boolean }) {
+function NodeCard({ node, clients, internet, traffic }: { node: TopologyNode; clients: NetworkClient[]; internet: boolean; traffic: number | null }) {
   if (node.kind === "external") {
     return (
       <Card className="flex h-full flex-col items-center justify-center gap-1 border-dashed p-3 text-center">
@@ -55,6 +94,11 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
           {internet ? t("topo.internet") : t("topo.external")}
         </div>
         {!internet && <p className="w-full truncate font-mono text-xs text-text-2">{node.name}</p>}
+        {internet && traffic != null && (
+          <Chip icon={IconArrowsUpDown} label={t("topo.traffic.wan")}>
+            {formatBps(traffic)}
+          </Chip>
+        )}
       </Card>
     );
   }
@@ -63,7 +107,7 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
   const wired = groupByPort(clients.filter((c) => c.is_wired));
   const wifi = clients.filter((c) => !c.is_wired);
   return (
-    <Card className="flex h-full flex-col items-center gap-1.5 overflow-hidden p-3 text-center">
+    <Card className="flex h-full flex-col items-center justify-center gap-1.5 overflow-hidden p-3 text-center">
       <div className="flex w-full items-center justify-center gap-2">
         <Icon size={20} aria-hidden="true" className="shrink-0 text-text-2" />
         <h3 className="min-w-0 truncate text-sm font-medium">
@@ -85,7 +129,25 @@ function NodeCard({ node, clients, internet }: { node: TopologyNode; clients: Ne
       <p className="w-full truncate text-xs text-text-2">
         {[t(KIND_LABEL[node.device_kind ?? "other"] ?? "dash.kind.other"), node.model].filter(Boolean).join(" · ")}
       </p>
-      {wifi.length > 0 && <p className="w-full truncate text-xs">{t("topo.wifi", { n: wifi.length })}</p>}
+      {(traffic != null || clients.length > 0) && (
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {traffic != null && (
+            <Chip icon={IconArrowsUpDown} label={t("topo.traffic")}>
+              {formatBps(traffic)}
+            </Chip>
+          )}
+          {wifi.length > 0 && (
+            <Chip icon={IconWifi} label={t("topo.wifi", { n: wifi.length })}>
+              {wifi.length}
+            </Chip>
+          )}
+          {clients.length > wifi.length && (
+            <Chip icon={IconPlug} label={t("topo.wired", { n: clients.length - wifi.length })}>
+              {clients.length - wifi.length}
+            </Chip>
+          )}
+        </div>
+      )}
       {wired.slice(0, MAX_LISTED).map((g) => (
         <p key={g.port ?? "none"} className="w-full truncate text-xs text-text-2" title={g.items.map(clientName).join(", ")}>
           {g.port != null ? `${t("clients.port", { n: g.port })}: ` : ""}
@@ -117,39 +179,50 @@ const LOAD_STROKE: Record<LoadLevel, string> = {
 };
 const LOAD_LABEL: Record<Exclude<LoadLevel, "none">, TextKey> = { low: "topo.load.low", mid: "topo.load.mid", high: "topo.load.high" };
 
-/** Końce kabla: dolna krawędź wyższego węzła i górna niższego (krzywa symetryczna – środek w połowie odcinka). */
-function cableEnds(edge: TopologyEdge, places: Record<string, { x: number; y: number }>) {
+type Places = Record<string, Placement>;
+
+/** Końce kabla. Układ pionowy: dolna krawędź wyższego węzła i górna niższego; poziomy: prawa krawędź lewego i lewa
+ * prawego. Krzywa jest symetryczna – środek w połowie odcinka. */
+function cableEnds(edge: TopologyEdge, places: Places, horizontal: boolean) {
   const pa = places[edge.a];
   const pb = places[edge.b];
   if (!pa || !pb) return null;
-  const [upper, lower, upperPort, lowerPort] = pa.y <= pb.y ? [pa, pb, edge.a_port, edge.b_port] : [pb, pa, edge.b_port, edge.a_port];
-  return { x1: upper.x + NODE_W / 2, y1: upper.y + NODE_H, x2: lower.x + NODE_W / 2, y2: lower.y, upperPort, lowerPort };
+  const aFirst = horizontal ? pa.x <= pb.x : pa.y <= pb.y;
+  const [first, second, firstPort, secondPort] = aFirst ? [pa, pb, edge.a_port, edge.b_port] : [pb, pa, edge.b_port, edge.a_port];
+  if (horizontal) return { x1: first.x + NODE_W, y1: first.y + NODE_H / 2, x2: second.x, y2: second.y + NODE_H / 2, firstPort, secondPort };
+  return { x1: first.x + NODE_W / 2, y1: first.y + NODE_H, x2: second.x + NODE_W / 2, y2: second.y, firstPort, secondPort };
 }
 
 /** Kabel w kolorze obciążenia (grubszy, im bardziej zajęty); numery portów przy obu końcach. */
-function Cable({ edge, places }: { edge: TopologyEdge; places: Record<string, { x: number; y: number }> }) {
-  const ends = cableEnds(edge, places);
+function Cable({ edge, places, horizontal }: { edge: TopologyEdge; places: Places; horizontal: boolean }) {
+  const ends = cableEnds(edge, places, horizontal);
   if (!ends) return null;
-  const { x1, y1, x2, y2, upperPort, lowerPort } = ends;
-  const mid = (y1 + y2) / 2;
+  const { x1, y1, x2, y2, firstPort, secondPort } = ends;
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
   const level = loadLevel(edge.utilization);
+  const d = horizontal ? `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}` : `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`;
   return (
     <g>
-      <path
-        d={`M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`}
-        fill="none"
-        stroke={LOAD_STROKE[level]}
-        strokeWidth={level === "none" ? 2 : 2.5 + 4 * (edge.utilization ?? 0)}
-      />
-      <PortLabel x={x1} y={y1 + 16} port={upperPort} />
-      <PortLabel x={x2} y={y2 - 16} port={lowerPort} />
+      <path d={d} fill="none" stroke={LOAD_STROKE[level]} strokeWidth={level === "none" ? 2 : 2.5 + 4 * (edge.utilization ?? 0)} />
+      {horizontal ? (
+        <>
+          <PortLabel x={x1 + 30} y={y1 - 16} port={firstPort} />
+          <PortLabel x={x2 - 30} y={y2 - 16} port={secondPort} />
+        </>
+      ) : (
+        <>
+          <PortLabel x={x1} y={y1 + 16} port={firstPort} />
+          <PortLabel x={x2} y={y2 - 16} port={secondPort} />
+        </>
+      )}
     </g>
   );
 }
 
 /** Opis w połowie kabla: prędkość łącza i bieżący ruch; prowadzi do strony portu. */
-function CableInfo({ edge, places }: { edge: TopologyEdge; places: Record<string, { x: number; y: number }> }) {
-  const ends = cableEnds(edge, places);
+function CableInfo({ edge, places, horizontal }: { edge: TopologyEdge; places: Places; horizontal: boolean }) {
+  const ends = cableEnds(edge, places, horizontal);
   const speed = speedLabel(edge.speed_mbps);
   if (!ends || (!speed && edge.traffic_bps == null)) return null;
   const text = [speed, edge.traffic_bps != null ? formatBps(edge.traffic_bps) : null].filter(Boolean).join(" · ");
@@ -170,10 +243,11 @@ function CableInfo({ edge, places }: { edge: TopologyEdge; places: Record<string
 }
 
 type View = { scale: number; x: number; y: number };
+const MAP_BUTTON = "flex size-8 items-center justify-center rounded-lg border border-border bg-surface text-text-2 hover:text-text";
 
 /** Ramka mapy z przybliżaniem (przyciski, Ctrl + kółko) i przesuwaniem (przeciągnięcie tła). Na starcie i po
  * „Dopasuj” cała mapa mieści się w szerokości – na telefonie bez przewijania w bok. */
-function MapViewport({ width, height, children }: { width: number; height: number; children: ReactNode }) {
+function MapViewport({ width, height, toolbar, children }: { width: number; height: number; toolbar?: ReactNode; children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
   const [frameWidth, setFrameWidth] = useState(0);
   const [view, setView] = useState<View | null>(null);
@@ -219,7 +293,7 @@ function MapViewport({ width, height, children }: { width: number; height: numbe
   const stop = () => {
     drag.current = null;
   };
-  const button = "flex size-8 items-center justify-center rounded-lg border border-border bg-surface text-text-2 hover:text-text";
+  const button = MAP_BUTTON;
   return (
     <div
       ref={frame}
@@ -235,6 +309,7 @@ function MapViewport({ width, height, children }: { width: number; height: numbe
         {children}
       </div>
       <div role="group" aria-label={t("topo.zoom")} className="absolute top-2 right-2 flex gap-1">
+        {toolbar}
         <button type="button" aria-label={t("topo.zoom.in")} title={t("topo.zoom.in")} className={button} onClick={() => zoomBy(1.25)}>
           <IconPlus size={16} aria-hidden="true" />
         </button>
@@ -255,7 +330,27 @@ export function TopologyPage() {
   const clients = useClients();
   const nodes = useMemo(() => topo.data?.nodes ?? [], [topo.data]);
   const edges = useMemo(() => topo.data?.edges ?? [], [topo.data]);
-  const layout = useMemo(() => layoutTopology(nodes, edges), [nodes, edges]);
+  // Kierunek mapy: wybór użytkownika (zapamiętany w przeglądarce) albo domyślny z kształtu sieci i szerokości ekranu
+  const [chosen, setChosen] = useState<Orientation | null>(readOrientation);
+  const [wide] = useState(() => typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches);
+  const vertical = useMemo(() => layoutTopology(nodes, edges), [nodes, edges]);
+  const orientation = chosen ?? preferredOrientation(vertical, wide);
+  const layout = useMemo(
+    () => (orientation === "vertical" ? vertical : layoutTopology(nodes, edges, orientation)),
+    [vertical, nodes, edges, orientation],
+  );
+  const horizontal = orientation === "horizontal";
+  const turn = () => {
+    const next: Orientation = horizontal ? "vertical" : "horizontal";
+    setChosen(next);
+    try {
+      localStorage.setItem(ORIENTATION_KEY, next);
+    } catch {
+      /* bez zapamiętywania */
+    }
+  };
+  const TurnIcon = horizontal ? IconArrowsVertical : IconArrowsHorizontal;
+  const turnLabel = t(horizontal ? "topo.layout.vertical" : "topo.layout.horizontal");
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const clientsOf = (n: TopologyNode) => (clients.data ?? []).filter((c) => n.device_id != null && c.uplink_device_id === n.device_id);
   const name = (id: string) => byId.get(id)?.name ?? id;
@@ -273,10 +368,19 @@ export function TopologyPage() {
       )}
       {nodes.length > 0 && (
         <>
-          <MapViewport width={layout.width} height={layout.height}>
+          <MapViewport
+            key={orientation}
+            width={layout.width}
+            height={layout.height}
+            toolbar={
+              <button type="button" aria-label={turnLabel} title={turnLabel} className={`${MAP_BUTTON} mr-2`} onClick={turn}>
+                <TurnIcon size={16} aria-hidden="true" />
+              </button>
+            }
+          >
             <svg aria-hidden="true" width={layout.width} height={layout.height} className="absolute inset-0">
               {edges.map((e) => (
-                <Cable key={`${e.a}-${e.b}`} edge={e} places={layout.places} />
+                <Cable key={`${e.a}-${e.b}`} edge={e} places={layout.places} horizontal={horizontal} />
               ))}
             </svg>
             {nodes.map((n) => {
@@ -284,13 +388,13 @@ export function TopologyPage() {
               return (
                 p && (
                   <div key={n.id} className="absolute" style={{ left: p.x, top: p.y, width: NODE_W, height: NODE_H }}>
-                    <NodeCard node={n} clients={clientsOf(n)} internet={isInternetNode(n, nodes, edges)} />
+                    <NodeCard node={n} clients={clientsOf(n)} internet={isInternetNode(n, nodes, edges)} traffic={uplinkTraffic(n.id, edges, layout.places)} />
                   </div>
                 )
               );
             })}
             {edges.map((e) => (
-              <CableInfo key={`${e.a}-${e.b}`} edge={e} places={layout.places} />
+              <CableInfo key={`${e.a}-${e.b}`} edge={e} places={layout.places} horizontal={horizontal} />
             ))}
           </MapViewport>
           <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-2">
