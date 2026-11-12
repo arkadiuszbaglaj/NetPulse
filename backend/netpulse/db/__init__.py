@@ -57,6 +57,38 @@ async def timescale_available() -> bool:
     return _timescale_seen
 
 
+async def update_timescale_extension() -> tuple[str, str] | None:
+    """Aktualizuje rozszerzenie TimescaleDB w bazie do wersji z obrazu (od 0.68.0, obraz ma przypiętą wersję).
+
+    Po zmianie obrazu na nowszy baza ma jeszcze starą wersję rozszerzenia; `ALTER EXTENSION … UPDATE` musi być
+    pierwszym poleceniem w świeżym połączeniu (zanim sesja załaduje starą bibliotekę) – dlatego osobne, surowe
+    połączenie asyncpg, bez zapytań, które SQLAlchemy wykonuje przy łączeniu. Zwraca (stara, nowa) wersję,
+    gdy coś się zmieniło. Brak rozszerzenia i błąd nie zatrzymują startu – dalej działa wersja dotychczasowa."""
+    import asyncpg
+    from sqlalchemy.engine import make_url
+
+    dsn = make_url(settings.database_url).set(drivername="postgresql").render_as_string(hide_password=False)
+    try:
+        conn = await asyncpg.connect(dsn, timeout=10)
+    except (OSError, asyncpg.PostgresError) as exc:
+        log.warning("Aktualizacja rozszerzenia TimescaleDB pominięta (brak połączenia): %s", exc)
+        return None
+    try:
+        await conn.execute("ALTER EXTENSION timescaledb UPDATE")
+        row = await conn.fetchrow(
+            "SELECT e.extversion AS now, a.default_version AS image FROM pg_extension e "
+            "JOIN pg_available_extensions a ON a.name = e.extname WHERE e.extname = 'timescaledb'"
+        )
+    except asyncpg.UndefinedObjectError:
+        return None  # świeża baza – rozszerzenie założy init_db
+    except asyncpg.PostgresError as exc:
+        log.error("Nie udało się zaktualizować rozszerzenia TimescaleDB: %s", exc)
+        return None
+    finally:
+        await conn.close()
+    return (row["now"], row["image"]) if row else None
+
+
 async def encrypt_existing(conn) -> int:
     """Szyfruje sekrety zapisane jawnym tekstem (sprzed 0.15 albo sprzed ustawienia klucza). Zwraca liczbę wartości."""
     if not crypto.enabled():
@@ -88,6 +120,9 @@ async def init_db(retention_days: int | None = None) -> bool:
 
     Zwraca True, jeśli TimescaleDB jest aktywne."""
     retention_days = retention_days or settings.retention_days
+    versions = await update_timescale_extension()
+    if versions:
+        log.info("Rozszerzenie TimescaleDB w bazie: %s (obraz: %s)", *versions)
     async with engine.begin() as conn:
         try:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
@@ -140,4 +175,4 @@ async def init_db(retention_days: int | None = None) -> bool:
     return timescale
 
 
-__all__ = ["SchemaMismatchError", "Session", "encrypt_existing", "engine", "has_timescale", "init_db", "timescale_available", "missing_columns"]
+__all__ = ["SchemaMismatchError", "Session", "encrypt_existing", "engine", "has_timescale", "init_db", "timescale_available", "missing_columns", "update_timescale_extension"]

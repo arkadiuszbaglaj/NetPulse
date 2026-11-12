@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       db:
-        image: timescale/timescaledb:latest-pg17
+        image: timescale/timescaledb:2.32.0-pg17
         env:
           POSTGRES_DB: netpulse
           POSTGRES_USER: netpulse
@@ -147,7 +147,9 @@ jobs:
           # nagłówki bezpieczeństwa; dokumentacja API i numer wersji tylko po zalogowaniu (od 0.65.6)
           curl -fsS -D headers.txt -o /dev/null $API/
           grep -qi '^x-frame-options: SAMEORIGIN' headers.txt
-          grep -qi "^content-security-policy: frame-ancestors 'self'" headers.txt
+          # pełny CSP (od 0.68.0): skrypty tylko z plików panelu i skrót skryptu motywu ze zbudowanego index.html
+          grep -qi "^content-security-policy: default-src 'self'; script-src 'self' 'sha256-" headers.txt
+          grep -qi "frame-ancestors 'self'" headers.txt
           test "$(curl -s -o /dev/null -w '%{http_code}' $API/openapi.json)" = 401
           HEALTH=$(curl -fsS $API/api/health)
           if grep -q '"version"' <<<"$HEALTH"; then echo "health zdradza wersję"; exit 1; fi

@@ -41,6 +41,14 @@
         "--strictPort"
       ],
       "port": 4173
+    },
+    {
+      "name": "panel-csp",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "frontend/dev/csp-preview.mjs"
+      ],
+      "port": 4180
     }
   ]
 }

@@ -221,6 +221,11 @@ z instalatora/`netpulse update` – `np_tls_names` – oraz dopisane w panelu `r
 API: `netpulse/tls.py`, `api/tls.py` (`/api/system/tls`, `ca.pem`, `PUT names`), panel: `HttpsCard` w Ustawienia → System.
 Ciasteczko sesji: `netpulse_session` (HTTPS, Secure) i `netpulse_session_http` (HTTP) – jedna nazwa blokowała logowanie przez HTTP
 po HTTPS (0.65.5); token czytać przez `session_token()`, nie `request.cookies`.
+Od 0.68.0 pełny CSP (`content_security_policy` w `api/web.py`, skrót skryptu motywu liczony z index.html; **zasób z obcego adresu = dopisać
+źródło tam**, podgląd z polityką: `frontend/dev/csp-preview.mjs`), limit logowań także na konto (20 prób, z wyjątkiem adresu znanego z udanego
+logowania), kontenery z `cap_drop`/`no-new-privileges`, obraz bazy przypięty (`timescale/timescaledb:2.32.0-pg17` w compose i `ci.yml`, nie obniżać;
+rozszerzenie aktualizuje `update_timescale_extension` w `init_db`) i `backend/requirements.lock` (**zmiana zależności w `pyproject.toml` = odświeżyć
+plik poleceniem z `docs/34-https.md`**). Podpisane aktualizacje czekają na decyzję o kluczu; osobna rola bazy odłożona (uzasadnienie w `docs/34`).
 Od 0.65.6 nagłówki bezpieczeństwa w każdej odpowiedzi (`SECURITY_HEADERS`, `frame-ancestors 'self'`), `/docs` i wersja tylko po zalogowaniu,
 dymek wykresu escapuje nazwy serii (`tooltipHtml`) – **nowy formatter ECharts składający HTML = `escapeHtml` na tekstach z danych**.
 Opis: `docs/34-https.md`.
@@ -325,7 +330,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 3 ✅ (0.66.0, został widok na telefonie); następny: etap 2.
+  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 w części ✅ (0.68.0, zostały podpisane aktualizacje), etap 3 ✅ (0.66.0, został widok na telefonie).
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.

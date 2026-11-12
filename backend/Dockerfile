@@ -23,13 +23,16 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Najpierw zależności (lepsze cache warstw przy aktualizacjach)
-COPY backend/pyproject.toml ./
-COPY backend/netpulse/__init__.py ./netpulse/__init__.py
-RUN pip install . && pip uninstall -y netpulse
+# Najpierw zależności (lepsze cache warstw przy aktualizacjach). Od 0.68.0 z pliku blokady: dokładne wersje ze skrótami
+# (pip odrzuca paczkę o innym skrócie), więc obraz zbudowany dziś i za miesiąc ma te same biblioteki.
+# Nowa albo podniesiona zależność w pyproject.toml = odświeżyć plik (polecenie w docs/04-instalacja-i-aktualizacja.md).
+COPY backend/requirements.lock ./
+RUN pip install --require-hashes -r requirements.lock
 
+COPY backend/pyproject.toml ./
 COPY backend/netpulse ./netpulse
-RUN pip install --no-deps . \
+# hatchling (budowanie paczki) jest w pliku blokady – bez pobierania go osobno w nieprzypiętej wersji
+RUN pip install --no-deps --no-build-isolation . \
     && useradd --system --uid 10001 --no-create-home netpulse \
     && install -d -o netpulse -g netpulse -m 700 /var/lib/netpulse
 

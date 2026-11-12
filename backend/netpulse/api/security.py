@@ -254,13 +254,27 @@ async def check_origin(request: HTTPConnection) -> None:
         raise HTTPException(403, "Żądanie z innej strony odrzucone (CSRF)")
 
 
+# Limit nieudanych logowań na jedno konto, niezależnie od adresu (od 0.68.0): zgadywanie hasła z wielu adresów naraz
+# (albo zza wspólnego reverse proxy) omijało limit na adres. Wyższy niż limit adresu – pomyłki kilku osób to nie atak.
+USER_MAX_FAILURES = 20
+TRUSTED_FOR_S = 30 * 86400.0
+
+
+def username_key(username: str) -> str:
+    return "user:" + username.strip().lower()[:64]
+
+
 class LoginLimiter:
-    """Prosty limit nieudanych logowań na adres IP (w pamięci procesu API)."""
+    """Prosty limit nieudanych logowań na adres IP i na konto (w pamięci procesu API).
+
+    Blokada konta nie dotyczy adresu, z którego to konto niedawno się zalogowało (`trust`) – ktoś, kto zgaduje
+    hasło administratora, nie odcina go od panelu na jego własnym komputerze."""
 
     def __init__(self, max_failures: int = 10, window_s: float = 900) -> None:
         self.max_failures = max_failures
         self.window_s = window_s
         self._failures: dict[str, deque[float]] = defaultdict(deque)
+        self._trusted: dict[tuple[str, str], float] = {}
 
     def _recent(self, key: str, now: float) -> deque[float]:
         q = self._failures[key]
@@ -268,13 +282,26 @@ class LoginLimiter:
             q.popleft()
         return q
 
-    def retry_after(self, key: str, now: float | None = None) -> int | None:
+    def retry_after(self, key: str, now: float | None = None, max_failures: int | None = None) -> int | None:
         """Sekundy do odblokowania albo None, gdy można próbować."""
         now = time.monotonic() if now is None else now
         q = self._recent(key, now)
-        if len(q) < self.max_failures:
+        limit = self.max_failures if max_failures is None else max_failures
+        if len(q) < limit:
             return None
-        return max(1, int(self.window_s - (now - q[0])))
+        return max(1, int(self.window_s - (now - q[-limit])))
+
+    def trust(self, ip: str, user_key: str, now: float | None = None) -> None:
+        """Zapamiętuje udane logowanie konta z tego adresu (na 30 dni albo do restartu API)."""
+        now = time.monotonic() if now is None else now
+        if len(self._trusted) > 5000:
+            self._trusted = {k: t for k, t in self._trusted.items() if now - t < TRUSTED_FOR_S}
+        self._trusted[(ip, user_key)] = now
+
+    def trusted(self, ip: str, user_key: str, now: float | None = None) -> bool:
+        now = time.monotonic() if now is None else now
+        seen = self._trusted.get((ip, user_key))
+        return seen is not None and now - seen < TRUSTED_FOR_S
 
     def failure(self, key: str, now: float | None = None) -> None:
         now = time.monotonic() if now is None else now

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import mimetypes
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -14,6 +17,49 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")  # nie każdy sy
 
 NO_CACHE = {"Cache-Control": "no-cache"}
 IMMUTABLE = "public, max-age=31536000, immutable"
+
+
+_INLINE_SCRIPT = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.DOTALL | re.IGNORECASE)
+
+
+def inline_script_hashes(html: str) -> list[str]:
+    """Skróty CSP (`'sha256-…'`) skryptów wpisanych wprost w stronę – w panelu to jeden: ustawienie motywu przed
+    pierwszym renderem. Liczone ze zbudowanego index.html, więc zmiana skryptu nie wymaga zmiany nagłówka."""
+    return [
+        "'sha256-" + base64.b64encode(hashlib.sha256(body.encode("utf-8")).digest()).decode() + "'"
+        for body in _INLINE_SCRIPT.findall(html)
+        if body.strip()
+    ]
+
+
+def content_security_policy(script_hashes: list[str] | tuple[str, ...] = ()) -> str:
+    """Pełna polityka treści panelu (od 0.68.0): wszystko z własnego adresu, skrypty tylko z plików panelu i wskazane
+    skróty skryptów w stronie. Ogranicza skutki ewentualnego XSS – wstrzyknięty skrypt się nie wykona, a dane nie
+    wyjdą na obcy serwer. Style w atrybutach (`'unsafe-inline'`) są potrzebne wykresom i siatce pulpitu."""
+    return "; ".join(
+        [
+            "default-src 'self'",
+            " ".join(["script-src 'self'", *script_hashes]),
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self'",  # API i WebSocket „Na żywo” pod tym samym adresem
+            "worker-src 'self' blob:",
+            "manifest-src 'self'",
+            "frame-ancestors 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "form-action 'self'",
+        ]
+    )
+
+
+def panel_script_hashes(web_dir: str | Path) -> list[str]:
+    """Skróty skryptów z index.html zbudowanego panelu; pusta lista, gdy panelu nie ma."""
+    try:
+        return inline_script_hashes((Path(web_dir) / "index.html").read_text(encoding="utf-8"))
+    except OSError:
+        return []
 
 
 class _HashedAssets(StaticFiles):

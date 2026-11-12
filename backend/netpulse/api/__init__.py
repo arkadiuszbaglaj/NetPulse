@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse
 from sqlalchemy import text
 
 from .. import __version__, audit
@@ -53,7 +54,7 @@ from . import (
     tls as tls_api,
 )
 from .security import CurrentUser, check_origin, client_ip, route_template
-from .web import mount_web
+from .web import content_security_policy, mount_web, panel_script_hashes
 
 
 @asynccontextmanager
@@ -79,11 +80,12 @@ app = FastAPI(
 
 # Nagłówki bezpieczeństwa każdej odpowiedzi HTTP (od 0.65.6). Bez osadzania panelu w obcych stronach (clickjacking),
 # bez zgadywania typu treści; odpowiedź może ustawić własną wartość (np. pulpit publiczny: Referrer-Policy no-referrer).
+# Od 0.68.0 pełna polityka treści (web.content_security_policy) ze skrótem skryptu motywu z index.html.
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "same-origin",
-    "Content-Security-Policy": "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'",
+    "Content-Security-Policy": content_security_policy(panel_script_hashes(settings.web_dir) if settings.web_dir else ()),
 }
 
 
@@ -157,9 +159,20 @@ async def openapi_schema(_: CurrentUser) -> dict:
     return app.openapi()
 
 
+# Dokumentacja Swagger UI ładuje skrypt i style z cdn.jsdelivr.net i ma skrypt w stronie – własna, luźniejsza polityka
+# tylko dla tej jednej strony (dostępnej po zalogowaniu)
+DOCS_CSP = (
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com; "
+    "connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+)
+
+
 @app.get("/docs", include_in_schema=False)
-async def api_docs(_: CurrentUser):
-    return get_swagger_ui_html(openapi_url="/openapi.json", title="NetPulse API")
+async def api_docs(_: CurrentUser) -> HTMLResponse:
+    page = get_swagger_ui_html(openapi_url="/openapi.json", title="NetPulse API")
+    page.headers["Content-Security-Policy"] = DOCS_CSP
+    return page
 
 
 # Panel (frontend/dist) – na końcu, żeby nie przesłaniał tras API. W obrazie Dockera NETPULSE_WEB_DIR=/app/web

@@ -19,6 +19,7 @@ from ..db import Session
 from ..db.models import AuthSession, User
 from .schemas import AuthStatus, Credentials, LoginBody, PasswordChange, UserOut
 from .security import (
+    USER_MAX_FAILURES,
     CurrentUser,
     clear_session_cookie,
     client_ip,
@@ -28,6 +29,7 @@ from .security import (
     set_session_cookie,
     start_session,
     user_from_request,
+    username_key,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["logowanie"])
@@ -104,7 +106,12 @@ def clear_totp(user: User) -> None:
 @router.post("/login", response_model=UserOut)
 async def login(body: LoginBody, request: Request, response: Response):
     ip = client_ip(request)
-    if wait := login_limiter.retry_after(ip):
+    account = username_key(body.username)
+    wait = login_limiter.retry_after(ip)
+    # Limit na konto (od 0.68.0) – poza adresem, z którego to konto niedawno się zalogowało
+    if wait is None and not login_limiter.trusted(ip, account):
+        wait = login_limiter.retry_after(account, max_failures=USER_MAX_FAILURES)
+    if wait:
         raise HTTPException(
             429, f"Za dużo nieudanych prób. Spróbuj za {wait // 60 + 1} min.", headers={"Retry-After": str(wait)}
         )
@@ -123,13 +130,16 @@ async def login(body: LoginBody, request: Request, response: Response):
             token = await start_session(session, user, request)
     if failed:
         login_limiter.failure(ip)
+        login_limiter.failure(account)
         await audit.record("login_failed", username=body.username, ip=ip, detail=None if user else "nieznany login")
         raise HTTPException(401, "Nieprawidłowy login lub hasło")
     if user.totp_enabled and factor is None:
         login_limiter.failure(ip)
+        login_limiter.failure(account)
         await audit.record("login_failed", user=user, ip=ip, detail="zły kod 2FA")
         raise HTTPException(401, TOTP_INVALID)
     login_limiter.success(ip)
+    login_limiter.trust(ip, account)
     set_session_cookie(response, request, token)
     if factor == "recovery":
         detail = f"kod zapasowy (zostało {len(user.totp_recovery or [])})"

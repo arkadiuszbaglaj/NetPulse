@@ -1,11 +1,22 @@
 name: netpulse
 
+# Utwardzenie kontenerów (od 0.68.0): proces nie zdobędzie nowych uprawnień (setuid), a uprawnienia jądra (capabilities)
+# są odebrane wszystkie albo zostawione tylko te, bez których usługa nie wystartuje.
+x-hardened: &hardened
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
 x-backend: &backend
   build:
     context: ..
     dockerfile: backend/Dockerfile
   image: netpulse-backend:local
   restart: unless-stopped
+  # API i kolektor działają jako zwykły użytkownik (uid 10001) – nie potrzebują żadnych uprawnień jądra.
+  # Ping sprawdzeń dostępności używa gniazda ICMP bez uprawnień (SOCK_DGRAM), nie CAP_NET_RAW.
+  <<: *hardened
   environment:
     NETPULSE_DATABASE_URL: postgresql+asyncpg://netpulse:${POSTGRES_PASSWORD:?ustaw POSTGRES_PASSWORD w .env}@db:5432/netpulse
     NETPULSE_POLL_INTERVAL: ${NETPULSE_POLL_INTERVAL:-30}
@@ -31,8 +42,21 @@ x-backend: &backend
 
 services:
   db:
-    image: timescale/timescaledb:latest-pg17
+    # Wersja przypięta (od 0.68.0; wcześniej `latest`). Podniesienie = zmiana tutaj i w ci.yml; rozszerzenie w bazie
+    # aktualizuje `init_db` (ALTER EXTENSION … UPDATE). Nie obniżać – baza nie cofnie wersji rozszerzenia.
+    image: timescale/timescaledb:2.32.0-pg17
     restart: unless-stopped
+    # PostgreSQL startuje jako root, zmienia właściciela katalogu danych i przechodzi na użytkownika postgres
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
     environment:
       POSTGRES_DB: netpulse
       POSTGRES_USER: netpulse
@@ -75,6 +99,19 @@ services:
       dockerfile: deploy/proxy/Dockerfile
     image: netpulse-proxy:local
     restart: unless-stopped
+    # nginx: proces główny jako root (certyfikaty w /tls, przejście procesów roboczych na użytkownika nginx,
+    # sygnały do nich przy przeładowaniu po odnowieniu certyfikatu – KILL)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - SETGID
+      - SETUID
     environment:
       NETPULSE_TLS_NAMES: ${NETPULSE_TLS_NAMES:-}
       TZ: ${TZ:-Europe/Warsaw}
@@ -96,6 +133,9 @@ services:
       dockerfile: updater/Dockerfile
     image: netpulse-updater:local
     restart: unless-stopped
+    # Ma gniazdo Dockera (czyli pełną kontrolę nad serwerem) – odebranie uprawnień jądra nic by tu nie dało
+    security_opt:
+      - no-new-privileges:true
     environment:
       NETPULSE_UPDATER: ${NETPULSE_UPDATER:-on}
       NETPULSE_UPDATER_TOKEN_FILE: /run/netpulse/updater-token

@@ -200,3 +200,44 @@ def test_session_cache_sees_role_change_at_once(clean, monkeypatch):
             # Zmiana roli wylogowuje konto – także z pamięci sesji
             assert admin.patch(f"/api/users/{res.json()['id']}", json={"role": "viewer"}).status_code == 200
             assert jan.get("/api/auth/me").status_code == 401
+
+
+def test_timescale_extension_update_is_safe_to_repeat(clean):
+    """`ALTER EXTENSION … UPDATE` przy każdym starcie (od 0.68.0): przy aktualnej wersji nic nie zmienia, a baza
+    po nim działa; zwraca wersję w bazie i w obrazie."""
+    from netpulse.db import update_timescale_extension
+
+    async def go():
+        if not await _timescale():
+            pytest.skip("baza bez TimescaleDB")
+        versions = await update_timescale_extension()
+        assert versions is not None and versions[0] == versions[1], versions
+        await init_db()
+        async with Session() as s:
+            assert await s.scalar(select(func.count()).select_from(Device)) == 0
+
+    run(go)
+
+
+def test_account_login_limit_over_api(clean):
+    """Konto blokuje się po 20 nieudanych próbach niezależnie od limitu adresu; adres znany z udanego logowania wchodzi."""
+    from netpulse.api.security import USER_MAX_FAILURES, username_key
+
+    with TestClient(app) as c:
+        assert c.post("/api/auth/setup", json=ADMIN).status_code == 201
+        assert c.post("/api/auth/logout").status_code == 204
+        login_limiter._trusted.clear()  # jak po restarcie API: żaden adres nie jest znany
+        for _ in range(USER_MAX_FAILURES):
+            login_limiter.failure(username_key("admin"))  # próby z innych adresów
+        assert c.post("/api/auth/login", json=ADMIN).status_code == 429
+        # Inne konto z tego samego adresu nie jest zablokowane (tu: nie istnieje, więc 401, nie 429)
+        assert c.post("/api/auth/login", json={"username": "jan", "password": "x" * 12}).status_code == 401
+        login_limiter._failures.clear()
+        assert c.post("/api/auth/login", json=ADMIN).status_code == 200
+        # Adres po udanym logowaniu jest znany – blokada konta go nie dotyczy
+        for _ in range(USER_MAX_FAILURES):
+            login_limiter.failure(username_key("admin"))
+        assert c.post("/api/auth/login", json=ADMIN).status_code == 200
+    login_limiter._failures.clear()
+    login_limiter._trusted.clear()
+

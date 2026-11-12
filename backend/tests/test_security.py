@@ -120,3 +120,24 @@ def test_password_helpers_run_off_the_event_loop():
 
     h, ok, bad, missing = asyncio.run(go())
     assert h.startswith("$argon2") and ok and not bad and not missing
+
+
+def test_login_limiter_per_account_and_trusted_address():
+    """Limit na konto (od 0.68.0): zgadywanie z wielu adresów blokuje konto, ale nie adres, z którego się ono logowało."""
+    from netpulse.api.security import USER_MAX_FAILURES, username_key
+
+    limiter = LoginLimiter(max_failures=10, window_s=900)
+    account = username_key("  Admin ")
+    assert account == "user:admin"
+    for i in range(USER_MAX_FAILURES):
+        limiter.failure(f"10.0.0.{i}", now=i)  # każda próba z innego adresu – limit adresu nie działa
+        limiter.failure(account, now=i)
+    assert limiter.retry_after("10.0.0.99", now=30) is None
+    assert limiter.retry_after(account, now=30, max_failures=USER_MAX_FAILURES) is not None
+    # Administrator na swoim komputerze nie jest odcięty
+    limiter.trust("192.168.1.10", account, now=0)
+    assert limiter.trusted("192.168.1.10", account, now=30)
+    assert not limiter.trusted("10.0.0.5", account, now=30)
+    assert not limiter.trusted("192.168.1.10", username_key("jan"), now=30)
+    # Po oknie blokada konta mija
+    assert limiter.retry_after(account, now=2000, max_failures=USER_MAX_FAILURES) is None
