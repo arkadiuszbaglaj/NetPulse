@@ -199,8 +199,10 @@ i `i18n/en.ts` (`Record<TextKey, string>`) – **nowy tekst = wpis w obu plikach
 `English.test.tsx` pilnuje zmiennych `{…}` i braku polskich znaków). Wybór języka: Ustawienia → Konto i strona logowania,
 w przeglądarce (`netpulse.language`), domyślnie język przeglądarki; zmiana przeładowuje panel. Daty i liczby: `lib/intl.ts`
 (`dateFormat`, `numberFormat`, `formatNumber`) albo `locale()` – **nie `"pl"` wpisane w kod**. Testy panelu działają po polsku
-(`test/setup.tsx`). Po polsku zostały teksty z API (błędy, tytuły alertów, `verification.py`) – część 4b; powiadomienia,
-PDF i Android – 4c.
+(`test/setup.tsx`). Od 0.75.0 (4b) backend tłumaczy odpowiedzi JSON dla `Accept-Language: en` (panel wysyła je zawsze):
+`netpulse/i18n.py` (`LanguageMiddleware`, `translate`) według katalogu wzorców `netpulse/messages.py`; kod dalej pisze po polsku.
+**Nowy polski komunikat backendu albo updatera = wpis w `messages.py`** (pilnuje `test_i18n.py`), pisany w całości, nie
+z kawałków. Powiadomienia, PDF/CSV i Android – 4c.
 
 ## Szczegóły, dostępność i pulpity
 
@@ -376,7 +378,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, został widok na telefonie), etap 4a ✅ (0.74.0, panel po angielsku; 4b–4c w `docs/44`), etap 5 ✅ (0.73.0).
+  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, został widok na telefonie), etap 4a ✅ (0.74.0, panel po angielsku), 4b ✅ (0.75.0, komunikaty backendu; 4c w `docs/44`), etap 5 ✅ (0.73.0).
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.

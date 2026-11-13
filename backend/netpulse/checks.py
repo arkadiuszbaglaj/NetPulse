@@ -268,7 +268,8 @@ async def dns_check(name: str, rtype: str = "A", server: str | None = None, port
     answer = ", ".join(res.answers)[:255] or None
     result = CheckResult(up=True, latency_ms=res.latency_ms, answer=answer)
     if res.rcode != "NOERROR":
-        result.up, result.error = False, f"{res.rcode}: {'nazwa nie istnieje' if res.rcode == 'NXDOMAIN' else 'błąd serwera DNS'}"
+        result.up = False
+        result.error = f"{res.rcode}: nazwa nie istnieje" if res.rcode == "NXDOMAIN" else f"{res.rcode}: błąd serwera DNS"
     elif not any(not a.startswith("CNAME ") for a in res.answers):
         result.up, result.error = False, f"Brak rekordu {rtype.upper()} dla {name}"
     elif missing := dnsquery.missing_expected(res.answers, expected, rtype):

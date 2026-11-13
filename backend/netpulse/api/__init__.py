@@ -19,6 +19,7 @@ from sqlalchemy import text
 from .. import __version__, audit
 from ..config import settings
 from ..db import engine, has_timescale
+from ..i18n import LanguageMiddleware
 from . import (
     agents,
     alerts,
@@ -113,6 +114,9 @@ async def audit_changes(request: Request, call_next):
                 status=response.status_code,
             )
     return response
+# Komunikaty po angielsku dla `Accept-Language: en` (od 0.75.0, netpulse/i18n.py) – najbardziej zewnętrzna warstwa
+app.add_middleware(LanguageMiddleware)
+
 app.include_router(agents.admin_router)
 app.include_router(agents.push_router)
 app.include_router(alerts.router)

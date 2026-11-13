@@ -161,7 +161,7 @@ class Job:
         self.merged = True
         added = topup_env(self.s.install_dir)
         if added:
-            self.log("Dopisano do .env nowe zmienne: " + ", ".join(added))
+            self.log(f"Dopisano do .env nowe zmienne: {', '.join(added)}")
         return True
 
     def build(self) -> None:

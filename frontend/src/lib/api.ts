@@ -1,5 +1,10 @@
 /** Klient API NetPulse. Sesja siedzi w ciasteczku HttpOnly, więc wystarczy `same-origin`. */
 
+import { getLanguage } from "../i18n";
+
+/** Nagłówki każdego żądania: język panelu – backend odpowiada komunikatami w tym języku (od 0.75.0). */
+export const languageHeaders = (): Record<string, string> => ({ "Accept-Language": getLanguage() });
+
 export class ApiError extends Error {
   readonly status: number;
   /** Kod błędu z `detail.code` (np. `totp_required` przy logowaniu dwuskładnikowym) */
@@ -19,7 +24,7 @@ export function messageFromDetail(detail: unknown, fallback: string): string {
   if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") return detail.message;
   if (Array.isArray(detail)) {
     const msgs = detail
-      .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
+      .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg).replace(/^Value error, /, "") : ""))
       .filter(Boolean);
     if (msgs.length) return msgs.join(" ");
   }
@@ -48,6 +53,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     credentials: "same-origin",
     headers: {
       Accept: "application/json",
+      ...languageHeaders(),
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(publicDashboard?.access ? { "X-Dashboard-Access": publicDashboard.access } : {}),
     },

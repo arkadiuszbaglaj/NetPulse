@@ -269,8 +269,9 @@ class Backups:
                 step("rollback")
                 safety_ok = self._load(path_of(self.s, status["safety"]))
                 raise BackupError(
-                    "Wczytanie kopii nie powiodło się. "
-                    + ("Przywrócono stan sprzed próby." if safety_ok else f"Przywrócenie stanu sprzed próby też się nie udało – kopia: {status['safety']}.")
+                    "Wczytanie kopii nie powiodło się. Przywrócono stan sprzed próby."
+                    if safety_ok
+                    else f"Wczytanie kopii nie powiodło się. Przywrócenie stanu sprzed próby też się nie udało – kopia: {status['safety']}."
                 )
             step("start")
             self._start_and_wait()

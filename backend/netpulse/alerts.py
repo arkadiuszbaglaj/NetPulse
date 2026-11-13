@@ -793,10 +793,10 @@ class AlertEngine:
 
     @staticmethod
     def _state_detail(rule: AlertRule) -> str:
-        span = f" od {rule.duration_s // 60} min" if rule.duration_s >= 60 else ""
-        return f"Stan z agenta NetPulse{span}" + (f" (filtr: {rule.match})" if rule.match else "")
+        text = f"Stan z agenta NetPulse od {rule.duration_s // 60} min" if rule.duration_s >= 60 else "Stan z agenta NetPulse"
+        return f"{text} (filtr: {rule.match})" if rule.match else text
 
     @staticmethod
     def _detail(rule: AlertRule, metric: str) -> str:
-        span = f" przez {rule.duration_s // 60} min" if rule.duration_s >= 60 else ""
-        return f"Warunek: {METRICS[metric][0]} {rule.op} {format_value(metric, float(rule.threshold))}{span}"
+        text = f"Warunek: {METRICS[metric][0]} {rule.op} {format_value(metric, float(rule.threshold))}"
+        return f"{text} przez {rule.duration_s // 60} min" if rule.duration_s >= 60 else text

@@ -44,7 +44,8 @@ describe("tłumaczenie angielskie (0.74.0)", () => {
   });
 
   // Strony, które da się przejść po angielsku bez polskiego tekstu z panelu (dane z atrapy API są neutralne).
-  // Raporty i Ustawienia → System pokazują jeszcze teksty z backendu (tytuły alertów, opisy źródeł danych) – etap 4b.
+  // Raporty i Ustawienia → System pokazują teksty z backendu (tytuły alertów, opisy źródeł danych): tłumaczy je API
+  // (od 0.75.0, backend/netpulse/i18n.py, testy w backend/tests/test_i18n.py), a atrapa API odpowiada po polsku.
   const PAGES = [
     "/",
     "/alerts",

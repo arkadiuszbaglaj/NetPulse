@@ -10,6 +10,7 @@ describe("api", () => {
     expect(messageFromDetail([{ msg: "za krótkie" }, { msg: "zły format" }], "x")).toBe("za krótkie zły format");
     expect(messageFromDetail(undefined, "awaria")).toBe("awaria");
     expect(messageFromDetail([], "awaria")).toBe("awaria");
+    expect(messageFromDetail([{ msg: "Value error, Podaj nazwę okna" }], "x")).toBe("Podaj nazwę okna");
   });
 
   it("rzuca ApiError z kodem i komunikatem serwera", async () => {
@@ -34,6 +35,8 @@ describe("api", () => {
     expect(init.credentials).toBe("same-origin");
     expect(init.body).toBe('{"a":1}');
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    // język panelu – backend odpowiada komunikatami w tym języku (0.75.0); testy działają po polsku
+    expect((init.headers as Record<string, string>)["Accept-Language"]).toBe("pl");
   });
 });
 

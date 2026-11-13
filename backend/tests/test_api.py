@@ -240,3 +240,14 @@ def test_probe_unreachable_device(client):
     r = client.post("/api/devices", json={"name": "x", "host": "192.0.2.1"})
     assert r.status_code == 422
     assert client.get("/api/devices").json() == []
+
+
+def test_messages_in_english_for_accept_language(client):
+    """0.75.0: panel po angielsku wysyła Accept-Language: en – komunikaty API po angielsku, bez nagłówka po polsku."""
+    r = client.get("/api/devices", headers={"Accept-Language": "en"})
+    assert r.status_code == 401 and r.json()["detail"] == "Sign-in required"
+    assert client.get("/api/devices").json()["detail"] == "Wymagane logowanie"
+    client.post("/api/auth/setup", json=ADMIN)
+    r = client.get("/api/devices/999999", headers={"Accept-Language": "en-GB,en;q=0.9"})
+    assert r.status_code == 404, r.text
+    assert r.json()["detail"] == "No such device"

@@ -115,7 +115,7 @@ class ChannelCreate(QuietHours):
             self.url = None
         else:
             if not self.url:
-                raise ValueError("Podaj adres" + (" tematu ntfy" if self.kind == "ntfy" else " webhooka"))
+                raise ValueError("Podaj adres tematu ntfy" if self.kind == "ntfy" else "Podaj adres webhooka")
             if self.kind == "ntfy" and not urlsplit(self.url).path.strip("/"):
                 raise ValueError("Adres tematu ntfy musi mieć nazwę tematu, np. https://ntfy.sh/moj-temat")
             if self.kind == "webhook":

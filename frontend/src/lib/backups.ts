@@ -1,6 +1,6 @@
 /** Kopie zapasowe bazy (API: backend/netpulse/api/backups.py, wykonuje je usługa updater). */
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, get, messageFromDetail } from "./api";
+import { ApiError, get, languageHeaders, messageFromDetail } from "./api";
 
 export type BackupKind = "update" | "manual" | "prerestore" | "upload";
 
@@ -39,7 +39,7 @@ export async function uploadBackup(file: File): Promise<BackupsResponse> {
   const res = await fetch("/api/backups/upload", {
     method: "POST",
     credentials: "same-origin",
-    headers: { Accept: "application/json", "Content-Type": "application/gzip" },
+    headers: { Accept: "application/json", "Content-Type": "application/gzip", ...languageHeaders() },
     body: file,
   });
   if (!res.ok) {
