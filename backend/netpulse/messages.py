@@ -201,6 +201,7 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Nie ma takiego klienta – kontroler go jeszcze nie widział", "No such client – the controller has not seen it yet"),
     ("Nie ma takiego kontrolera", "No such controller"),
     ("Kontroler {host} już jest dodany", "Controller {host} is already added"),
+    ("Kontroler {host}: {error}", "Controller {host}: {error}"),
     ("Pole {field} nie może być puste", "The {field} field cannot be empty"),
     ("Brak połączenia z kontrolerem: {error}", "No connection to the controller: {error}"),
     ("Kontroler odrzucił klucz API (sprawdź klucz i jego uprawnienia)", "The controller rejected the API key (check the key and its permissions)"),
@@ -213,6 +214,10 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Nieoczekiwany format odpowiedzi kontrolera", "Unexpected controller response format"),
     ("Oficjalne API nie zna site „{site}”", "The official API does not know the site “{site}”"),
     ("Kontroler UniFi: urządzenie {state}", "UniFi controller: device {state}"),
+    # przedrostek źródła przed błędem (unifi_collector.py, proxmox_collector.py, checks.py) – błąd tłumaczony osobno
+    ("Kontroler UniFi: {error}", "UniFi controller: {error}"),
+    ("Proxmox: {error}", "Proxmox: {error}"),
+    ("DNS: {error}", "DNS: {error}"),
     ("niedostępne", "unavailable"),
     # --- pulpity i pulpit publiczny (api/dashboards.py, api/public.py, db/models.py) ---
     ("Mój pulpit", "My dashboard"),

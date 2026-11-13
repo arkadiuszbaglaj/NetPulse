@@ -24,7 +24,7 @@ POLISH = re.compile(
     r"[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]|(?i:\b(?:nie|brak|podaj|wybierz|najpierw|wymagane|tych|ten|ta|to|niedozwolony|oczekiwany"
     r"|albo|lub|godzina|niepoprawny|jest|dla|portu|nieznany|nieznana|zbyt|wymaga|kopii|okna|kopia"
     r"|w|i|z|na|do|od|po|przez|oraz|ze|za|bez|kontener|zatrzymany|zatrzymana|maszyna|wysoka|temperatura|fabryczne"
-    r"|pobieranie|serwer|porty|pomiar|zanonimizowane|odpowiedzi|kontrolera|bramy|dysk|certyfikat|wygasa)\b)"
+    r"|pobieranie|serwer|porty|pomiar|zanonimizowane|odpowiedzi|kontroler|kontrolera|bramy|dysk|certyfikat|wygasa)\b)"
 )
 HOLE = re.compile(r"\{[^{}]*\}")
 # Polskie teksty, które celowo nie są komunikatami API (porównania w kodzie, kawałki składane gdzie indziej)
@@ -131,6 +131,9 @@ def test_translate_titles_errors_and_details():
         "UCG nie odpowiada\nZa nim nie odpowiada też: AP, Switch": "UCG is not responding\nAlso not responding behind it: AP, Switch",
         "Brak połączenia z Proxmox: ConnectError: refused": "No connection to Proxmox: ConnectError: refused",
         "Mój pulpit": "My dashboard",
+        # przedrostek źródła przed błędem (0.75.1: tak zapisują błąd kolektory Proxmox i UniFi)
+        "Proxmox: Brak połączenia z Proxmox: ConnectError: refused": "Proxmox: No connection to Proxmox: ConnectError: refused",
+        "Kontroler UniFi: Kontroler odpowiedział kodem 401": "UniFi controller: The controller responded with code 401",
         # spoza katalogu – bez zmian
         "Garaż": "Garaż",
         "2026-11-13T10:00:00Z": "2026-11-13T10:00:00Z",
