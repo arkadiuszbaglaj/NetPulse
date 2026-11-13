@@ -40,6 +40,25 @@ _PRIV_PROTOCOLS = {
     "AES256": ("USM_PRIV_CFB256_AES", "usmAesCfb256Protocol"),
 }
 
+# Błędy pysnmp (`errorIndication`) po polsku, z podpowiedzią, co sprawdzić (od 0.77.0; wcześniej w „Test SNMP”
+# i w last_error urządzenia był angielski tekst pysnmp). Klucz = nazwa klasy błędu z pysnmp.proto.errind.
+ERROR_HINTS = {
+    "RequestTimedOut": "brak odpowiedzi w wyznaczonym czasie – sprawdź adres, port UDP, wersję SNMP i community (albo dane SNMPv3)",
+    "UnknownUserName": "urządzenie nie zna tego użytkownika SNMPv3",
+    "UnknownSecurityName": "urządzenie nie zna tego użytkownika SNMPv3",
+    "WrongDigest": "zły klucz albo protokół uwierzytelniania SNMPv3 (auth)",
+    "DecryptionError": "zły klucz albo protokół szyfrowania SNMPv3 (priv)",
+    "AuthenticationError": "zły klucz albo protokół szyfrowania SNMPv3 (priv)",
+    "UnsupportedSecurityLevel": "urządzenie nie obsługuje tego poziomu bezpieczeństwa SNMPv3 – sprawdź, czy ma włączone uwierzytelnianie i szyfrowanie",
+    "NotInTimeWindow": "zegar SNMPv3 urządzenia poza oknem czasu – spróbuj ponownie",
+    "UnknownEngineID": "urządzenie nie odpowiedziało poprawnie na wykrywanie SNMPv3 (engine ID)",
+}
+
+
+def explain(err_ind: Any) -> str:
+    """Czytelny opis błędu pysnmp; nieznany błąd – tekst pysnmp bez zmian."""
+    return ERROR_HINTS.get(type(err_ind).__name__, str(err_ind))
+
 
 def _auth_data(creds: SnmpCredentials) -> Any:
     if creds.version in ("1", "2c"):
@@ -150,7 +169,7 @@ class PySnmpClient:
             lookupMib=False,
         )
         if err_ind:
-            raise SnmpError(f"{self.host}: {err_ind}")
+            raise SnmpError(explain(err_ind))
         if err_status:
             # v1 zwraca noSuchName dla całego zapytania – traktujemy jako brak danych
             if str(err_status.prettyPrint()) == "noSuchName" and len(oids) > 1:
@@ -195,7 +214,7 @@ class PySnmpClient:
             )
         async for err_ind, err_status, _err_index, var_binds in iterator:
             if err_ind:
-                raise SnmpError(f"{self.host}: {err_ind}")
+                raise SnmpError(explain(err_ind))
             if err_status:
                 if str(err_status.prettyPrint()) == "noSuchName":
                     break

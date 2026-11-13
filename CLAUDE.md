@@ -369,7 +369,9 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   i profile urządzeń w YAML. Nie wdrażać bez decyzji użytkownika.
 - **Plan testów na różnym sprzęcie** – propozycja w `docs/26-plan-testow-sprzetu.md` (4.11.2026): ryzyka R1–R10
   (liczniki 32-bit, interfejsy techniczne w driverze ogólnym, brak roli WAN, zmiana `ifIndex`, duże urządzenia,
-  NAS, ARM), etapy 1–5. Etap 1 (testy odporności w CI) można robić bez sprzętu – czeka na decyzję użytkownika.
+  NAS, ARM), etapy 1–5. Etap 1 ✅ (0.77.0): `tests/test_robustness.py`, fixture `broken-agent.snmprec`; poprawione
+  NUL i za długie teksty (wywracały zapis urządzenia), prędkość 2³²−1, zawinięcie Counter32 z dolnej połowy,
+  limit czasu odczytu urządzenia (`NETPULSE_POLL_TIMEOUT`), polskie błędy pysnmp (`ERROR_HINTS`). Etapy 2–5 czekają na decyzję.
 - **Synology NAS** – propozycja w `docs/27-synology-propozycja.md` (4.11.2026, z przewodnika Synology SNMP MIB Guide –
   PDF poza repo): driver `synology` (rozpoznanie sondą `modelName`, dyski, RAID, UPS, I/O, alerty), potem moduł DSM API
   (Hyper Backup, pakiety, kontenery). Odłożone – brak prawdziwego Synology do zrzutu; nie wdrażać bez decyzji.

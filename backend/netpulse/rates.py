@@ -20,17 +20,26 @@ def rate_factor(if_type: int | None) -> float:
     return ETHERNET_RATE_FACTOR if if_type in ETHERNET_IF_TYPES else DEFAULT_RATE_FACTOR
 
 
-def counter_delta(prev: int, curr: int, bits: int = 64) -> int | None:
+def counter_delta(prev: int, curr: int, bits: int = 64, max_delta: float | None = None) -> int | None:
     """Przyrost licznika z obsługą przepełnienia.
 
     - curr >= prev: zwykły przyrost
-    - Counter32 przekroczył 2^32: liczymy przez zawinięcie, jeśli prev był w górnej połowie
+    - Counter32 przekroczył 2^32: liczymy przez zawinięcie, jeśli prev był w górnej połowie albo – od 0.77.0 –
+      przyrost przez zawinięcie mieści się w `max_delta` (prędkość łącza × czas). Licznik 32-bitowy na łączu 1 Gb/s
+      przekręca się co ~34 s, więc przy cyklu 30 s i ruchu > ~570 Mb/s zawinięcie z dolnej połowy jest normalne
+      (wcześniej taki odczyt uznawany był za reset i ginął razem z drugim kierunkiem)
     - w pozostałych przypadkach (Counter64 spadł, reset urządzenia) zwracamy None
+
+    Dwa przekręcenia w jednym cyklu (licznik 32-bitowy, > ~1,15 Gb/s przez 30 s) są nie do wykrycia – dlatego drivery
+    biorą liczniki 64-bitowe (ifHC*), gdy urządzenie je ma.
     """
     if curr >= prev:
         return curr - prev
-    if bits == 32 and prev >= _WRAP_32 // 2:
-        return curr + _WRAP_32 - prev
+    if bits == 32:
+        wrapped = curr + _WRAP_32 - prev
+        if prev >= _WRAP_32 // 2 or (max_delta is not None and wrapped <= max_delta):
+            return wrapped
+        return None
     if bits == 64 and prev >= _WRAP_64 - 2**40:
         return curr + _WRAP_64 - prev
     return None
@@ -79,8 +88,11 @@ class CounterTracker:
         """Czy ostatnia szybkość tego licznika była niemożliwa (ponad prędkość łącza) i została odrzucona."""
         return key in self._rejected
 
-    def update(self, key: Hashable, ts: float, value: int | None, bits: int = 64) -> tuple[int, float] | None:
-        """Zwraca (przyrost, czas w sekundach) albo None przy pierwszym odczycie/resecie."""
+    def update(
+        self, key: Hashable, ts: float, value: int | None, bits: int = 64, max_rate: float | None = None
+    ) -> tuple[int, float] | None:
+        """Zwraca (przyrost, czas w sekundach) albo None przy pierwszym odczycie/resecie.
+        `max_rate` – największa możliwa szybkość (jednostki/s), do rozpoznania zawinięcia licznika 32-bitowego."""
         if value is None:
             return None
         prev = self._last.get(key)
@@ -91,16 +103,16 @@ class CounterTracker:
         dt = ts - prev_ts
         if dt <= 0:
             return None
-        delta = counter_delta(prev_val, value, bits)
+        delta = counter_delta(prev_val, value, bits, max_rate * dt if max_rate else None)
         if delta is None:
             self._reset.add(key)
             return None
         self._reset.discard(key)
         return delta, dt
 
-    def rate(self, key: Hashable, ts: float, value: int | None, bits: int = 64) -> float | None:
+    def rate(self, key: Hashable, ts: float, value: int | None, bits: int = 64, max_rate: float | None = None) -> float | None:
         """Szybkość w jednostkach/s."""
-        res = self.update(key, ts, value, bits)
+        res = self.update(key, ts, value, bits, max_rate)
         if res is None:
             return None
         delta, dt = res
@@ -116,12 +128,13 @@ class CounterTracker:
         factor: float = DEFAULT_RATE_FACTOR,
     ) -> float | None:
         """Bity na sekundę z licznika oktetów; odrzuca wartości nierealne (> `factor` × prędkość łącza)."""
-        r = self.rate(key, ts, octets, bits)
+        limit = max_mbps * 1_000_000 * factor if max_mbps else None
+        r = self.rate(key, ts, octets, bits, limit / 8 if limit else None)
         self._rejected.discard(key)
         if r is None:
             return None
         bps = r * 8
-        if max_mbps and bps > max_mbps * 1_000_000 * factor:
+        if limit and bps > limit:
             self._rejected.add(key)
             return None
         return bps
@@ -160,8 +173,8 @@ class LiveRateTracker:
                 return rate
             self._last[key] = (changed_at, value, 0.0)
             return 0.0
-        delta = counter_delta(value, octets, bits)
         dt = ts - changed_at
+        delta = counter_delta(value, octets, bits, max_mbps * 1_000_000 * factor / 8 * dt if max_mbps and dt > 0 else None)
         if delta is None or dt <= 0:
             self._last[key] = (ts, octets, None)  # reset urządzenia – zaczynamy od nowa
             return None

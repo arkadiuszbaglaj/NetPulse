@@ -128,3 +128,67 @@ def test_wrong_community_raises(agent):
             asyncio.run(poll_device(client))
         finally:
             asyncio.run(client.close())
+
+
+# --- odporność (docs/26, etap 1: R6, R9) ---------------------------------------------------------------------------
+
+
+def _error(port: int, creds: SnmpCredentials) -> str:
+    client = PySnmpClient("127.0.0.1", creds, port=port, timeout=1, retries=0)
+    try:
+        with pytest.raises(SnmpError) as exc:
+            asyncio.run(poll_device(client))
+    finally:
+        asyncio.run(client.close())
+    return str(exc.value)
+
+
+def test_wrong_community_says_what_to_check(agent):
+    assert _error(agent, SnmpCredentials(version="2c", community="zla-community")).startswith(
+        "brak odpowiedzi w wyznaczonym czasie – sprawdź adres, port UDP, wersję SNMP i community"
+    )
+
+
+def _v3(**overrides) -> SnmpCredentials:
+    base = dict(
+        version="3",
+        username="netpulse",
+        auth_protocol="SHA",
+        auth_key="netpulse-auth",
+        priv_protocol="AES",
+        priv_key="netpulse-priv",
+        context_name="ucg-ultra",
+    )
+    return SnmpCredentials(**(base | overrides))
+
+
+def test_v3_wrong_auth_key_is_explained(agent):
+    assert _error(agent, _v3(auth_key="zly-klucz-auth")) == "zły klucz albo protokół uwierzytelniania SNMPv3 (auth)"
+
+
+def test_v3_unknown_user_is_explained(agent):
+    assert _error(agent, _v3(username="ktos-obcy")) == "urządzenie nie zna tego użytkownika SNMPv3"
+
+
+def test_v3_wrong_priv_key_is_explained(agent):
+    from netpulse.snmp.client import ERROR_HINTS
+
+    # snmpsim nie odszyfruje zapytania: raport decryptionError albo brak odpowiedzi – w obu razach opis po polsku
+    assert _error(agent, _v3(priv_key="zly-klucz-priv")) in ERROR_HINTS.values()
+
+
+def test_v1_poll_uses_32bit_counters(agent):
+    """SNMP v1 nie zna Counter64: driver bierze ifInOctets/ifOutOctets (32 bity)."""
+    r = _poll(agent, SnmpCredentials(version="1", community="usw-lite-8-poe"))
+    assert r.system.kind == "switch"
+    visible = r.visible_interfaces()
+    assert len(visible) == 8
+    assert all(i.counter_bits == 32 and i.in_octets is not None for i in visible)
+
+
+def test_broken_agent_over_real_snmp(agent):
+    """Zepsuty agent (fixtures/broken-agent.snmprec) przez prawdziwy klient pysnmp – bez wyjątku, bez znaków sterujących."""
+    r = _poll(agent, SnmpCredentials(version="2c", community="broken-agent"))
+    assert sorted(i.if_index for i in r.interfaces) == [1, 2, 3, 4, 5, 6]
+    assert all("\x00" not in i.name for i in r.interfaces)
+    assert r.health.cpu_percent is None

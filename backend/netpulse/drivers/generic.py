@@ -31,6 +31,34 @@ _HEALTH_OIDS = [
 ]
 
 
+# ifSpeed = 2³²−1 znaczy „szybciej, niż mieści się w ifSpeed – patrz ifHighSpeed” (RFC 2863), a nie 4294 Mb/s.
+# ifHighSpeed powyżej 1 Tb/s to błąd agenta (spotykane 2³²−1) – nie zmieściłby się w kolumnie bazy (Integer).
+IF_SPEED_MAX = 2**32 - 1
+MAX_SPEED_MBPS = 1_000_000
+
+
+def link_speed_mbps(high_speed: int | None, speed: int | None) -> int | None:
+    """Prędkość łącza w Mb/s z ifHighSpeed (Mb/s) albo ifSpeed (b/s); nieznana albo niemożliwa – None (od 0.77.0)."""
+    if high_speed and 0 < high_speed <= MAX_SPEED_MBPS:
+        return high_speed
+    if speed and 0 < speed < IF_SPEED_MAX and speed >= 1_000_000:
+        return speed // 1_000_000
+    return None
+
+
+def _indexes(column: dict) -> set[int]:
+    """Numery ifIndex z kolumny tabeli; indeks, który nie jest liczbą (zepsuty agent), pomijamy – zamiast wywracać odczyt."""
+    out: set[int] = set()
+    for key in column:
+        try:
+            idx = int(key)
+        except ValueError:
+            continue
+        if 0 < idx < 2**31:
+            out.add(idx)
+    return out
+
+
 async def read_system(client: SnmpClient) -> SystemInfo:
     v = await client.get(_SYSTEM_OIDS)
     uptime = as_int(v.get(O.SYS_UPTIME))
@@ -93,18 +121,12 @@ class GenericDriver(Driver):
         ):
             cols[key] = await client.walk(oid)
 
-        indexes = sorted(
-            {int(i) for i in cols["descr"]} | {int(i) for i in cols["name"]}
-        )
+        indexes = sorted(_indexes(cols["descr"]) | _indexes(cols["name"]))
         result: list[InterfaceSample] = []
         for idx in indexes:
             k = str(idx)
             name = as_str(cols["name"].get(k)) or as_str(cols["descr"].get(k)) or f"if{idx}"
-            high = as_int(cols["high_speed"].get(k))
-            speed = high if high else None
-            if speed is None:
-                raw = as_int(cols["speed"].get(k))
-                speed = raw // 1_000_000 if raw else None
+            speed = link_speed_mbps(as_int(cols["high_speed"].get(k)), as_int(cols["speed"].get(k)))
             if k in cols["in64"] and k in cols["out64"]:
                 in_oct, out_oct, bits = as_int(cols["in64"][k]), as_int(cols["out64"][k]), 64
             else:
@@ -143,7 +165,8 @@ class GenericDriver(Driver):
             used = max(total - avail - buffers - cached, 0)
         idle = as_int(v.get(O.UCD_CPU_IDLE))
         return DeviceHealth(
-            cpu_percent=float(100 - idle) if idle is not None else None,
+            # ssCpuIdle spoza 0–100 (zepsuty agent) – brak danych, nie ujemne CPU
+            cpu_percent=float(100 - idle) if idle is not None and 0 <= idle <= 100 else None,
             mem_total_kb=total,
             mem_used_kb=used,
             load1=as_float(v.get(O.UCD_LOAD_1)),

@@ -250,6 +250,28 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Nie ma portu o id {port_id}", "No port with id {port_id}"),
     ("Brak odpowiedzi SNMP z {host}: {error}", "No SNMP response from {host}: {error}"),
     ("Brak odpowiedzi SNMP: {error}", "No SNMP response: {error}"),
+    # błędy pysnmp opisane po polsku (snmp/client.py, ERROR_HINTS – od 0.77.0)
+    (
+        "brak odpowiedzi w wyznaczonym czasie – sprawdź adres, port UDP, wersję SNMP i community (albo dane SNMPv3)",
+        "no response in time – check the address, UDP port, SNMP version and community (or SNMPv3 settings)",
+    ),
+    ("urządzenie nie zna tego użytkownika SNMPv3", "the device does not know this SNMPv3 user"),
+    ("zły klucz albo protokół uwierzytelniania SNMPv3 (auth)", "wrong SNMPv3 authentication key or protocol (auth)"),
+    ("zły klucz albo protokół szyfrowania SNMPv3 (priv)", "wrong SNMPv3 privacy key or protocol (priv)"),
+    (
+        "urządzenie nie obsługuje tego poziomu bezpieczeństwa SNMPv3 – sprawdź, czy ma włączone uwierzytelnianie i szyfrowanie",
+        "the device does not support this SNMPv3 security level – check whether it has authentication and privacy enabled",
+    ),
+    ("zegar SNMPv3 urządzenia poza oknem czasu – spróbuj ponownie", "the device's SNMPv3 clock is outside the time window – try again"),
+    (
+        "urządzenie nie odpowiedziało poprawnie na wykrywanie SNMPv3 (engine ID)",
+        "the device did not answer SNMPv3 discovery correctly (engine ID)",
+    ),
+    (
+        "Odczyt SNMP trwał dłużej niż {num} – urządzenie odpowiada za wolno albo ma bardzo dużo interfejsów",
+        "The SNMP poll took longer than {num} – the device answers too slowly or has a great many interfaces",
+    ),
+    ("Błąd zapisu odczytu: {error}", "Failed to save the poll: {error}"),
     ("Podaj adres IP albo nazwę hosta", "Enter an IP address or host name"),
     ("Dla SNMP v1/v2c podaj community", "Enter a community for SNMP v1/v2c"),
     ("Dla SNMPv3 podaj nazwę użytkownika (v3_username)", "Enter a user name for SNMPv3 (v3_username)"),

@@ -205,13 +205,22 @@ class Collector:
     async def poll_one(self, target: DeviceTarget) -> PollResult | None:
         started = time.monotonic()
         now = datetime.now(UTC)
+        limit = settings.effective_poll_timeout
         try:
             client = await self._client(target)
-            result = await poll_device(client, target.driver)
+            # Limit czasu całego odczytu (od 0.77.0): wolne urządzenie z setkami interfejsów nie wstrzymuje już cyklu
+            # wszystkich urządzeń (poll_all czeka na każde) – po limicie jest „nie odpowiada” z wyjaśnieniem
+            result = await asyncio.wait_for(poll_device(client, target.driver), limit or None)
             # Chwila odczytu liczników: środek odpytywania. Liczy się od niej przepływ – początek odpytywania przesuwał
             # przedział o czas odpowiedzi urządzenia, który bywa różny w kolejnych cyklach (od 0.71.0)
             read_ts = now.timestamp() + (time.monotonic() - started) / 2
-        except (SnmpError, TimeoutError, OSError) as exc:
+        except TimeoutError:
+            error = f"Odczyt SNMP trwał dłużej niż {limit:g} s – urządzenie odpowiada za wolno albo ma bardzo dużo interfejsów"
+            log.warning("%s (%s): %s", target.name, target.host, error)
+            await self._drop_client(target.id)
+            await self.save_failure(target, now, error)
+            return None
+        except (SnmpError, OSError) as exc:
             log.warning("%s (%s): brak odpowiedzi – %s", target.name, target.host, exc)
             await self._drop_client(target.id)
             await self.save_failure(target, now, str(exc))
@@ -221,7 +230,13 @@ class Collector:
             await self.save_failure(target, now, f"{type(exc).__name__}: {exc}")
             return None
         poll_ms = (time.monotonic() - started) * 1000
-        await self.save_result(target, result, now, poll_ms, read_ts)
+        try:
+            await self.save_result(target, result, now, poll_ms, read_ts)
+        except Exception as exc:
+            # Dane, których baza nie przyjęła, nie mogą przerwać cyklu pozostałych urządzeń (od 0.77.0)
+            log.exception("%s (%s): błąd zapisu odczytu", target.name, target.host)
+            await self.save_failure(target, now, f"Błąd zapisu odczytu: {type(exc).__name__}")
+            return None
         log.debug(
             "%s: %d interfejsów, %d sieci WiFi, %.0f ms",
             target.name,
@@ -326,19 +341,21 @@ class Collector:
                     last_error=None,
                     detected_driver=result.driver,
                     kind=sysinfo.kind,
-                    vendor=sysinfo.vendor,
-                    model=sysinfo.model,
-                    firmware=sysinfo.firmware,
-                    sys_name=sysinfo.name,
+                    # Długość kolumn (od 0.77.0): sysName czy wersja z agenta potrafi być dłuższa – bez przycięcia
+                    # baza odrzucała cały zapis urządzenia
+                    vendor=_cut(sysinfo.vendor, 64),
+                    model=_cut(sysinfo.model, 64),
+                    firmware=_cut(sysinfo.firmware, 64),
+                    sys_name=_cut(sysinfo.name, 255),
                     sys_descr=sysinfo.descr,
-                    sys_object_id=sysinfo.object_id,
+                    sys_object_id=_cut(sysinfo.object_id, 255),
                     uptime_s=sysinfo.uptime_s,
                 )
             )
 
             if result.interfaces:
                 # Przesunięte numery ifIndex: wiersz portu (historia, łącza WAN, widgety) idzie za nazwą
-                moved = await ifindex.follow_names(session, dev_id, {i.if_index: i.name for i in result.interfaces})
+                moved = await ifindex.follow_names(session, dev_id, {i.if_index: i.name[:128] for i in result.interfaces})
                 if moved:
                     log.info("%s: zmiana numeracji interfejsów – przeniesione %d, odstawione %d", target.name, len(moved.moves), len(moved.parked))
                 # Port ustawiony jako łącze WAN (np. LAN 4 jako WAN 2) liczy się jak WAN: ruch WAN, „Na żywo”, alerty
@@ -445,6 +462,10 @@ class Collector:
             )
 
         await _write_with_retry(write)
+
+
+def _cut(value: str | None, size: int) -> str | None:
+    return value[:size] if value else value
 
 
 def _is_retryable(exc: DBAPIError) -> bool:

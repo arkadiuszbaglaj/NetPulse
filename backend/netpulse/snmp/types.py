@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
@@ -80,12 +81,16 @@ def as_float(v: SnmpValue | None) -> float | None:
         return None
 
 
+# Znaki sterujące C0 i DEL: PostgreSQL odrzuca NUL w kolumnie tekstowej, a wtedy przepadał zapis całego urządzenia
+# (od 0.77.0; „złośliwe” urządzenie w tests/test_robustness.py). Tabulator i nowa linia → spacja.
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+
+
 def as_str(v: SnmpValue | None) -> str | None:
     if v is None:
         return None
-    if isinstance(v, bytes):
-        return v.decode("utf-8", errors="replace").strip("\x00").strip()
-    return str(v)
+    s = v.decode("utf-8", errors="replace") if isinstance(v, bytes) else str(v)
+    return _CONTROL.sub("", s).replace("\t", " ").replace("\n", " ").strip()
 
 
 def as_mac(v: SnmpValue | None) -> str | None:

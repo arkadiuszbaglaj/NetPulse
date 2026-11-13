@@ -23,6 +23,15 @@ class Settings:
     peak_interval: float = float(_env("PEAK_INTERVAL", "0.5"))
     snmp_timeout: float = float(_env("SNMP_TIMEOUT", "2"))
     snmp_retries: int = int(_env("SNMP_RETRIES", "1"))
+    # Limit czasu całego odczytu jednego urządzenia w s (od 0.77.0); puste = max(20, interwał − 5), 0 = bez limitu
+    poll_timeout: float | None = float(_env("POLL_TIMEOUT", "")) if _env("POLL_TIMEOUT", "") else None
+
+    @property
+    def effective_poll_timeout(self) -> float:
+        """Limit czasu odczytu urządzenia w s (0 = bez limitu)."""
+        if self.poll_timeout is not None:
+            return max(self.poll_timeout, 0.0)
+        return float(max(20, self.poll_interval - 5))
     # Ile dni trzymać surowe metryki (TimescaleDB retention policy)
     retention_days: int = int(_env("RETENTION_DAYS", "30"))
     # Ile dni trzymać agregaty godzinowe (wykresy z całego roku i dostępność; aggregates.py)

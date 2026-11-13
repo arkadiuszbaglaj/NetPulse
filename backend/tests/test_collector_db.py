@@ -242,3 +242,40 @@ def test_ifindex_renumbering_keeps_port_rows():
         await engine.dispose()
 
     asyncio.run(scenario())
+
+
+def test_broken_and_big_devices_are_saved():
+    """Zepsuty agent (NUL, sysName 300 znaków, prędkości 2³²−1) i switch z 552 interfejsami zapisują się do bazy –
+    wcześniej NUL albo za długi sysName wywracał zapis całego urządzenia (docs/26, etap 1; test_robustness.py)."""
+    from test_robustness import big_device, broken
+
+    clients = {"10.0.0.50": broken(), "10.0.0.51": big_device()}
+
+    async def scenario():
+        await init_db()
+        async with Session() as s, s.begin():
+            await s.execute(delete(Device))
+            for host in clients:
+                s.add(Device(name=host, host=host, community="public"))
+        collector = Collector(client_factory=lambda target: clients[target.host])
+        await collector.poll_all()
+        await collector.poll_all()
+        async with Session() as s:
+            devices = {d.host: d for d in (await s.scalars(select(Device))).all()}
+            bad, big = devices["10.0.0.50"], devices["10.0.0.51"]
+            assert bad.status == "up", bad.last_error
+            assert big.status == "up", big.last_error
+            assert len(bad.sys_name) == 255 and "\x00" not in bad.sys_descr
+            ports = {i.if_index: i for i in (await s.scalars(select(Interface).where(Interface.device_id == bad.id))).all()}
+            assert sorted(ports) == [1, 2, 3, 4, 5, 6]
+            assert ports[4].speed_mbps is None and len(ports[4].alias) == 255
+            assert ports[6].name == "eth3"
+            n_big = await s.scalar(select(func.count()).select_from(Interface).where(Interface.device_id == big.id))
+            assert n_big == 552
+            health = await s.scalar(select(DeviceMetric).where(DeviceMetric.device_id == bad.id, DeviceMetric.reachable))
+            assert health.cpu_percent is None and health.mem_used_percent is None  # R7: brak danych, nie 0
+        async with Session() as s, s.begin():
+            await s.execute(delete(Device))
+        await engine.dispose()
+
+    asyncio.run(scenario())

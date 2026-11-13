@@ -1,6 +1,6 @@
 # Plan testów na różnym sprzęcie – propozycja
 
-Status: **propozycja** (4.11.2026). Do decyzji użytkownika, co i w jakiej kolejności robimy.
+Status: **propozycja** (4.11.2026). Etap 1 ✅ zrobiony w 0.77.0 (13.11.2026) – wyniki niżej; etapy 2–5 czekają na decyzję.
 
 ## Cel
 
@@ -65,6 +65,29 @@ brzegowych (R1, R4, R5, R6). Zawsze oznaczone jako syntetyczne, jak `mikrotik-he
 - urządzenie bez UCD (R7) – API i panel zwracają `null`, nie 0.
 
 Wynik: lista błędów do poprawienia, każdy jako osobna poprawka (patch). Najtańszy etap – zaczynamy od niego.
+
+#### Wynik etapu 1 (0.77.0, 13.11.2026)
+
+Testy: `backend/tests/test_robustness.py` (bez sieci i bazy), `test_collector_db.py::test_broken_and_big_devices_are_saved`
+(zapis do TimescaleDB w CI), `test_snmp_integration.py` (pysnmp kontra snmpsim: v1, błędne dane v3, zepsuty agent).
+Fixture `fixtures/broken-agent.snmprec` – syntetyczny „zepsuty” agent. Znalezione i poprawione od razu:
+
+| Ryzyko | Błąd | Poprawka |
+|---|---|---|
+| R6 | Znak NUL w tekście (nazwa portu, sysDescr) – PostgreSQL odrzucał zapis **całego** urządzenia | `as_str` usuwa znaki sterujące (nowa linia, tabulator → spacja) |
+| R6 | sysName dłuższy niż 255 znaków albo wersja/model > 64 – to samo | przycięcie do długości kolumn przy zapisie (`collector._cut`) |
+| R6 | ifHighSpeed = 2³²−1 nie mieścił się w kolumnie `speed_mbps` (Integer) – to samo; ifSpeed = 2³²−1 pokazywał „4,3 Gb/s” | `link_speed_mbps`: nieznana prędkość = brak danych |
+| R6 | Indeks tabeli, który nie jest liczbą, przerywał odczyt urządzenia | taki wiersz jest pomijany |
+| R6 | ssCpuIdle spoza 0–100 dawał ujemne CPU | brak danych |
+| R6 | Błąd zapisu jednego urządzenia przerywał cykl kolektora (`gather`) | urządzenie dostaje „nie odpowiada” z opisem „Błąd zapisu odczytu: …”, reszta zapisuje się normalnie |
+| R1 | Licznik 32-bitowy przekręcony z dolnej połowy zakresu (ruch > ~570 Mb/s na 1 Gb/s) liczony jako reset – próbka i drugi kierunek ginęły | zawinięcie rozpoznawane, gdy przyrost mieści się w prędkości łącza (`counter_delta(..., max_delta)`); dwa przekręcenia w jednym cyklu dalej nie do wykrycia |
+| R5 | Wolne urządzenie wstrzymywało cykl wszystkich (kolektor czeka na każde) | limit czasu odczytu urządzenia `NETPULSE_POLL_TIMEOUT` (domyślnie interwał − 5 s, co najmniej 20 s) |
+| R9 | „Test SNMP” i błąd urządzenia pokazywały angielski tekst pysnmp | polskie opisy z podpowiedzią (`snmp/client.py`, `ERROR_HINTS`; brak odpowiedzi, zły klucz auth/priv, nieznany użytkownik v3) + tłumaczenie na angielski |
+
+Sprawdzone bez zmian w kodzie: zerowanie liczników bez restartu (próbka bez ruchu, następna poprawna), ifHCInOctets bez
+ifHCOutOctets (oba kierunki z 32 bitów), MAC z 5 bajtów, puste ifName, switch z 552 interfejsami (odczyt i zapis),
+R4 (już w 0.65.7), R7 – urządzenie bez UCD-SNMP-MIB ma CPU/RAM `null` w bazie i API, panel pokazuje brak danych.
+Odczyt v1 (liczniki 32-bitowe) działa kontra snmpsim.
 
 ### Etap 2 – maszyny wirtualne
 

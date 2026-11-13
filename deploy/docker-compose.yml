@@ -20,6 +20,8 @@ x-backend: &backend
   environment:
     NETPULSE_DATABASE_URL: postgresql+asyncpg://netpulse:${POSTGRES_PASSWORD:?ustaw POSTGRES_PASSWORD w .env}@db:5432/netpulse
     NETPULSE_POLL_INTERVAL: ${NETPULSE_POLL_INTERVAL:-30}
+    # Limit czasu odczytu jednego urządzenia w s (od 0.77.0); puste = interwał − 5 (co najmniej 20), 0 = bez limitu
+    NETPULSE_POLL_TIMEOUT: ${NETPULSE_POLL_TIMEOUT:-}
     NETPULSE_RETENTION_DAYS: ${NETPULSE_RETENTION_DAYS:-30}
     # Kompresja metryk starszych niż tyle dni (od 0.67.0); 0 = bez kompresji
     NETPULSE_COMPRESS_AFTER_DAYS: ${NETPULSE_COMPRESS_AFTER_DAYS:-7}
