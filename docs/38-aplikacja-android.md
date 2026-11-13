@@ -56,7 +56,7 @@ Wymagany Android 8.0 lub nowszy.
   (istniejące dostaje nowy plik).
 - **Nowa wersja aplikacji** = `appVersionName` i `appVersionCode` (+1) w `mobile/android/app/build.gradle.kts`.
   Bez podniesienia `appVersionCode` telefon nie zainstaluje aktualizacji.
-- **Klucz podpisu** leży poza repo (`UplinkView-android-klucz/` obok projektu) i w sekretach GitHuba. Jego utrata =
+- **Klucz podpisu** leży poza repo (`NetPulse-android-klucz/` obok projektu) i w sekretach GitHuba. Jego utrata =
   każda kolejna wersja wymaga odinstalowania aplikacji. Trzymać kopię.
 - Na komputerze nie trzeba Android Studio – APK buduje GitHub Actions.
 

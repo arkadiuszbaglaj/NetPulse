@@ -322,7 +322,7 @@ login, hasło, kod 2FA), ekran ruchu WAN (`/api/wan/status`, `/api/dashboard/tra
 Od 0.2.0 widget „Ruch WAN” (Glance, `WanWidget.kt`; odświeżanie WorkManager co 15 min, przycisk ↻ i aplikacja – `WidgetData.kt`).
 0.1.0 sprawdzona przez użytkownika na telefonie (7.11.2026).
 Buduje GitHub Actions (`.github/workflows/android.yml`, lokalnie brak Javy/SDK), podpis kluczem z sekretów
-`NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `UplinkView-android-klucz/`), na `main` wydanie `android-v<wersja>`.
+`NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `NetPulse-android-klucz/`), na `main` wydanie `android-v<wersja>`.
 Od 0.3.0 po angielsku albo po polsku według języka telefonu (`res/values`, `res/values-pl`). Wersja aplikacji (0.2.1 przyjmuje obie nazwy ciasteczka, 0.4.0 = nazwa UplinkView) osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
 Android 12, instalacja ręczna (bez konta Google Play). Opis: `docs/38-aplikacja-android.md`.
 
