@@ -179,7 +179,7 @@ def test_wifi_series_excludes_hidden_networks(client):
 def test_longer_range_uses_larger_buckets(client):
     seed()
     r = client.get("/api/dashboard/traffic?minutes=1440").json()
-    assert r["interval_s"] == 288  # 24 h / 300 punktów
+    assert r["interval_s"] == 300  # 24 h w kubełkach 5-minutowych, jak w UniFi (od 0.71.0)
     assert r["points"]
 
 
