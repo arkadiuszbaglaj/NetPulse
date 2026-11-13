@@ -4,11 +4,12 @@
 (wydajność wczytywania, bezpieczeństwo, wygląd) na wersji 0.65.9 i z odpowiedzi użytkownika:
 
 - **Odbiorcy:** na początek hobbyści homelab, docelowo hobbyści i małe firmy.
-- **Nazwa i licencja:** decyzja jeszcze nie zapadła (NetPulse jest zajęte, lista propozycji poza repo).
+- **Nazwa:** ✅ **UplinkView** (13.11.2026; domena uplinkview.com i konto `uplinkview` na GitHubie zarejestrowane).
+- **Licencja:** decyzja jeszcze nie zapadła (`docs/09-licencje-propozycja.md`).
 - **Wdrożenie:** samodzielne hostowanie, w przyszłości instalacja na serwerach albo chmura producenta
   z panelem do odczytu parametrów (`docs/39-chmura-propozycja.md`).
 
-Etapy 1–5 nie zależą od nazwy. Publikacja (etap 6) czeka na nazwę i licencję.
+Etapy 1–5 nie zależą od nazwy. Publikacja (etap 6) czeka już tylko na licencję.
 Numery wersji są orientacyjne.
 
 ## Wnioski z analizy, z których wynika plan
@@ -120,6 +121,12 @@ Zrobione 13.11.2026, opis: `docs/43-wykrywanie-urzadzen.md` (skan /24 w ok. 5 s,
 ## Punkt decyzyjny – nazwa i licencja
 
 Bez nich etap 6 nie ruszy: nazwa z listy użytkownika, licencja kodu i model z `docs/09-licencje-propozycja.md`.
+
+- **Nazwa ✅ (13.11.2026): UplinkView.** Wolne: domeny .com/.net/.org/.io/.app/.dev, nazwy na GitHubie, Docker Hubie,
+  PyPI i npm; w TMview (EUIPO, USPTO, UKIPO, WIPO) brak znaku „UplinkView”. Słowo UPLINK jest jednak zarejestrowane
+  wiele razy w klasach oprogramowania 9/42 – przed rejestracją własnego znaku albo płatną chmurą (etap 9) opinia
+  rzecznika patentowego. Domena uplinkview.com zarejestrowana (ważna do 13.11.2027 – odnowić), konto GitHub `uplinkview`.
+- **Licencja:** czeka na decyzję.
 
 ## Etap 6 – publikacja (1.0.0)
 

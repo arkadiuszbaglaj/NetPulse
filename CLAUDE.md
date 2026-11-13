@@ -8,6 +8,10 @@ status portów, klienci WiFi, a później topologia i alerty.
 
 Repozytorium: https://github.com/arkadiuszbaglaj/NetPulse
 
+**Nowa nazwa: UplinkView** (wybrana 13.11.2026, nazwa NetPulse jest zajęta; domena uplinkview.com, konto GitHub `uplinkview`).
+Zmiana nazwy w kodzie, obrazach, repozytorium i aplikacji to etap 6 planu (`docs/40`) – po wyborze licencji; do tego czasu
+w kodzie zostaje NetPulse, a istniejące instalacje muszą się dać zaktualizować.
+
 ## Zasady współpracy
 
 - Komunikacja z użytkownikiem **po polsku**. Kod, nazwy w kodzie i komentarze techniczne mogą być po angielsku, dokumentacja w `docs/` po polsku.
@@ -381,7 +385,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, widok na telefonie 0.76.1), etap 4a ✅ (0.74.0, panel po angielsku), 4b ✅ (0.75.0, komunikaty backendu), 4c ✅ (0.76.0, powiadomienia, raport, Android; `docs/44`), etap 5 ✅ (0.73.0).
+  4 angielski, 5 wykrywanie, 6 publikacja (nazwa ✅ UplinkView, 13.11.2026 – czeka na licencję), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, widok na telefonie 0.76.1), etap 4a ✅ (0.74.0, panel po angielsku), 4b ✅ (0.75.0, komunikaty backendu), 4c ✅ (0.76.0, powiadomienia, raport, Android; `docs/44`), etap 5 ✅ (0.73.0).
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.
