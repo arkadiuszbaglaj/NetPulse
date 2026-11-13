@@ -31,7 +31,7 @@ from .db.models import (
 from .drivers import PollResult, poll_device
 from .modules import ensure_modules, is_enabled
 from .peaks import PeakSampler
-from .rates import CounterTracker, rate_factor
+from .rates import CounterTracker, rate_factor, sample_times, wait_for_slot
 from .snmp import SnmpClient, SnmpCredentials, SnmpError
 
 log = logging.getLogger("netpulse.collector")
@@ -62,6 +62,19 @@ def credentials_for(device: Device) -> SnmpCredentials:
     )
 
 
+# Przyrosty (błędy, odrzucone pakiety) to liczby z całego przedziału – przy podziale próbki trafiają tylko do ostatniej
+# części, żeby suma się zgadzała. Szybkości i stan dotyczą każdej części.
+_COUNTS = frozenset({"in_errors", "out_errors", "in_discards", "out_discards"})
+
+
+def spread(values: dict, slots: list[datetime]) -> list[tuple[datetime, dict]]:
+    """Wiersze próbki: jeden na każdą część przedziału (`rates.sample_times`), przyrosty w ostatnim."""
+    if len(slots) == 1:
+        return [(slots[0], values)]
+    head = {k: (None if k in _COUNTS or k.endswith("_max") else v) for k, v in values.items()}
+    return [(at, head) for at in slots[:-1]] + [(slots[-1], values)]
+
+
 def make_client(target: DeviceTarget) -> SnmpClient:
     from .snmp.client import PySnmpClient
 
@@ -88,13 +101,19 @@ class Collector:
         # Nazwa portu pod każdym ifIndex: inna nazwa = przesunięte numery (np. po aktualizacji firmware),
         # liczniki pod tym numerem należą do innego portu – zaczynamy od nowa
         self._if_names: dict[tuple[int, int], str] = {}
+        # Chwila poprzedniego odczytu liczników urządzenia – początek przedziału następnej próbki
+        self._read_at: dict[int, float] = {}
 
     # --- pętla główna -----------------------------------------------------------
 
     async def run_forever(self) -> None:
-        log.info("Kolektor start: interwał %ss", settings.poll_interval)
+        log.info("Kolektor start: interwał %ss, odczyty równo z zegarem", settings.poll_interval)
+        first = True
         while True:
-            started = time.monotonic()
+            # Pierwszy cykl od razu (stan urządzeń po starcie), kolejne o pełnych wielokrotnościach interwału (od 0.71.0)
+            if not first:
+                await asyncio.sleep(wait_for_slot(time.time(), settings.poll_interval))
+            first = False
             try:
                 await self.poll_all()
             except Exception:
@@ -104,8 +123,8 @@ class Collector:
                     await self.alert_engine.evaluate()
                 except Exception:
                     log.exception("Błąd oceny alertów")
-            elapsed = time.monotonic() - started
-            await asyncio.sleep(max(1.0, settings.poll_interval - elapsed))
+            # Cykl dłuższy niż interwał: następny odczyt w kolejnym pełnym oknie, bez odczytu „na doczepkę” tuż po tym
+            await asyncio.sleep(0.5)
 
     async def load_targets(self) -> list[DeviceTarget]:
         async with Session() as session:
@@ -189,6 +208,9 @@ class Collector:
         try:
             client = await self._client(target)
             result = await poll_device(client, target.driver)
+            # Chwila odczytu liczników: środek odpytywania. Liczy się od niej przepływ – początek odpytywania przesuwał
+            # przedział o czas odpowiedzi urządzenia, który bywa różny w kolejnych cyklach (od 0.71.0)
+            read_ts = now.timestamp() + (time.monotonic() - started) / 2
         except (SnmpError, TimeoutError, OSError) as exc:
             log.warning("%s (%s): brak odpowiedzi – %s", target.name, target.host, exc)
             await self._drop_client(target.id)
@@ -199,7 +221,7 @@ class Collector:
             await self.save_failure(target, now, f"{type(exc).__name__}: {exc}")
             return None
         poll_ms = (time.monotonic() - started) * 1000
-        await self.save_result(target, result, now, poll_ms)
+        await self.save_result(target, result, now, poll_ms, read_ts)
         log.debug(
             "%s: %d interfejsów, %d sieci WiFi, %.0f ms",
             target.name,
@@ -245,7 +267,11 @@ class Collector:
             prev_oper = self._oper.get(key)
             self._oper[key] = i.oper_status
             changed = prev_oper is not None and prev_oper != i.oper_status
-            if changed or self.tracker.was_reset(key + ("in",)) or self.tracker.was_reset(key + ("out",)):
+            # Od 0.71.0 także niemożliwa szybkość w jednym kierunku: router „dogania” zatrzymane liczniki i drugi kierunek
+            # z tego samego odczytu też jest zawyżony (12.11.2026: pobieranie > 1 Gb/s odrzucone, wysyłanie 75,9 Mb/s
+            # na łączu 50 Mb/s przeszło i zawyżyło średnią 5 minut z 1,6 do 9,2 Mb/s)
+            suspect = any(self.tracker.was_reset(key + (d,)) or self.tracker.was_rejected(key + (d,)) for d in ("in", "out"))
+            if changed or suspect:
                 values["in_bps"] = values["out_bps"] = None
             for field in ("in_errors", "out_errors", "in_discards", "out_discards"):
                 res = self.tracker.update(key + (field,), ts, getattr(i, field), 32)
@@ -270,11 +296,14 @@ class Collector:
         return if_rates, wifi_rates
 
     async def save_result(
-        self, target: DeviceTarget, result: PollResult, now: datetime, poll_ms: float
+        self, target: DeviceTarget, result: PollResult, now: datetime, poll_ms: float, read_ts: float | None = None
     ) -> None:
-        ts = now.timestamp()
+        ts = now.timestamp() if read_ts is None else read_ts
         sysinfo = result.system
         dev_id = target.id
+        # Próbki ruchu zapisujemy w środku przedziału, który opisują (od 0.71.0) – patrz rates.sample_times
+        slots = [datetime.fromtimestamp(s, UTC) for s in sample_times(self._read_at.get(dev_id), ts, float(settings.poll_interval))]
+        self._read_at[dev_id] = ts
 
         # Restart urządzenia (uptime spadł) – liczniki zaczynają od zera
         if sysinfo.uptime_s is not None:
@@ -340,8 +369,9 @@ class Collector:
                 ).returning(Interface.id, Interface.if_index)
                 ids = {row.if_index: row.id for row in await session.execute(stmt)}
                 session.add_all(
-                    InterfaceMetric(time=now, interface_id=ids[idx], **values)
+                    InterfaceMetric(time=at, interface_id=ids[idx], **part)
                     for idx, values in if_rates.items()
+                    for at, part in spread(values, slots)
                 )
                 await wan_links.record(session, dev_id, now, result, if_rates, ids)
                 # Interfejs zniknął z odczytu (np. WireGuard bramy między połączeniami): stan „nieobecny” zamiast
@@ -374,8 +404,9 @@ class Collector:
                 ).returning(WifiNetwork.id, WifiNetwork.key)
                 wifi_ids = {row.key: row.id for row in await session.execute(stmt)}
                 session.add_all(
-                    WifiMetric(time=now, wifi_id=wifi_ids[key[:64]], **values)
+                    WifiMetric(time=at, wifi_id=wifi_ids[key[:64]], **part)
                     for key, values in wifi_rates.items()
+                    for at, part in spread(values, slots)
                 )
 
             if result.disks:

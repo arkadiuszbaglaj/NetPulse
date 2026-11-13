@@ -63,6 +63,7 @@ def test_collector_end_to_end():
 
         collector = Collector(client_factory=factory)
         await collector.poll_all()
+        read_1 = dict(collector._read_at)
 
         # Przyrost liczników: +12.5 MB na WAN w ~1 s
         wan_in = f"{O.IF_HC_IN_OCTETS}.8"
@@ -71,6 +72,7 @@ def test_collector_end_to_end():
         await asyncio.sleep(1.0)
         ucg.set(wan_in, base + 12_500_000)
         await collector.poll_all()
+        read_2 = dict(collector._read_at)
 
         async with Session() as s:
             devices = {d.host: d for d in (await s.scalars(select(Device))).all()}
@@ -89,17 +91,14 @@ def test_collector_end_to_end():
             assert wan.label == "WAN" and wan.role == "wan"
             metric = await s.scalar(select(InterfaceMetric).where(InterfaceMetric.interface_id == wan.id))
             assert metric is not None
-            # +12.5 MB między dwoma odczytami; czas z rzeczywistych znaczników odczytów
+            # +12.5 MB między dwoma odczytami; czas z chwil odczytu liczników (od 0.71.0 środek odpytywania)
             # (na wolnym CI pierwszy zapis potrafi trwać kilka sekund)
-            t1, t2 = (
-                await s.scalars(
-                    select(DeviceMetric.time)
-                    .where(DeviceMetric.device_id == devices["10.0.0.1"].id)
-                    .order_by(DeviceMetric.time)
-                )
-            ).all()
-            expected = 12_500_000 * 8 / (t2 - t1).total_seconds()
+            gw = devices["10.0.0.1"].id
+            expected = 12_500_000 * 8 / (read_2[gw] - read_1[gw])
             assert abs(metric.in_bps - expected) < expected * 0.01, (metric.in_bps, expected)
+            # Próbka leży w środku przedziału, który opisuje – nie w chwili odczytu
+            middle = (read_1[gw] + read_2[gw]) / 2
+            assert abs(metric.time.timestamp() - middle) < 0.01, (metric.time, middle)
 
             assert await s.scalar(select(func.count()).select_from(WifiNetwork)) == 6
             assert await s.scalar(select(func.count()).select_from(WifiMetric)) == 12

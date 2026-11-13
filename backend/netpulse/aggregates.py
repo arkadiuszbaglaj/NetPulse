@@ -22,6 +22,8 @@ log = logging.getLogger(__name__)
 RAW_MAX_MINUTES = 7 * 24 * 60
 # Rozmiary kubełków dla długich zakresów (wielokrotności godziny, żeby pasowały do agregatu)
 LONG_BUCKETS_H = (1, 2, 3, 6, 12, 24, 48)
+# Kubełki z surowych danych: wielokrotności 30 s (cyklu kolektora), dzielniki godziny
+RAW_BUCKETS_S = (30, 60, 120, 300, 600, 900, 1800, 3600)
 LOCK_KEY = 0x4E50_4341  # "NPCA" – jedno zakładanie agregatów naraz (kolektor i CLI)
 
 
@@ -65,10 +67,12 @@ BY_SOURCE = {a.source: a for a in AGGREGATES}
 
 
 def bucket_seconds(minutes: int) -> int:
-    """Kubełek wykresu: ~300 punktów, nie mniej niż 30 s; dla długich zakresów pełne godziny (agregat)."""
+    """Kubełek wykresu: najwyżej ~300 punktów, z równej drabinki (od 0.71.0) – 24 h to kubełki 5-minutowe, 7 dni godzinowe,
+    jak w statystykach UniFi, i zawsze o pełnych minutach. Wcześniej kubełek był „ile wyjdzie” (24 h = 288 s) i średnie
+    obejmowały inne okna niż na bramie. Dla długich zakresów pełne godziny (agregat)."""
     raw = (minutes * 60) // 300
     if minutes <= RAW_MAX_MINUTES:
-        return max(30, raw)
+        return next((s for s in RAW_BUCKETS_S if s >= raw), RAW_BUCKETS_S[-1])
     return next((h * 3600 for h in LONG_BUCKETS_H if h * 3600 >= raw), LONG_BUCKETS_H[-1] * 3600)
 
 

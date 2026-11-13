@@ -155,11 +155,21 @@ Wykres to średnia z 30 s, więc krótki test prędkości wyglądał na kilka ra
 prędkości bramy UniFi z kontrolera (`speedtest-status` → `unifi.parse_speedtest`, zapis każdego nowego testu do `metrics` z czasem testu:
 `speedtest_down_bps|up_bps|ping_ms`, źródło wykresu `speedtest`, szablon „Testy prędkości bramy”) – zgodność 1:1 z bramą;
 (2) szczyt portów WAN: `netpulse/peaks.py` czyta liczniki co sekundę (`NETPULSE_PEAK_INTERVAL`, 0 = wyłączone) i kolektor zapisuje
-najwyższą średnią z ok. 5 s w `interface_metrics.in_bps_max|out_bps_max` (migracja 0018; serie `in_bps_max`/`out_bps_max` źródeł Ruch WAN
+najwyższą średnią z ok. 5 s (od 0.71.0 odczyt co 0,5 s) w `interface_metrics.in_bps_max|out_bps_max` (migracja 0018; serie `in_bps_max`/`out_bps_max` źródeł Ruch WAN
 i Port, puste powyżej 7 dni – agregat godzinowy ich nie ma). Prędkość liczona między zmianami licznika (UCG odświeża co ~1 s), dokładność
 ok. ±20 %. `Collector(peaks=None)` w testach działa jak dotąd. Opis: `docs/42-szczyt-i-testy-predkosci.md`. Pierwszy test na serwerach
 (12.11.2026): wynik testu 1:1 na obu, szczyt na VPS +4 %, na domowym zaniżony przez nieodpowiadający router – poprawione w 0.70.1
 (próbnik: limit czasu 0,8 s, pomijanie milczącego routera na 30 s); do ponownego sprawdzenia.
+
+## Zgodność z UniFi (0.71.0)
+
+Wykresy ruchu mają się zgadzać z UCG Ultra 1:1 (wymaganie użytkownika). UniFi trzyma historię w kubełkach 5 min / 1 h
+(bajty; dla WAN też najwyższa chwilowa prędkość), wykres UniFi rysuje średnią z kubełka. NetPulse od 0.71.0: odczyty kolektora
+równo o :00/:30 (`rates.wait_for_slot`), czas próbki = środek jej przedziału (`rates.sample_times`, `collector.spread`),
+kubełki wykresów z drabinki `aggregates.RAW_BUCKETS_S` (24 h = 5 min, 7 dni = 1 h; w panelu `bucketSeconds` – **zmiana tylko
+w obu miejscach**), szczyt WAN w dymku obok średniej (`PanelLine.peaks`), niemożliwa szybkość w jednym kierunku odrzuca próbkę.
+Porównanie 13.11.2026 (SSH do bramy kluczem `~/.ssh/netpulse_ucg`, tylko odczyt; baza `unifi-network` na 127.0.0.1:5434):
+sumy bajtów WAN i portów LAN zgodne co do 0,1–1 %. Opis: `docs/42-szczyt-i-testy-predkosci.md`.
 
 ## VPN (0.57.0)
 

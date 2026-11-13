@@ -9,11 +9,12 @@ import { useRefresh } from "../../lib/refresh";
 /** Powyżej 7 dni API liczy wykres z agregatów godzinowych: kubełki to pełne godziny (backend/netpulse/aggregates.py). */
 const RAW_MAX_MINUTES = 7 * 24 * 60;
 const LONG_BUCKETS_H = [1, 2, 3, 6, 12, 24, 48];
+const RAW_BUCKETS_S = [30, 60, 120, 300, 600, 900, 1800, 3600];
 
-/** Ten sam rozmiar kubełka co w API: ~300 punktów, nie mniej niż 30 s. */
+/** Ten sam rozmiar kubełka co w API: najwyżej ~300 punktów z równej drabinki (od 0.71.0: 24 h = 5 min, 7 dni = 1 h, jak w UniFi). */
 export function bucketSeconds(minutes: number): number {
   const raw = Math.floor((minutes * 60) / 300);
-  if (minutes <= RAW_MAX_MINUTES) return Math.max(30, raw);
+  if (minutes <= RAW_MAX_MINUTES) return RAW_BUCKETS_S.find((s) => s >= raw) ?? RAW_BUCKETS_S[RAW_BUCKETS_S.length - 1];
   return (LONG_BUCKETS_H.find((h) => h * 3600 >= raw) ?? LONG_BUCKETS_H[LONG_BUCKETS_H.length - 1]) * 3600;
 }
 

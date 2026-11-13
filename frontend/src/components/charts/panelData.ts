@@ -13,6 +13,21 @@ export interface PanelLine {
   rows: ChartRow[];
   /** Seria przesunięta w czasie (porównanie) rysowana jest linią przerywaną */
   dashed: boolean;
+  /** Najwyższa prędkość w kubełku (porty WAN, od 0.71.0) – w dymku obok średniej, jak w UniFi; klucz = czas punktu */
+  peaks?: Map<number, number>;
+}
+
+/** Seria średniej → kolumna szczytu z tego samego kubełka */
+const PEAK_OF: Record<string, string> = { in_bps: "in_bps_max", out_bps: "out_bps_max" };
+
+/** Szczyty z punktów API (tylko kubełki, w których był pomiar). */
+export function peakMap(points: Series["points"], key: string): Map<number, number> | undefined {
+  const out = new Map<number, number>();
+  for (const p of points) {
+    const v = p.values[key];
+    if (v != null) out.set(new Date(p.time).getTime(), v);
+  }
+  return out.size ? out : undefined;
 }
 
 export interface LineStats {
@@ -55,6 +70,7 @@ export function buildLines(config: ChartConfig, data: Map<string, Series | undef
       axis: series.axis ?? "left",
       rows: d ? toChartRows(d.points, series.key, d.interval_s) : [],
       dashed: offset > 0,
+      peaks: d && PEAK_OF[series.key] ? peakMap(d.points, PEAK_OF[series.key]) : undefined,
     };
   });
 }

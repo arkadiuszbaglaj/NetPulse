@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { seriesName } from "../components/charts/panelData";
-import { METRICS, SOURCE_METRICS, defaultSeries, unitClassOf } from "../lib/layout";
+import { buildLines, seriesName } from "../components/charts/panelData";
+import { bucketSeconds } from "../components/widgets/chartSource";
+import { t } from "../i18n";
+import { METRICS, SOURCE_METRICS, defaultSeries, newChartConfig, unitClassOf } from "../lib/layout";
 import { sourceModule } from "../lib/modules";
 import { WIDGET_TEMPLATES } from "../lib/widgetTemplates";
 import { DEVICE } from "../test/mockApi";
@@ -24,15 +26,31 @@ describe("szczyt ruchu WAN (od 0.70.0)", () => {
     expect(seriesName({ kind: "interface", id: 5, device_id: 1 }, { key: "in_bps_max", color: 4 })).toBe("Odbierane – szczyt (5 s)");
   });
 
-  it("szablon Ruch WAN z opcją szczytu dokłada dwie serie i rysuje linie", () => {
+  it("od 0.71.0 szablon Ruch WAN nie dokłada osobnej linii szczytu – szczyt jest w dymku", () => {
     const tpl = WIDGET_TEMPLATES.find((x) => x.id === "wan_traffic")!;
-    expect(tpl.options).toContain("peak");
-    const plain = tpl.build({});
-    const peak = tpl.build({ options: { peak: true } });
-    if (plain.type !== "chart" || peak.type !== "chart") throw new Error("szablon nie zbudował wykresu");
-    expect(plain.config.queries[0].series.map((s) => s.key)).toEqual(["in_bps", "out_bps"]);
-    expect(peak.config.queries[0].series.map((s) => s.key)).toEqual(["in_bps", "out_bps", "in_bps_max", "out_bps_max"]);
-    expect(peak.config.chart).toBe("line");
+    expect(tpl.options).toEqual(["compare"]);
+    const w = tpl.build({});
+    if (w.type !== "chart") throw new Error("szablon nie zbudował wykresu");
+    expect(w.config.queries[0].series.map((s) => s.key)).toEqual(["in_bps", "out_bps"]);
+  });
+
+  it("szczyt kubełka trafia do serii średniej (dymek „· maks.”), także bez serii szczytu na wykresie", () => {
+    const config = newChartConfig({ kind: "wan" }, [{ key: "in_bps", color: 1 }, { key: "out_bps", color: 2 }]);
+    const data = new Map([["A", { interval_s: 300, points: [
+      { time: "2026-11-12T19:05:00Z", values: { in_bps: 26.2e6, out_bps: 3.5e6, in_bps_max: 455e6, out_bps_max: 51e6 } },
+      { time: "2026-11-12T19:10:00Z", values: { in_bps: 0.5e6, out_bps: 0.1e6, in_bps_max: null, out_bps_max: null } },
+    ] }]]);
+    const [down, up] = buildLines(config, data, () => "");
+    expect(down.peaks?.get(Date.parse("2026-11-12T19:05:00Z"))).toBe(455e6);
+    expect(down.peaks?.has(Date.parse("2026-11-12T19:10:00Z"))).toBe(false);
+    expect(up.peaks?.get(Date.parse("2026-11-12T19:05:00Z"))).toBe(51e6);
+    expect(t("chart.withPeak", { value: "26 Mb/s", peak: "455 Mb/s" })).toBe("26 Mb/s · maks. 455 Mb/s");
+  });
+
+  it("kubełki wykresu jak w UniFi: 24 h po 5 min, 7 dni po godzinie", () => {
+    expect(bucketSeconds(60)).toBe(30);
+    expect(bucketSeconds(1440)).toBe(300);
+    expect(bucketSeconds(10080)).toBe(3600);
   });
 });
 

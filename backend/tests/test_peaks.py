@@ -113,6 +113,60 @@ def test_collector_stores_peak_next_to_average_and_never_below_it():
     assert "in_bps_max" not in poll(plain, 30.0, 1000, 1000)[5]
 
 
+# --- zgodność z UniFi (od 0.71.0) -----------------------------------------------------------
+
+
+def test_reads_on_the_clock_grid():
+    from netpulse.rates import wait_for_slot
+
+    assert wait_for_slot(1794510000.0, 30) == 30  # równo :00 → następny odczyt :30
+    assert round(wait_for_slot(1794510007.25, 30), 2) == 22.75
+    assert wait_for_slot(123.0, 0) == 0
+
+
+def test_sample_is_stored_in_the_middle_of_its_interval():
+    """Przedział 20:04:30–20:05:00 należy do kubełka 20:00, nie 20:05 (jak w statystykach UniFi)."""
+    from netpulse.rates import sample_times
+
+    t0 = datetime(2026, 11, 12, 19, 4, 30, tzinfo=UTC).timestamp()
+    (mid,) = sample_times(t0, t0 + 30, 30)
+    assert datetime.fromtimestamp(mid, UTC).strftime("%H:%M:%S") == "19:04:45"
+    assert sample_times(None, t0, 30) == [t0]  # pierwszy odczyt – bez przedziału
+    # Pominięty odczyt: dwie części po 30 s, każda w swoim kubełku
+    assert sample_times(t0, t0 + 60, 30) == [t0 + 15, t0 + 45]
+    # Długa przerwa (urządzenie nie odpowiadało): jeden punkt w środku
+    assert sample_times(t0, t0 + 600, 30) == [t0 + 300]
+
+
+def test_split_sample_keeps_counts_in_one_row():
+    from netpulse.collector import spread
+
+    slots = [datetime(2026, 11, 12, 19, 4, 45, tzinfo=UTC), datetime(2026, 11, 12, 19, 5, 15, tzinfo=UTC)]
+    values = {"in_bps": 8e6, "out_bps": 1e6, "in_errors": 3, "out_errors": 0, "in_bps_max": 9e6, "oper_up": True}
+    rows = spread(values, slots)
+    assert [at for at, _ in rows] == slots
+    assert rows[0][1] == {"in_bps": 8e6, "out_bps": 1e6, "in_errors": None, "out_errors": None, "in_bps_max": None, "oper_up": True}
+    assert rows[1][1] == values  # błędy liczone raz – suma w kubełkach się zgadza
+    assert spread(values, slots[:1]) == [(slots[0], values)]
+
+
+def test_impossible_rate_in_one_direction_drops_the_whole_sample():
+    """Router „dogania” zatrzymane liczniki: pobieranie > 1,1 Gb/s odrzucone, wysyłanie z tego odczytu też (12.11.2026)."""
+    collector = Collector(client_factory=None)
+
+    def poll(ts: float, in_octets: int, out_octets: int) -> dict:
+        result = SimpleNamespace(interfaces=[_port(in_octets, out_octets)], wifi=[])
+        return collector.compute_rates(1, result, ts)[0].get(5, {})
+
+    poll(0.0, 0, 0)
+    ok = poll(30.0, int(100 * MBPS * 30), int(2 * MBPS * 30))
+    assert round(ok["in_bps"] / 1e6) == 100 and round(ok["out_bps"] / 1e6) == 2
+    bad = poll(60.0, int(100 * MBPS * 30) + int(5000 * MBPS * 30), int(2 * MBPS * 30) + int(76 * MBPS * 30))
+    assert bad.get("in_bps") is None and bad.get("out_bps") is None
+    good = poll(90.0, int(100 * MBPS * 30) + int(5000 * MBPS * 30) + int(50 * MBPS * 30), int(2 * MBPS * 30) + int(76 * MBPS * 30) + int(MBPS * 30))
+    assert round(good["in_bps"] / 1e6) == 50 and round(good["out_bps"] / 1e6) == 1  # od następnego odczytu jak zwykle
+
+
 # --- test prędkości bramy ---------------------------------------------------------------
 
 GATEWAY = {

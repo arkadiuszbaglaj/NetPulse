@@ -1,4 +1,4 @@
-# Szczyt ruchu WAN i testy prędkości bramy (od 0.70.0)
+# Zgodność z UniFi, szczyt ruchu WAN i testy prędkości bramy (od 0.70.0, 0.71.0)
 
 ## Po co
 
@@ -11,6 +11,43 @@ Od 0.70.0 są dwie rzeczy:
 
 1. **Testy prędkości bramy** – wynik dokładnie taki, jaki podaje UniFi (zgodność 1:1).
 2. **Szczyt ruchu WAN** – obok średniej zapisywana jest najwyższa prędkość z ok. 5 sekund.
+
+## Zgodność wykresów z UCG Ultra (od 0.71.0)
+
+Sprawdzone 13.11.2026 na samej bramie (SSH, tylko odczyt). Network na UCG Ultra trzyma historię w PostgreSQL
+(`unifi-network`, port 5434, tabele `stats.stat_buckets_of_5_minutes|1_hour|8_hours|1_month`, wartości w CBOR):
+
+- **WAN** (`wanBySite`, `wanBySiteByDevice`): w kubełku suma bajtów `rxBytes`/`txBytes` i najwyższa chwilowa prędkość
+  `maxRxRateBps`/`maxTxRateBps` (bajty/s).
+- **Porty** (`portBySiteByDevice`, `byPort`): same bajty – bez najwyższej prędkości. Bajty portów switcha są ułamkowe:
+  UniFi rozkłada raporty urządzeń (co kilkadziesiąt sekund) na kubełki.
+- **Wykres WAN na pulpicie UniFi rysuje średnią z kubełka** (`AVG_RX_RATE_BPS` w kodzie panelu); najwyższa prędkość jest
+  tylko w dymku. Najdrobniejsza historia to 5 minut. Test prędkości 455 Mb/s (20:08) to na wykresie UniFi 26,2 Mb/s
+  (kubełek 20:05) z najwyższą chwilową prędkością 663 Mb/s.
+
+**Porównanie przed zmianą** (VPS, 13 h, 156 kubełków): sumy bajtów zgodne z UCG co do 0,1–1 % na WAN i na portach LAN
+bramy i switcha. Różnice w pojedynczych kubełkach brały się z czasu, nie z pomiaru: odczyt kolektora co 30 s od chwili
+startu przecinał granice kubełków, próbka miała czas odczytu (koniec przedziału), a wykres 24 h miał kubełki 288 s.
+
+Od 0.71.0:
+
+1. **Odczyty równo z zegarem** – kolektor czyta urządzenia o :00 i :30 (`rates.wait_for_slot`), więc każda próbka 30 s
+   leży w całości w jednym kubełku 5-minutowym i godzinowym.
+2. **Próbka w środku swojego przedziału** – czas wiersza w `interface_metrics` i `wifi_metrics` to środek przedziału
+   między odczytami (`rates.sample_times`), a chwila odczytu to środek odpytywania (nie jego początek). Pominięty odczyt
+   (60–120 s) dzieli się na części po 30 s, przyrosty błędów idą do ostatniej części (`collector.spread`).
+3. **Kubełki wykresów z równej drabinki** – 30 s, 1, 2, 5, 10, 15, 30 min, 1 h (`aggregates.RAW_BUCKETS_S`, w panelu
+   `bucketSeconds`): zakres 24 h = 5 minut, 7 dni = godzina, jak w UniFi.
+4. **Linia = średnia, najwyższa prędkość w dymku** („26 Mb/s · maks. 455 Mb/s”) – jak w UniFi; szablon „Ruch WAN” nie ma
+   już opcji osobnej linii szczytu. Serie szczytu dalej można dodać w edytorze wykresu.
+5. **Niemożliwa szybkość w jednym kierunku odrzuca całą próbkę** – router „dogania” zatrzymane liczniki, drugi kierunek
+   z tego odczytu też jest zawyżony (12.11.2026: wysyłanie 75,9 Mb/s na łączu 50 Mb/s podniosło 5 minut z 1,6 do 9,2 Mb/s).
+
+Granice zgodności: NetPulse liczy bajty z liczników SNMP z dokładnością do odświeżania licznika w urządzeniu (UCG Ultra
+ok. 1 s). Najwyższa prędkość UniFi to wartość chwilowa z bramy, NetPulse – najwyższa średnia z 5 s (odczyt co 0,5 s,
+dokładność ok. ±10 %), więc „maks.” bywa niższe niż w UniFi. Na portach switcha UniFi sam rozkłada raporty na kubełki,
+stąd pojedyncze kubełki mogą się różnić, choć suma się zgadza. Narzędzie porównania (kubełki z bazy bramy kontra
+NetPulse) było jednorazowe, poza repo.
 
 ## Testy prędkości bramy
 
@@ -44,15 +81,12 @@ obok średniej: `interface_metrics.in_bps_max` i `out_bps_max` (migracja 0018).
 - Szczyt nigdy nie jest niższy od średniej z cyklu; wartość ponad możliwości łącza (1,1× prędkości portu Ethernet) jest odrzucana.
 - **Zakresy powyżej 7 dni** czytają agregaty godzinowe, w których szczytu nie ma – seria jest wtedy pusta. Dane sprzed
   0.70.0 też nie mają szczytu.
-- Wyłączenie: `NETPULSE_PEAK_INTERVAL=0` w `deploy/.env` (domyślnie `1` – odczyt co sekundę).
+- Wyłączenie: `NETPULSE_PEAK_INTERVAL=0` w `deploy/.env` (domyślnie od 0.71.0 `0.5` – odczyt co pół sekundy; instalacje
+  sprzed 0.71.0 mają w `.env` wpisane `1` – zmiana na `0.5` i `sudo netpulse restart` daje dokładniejszy szczyt).
 
-W panelu szczyt to dwie nowe serie źródeł **Ruch WAN** i **Port**: „Pobieranie – szczyt” i „Wysyłanie – szczyt”
-(`in_bps_max`, `out_bps_max`). Włączenie:
-
-- nowy wykres: Dodaj widget → Internet → „Ruch WAN” → opcja **„Pokaż szczyt”**,
-- istniejący wykres: Edytuj → zaznacz serie szczytu w zapytaniu.
-
-Domyślne pulpity zostają bez szczytu (na łączu z samym spokojnym ruchem dwie dodatkowe linie nic nie wnoszą).
+W panelu szczyt jest **w dymku wykresu** obok średniej (od 0.71.0, „· maks.”), dla serii pobierania i wysyłania źródeł
+**Ruch WAN** i **Port**. Osobne serie „Pobieranie – szczyt” i „Wysyłanie – szczyt” (`in_bps_max`, `out_bps_max`) zostały
+w edytorze wykresu; wykres dodany w 0.70.x z opcją „Pokaż szczyt” ma je dalej – usuwa się je w Edytuj → zapytanie.
 
 ## API
 

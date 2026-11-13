@@ -8,6 +8,8 @@ import { readFileSync } from "node:fs";
 const PORT = Number(process.env.PORT ?? 8000);
 // Wersja jak w panelu (package.json) – zrzuty ekranu z atrapy pokazują aktualny numer
 const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
+// Kubełek wykresu jak w API (aggregates.bucket_seconds): równa drabinka, 24 h = 5 min
+const bucketS = (minutes) => [30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => s >= Math.floor((minutes * 60) / 300)) ?? 3600;
 const now = () => new Date().toISOString();
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 
@@ -156,7 +158,7 @@ createServer(async (req, res) => {
   if (route === "GET /api/dashboard/traffic" || route === "GET /api/dashboard/wifi") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
     const back = Number(url.searchParams.get("offset") ?? 0) * 60_000; // okno przesunięte wstecz, jak w API
-    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const stride = bucketS(minutes);
     const n = Math.floor((minutes * 60) / stride);
     const points = [];
     for (let i = n; i >= 0; i--) {
@@ -237,7 +239,7 @@ createServer(async (req, res) => {
   // Dwa łącza WAN: światłowód niesie ruch, 25 minut temu przełączenie na LTE na 10 minut
   if (route === "GET /api/wan/history") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
-    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const stride = bucketS(minutes);
     const link = (id, name, position, iface) => ({
       id, name, position, device_id: 1, device_name: "UCG Ultra", interface_id: iface, interface_name: `eth${iface}`, interface_label: name,
       speed_mbps: 1000, state: id === 1 ? "active" : "standby", state_since: ago(900), source: "traffic", in_bps: null, out_bps: null, sampled_at: ago(10),
@@ -322,7 +324,7 @@ createServer(async (req, res) => {
   }
   if (req.method === "GET" && /^\/api\/devices\/\d+\/agent-metrics$/.test(url.pathname) && url.searchParams.get("source") === "vpn") {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
-    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const stride = bucketS(minutes);
     const points = [];
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
       const on = url.searchParams.get("key") === "iPhone" && i * stride <= 840;
@@ -340,7 +342,7 @@ createServer(async (req, res) => {
   if (req.method === "GET" && series) {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
     const back = Number(url.searchParams.get("offset") ?? 0) * 60_000;
-    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const stride = bucketS(minutes);
     const points = [];
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
       const time = new Date(Date.now() - back - i * stride * 1000).toISOString();
@@ -400,7 +402,7 @@ createServer(async (req, res) => {
   if (req.method === "GET" && /^\/api\/checks\/\d+\/metrics$/.test(url.pathname)) {
     const minutes = Number(url.searchParams.get("minutes") ?? 60);
     const back = Number(url.searchParams.get("offset") ?? 0) * 60_000;
-    const stride = Math.max(30, Math.floor((minutes * 60) / 300));
+    const stride = bucketS(minutes);
     const points = [];
     for (let i = Math.floor((minutes * 60) / stride); i >= 0; i--) {
       const time = new Date(Date.now() - back - i * stride * 1000).toISOString();

@@ -100,6 +100,31 @@ def test_traffic_and_port_charts_return_peak_next_to_average(gateway):
         assert all(p["values"]["in_bps_max"] is None for p in long.json()["points"])
 
 
+def test_day_chart_uses_five_minute_buckets_like_unifi(gateway):
+    """Od 0.71.0: zakres 24 h = kubełki 5-minutowe o pełnych minutach; dziesięć próbek 30 s z jednego kubełka (zapisanych
+    w środku swoich przedziałów) daje dokładnie średnią z bajtów tego kubełka – tak liczy UniFi."""
+    _, wan_id, _ = gateway
+    start = datetime.fromtimestamp((int(datetime.now(UTC).timestamp()) // 300 - 6) * 300, UTC)
+    rates = [0.3, 0.3, 455.0, 0.4, 0.2, 0.3, 0.3, 0.2, 0.1, 0.1]  # Mb/s, w trzeciej części test prędkości
+
+    async def seed():
+        async with Session() as s, s.begin():
+            for k, r in enumerate(rates):
+                s.add(InterfaceMetric(time=start + timedelta(seconds=15 + 30 * k), interface_id=wan_id, in_bps=r * MBPS, out_bps=MBPS, oper_up=True))
+
+    run(seed)
+    expected = sum(rates) / len(rates) * MBPS  # = bajty z 5 minut × 8 / 300 s
+    with TestClient(app) as c:
+        assert c.post("/api/auth/setup", json=ADMIN).status_code == 201
+        port = {p["time"][:19]: p["values"] for p in c.get(f"/api/interfaces/{wan_id}/metrics", params={"minutes": 1440}).json()}
+        assert list(port) == [start.strftime("%Y-%m-%dT%H:%M:%S")]
+        assert abs(port[start.strftime("%Y-%m-%dT%H:%M:%S")]["in_bps"] - expected) < 1
+        traffic = c.get("/api/dashboard/traffic", params={"minutes": 1440}).json()
+        assert traffic["interval_s"] == 300
+        (point,) = traffic["points"]
+        assert point["time"][:19] == start.strftime("%Y-%m-%dT%H:%M:%S") and abs(point["values"]["in_bps"] - expected) < 1
+
+
 def test_speedtest_is_saved_once_and_drawn_at_test_time(gateway):
     dev_id, _, _ = gateway
     ran = datetime.now(UTC) - timedelta(minutes=10)

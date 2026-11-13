@@ -15,7 +15,7 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = ["overview", "internet", "device
 /** O co pyta szablon przed dodaniem. */
 export type Ask = "device" | "port" | "check";
 /** Opcje do włączenia w kroku pytań. */
-export type TemplateOption = "limitLine" | "compare" | "peak";
+export type TemplateOption = "limitLine" | "compare";
 /** Kształt miniatury w oknie (`WidgetThumb`). */
 export type ThumbKind = "line" | "lineth" | "bars" | "table" | "gauge" | "heat" | "stat" | "status" | "list" | "timeline" | "poe";
 
@@ -112,16 +112,12 @@ export const WIDGET_TEMPLATES: WidgetTemplate[] = [
     group: "internet",
     thumb: "line",
     asks: [],
-    options: ["peak", "compare"],
+    options: ["compare"],
     sizes: [8, 12, 6],
     recommended: true,
     build: (ctx) => {
+      // Linia = średnia z kubełka, najwyższa prędkość w kubełku jest w dymku (od 0.71.0, jak w UniFi) – bez osobnej serii
       const w = chart(ctx, 8, [{ kind: "wan" }], { title: titled(ctx, null), legend: { mode: "table", placement: "bottom", values: ["last", "max", "avg"] } });
-      // Szczyt (od 0.70.0): najwyższa średnia z ok. 5 s w każdym odczycie – krótkie skoki, których średnia nie pokaże
-      if (w.type === "chart" && ctx.options?.peak) {
-        w.config.queries[0].series.push({ key: "in_bps_max", color: 4 }, { key: "out_bps_max", color: 3 });
-        w.config.chart = "line";
-      }
       if (w.type === "chart" && ctx.options?.compare) {
         w.config.queries.push({ id: "B", source: { kind: "wan" }, series: [{ key: "in_bps", color: 8 }], offset_min: 1440 });
       }

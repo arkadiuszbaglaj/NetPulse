@@ -36,16 +36,48 @@ def counter_delta(prev: int, curr: int, bits: int = 64) -> int | None:
     return None
 
 
+def wait_for_slot(now: float, interval: float) -> float:
+    """Ile sekund do najbliższej wielokrotności `interval` na zegarze (od 0.71.0: odczyty o :00 i :30).
+
+    Odczyty równo z siatką czasu sprawiają, że każda próbka 30 s leży w całości w jednym kubełku 5-minutowym
+    (i godzinowym) – suma bajtów w kubełku jest wtedy dokładna, jak w statystykach UniFi."""
+    if interval <= 0:
+        return 0.0
+    return interval - (now % interval)
+
+
+def sample_times(prev_ts: float | None, ts: float, interval: float, max_split: int = 4) -> list[float]:
+    """Chwile zapisu próbki z przedziału (`prev_ts`, `ts`] – środek przedziału (od 0.71.0).
+
+    Szybkość z różnicy liczników opisuje cały przedział, więc należy do kubełka, w którym leży jego środek, a nie
+    do chwili odczytu (z odczytem o 20:05:00 próbka 20:04:30–20:05:00 trafiała do kubełka 20:05). Po pominiętym
+    odczycie (przedział 60–120 s) próbka dzieli się na części po jednym interwale – każda z tą samą szybkością –
+    żeby bajty z obu stron granicy kubełka trafiły tam, gdzie płynęły. Dłuższa przerwa: jeden punkt w środku."""
+    if prev_ts is None or ts <= prev_ts:
+        return [ts]
+    dt = ts - prev_ts
+    n = round(dt / interval) if interval > 0 else 1
+    if n < 1 or n > max_split:
+        n = 1
+    step = dt / n
+    return [prev_ts + step * (k + 0.5) for k in range(n)]
+
+
 class CounterTracker:
     """Pamięta ostatnie wartości liczników i zwraca przyrosty/szybkości."""
 
     def __init__(self) -> None:
         self._last: dict[Hashable, tuple[float, int]] = {}
         self._reset: set[Hashable] = set()
+        self._rejected: set[Hashable] = set()
 
     def was_reset(self, key: Hashable) -> bool:
         """Czy ostatni odczyt tego licznika wykrył reset (licznik spadł)."""
         return key in self._reset
+
+    def was_rejected(self, key: Hashable) -> bool:
+        """Czy ostatnia szybkość tego licznika była niemożliwa (ponad prędkość łącza) i została odrzucona."""
+        return key in self._rejected
 
     def update(self, key: Hashable, ts: float, value: int | None, bits: int = 64) -> tuple[int, float] | None:
         """Zwraca (przyrost, czas w sekundach) albo None przy pierwszym odczycie/resecie."""
@@ -85,10 +117,12 @@ class CounterTracker:
     ) -> float | None:
         """Bity na sekundę z licznika oktetów; odrzuca wartości nierealne (> `factor` × prędkość łącza)."""
         r = self.rate(key, ts, octets, bits)
+        self._rejected.discard(key)
         if r is None:
             return None
         bps = r * 8
         if max_mbps and bps > max_mbps * 1_000_000 * factor:
+            self._rejected.add(key)
             return None
         return bps
 
@@ -97,6 +131,7 @@ class CounterTracker:
         for key in [k for k in self._last if predicate(k)]:
             del self._last[key]
             self._reset.discard(key)
+            self._rejected.discard(key)
 
 
 class LiveRateTracker:

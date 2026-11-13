@@ -100,7 +100,11 @@ def test_aggregates_are_created():
 
 def test_bucket_sizes():
     assert aggregates.bucket_seconds(60) == 30
-    assert aggregates.bucket_seconds(10080) == 2016
+    # Od 0.71.0 jak w UniFi: 24 h w kubełkach 5-minutowych, 7 dni – godzinowych; zawsze z równej drabinki
+    assert aggregates.bucket_seconds(1440) == 300
+    assert aggregates.bucket_seconds(360) == 120
+    assert aggregates.bucket_seconds(10080) == 3600
+    assert all(aggregates.bucket_seconds(m) in aggregates.RAW_BUCKETS_S for m in range(1, 10081, 7))
     assert aggregates.bucket_seconds(43200) == 3 * 3600
     assert aggregates.bucket_seconds(525600) == 48 * 3600
 
