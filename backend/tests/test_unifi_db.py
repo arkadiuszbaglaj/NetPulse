@@ -225,16 +225,16 @@ def test_vpn_status_and_metrics(client):
     assert vpn["servers"] == [{"id": "net-wg", "name": "WG-Home", "type": "WireGuard", "enabled": True, "port": 51820, "subnet": "192.168.3.1/24"}]
     iphone, laptop = vpn["users"]
     assert (iphone["name"], iphone["connected"], iphone["server"], iphone["remote_ip"]) == ("iPhone", True, "WG-Home", "203.0.113.7")
-    assert iphone["down_bytes"] == 76148892 and iphone["down_bps"] == 147888 * 8 and iphone["since"]
+    assert iphone["down_bytes"] == 76148892 and iphone["down_bps"] == 147888 and iphone["since"]
     assert (laptop["name"], laptop["connected"], laptop["last_seen"]) == ("Laptop", False, None)
 
     async def rows():
         async with Session() as s:
             return {(m.name, m.key): m.value for m in (await s.scalars(select(Metric).where(Metric.device_id == gw))).all()}
 
-    assert run(rows) == {("vpn_connected", "iPhone"): 1.0, ("vpn_connected", "Laptop"): 0.0, ("vpn_down_bps", "iPhone"): 147888 * 8, ("vpn_up_bps", "iPhone"): 96637 * 8}
+    assert run(rows) == {("vpn_connected", "iPhone"): 1.0, ("vpn_connected", "Laptop"): 0.0, ("vpn_down_bps", "iPhone"): 147888, ("vpn_up_bps", "iPhone"): 96637}
     chart = client.get(f"/api/devices/{gw}/agent-metrics", params={"source": "vpn", "key": "iPhone"}).json()
-    assert chart[-1]["values"]["down_bps"] == 147888 * 8
+    assert chart[-1]["values"]["down_bps"] == 147888
     assert set(client.get(f"/api/devices/{gw}/agent-keys").json()["vpn"]) == {"Laptop", "iPhone"}
 
     poll(FakeApi(vpn_sessions=False))
