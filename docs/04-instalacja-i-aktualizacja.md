@@ -70,7 +70,7 @@ usługi. Dane i konfiguracja zostają. Jeśli nie ma nic nowego – nic nie robi
 | `netpulse status`         | stan kontenerów                         |
 | `netpulse logs`           | logi wszystkich usług (Ctrl+C kończy)   |
 | `netpulse logs collector` | logi tylko kolektora                    |
-| `netpulse restart`        | restart usług                           |
+| `netpulse restart`        | usługi od nowa z aktualnym `.env`       |
 | `netpulse device remove ID` | usunięcie urządzenia z historią       |
 | `netpulse cleanup`        | zwolnienie miejsca: nieużywane obrazy i cache budowania (baza zostaje) |
 | `netpulse reset`          | wyczyszczenie bazy (urządzenia i historia), konfiguracja zostaje |
@@ -122,7 +122,8 @@ więcej niż `NETPULSE_BUILD_CACHE_MAX` (domyślnie `2gb`; dla aktualizacji z pa
 aktualizacjach w krótkim czasie cache potrafił urosnąć do kilku GB. Ręczne sprzątanie: `sudo docker builder prune -af`
 (baza i dane zostają, następna aktualizacja zbuduje się raz dłużej).
 
-Po zmianie: `netpulse restart`.
+Po zmianie: `sudo netpulse restart` (od 0.71.1 tworzy kontenery od nowa z aktualnym `.env`; w starszych wersjach
+zmiany wczytywał dopiero `sudo netpulse start`).
 
 Czasy w `netpulse device list` są pokazywane w strefie ze zmiennej `TZ` (domyślnie `Europe/Warsaw`).
 

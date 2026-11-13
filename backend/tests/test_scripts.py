@@ -89,6 +89,15 @@ def env(tmp_path):
     return Env(tmp_path)
 
 
+def test_restart_recreates_containers_with_current_env(env):
+    """`netpulse restart` = kontenery od nowa z aktualnym .env (od 0.71.1); samo `compose restart` zostawiało stare zmienne."""
+    r = env.run(NETPULSE, "restart_services")
+    assert r.returncode == 0, r.stderr
+    (line,) = env.docker_log.splitlines()
+    assert line.startswith("compose -f ") and "--env-file" in line
+    assert line.endswith("up -d --force-recreate")
+
+
 def test_docker_free_mb_reads_megabytes(env):
     env.free(8192)
     r = env.run(NETPULSE, "docker_free_mb")

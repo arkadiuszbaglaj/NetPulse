@@ -4,7 +4,8 @@
 #   netpulse update          pobierz najnowszą wersję z GitHuba i zrestartuj usługi
 #   netpulse status          stan usług
 #   netpulse logs [usługa]   logi (collector | api | db), Ctrl+C kończy
-#   netpulse restart|stop|start
+#   netpulse restart         uruchom usługi od nowa z aktualnym .env
+#   netpulse stop|start
 #   netpulse version
 #   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
 #   netpulse reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
@@ -57,6 +58,12 @@ np_fill_tls_names() {
 
 compose() {
   docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+}
+
+# Restart usług z aktualnym .env (od 0.71.1). Samo `docker compose restart` zostawia kontenerom stare zmienne –
+# zmiana w .env (np. NETPULSE_PEAK_INTERVAL) działała dopiero po `netpulse start`. Dane są w wolumenach, zostają.
+restart_services() {
+  compose up -d --force-recreate
 }
 
 version() {
@@ -314,7 +321,7 @@ main() {
     update) cmd_update "$@" ;;
     status) need_root status; compose ps ;;
     logs) need_root logs "$@"; compose logs -f --tail=100 "$@" ;;
-    restart) need_root restart; compose restart && wait_healthy ;;
+    restart) need_root restart; restart_services && wait_healthy ;;
     stop) need_root stop; compose stop ;;
     start) need_root start; compose up -d && wait_healthy ;;
     version | --version | -V) version ;;
