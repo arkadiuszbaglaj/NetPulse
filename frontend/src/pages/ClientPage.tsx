@@ -21,6 +21,7 @@ import { useRefresh } from "../lib/refresh";
 import { formatLinkRate, signalQuality } from "../lib/unifi";
 import { formatAvailability, formatDuration } from "../lib/wan";
 import { BackLink } from "./DevicePage";
+import { dateFormat } from "../lib/intl";
 
 const QUALITY_LABEL = {
   great: "clients.signal.great",
@@ -75,7 +76,7 @@ function InfoCard({ client }: { client: ClientDetail }) {
   );
 }
 
-const slotTime = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
+const slotTime = dateFormat({ dateStyle: "short", timeStyle: "short" });
 
 function PresenceCard({ mac }: { mac: string }) {
   const { rangeMinutes } = useRefresh();

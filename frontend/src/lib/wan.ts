@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { get, type SeriesPoint } from "./api";
 import { useRefresh } from "./refresh";
+import { numberFormat } from "./intl";
 
 /** active – ruch idzie tym łączem; standby – sprawne, bez ruchu (zapas); down – nie działa; unknown – brak danych. */
 export type WanState = "active" | "standby" | "down" | "unknown";
@@ -152,7 +153,7 @@ export function formatAvailability(pct: number | null): string {
   if (pct >= 100) return "100%";
   // Nie zaokrąglamy w górę do 100% – to by ukryło przerwę
   const floored = Math.floor(pct * 100) / 100;
-  return `${new Intl.NumberFormat("pl", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(floored)}%`;
+  return `${numberFormat({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(floored)}%`;
 }
 
 /** Ocena dostępności: od 99,9% dobra, od 99% słabsza, poniżej – zła. */

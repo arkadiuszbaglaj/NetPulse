@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { get, type Device } from "./api";
 import { useRefresh } from "./refresh";
+import { t } from "../i18n";
 
 export type CheckKind = "ping" | "http" | "tcp" | "dns";
 export const CHECK_KINDS: CheckKind[] = ["ping", "http", "tcp", "dns"];
@@ -74,7 +75,7 @@ export const CHECK_PRESETS: CheckPreset[] = [
   {
     id: "google",
     payload: {
-      name: "Internet – Google DNS",
+      name: t("chk.preset.google"),
       kind: "ping",
       target: "8.8.8.8",
       port: null,
@@ -88,7 +89,7 @@ export const CHECK_PRESETS: CheckPreset[] = [
   {
     id: "cloudflare",
     payload: {
-      name: "Internet – Cloudflare DNS",
+      name: t("chk.preset.cloudflare"),
       kind: "ping",
       target: "1.1.1.1",
       port: null,
@@ -102,7 +103,7 @@ export const CHECK_PRESETS: CheckPreset[] = [
   {
     id: "web",
     payload: {
-      name: "Strona WWW",
+      name: t("chk.preset.web"),
       kind: "http",
       target: "https://www.google.com",
       port: null,
@@ -127,7 +128,7 @@ export function checkPresets(devices: Pick<Device, "id" | "name" | "host" | "kin
     .filter((d) => d.kind === "gateway" && d.enabled)
     .map((d) => ({
       id: `gateway-${d.id}`,
-      payload: { name: `Brama – ${d.name}`, kind: "ping", target: d.host, port: null, interval_s: 30, timeout_s: 3, expect_status: null, keyword: null, verify_tls: true },
+      payload: { name: t("chk.preset.gateway", { name: d.name }), kind: "ping", target: d.host, port: null, interval_s: 30, timeout_s: 3, expect_status: null, keyword: null, verify_tls: true },
     }));
   const taken = new Set(existing.map((c) => `${c.kind} ${c.target.toLowerCase()}`));
   return [...gateways, ...CHECK_PRESETS].filter((p) => !taken.has(`${p.payload.kind} ${p.payload.target.toLowerCase()}`));

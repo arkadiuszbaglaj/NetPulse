@@ -7,10 +7,11 @@ import { forDevice, useWanHistory, type WanLink, type WanSegment, type WanSwitch
 import { ChartCard, type ChartSeries } from "../charts/ChartCard";
 import { StateBar } from "../charts/StateBar";
 import { WAN_STATE_LABEL } from "./WanStatusWidget";
+import { dateFormat } from "../../lib/intl";
 
 const HEIGHT = { sm: 180, md: 240, lg: 340 } as const;
 const BAND = { active: "bg-success", standby: "bg-danger/30", down: "bg-danger" } as const;
-const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
+const timeFmt = dateFormat({ dateStyle: "short", timeStyle: "short" });
 
 /** Pas stanu łącza na osi czasu: zielony – ruch idzie tym łączem, jasnoczerwony – zapas, czerwony – awaria. */
 function StateBand({ link, segments, from, to }: { link: WanLink; segments: WanSegment[]; from: number; to: number }) {

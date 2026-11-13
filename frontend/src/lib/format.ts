@@ -1,13 +1,15 @@
 import type { ChartUnit, UnitClass } from "./layout";
+import { dateFormat, numberFormat } from "./intl";
+import { locale, t } from "../i18n";
 
-const rtf = new Intl.RelativeTimeFormat("pl", { numeric: "auto" });
 
 /** „12 s temu”, „5 min temu”, „wczoraj”. `now` do testów. */
 export function relativeTime(iso: string | null, now: number = Date.now()): string | null {
   if (!iso) return null;
   const diffS = Math.round((new Date(iso).getTime() - now) / 1000);
   const abs = Math.abs(diffS);
-  if (abs < 5) return "przed chwilą";
+  if (abs < 5) return t("time.justNow");
+  const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: "auto" });
   if (abs < 60) return rtf.format(diffS, "second");
   if (abs < 3600) return rtf.format(Math.round(diffS / 60), "minute");
   if (abs < 86400) return rtf.format(Math.round(diffS / 3600), "hour");
@@ -16,7 +18,7 @@ export function relativeTime(iso: string | null, now: number = Date.now()): stri
 
 export function formatDateTime(iso: string | null): string {
   if (!iso) return "-";
-  return new Intl.DateTimeFormat("pl", { dateStyle: "medium", timeStyle: "medium" }).format(new Date(iso));
+  return dateFormat({ dateStyle: "medium", timeStyle: "medium" }).format(new Date(iso));
 }
 
 export function formatUptime(seconds: number | null): string {
@@ -40,7 +42,7 @@ export function formatBps(bps: number | null | undefined): string {
     i++;
   }
   const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
-  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+  return `${numberFormat({ maximumFractionDigits: digits }).format(v)} ${units[i]}`;
 }
 
 /** Prędkość z bitów/s jako bajty/s: „5,3 MB/s”. */
@@ -54,7 +56,7 @@ export function formatBytesPerSec(bps: number | null | undefined): string {
     i++;
   }
   const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
-  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+  return `${numberFormat({ maximumFractionDigits: digits }).format(v)} ${units[i]}`;
 }
 
 /** Rozmiar w bajtach: „2,4 GB” (dziesiętnie, jak w systemie dysków i bazie). */
@@ -68,12 +70,12 @@ export function formatBytes(bytes: number | null | undefined): string {
     i++;
   }
   const digits = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
-  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v)} ${units[i]}`;
+  return `${numberFormat({ maximumFractionDigits: digits }).format(v)} ${units[i]}`;
 }
 
 /** Formatowanie wartości osi i podpowiedzi wykresu według klasy jednostki metryki. */
 export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number) => string {
-  const num = (digits: number) => (v: number) => new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v);
+  const num = (digits: number) => (v: number) => numberFormat({ maximumFractionDigits: digits }).format(v);
   switch (cls) {
     case "rate":
       return unit === "bytes" ? formatBytesPerSec : formatBps;
@@ -84,15 +86,15 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
     case "ms":
       return (v) => `${num(Math.abs(v) < 10 ? 1 : 0)(v)} ms`;
     case "days":
-      return (v) => `${num(0)(v)} dni`;
+      return (v) => t("unit.days", { n: num(0)(v) });
     case "hours":
-      return (v) => (v >= 48 ? `${num(1)(v / 24)} dni` : `${num(v < 10 ? 1 : 0)(v)} h`);
+      return (v) => (v >= 48 ? t("unit.days", { n: num(1)(v / 24) }) : `${num(v < 10 ? 1 : 0)(v)} h`);
     case "temp":
       return (v) => `${num(1)(v)} °C`;
     case "size":
       return formatBytes;
     case "state":
-      return (v) => (v >= 0.5 ? "działa" : "nie działa");
+      return (v) => (v >= 0.5 ? t("state.works") : t("state.notWorks"));
     case "duration":
       return (v) => formatUptime(v);
     case "dbm":
@@ -108,7 +110,7 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
     case "watt":
       return (v) => `${num(1)(v)} W`;
     case "rpm":
-      return (v) => `${num(0)(v)} obr/min`;
+      return (v) => `${num(0)(v)} ${t("unit.rpm")}`;
     default:
       return num(1);
   }
@@ -117,10 +119,9 @@ export function metricFormatter(cls: UnitClass, unit: ChartUnit): (value: number
 /** Etykieta zakresu czasu: 15 → „15 min”, 60 → „1 godz.”, 1440 → „24 godz.”, 10080 → „7 dni”, 525600 → „1 rok”. */
 export function formatRange(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
-  if (minutes < 1440) return `${minutes / 60} godz.`;
-  if (minutes === 1440) return "24 godz.";
-  if (minutes >= 525600) return "1 rok";
-  return `${minutes / 1440} dni`;
+  if (minutes <= 1440) return t("unit.hours", { n: minutes / 60 });
+  if (minutes >= 525600) return t("unit.year1");
+  return t("unit.days", { n: minutes / 1440 });
 }
 
 export function initials(name: string): string {

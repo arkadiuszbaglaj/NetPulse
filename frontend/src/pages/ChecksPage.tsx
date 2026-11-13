@@ -23,6 +23,7 @@ import {
 import { relativeTime } from "../lib/format";
 import { useDevices } from "../lib/queries";
 import { newChartConfig, type ChartConfig } from "../lib/layout";
+import { numberFormat } from "../lib/intl";
 
 const STATUS_STYLE: Record<string, string> = {
   up: "bg-success-soft text-success",
@@ -50,9 +51,9 @@ const TARGET_HINT: Record<CheckKind, TextKey> = {
 };
 const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : t("auth.error.generic"));
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
-const num = (v: number, digits = 1) => new Intl.NumberFormat("pl", { maximumFractionDigits: digits }).format(v);
+const num = (v: number, digits = 1) => numberFormat({ maximumFractionDigits: digits }).format(v);
 /** Odstęp między sprawdzeniami: „30 s”, „5 min”, „1 godz.”. */
-export const formatInterval = (s: number) => (s < 60 ? `${s} s` : s < 3600 ? `${num(s / 60)} min` : `${num(s / 3600)} godz.`);
+export const formatInterval = (s: number) => (s < 60 ? `${s} s` : s < 3600 ? `${num(s / 60)} min` : t("unit.hours", { n: num(s / 3600) }));
 const ms = (v: number | null) => (v == null ? "–" : `${num(v, v < 10 ? 1 : 0)} ms`);
 
 interface FormValues {

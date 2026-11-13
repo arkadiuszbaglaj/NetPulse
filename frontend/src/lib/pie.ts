@@ -7,6 +7,7 @@ import { formatBps, metricFormatter } from "./format";
 import { unitClassOf, type Collection, type CollectionKind, type PieConfig, type PieMetric } from "./layout";
 import type { LiveSample } from "./live";
 import type { CollectionRow } from "./panels";
+import { numberFormat } from "./intl";
 
 /** Zajętość (zajęte / wolne), udział (kawałek na wiersz) albo stan (działa / nie działa). */
 export type PieMode = "usage" | "share" | "state";
@@ -125,7 +126,7 @@ export interface PieData {
 
 const chartColor = (n: number) => `var(--chart-${n})`;
 const FREE = "var(--surface-2)";
-const pct = (v: number) => `${new Intl.NumberFormat("pl", { maximumFractionDigits: 0 }).format(v)}%`;
+const pct = (v: number) => `${numberFormat({ maximumFractionDigits: 0 }).format(v)}%`;
 
 function usageColor(percent: number): string {
   return chartColor(percent >= 90 ? 5 : percent >= 70 ? 4 : 1);

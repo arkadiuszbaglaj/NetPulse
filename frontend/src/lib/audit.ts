@@ -1,5 +1,6 @@
 /** Konta i dziennik zdarzeń (od 0.61.0, backend: api/users.py, audit.py). */
 import { useQuery } from "@tanstack/react-query";
+import { t, type TextKey } from "../i18n";
 import { get, type User } from "./api";
 
 export const USERS_KEY = ["users"] as const;
@@ -36,54 +37,32 @@ export function useAudit(kind: AuditKind, q: string, offset: number, limit = 50)
   });
 }
 
-const AUTH_LABEL: Record<string, string> = {
-  setup: "Założenie pierwszego konta",
-  login: "Logowanie",
-  login_failed: "Nieudane logowanie",
-  logout: "Wylogowanie",
-  password: "Zmiana własnego hasła",
-  totp_enable: "Włączenie logowania dwuskładnikowego",
-  totp_disable: "Wyłączenie logowania dwuskładnikowego",
-  totp_recovery: "Nowe kody zapasowe 2FA",
-};
+const AUTH_ACTIONS = ["setup", "login", "login_failed", "logout", "password", "totp_enable", "totp_disable", "totp_recovery"];
 
-/** Zasób z pierwszego członu ścieżki API (szablon trasy, np. /api/devices/{device_id}). */
-const RESOURCE: Record<string, string> = {
-  devices: "urządzenie",
-  interfaces: "port",
-  "alert-rules": "reguła alertu",
-  alerts: "alert",
-  maintenance: "okno serwisowe",
-  users: "konto",
-  dashboards: "pulpit",
-  dashboard: "pulpit",
-  checks: "sprawdzenie dostępności",
-  controllers: "kontroler UniFi",
-  "notification-channels": "kanał powiadomień",
-  backups: "kopia zapasowa",
-  modules: "moduły",
-  updates: "aktualizacja",
-  wan: "łącza WAN",
-  agents: "agent",
-  proxmox: "Proxmox",
-  preferences: "ustawienia odświeżania",
-  system: "system",
-  probe: "test SNMP",
-};
+/** Zasoby z pierwszego członu ścieżki API (szablon trasy, np. /api/devices/{device_id}) – nazwy w `audit.res.*`. */
+const RESOURCES = [
+  "devices", "interfaces", "alert-rules", "alerts", "maintenance", "users", "dashboards", "dashboard", "checks", "controllers",
+  "notification-channels", "backups", "modules", "updates", "wan", "agents", "proxmox", "preferences", "system", "probe",
+];
 
-const VERB: Record<string, string> = { POST: "Dodanie", PUT: "Zmiana", PATCH: "Zmiana", DELETE: "Usunięcie" };
+const VERBS: Record<string, TextKey> = { POST: "audit.verb.add", PUT: "audit.verb.change", PATCH: "audit.verb.change", DELETE: "audit.verb.delete" };
 
 /** Czytelny opis wpisu: „Usunięcie: urządzenie”, „Potwierdzenie alertu”, „Logowanie”. */
 export function auditLabel(action: string): string {
-  if (AUTH_LABEL[action]) return AUTH_LABEL[action];
+  if (AUTH_ACTIONS.includes(action)) return t(`audit.auth.${action}` as TextKey);
   const [method, path = ""] = action.split(" ", 2);
   const parts = path.replace(/^\/api\//, "").split("/").filter(Boolean);
-  const resource = parts[0] === "system" && parts[1] === "tls" ? "adresy certyfikatu HTTPS" : (RESOURCE[parts[0]] ?? parts[0] ?? path);
+  const resource =
+    parts[0] === "system" && parts[1] === "tls"
+      ? t("audit.res.tls")
+      : RESOURCES.includes(parts[0])
+        ? t(`audit.res.${parts[0]}` as TextKey)
+        : (parts[0] ?? path);
   const last = parts[parts.length - 1];
-  if (last === "ack") return "Potwierdzenie alertu";
-  if (last === "probe" || last === "test") return `Test: ${resource}`;
-  const verb = VERB[method];
-  return verb ? `${verb}: ${resource}` : action;
+  if (last === "ack") return t("audit.ack");
+  if (last === "probe" || last === "test") return t("audit.test", { resource });
+  const verb = VERBS[method];
+  return verb ? `${t(verb)}: ${resource}` : action;
 }
 
 /** Odrzucona albo nieudana operacja (pokazujemy na czerwono). */

@@ -16,6 +16,7 @@ import { plotSizeClass } from "./legendFit";
 import { ZoomLayer } from "./ZoomLayer";
 import type { ChartRow } from "./chartData";
 import { leftTop, thresholdBands, tooltipHtml, type PanelLine, type TimeSpan } from "./panelData";
+import { dateFormat } from "../../lib/intl";
 
 echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, VisualMapPiecewiseComponent, CanvasRenderer]);
 
@@ -49,7 +50,7 @@ export interface PanelChartProps {
 
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "medium" });
+const timeFmt = dateFormat({ dateStyle: "short", timeStyle: "medium" });
 
 const NO_SPANS: TimeSpan[] = [];
 

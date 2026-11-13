@@ -4,8 +4,9 @@ import { t } from "../i18n";
 import { formatRange } from "../lib/format";
 import { RANGE_OPTIONS, useRefresh } from "../lib/refresh";
 import { useDismiss } from "../lib/useDismiss";
+import { dateFormat } from "../lib/intl";
 
-const zoomFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
+const zoomFmt = dateFormat({ dateStyle: "short", timeStyle: "short" });
 
 /** Wybór zakresu czasu wykresów (ustawienie globalne, zapamiętywane w przeglądarce) – rozwijane menu (od 0.42.1).
  * Przy powiększonym fragmencie pokazuje jego czas i „Wróć”; wybór zakresu kończy powiększenie. */

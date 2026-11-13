@@ -6,7 +6,7 @@ import { IconAlertTriangle, IconCheck, IconX } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
 import { Link } from "react-router";
-import { t } from "../../i18n";
+import { t, locale } from "../../i18n";
 import { networkStatus, plural, type Tone } from "../../lib/status";
 import { ALERTS_KEY, useAlertSummary, type Alert, type Severity } from "../../lib/alerts";
 import { get, type SeriesPoint } from "../../lib/api";
@@ -189,7 +189,7 @@ export function downMinutes(v: number): number {
   return Math.round(((100 - v) / 100) * 1440);
 }
 
-const pct = (v: number) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: v >= 99.9 && v < 100 ? 2 : 1 })} %`;
+const pct = (v: number) => `${v.toLocaleString(locale(), { maximumFractionDigits: v >= 99.9 && v < 100 ? 2 : 1 })} %`;
 
 /** Opis dnia w dymku paska: procent i – gdy była przerwa – jej przybliżony czas. */
 export function dayTitle(b: DayBar): string {

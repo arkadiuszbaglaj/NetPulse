@@ -121,10 +121,10 @@ const RAW_UNIT: Partial<Record<UnitClass, string>> = {
   volt: "V",
   amp: "A",
   watt: "W",
-  rpm: "obr/min",
+  rpm: t("unit.rpm"),
   linkrate: "kb/s",
   mbps: "Mb/s",
-  days: "dni",
+  days: t("unit.daysSuffix"),
   hours: "h",
 };
 

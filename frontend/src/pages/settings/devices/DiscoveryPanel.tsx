@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button, Card, ErrorNote, Field, Select } from "../../../components/ui";
 import { KIND_LABEL, deviceIcon } from "../../../components/widgets/DevicesWidget";
-import { t } from "../../../i18n";
+import { t, locale } from "../../../i18n";
 import { ApiError, get, post, type Device } from "../../../lib/api";
 import { createFromFound, preselected, sortFound, type FoundDevice, type ScanPayload, type ScanResult } from "../../../lib/discovery";
 import { SnmpCredentialFields } from "./DeviceForm";
@@ -133,7 +133,7 @@ export function DiscoveryPanel({ onAdded }: { onAdded?: (devices: Device[]) => v
       {scan.data && (
         <div className="mt-4">
           <p role="status" className="text-xs text-text-2">
-            {t("discovery.summary", { found: scan.data.found.length, scanned: scan.data.scanned, s: scan.data.took_s.toLocaleString("pl-PL") })}
+            {t("discovery.summary", { found: scan.data.found.length, scanned: scan.data.scanned, s: scan.data.took_s.toLocaleString(locale()) })}
           </p>
           {found.length === 0 ? (
             <p className="mt-2 text-sm text-text-2">{t("discovery.none")}</p>

@@ -9,6 +9,7 @@ import { PasswordRequirements } from "../../components/PasswordRequirements";
 import { MIN_PASSWORD } from "../../lib/password";
 import { ROLE_LABEL, roleOf } from "../../lib/roles";
 import { TwoFactorCard } from "../../components/TwoFactorCard";
+import { LanguageSelect } from "../../components/LanguageSelect";
 
 
 function PasswordForm() {
@@ -99,6 +100,9 @@ export function AccountPage() {
             <dt className="text-text-2">{t("account.lastLogin")}</dt>
             <dd>{formatDateTime(user.last_login_at)}</dd>
           </dl>
+        </Card>
+        <Card className="max-w-md p-5">
+          <LanguageSelect />
         </Card>
         <PasswordForm />
         <TwoFactorCard />

@@ -3,6 +3,7 @@ import { t } from "../../i18n";
 import { formatBytes, formatUptime } from "../../lib/format";
 import { usageTone, useSystem } from "../../lib/system";
 import { Card, ErrorNote } from "../ui";
+import { formatNumber } from "../../lib/intl";
 
 const BAR_COLOR = { ok: "bg-accent", warn: "bg-warning", danger: "bg-danger" } as const;
 
@@ -31,7 +32,7 @@ export function UsageBar({ label, percent, note }: { label: string; percent: num
   );
 }
 
-const fixed = (v: number | null) => (v == null ? "–" : v.toFixed(2).replace(".", ","));
+const fixed = (v: number | null) => (v == null ? "–" : formatNumber(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 /** Stan serwera, na którym działa NetPulse: CPU, RAM, swap, dysk, obciążenie, temperatura, baza. */
 export function ServerWidget() {
@@ -66,7 +67,7 @@ export function ServerWidget() {
             {data.temp_c != null && (
               <>
                 <dt className="text-text-2">{t("server.temp")}</dt>
-                <dd className="text-right">{`${data.temp_c.toFixed(1).replace(".", ",")} °C`}</dd>
+                <dd className="text-right">{`${formatNumber(data.temp_c, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} °C`}</dd>
               </>
             )}
             <dt className="text-text-2">{t("server.db")}</dt>

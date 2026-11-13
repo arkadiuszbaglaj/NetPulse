@@ -3,6 +3,7 @@ import { t } from "../i18n";
 import { AVAILABILITY_PERIODS, useAvailability, type AvailabilityDay, type AvailabilityKind } from "../lib/details";
 import { availabilityTone, formatAvailability, formatDuration } from "../lib/wan";
 import { Card } from "./ui";
+import { dateFormat } from "../lib/intl";
 
 const TONE_TEXT = { ok: "text-success", warn: "text-warning", danger: "text-danger", none: "text-text-2" } as const;
 const TONE_BAR = { ok: "bg-success", warn: "bg-warning", danger: "bg-danger", none: "bg-surface-2" } as const;
@@ -28,7 +29,7 @@ function dayKey(d: Date): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-const dayLabel = new Intl.DateTimeFormat("pl", { day: "numeric", month: "short" });
+const dayLabel = dateFormat({ day: "numeric", month: "short" });
 
 /** Ostatnie dni od najstarszego do dzisiaj; dzień bez próbek ma `percent: null`. */
 export function lastDays(daily: AvailabilityDay[], count: number, today = new Date()): { key: string; label: string; percent: number | null }[] {

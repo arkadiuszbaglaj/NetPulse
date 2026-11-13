@@ -3,9 +3,10 @@ import { IconFileTypeCsv, IconFileTypePdf } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Card, ErrorNote, PageHeader, Select } from "../components/ui";
-import { t } from "../i18n";
+import { t, type TextKey } from "../i18n";
 import { get } from "../lib/api";
 import { formatBytes, formatDateTime } from "../lib/format";
+import { numberFormat } from "../lib/intl";
 
 export interface MonthlyReport {
   year: number;
@@ -27,7 +28,6 @@ export interface MonthlyReport {
   alerts_by_severity: Record<string, number>;
 }
 
-const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
 const MAX_ALERTS = 20;
 
 /** Ostatnie 13 miesięcy od bieżącego: wartość „RRRR-MM” i nazwa. */
@@ -35,18 +35,18 @@ export function reportMonths(now: Date = new Date()): { value: string; label: st
   return Array.from({ length: 13 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}${i === 0 ? ` (${t("report.current")})` : ""}`;
+    const label = `${t(`month.${d.getMonth() + 1}` as TextKey)} ${d.getFullYear()}${i === 0 ? ` (${t("report.current")})` : ""}`;
     return { value, label };
   });
 }
 
-const num = (v: number, digits: number) => new Intl.NumberFormat("pl", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
+const num = (v: number, digits: number) => numberFormat({ minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
 
 /** 99,95% – a przy przerwie, która zaokrągla się do 100,00%, trzy miejsca (jak w PDF). */
 export function fmtPercent(v: number | null): string {
   if (v == null) return "–";
   const two = num(v, 2);
-  return `${two === "100,00" && v < 100 ? num(v, 3) : two}%`;
+  return `${two === num(100, 2) && v < 100 ? num(v, 3) : two}%`;
 }
 
 export function fmtDuration(s: number | null): string {

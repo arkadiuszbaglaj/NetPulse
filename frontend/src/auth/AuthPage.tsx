@@ -6,6 +6,7 @@ import { ApiError, post, type User } from "../lib/api";
 import { AUTH_KEY } from "./AuthProvider";
 import { PasswordRequirements } from "../components/PasswordRequirements";
 import { MIN_PASSWORD } from "../lib/password";
+import { LanguageSelect } from "../components/LanguageSelect";
 
 
 /** Ekran logowania albo kreatora pierwszego konta (gdy w bazie nie ma jeszcze użytkowników). */
@@ -135,6 +136,9 @@ export function AuthPage({ mode }: { mode: "login" | "setup" }) {
                 : t("auth.login.submit")}
           </Button>
         </form>
+        <div className="mt-5 flex justify-end">
+          <LanguageSelect compact />
+        </div>
       </Card>
     </main>
   );

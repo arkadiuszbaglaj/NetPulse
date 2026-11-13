@@ -3,7 +3,7 @@ import { IconArrowDown, IconArrowUp } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { t } from "../../i18n";
+import { locale, t } from "../../i18n";
 import { ApiError } from "../../lib/api";
 import { formatRange, metricFormatter } from "../../lib/format";
 import { METRICS, unitClassOf, type BarGaugeConfig, type CollectionKind, type StatConfig, type StateTimelineConfig, type TableConfig } from "../../lib/layout";
@@ -17,6 +17,7 @@ import { LiveBadge } from "../LiveBadge";
 import { EmptyHint, Card } from "../ui";
 import { defaultTitle, fetchSeries } from "./chartSource";
 import { WidgetActions } from "./WidgetActions";
+import { dateFormat, numberFormat } from "../../lib/intl";
 
 const metricName = (key: string) => (METRICS[key] ? t(METRICS[key].label) : key);
 const chartColor = (n: number) => `var(--chart-${n})`;
@@ -103,7 +104,7 @@ function Gauge({ fraction, color }: { fraction: number; color: string }) {
 }
 
 // Bez znaku – kierunek pokazuje strzałka
-const changeFmt = new Intl.NumberFormat("pl", { maximumFractionDigits: 1, signDisplay: "never" });
+const changeFmt = numberFormat({ maximumFractionDigits: 1, signDisplay: "never" });
 
 /** „↑ 12% względem poprzedniego okresu” – kolor neutralny: wzrost ruchu nie musi być dobry ani zły. */
 function Change({ value, minutes }: { value: number; minutes: number }) {
@@ -324,7 +325,7 @@ export function TableWidget({ config }: { config: TableConfig }) {
   const [sort, setSort] = useState<{ by: string | null; desc: boolean }>({ by: config.sort_by ?? null, desc: config.sort_desc });
   const rows = useMemo(() => {
     const list = query.data ?? [];
-    const sorted = sort.by ? sortRows(list, sort.by, sort.desc) : [...list].sort((a, b) => a.label.localeCompare(b.label, "pl", { numeric: true }) * (sort.desc ? -1 : 1));
+    const sorted = sort.by ? sortRows(list, sort.by, sort.desc) : [...list].sort((a, b) => a.label.localeCompare(b.label, locale(), { numeric: true }) * (sort.desc ? -1 : 1));
     return sorted.slice(0, config.limit);
   }, [query.data, sort, config.limit]);
   const title = config.title || collectionTitle(config.collection.kind);
@@ -387,7 +388,7 @@ export function TableWidget({ config }: { config: TableConfig }) {
 
 const BAND: Record<StateSegment["state"], string> = { up: "bg-[var(--state-up)]", down: "bg-[var(--state-down)]", unknown: "bg-[var(--state-unknown)]" };
 const STATE_LABEL = { up: "panel.state.up", down: "panel.state.down", unknown: "panel.state.unknown" } as const;
-const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
+const timeFmt = dateFormat({ dateStyle: "short", timeStyle: "short" });
 
 export function stateTimelineTitle(c: StateTimelineConfig): string {
   return c.title || t("widget.type.state_timeline");

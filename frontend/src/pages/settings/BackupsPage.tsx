@@ -16,6 +16,7 @@ import {
   type BackupsResponse,
 } from "../../lib/backups";
 import { formatBytes } from "../../lib/format";
+import { dateFormat } from "../../lib/intl";
 
 const KIND_LABEL: Record<BackupKind, TextKey> = {
   manual: "backups.kind.manual",
@@ -25,7 +26,7 @@ const KIND_LABEL: Record<BackupKind, TextKey> = {
 };
 const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : t("auth.error.generic"));
 const iconButton = "flex size-9 items-center justify-center rounded-lg text-text-2 hover:bg-surface-2 hover:text-text disabled:opacity-50";
-const formatDate = (iso: string) => new Intl.DateTimeFormat("pl", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+const formatDate = (iso: string) => dateFormat({ dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 
 /** Ekran na czas przywracania: API jest wtedy zatrzymane, więc czekamy, aż wróci, i odświeżamy stronę. */
 function RestoreProgress({ onDone }: { onDone: () => void }) {

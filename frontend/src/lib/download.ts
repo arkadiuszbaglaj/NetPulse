@@ -1,4 +1,5 @@
 /** Zapis pliku z przeglądarki (eksport wykresu): tekst/Blob albo adres `data:` (obraz z ECharts). */
+import { t } from "../i18n";
 export function download(name: string, data: Blob | string) {
   const url = typeof data === "string" ? data : URL.createObjectURL(data);
   const a = document.createElement("a");
@@ -19,7 +20,7 @@ export function fileName(title: string, ext: string, now = new Date()): string {
       .replace(/[̀-ͯ]/g, "")
       .replace(/ł/g, "l")
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "wykres";
+      .replace(/^-|-$/g, "") || t("download.defaultName");
   const p = (n: number) => String(n).padStart(2, "0");
   return `${slug}-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.${ext}`;
 }

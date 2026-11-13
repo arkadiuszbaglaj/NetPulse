@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { del, get, post, request } from "./api";
 import { formatBps } from "./format";
 import { useRefresh } from "./refresh";
+import { formatNumber, numberFormat } from "./intl";
+import { t } from "../i18n";
 
 export type Severity = "info" | "warning" | "critical";
 export const SEVERITIES: Severity[] = ["critical", "warning", "info"];
@@ -145,8 +147,8 @@ export function useDeleteRule() {
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)} s`;
   if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
-  if (seconds < 86400) return `${Math.round((seconds / 3600) * 10) / 10} godz.`.replace(".", ",");
-  return `${Math.round((seconds / 86400) * 10) / 10} dni`.replace(".", ",");
+  if (seconds < 86400) return t("unit.hours", { n: formatNumber(Math.round((seconds / 3600) * 10) / 10) });
+  return t("unit.days", { n: formatNumber(Math.round((seconds / 86400) * 10) / 10) });
 }
 
 /** Próg reguły w jednostce widocznej dla użytkownika (WAN: Mb/s zamiast b/s). */
@@ -162,5 +164,5 @@ export function thresholdFromDisplay(metric: string | null, shown: number): numb
 export function formatThreshold(raw: number | null, unit: string): string {
   if (raw == null) return "";
   if (unit === "b/s") return formatBps(raw);
-  return `${new Intl.NumberFormat("pl", { maximumFractionDigits: 2 }).format(raw)}${unit}`;
+  return `${numberFormat({ maximumFractionDigits: 2 }).format(raw)}${unit}`;
 }

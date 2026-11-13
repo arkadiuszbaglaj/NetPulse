@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "./api";
 import { useRefresh } from "./refresh";
+import { numberFormat } from "./intl";
 
 export interface Controller {
   id: number;
@@ -97,9 +98,9 @@ export function signalQuality(dbm: number | null): "great" | "good" | "fair" | "
 /** Prędkość łącza z kb/s, np. 866000 → „866 Mb/s”. */
 export function formatLinkRate(kbps: number | null): string {
   if (kbps == null) return "–";
-  return kbps >= 1000 ? `${new Intl.NumberFormat("pl", { maximumFractionDigits: 0 }).format(kbps / 1000)} Mb/s` : `${kbps} kb/s`;
+  return kbps >= 1000 ? `${numberFormat({ maximumFractionDigits: 0 }).format(kbps / 1000)} Mb/s` : `${kbps} kb/s`;
 }
 
 export function formatWatts(w: number | null | undefined): string {
-  return w == null ? "–" : `${new Intl.NumberFormat("pl", { maximumFractionDigits: 1 }).format(w)} W`;
+  return w == null ? "–" : `${numberFormat({ maximumFractionDigits: 1 }).format(w)} W`;
 }

@@ -12,9 +12,10 @@ import { GridCellContext } from "../DashboardGrid";
 import { Card } from "../ui";
 import { defaultTitle, fetchSeries } from "./chartSource";
 import { WidgetActions } from "./WidgetActions";
+import { dateFormat } from "../../lib/intl";
 
-const weekdayFmt = new Intl.DateTimeFormat("pl", { weekday: "short" });
-const dateFmt = new Intl.DateTimeFormat("pl", { day: "2-digit", month: "2-digit" });
+const weekdayFmt = dateFormat({ weekday: "short" });
+const dateFmt = dateFormat({ day: "2-digit", month: "2-digit" });
 // 2 listopada 2026 to poniedziałek – nazwy dni od poniedziałku
 const WEEKDAYS = Array.from({ length: 7 }, (_, i) => weekdayFmt.format(new Date(2026, 10, 2 + i)));
 const HOURS = Array.from({ length: 24 }, (_, h) => h);

@@ -151,7 +151,7 @@ function WifiCard({ deviceId }: { deviceId: number }) {
           {data.map((w) => (
             <tr key={w.id} className="border-t border-border">
               <td className="px-4 py-2 font-medium">{w.ssid}</td>
-              <td className="px-4 py-2 text-text-2">{w.radio === "na" ? "5 GHz" : w.radio === "ng" ? "2,4 GHz" : (w.radio ?? "–")}</td>
+              <td className="px-4 py-2 text-text-2">{w.radio === "na" ? "5 GHz" : w.radio === "ng" ? t("band.24") : (w.radio ?? "–")}</td>
               <td className="px-4 py-2 text-text-2">{w.channel ?? "–"}</td>
               <td className="px-4 py-2 text-right tabular-nums">{w.clients ?? "–"}</td>
             </tr>

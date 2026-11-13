@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { get } from "./api";
 import { useRefresh } from "./refresh";
 import type { NetworkClient } from "./unifi";
+import { t } from "../i18n";
 
 export interface ClientDetail {
   mac: string;
@@ -86,7 +87,7 @@ export function presenceTimeline(p: Presence, minutes: number, now = Date.now())
 export function radioLabel(radio: string | null): string | null {
   if (!radio) return null;
   if (radio === "na") return "5 GHz";
-  if (radio === "ng") return "2,4 GHz";
+  if (radio === "ng") return t("band.24");
   if (radio === "6e") return "6 GHz";
   return radio;
 }

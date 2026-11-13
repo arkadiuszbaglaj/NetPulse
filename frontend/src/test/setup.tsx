@@ -1,12 +1,17 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+import { setLanguage } from "../i18n";
 import { resetLiveHub } from "../lib/liveHub";
+
+// Testy sprawdzają polskie teksty – niezależnie od języka środowiska (jsdom: en-US)
+setLanguage("pl", { reload: false });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
+  setLanguage("pl", { reload: false });
   resetLiveHub(); // wspólny kanał na żywo żyje w module – każdy test zaczyna bez połączeń
   delete document.documentElement.dataset.theme;
 });

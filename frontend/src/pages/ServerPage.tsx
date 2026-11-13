@@ -3,14 +3,15 @@ import { useParams } from "react-router";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
 import { serviceProblem, useServerStatus, type AgentContainer, type AgentInfo, type ServerStatus } from "../components/widgets/ServerDetails";
 import { UsageBar } from "../components/widgets/ServerWidget";
-import { t } from "../i18n";
+import { t, locale } from "../i18n";
 import { updateCommand } from "../lib/agents";
 import { ApiError } from "../lib/api";
 import { useDevice } from "../lib/details";
 import { formatBps, formatBytes, formatBytesPerSec, formatUptime } from "../lib/format";
 import { BackLink } from "./DevicePage";
+import { formatNumber } from "../lib/intl";
 
-const fixed = (v: number | null | undefined) => (v == null ? "–" : v.toFixed(2).replace(".", ","));
+const fixed = (v: number | null | undefined) => (v == null ? "–" : formatNumber(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 /** Tabela w karcie z nagłówkiem; kolumny z `right` wyrównane do prawej (liczby). */
 function TableCard({
@@ -158,7 +159,7 @@ function DrivesCard({ agent }: { agent: AgentInfo }) {
               {s?.passed == null ? "–" : <StateBadge ok={s.passed}>{t(s.passed ? "srv.drives.ok" : "srv.drives.failed")}</StateBadge>}
             </td>
             <td className={num}>{s?.temp_c != null ? `${Math.round(s.temp_c)}°C` : "–"}</td>
-            <td className={num}>{s?.power_on_hours != null ? s.power_on_hours.toLocaleString("pl-PL") : "–"}</td>
+            <td className={num}>{s?.power_on_hours != null ? s.power_on_hours.toLocaleString(locale()) : "–"}</td>
             <td className={`${num} ${s?.reallocated ? "font-medium text-danger" : ""}`}>{s?.reallocated ?? "–"}</td>
             <td className={num}>{formatBytesPerSec(rate?.read_bps)}</td>
             <td className={num}>{formatBytesPerSec(rate?.write_bps)}</td>
@@ -196,7 +197,7 @@ function ContainersCard({ containers }: { containers: AgentContainer[] }) {
             <StateBadge ok={c.state === "running"}>{c.state}</StateBadge>
           </td>
           <td className={`${cell} text-text-2`}>{c.status ?? "–"}</td>
-          <td className={num}>{c.cpu_percent != null ? `${c.cpu_percent.toFixed(1).replace(".", ",")}%` : "–"}</td>
+          <td className={num}>{c.cpu_percent != null ? `${formatNumber(c.cpu_percent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "–"}</td>
           <td className={num}>{formatBytes(c.mem_bytes)}</td>
         </tr>
       ))}

@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { get, type Device } from "./api";
 import { useRefresh } from "./refresh";
+import { numberFormat } from "./intl";
 
 export interface InterfaceItem {
   id: number;
@@ -134,5 +135,5 @@ export function useDevicesAvailability(days = 30, enabled = true) {
 /** „1000 Mb/s” albo „1 Gb/s”; brak → „–”. */
 export function formatSpeed(mbps: number | null): string {
   if (mbps == null || mbps <= 0) return "–";
-  return mbps >= 1000 ? `${new Intl.NumberFormat("pl", { maximumFractionDigits: 1 }).format(mbps / 1000)} Gb/s` : `${mbps} Mb/s`;
+  return mbps >= 1000 ? `${numberFormat({ maximumFractionDigits: 1 }).format(mbps / 1000)} Gb/s` : `${mbps} Mb/s`;
 }

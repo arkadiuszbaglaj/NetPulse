@@ -11,9 +11,10 @@ import {
   type WanLinkSla,
 } from "../../lib/wan";
 import { Card, ErrorNote } from "../ui";
+import { dateFormat } from "../../lib/intl";
 
 const TONE = { ok: "text-success", warn: "text-warning", danger: "text-danger", none: "text-text-2" } as const;
-const dateFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
+const dateFmt = dateFormat({ dateStyle: "short", timeStyle: "short" });
 
 function LinkSla({ item }: { item: WanLinkSla }) {
   const last = item.recent_outages[0];

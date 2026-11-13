@@ -3,6 +3,7 @@
  * API: `/api/discovery/suggest`, `/api/discovery/scan`, `/api/devices/{id}/report`. Czyste funkcje bez Reacta.
  */
 import type { DeviceCreatePayload, SnmpTargetPayload } from "./api";
+import { t } from "../i18n";
 
 export interface FoundDevice {
   host: string;
@@ -93,7 +94,7 @@ export const ISSUE_URL = "https://github.com/arkadiuszbaglaj/NetPulse/issues/new
 export function issueLink(report: DeviceReport, model: string, notes: string): string {
   const params = new URLSearchParams({
     template: "nowe-urzadzenie.yml",
-    title: `Nowe urządzenie: ${model || report.device.sys_descr?.slice(0, 60) || report.device.sys_object_id || "?"}`,
+    title: t("devreport.issueTitle", { model: model || report.device.sys_descr?.slice(0, 60) || report.device.sys_object_id || "?" }),
     model: model.slice(0, 200),
     object_id: report.device.sys_object_id ?? "",
     descr: (report.device.sys_descr ?? "").slice(0, 300),

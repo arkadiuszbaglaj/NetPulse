@@ -7,9 +7,10 @@ import { relativeTime } from "../../lib/format";
 import type { EventsDays } from "../../lib/layout";
 import { useRefresh } from "../../lib/refresh";
 import { Card, ErrorNote } from "../ui";
+import { dateFormat } from "../../lib/intl";
 
 const ICON: Record<EventKind, typeof IconRefresh> = { wan_switch: IconArrowsExchange, restart: IconRefresh, vpn_connect: IconShieldLock };
-const timeFmt = new Intl.DateTimeFormat("pl", { dateStyle: "short", timeStyle: "short" });
+const timeFmt = dateFormat({ dateStyle: "short", timeStyle: "short" });
 
 export function EventsWidget({ days, limit }: { days: EventsDays; limit: number }) {
   const { refetchInterval } = useRefresh();

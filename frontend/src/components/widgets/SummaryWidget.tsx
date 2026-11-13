@@ -1,5 +1,5 @@
 import type { SeriesPoint } from "../../lib/api";
-import { t } from "../../i18n";
+import { t, locale } from "../../i18n";
 import { formatBps } from "../../lib/format";
 import type { SummaryTile } from "../../lib/layout";
 import { useLiveWan } from "../../lib/liveWan";
@@ -33,7 +33,7 @@ export function peakOf(points: SeriesPoint[], key: string): { value: number; tim
   return best;
 }
 
-const hour = (iso: string) => new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+const hour = (iso: string) => new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 
 function Metric({
   label,

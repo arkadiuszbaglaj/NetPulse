@@ -12,10 +12,11 @@ import { applyLive, isLiveMetric, isPortMetric, NON_SNMP_DRIVERS, pieCollection,
 import { PublicModeContext } from "../../lib/publicMode";
 import { Card } from "../ui";
 import { WidgetActions } from "./WidgetActions";
+import { numberFormat } from "../../lib/intl";
 
 const R = 40;
 const C = 2 * Math.PI * R;
-const pctFormat = new Intl.NumberFormat("pl", { maximumFractionDigits: 1 });
+const pctFormat = numberFormat({ maximumFractionDigits: 1 });
 
 function Ring({ slices, label }: { slices: PieSlice[]; label: string }) {
   const total = slices.reduce((sum, s) => sum + s.value, 0) || 1;

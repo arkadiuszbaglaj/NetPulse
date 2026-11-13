@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "./api";
 import { useRefresh } from "./refresh";
+import { locale } from "../i18n";
 
 export interface TopologyNode {
   id: string;
@@ -209,7 +210,7 @@ export function layoutTopology(nodes: TopologyNode[], edges: TopologyEdge[], ori
   const minLevel = Math.min(0, ...level.values());
 
   const byLevel = new Map<number, TopologyNode[]>();
-  for (const n of [...nodes].sort((a, b) => a.name.localeCompare(b.name, "pl"))) {
+  for (const n of [...nodes].sort((a, b) => a.name.localeCompare(b.name, locale()))) {
     const l = level.get(n.id)! - minLevel;
     byLevel.set(l, [...(byLevel.get(l) ?? []), n]);
   }
