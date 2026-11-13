@@ -121,7 +121,7 @@ export interface CheckPreset {
   payload: Omit<CheckPayload, "enabled">;
 }
 
-/** Gotowe sprawdzenia do zaproponowania: ping do bramy każdego routera w NetPulse (sieć domowa – „u mnie czy
+/** Gotowe sprawdzenia do zaproponowania: ping do bramy każdego routera w UplinkView (sieć domowa – „u mnie czy
  * u dostawcy?”), potem stałe. Bez tych, których cel już jest sprawdzany. */
 export function checkPresets(devices: Pick<Device, "id" | "name" | "host" | "kind" | "enabled">[], existing: Pick<Check, "kind" | "target">[]): CheckPreset[] {
   const gateways: CheckPreset[] = devices

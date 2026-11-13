@@ -3,7 +3,7 @@
 Zrzut SNMP ważnych gałęzi (system, IF-MIB, HOST-RESOURCES, ENTITY, czujniki, UCD, BRIDGE, LLDP, PoE i gałąź producenta
 z `sysObjectID`) w formacie .snmprec – tym samym, co fixtures w `backend/tests/fixtures/`. Drugi odczyt po `interval_s`
 pokazuje, które wartości to liczniki. Anonimizacja odbywa się tu, na serwerze użytkownika, zanim cokolwiek opuści
-NetPulse: MAC-i, adresy IP, `sysName`, `sysContact`, `sysLocation`, `ifAlias`, nazwy sąsiadów LLDP, SSID, numery
+UplinkView: MAC-i, adresy IP, `sysName`, `sysContact`, `sysLocation`, `ifAlias`, nazwy sąsiadów LLDP, SSID, numery
 seryjne i adresy e-mail. Community i klucze SNMPv3 nigdy nie trafiają do raportu, adres urządzenia też nie.
 Tablice adresowane adresami (MAC, ARP, trasy, procesy) nie są w ogóle czytane.
 """

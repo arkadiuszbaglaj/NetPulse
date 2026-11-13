@@ -1,4 +1,4 @@
-# Wejście do panelu (od 0.62.0): HTTP (jak dotąd) i HTTPS z certyfikatem lokalnego CA NetPulse.
+# Wejście do panelu (od 0.62.0): HTTP (jak dotąd) i HTTPS z certyfikatem lokalnego CA UplinkView.
 # Kontekst budowania: katalog główny repozytorium (patrz deploy/docker-compose.yml)
 FROM nginx:1.27-alpine
 

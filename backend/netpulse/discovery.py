@@ -43,7 +43,7 @@ class Found:
     driver: str
     # Pełne wsparcie = driver producenta; ogólny driver też działa (porty, ruch), ale bez szczegółów
     generic: bool
-    device_id: int | None = None  # już w NetPulse
+    device_id: int | None = None  # już w UplinkView
 
     def as_dict(self) -> dict:
         return asdict(self)

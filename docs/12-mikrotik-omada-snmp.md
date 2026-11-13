@@ -1,6 +1,6 @@
-# MikroTik i TP-Link (Omada, JetStream) w NetPulse
+# MikroTik i TP-Link (Omada, JetStream) w UplinkView
 
-NetPulse monitoruje te urządzenia przez SNMP. Sterownik **MikroTik RouterOS** i **TP-Link Omada / JetStream**
+UplinkView monitoruje te urządzenia przez SNMP. Sterownik **MikroTik RouterOS** i **TP-Link Omada / JetStream**
 rozpoznawany jest automatycznie, więc przy dodawaniu zostaw sterownik „Automatyczny".
 
 > **Status:** MikroTik sprawdzony na **prawdziwym RouterOS 7.18.2** (CHR x86 w VirtualBox, zrzut z 2026-10-27:
@@ -31,7 +31,7 @@ Czego jeszcze nie ma: danych z kontrolera Omada (klienci z sygnałem, PoE z bram
 Źródła: **oficjalny MIB switchy L2** (TP-Link_L2 Switch_MIB, `L2-tplinkMibs.zip` z 2024-02-29, centrum pobierania Omada) i
 **oficjalne FAQ** o SNMP bram Omada (document/13047). Szczegóły i adresy: `docs/28-zrodla-producentow.md`.
 
-| Tabela MIB | OID (`1.3.6.1.4.1.11863.6…`) | Co trafia do NetPulse | Przeliczenie |
+| Tabela MIB | OID (`1.3.6.1.4.1.11863.6…`) | Co trafia do UplinkView | Przeliczenie |
 |---|---|---|---|
 | `tplinkSysInfoMIB` | `.1.1.6.0` | wersja firmware | tekst |
 | `tplinkSysMonitorMIB` | `.4.1.1.1.1.3` (CPU 1 min), `.4.1.2.1.1.2` (RAM) | CPU i RAM urządzenia | %, średnia z jednostek stosu |
@@ -67,7 +67,7 @@ zasilacz) – dlatego panel pokazuje je jako surową liczbę i nie ma na nie ale
 
 ### MikroTik RouterOS (terminal lub WinBox → New Terminal)
 
-SNMP v2c, tylko odczyt, tylko z adresu serwera NetPulse (podmień `192.168.1.10` i nazwę community):
+SNMP v2c, tylko odczyt, tylko z adresu serwera UplinkView (podmień `192.168.1.10` i nazwę community):
 
 ```
 /snmp set enabled=yes
@@ -80,10 +80,10 @@ SNMP v3 (uwierzytelnianie i szyfrowanie), użytkownik `monitor`:
 /snmp community add name=monitor addresses=192.168.1.10/32 security=private read-access=yes write-access=no authentication-protocol=SHA1 authentication-password=KLUCZ-AUTH encryption-protocol=AES encryption-password=KLUCZ-PRIV
 ```
 
-W NetPulse wybierz SNMP v3, użytkownika `monitor`, protokół uwierzytelniania `SHA` (to SHA1 z RouterOS) i szyfrowania `AES`.
+W UplinkView wybierz SNMP v3, użytkownika `monitor`, protokół uwierzytelniania `SHA` (to SHA1 z RouterOS) i szyfrowania `AES`.
 Klucze muszą mieć co najmniej 8 znaków.
 
-Zapora RouterOS musi przepuszczać UDP 161 z adresu NetPulse do routera (reguła w `input` chain).
+Zapora RouterOS musi przepuszczać UDP 161 z adresu UplinkView do routera (reguła w `input` chain).
 
 ### TP-Link JetStream / Omada
 
@@ -91,20 +91,20 @@ Włącz SNMP w interfejsie WWW przełącznika (sekcja **SNMP**: włączony agent
 uwierzytelnianiem i szyfrowaniem). Dla urządzeń zarządzanych przez kontroler Omada ustawienie SNMP znajduje się w ustawieniach
 sieci (site) kontrolera. Nazwy menu zależą od modelu i wersji oprogramowania.
 
-## Dodanie w NetPulse
+## Dodanie w UplinkView
 
 **Ustawienia → Urządzenia → Dodaj urządzenie**, sterownik „Automatyczny", **Testuj połączenie** (pokaże wykryty typ i model).
 To samo z terminala:
 
 ```bash
-netpulse probe 192.168.1.2 --community netpulse-ro
-netpulse device add "hEX" 192.168.1.2 --community netpulse-ro
+uplinkview probe 192.168.1.2 --community netpulse-ro
+uplinkview device add "hEX" 192.168.1.2 --community netpulse-ro
 ```
 
 SNMP v3:
 
 ```bash
-netpulse device add "hEX" 192.168.1.2 --snmp-version 3 --v3-user monitor \
+uplinkview device add "hEX" 192.168.1.2 --snmp-version 3 --v3-user monitor \
   --v3-auth-proto SHA --v3-auth-key 'KLUCZ-AUTH' --v3-priv-proto AES --v3-priv-key 'KLUCZ-PRIV'
 ```
 

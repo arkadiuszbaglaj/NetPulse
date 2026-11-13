@@ -7,7 +7,7 @@ Sposób wysyłki: A (plik + link do zgłoszenia). Sposób B (wysyłka do serwera
 
 Kupowanie każdego urządzenia, żeby dodać jego pełne wsparcie (driver producenta), jest kosztowne. Potrzebny jest
 sposób, żeby system sam znajdował urządzenia w sieci i żeby użytkownicy mogli łatwo przekazać „specyfikację”
-urządzenia, którego NetPulse jeszcze dobrze nie zna.
+urządzenia, którego UplinkView jeszcze dobrze nie zna.
 
 Ważne: nieznane urządzenie już dziś działa – driver ogólny (IF-MIB) obsługuje każde urządzenie z SNMP (porty,
 ruch, błędy, stan). Driver producenta dokłada tylko szczegóły (nazwy portów, CPU, WiFi, czujniki).
@@ -19,7 +19,7 @@ Ustawienia → Urządzenia → **Wykryj** (także jako krok kreatora `/setup`):
 - skan wskazanej podsieci (np. `192.168.1.0/24`): ping (jest już w `netpulse/checks.py`), potem SNMP
   `sysDescr`, `sysObjectID`, `sysName` z podanym community albo danymi v3,
 - lista wyników: adres, nazwa, producent, wykryty driver, oznaczenie „ogólny – brak pełnej specyfikacji”,
-  „już w NetPulse”,
+  „już w UplinkView”,
 - **użytkownik zaznacza, co dodać** – bez automatycznego dodawania na start (w domu SNMP mają też drukarki,
   telewizory, NAS-y); automat jako opcja później, np. „dodawaj nowe routery i switche”,
 - skan w tle w kolektorze albo API, z limitem równoległości i czasu; wyniki ważne kilka minut.
@@ -30,9 +30,9 @@ Wersja: minor. Korzysta z istniejących `snmp`/`drivers` (wybór drivera po `sys
 
 Uzupełnione 4.11.2026: pełny przepływ od użytkownika do wydania nowej wersji.
 
-### Kiedy NetPulse proponuje raport
+### Kiedy UplinkView proponuje raport
 
-Na stronie urządzenia komunikat „NetPulse zna to urządzenie tylko częściowo” i przycisk **Przygotuj raport**, gdy:
+Na stronie urządzenia komunikat „UplinkView zna to urządzenie tylko częściowo” i przycisk **Przygotuj raport**, gdy:
 
 - pasuje tylko driver ogólny (`generic`) albo ogólny `linux` przy `sysObjectID` spoza net-snmp,
 - `sysObjectID` nie występuje w żadnym fixture ani profilu,
@@ -40,7 +40,7 @@ Na stronie urządzenia komunikat „NetPulse zna to urządzenie tylko częściow
 
 Komunikat można ukryć dla urządzenia („nie pokazuj więcej”).
 
-### Co robi NetPulse u użytkownika
+### Co robi UplinkView u użytkownika
 
 1. **Zrzut SNMP** ważnych gałęzi: system, IF-MIB, HOST-RESOURCES, ENTITY, ENTITY-SENSOR, UCD, BRIDGE, LLDP
    i gałąź producenta z `sysObjectID`. **Dwa zrzuty w odstępie ok. 60 s** – widać, które wartości to liczniki.
@@ -49,23 +49,23 @@ Komunikat można ukryć dla urządzenia („nie pokazuj więcej”).
 3. **Anonimizacja od razu na serwerze użytkownika** – jak `backend/tools/walk2snmprec.py`: MAC-i, adresy IP, SSID,
    numery seryjne, `sysName`, `sysContact`, `sysLocation`, `ifAlias`; community i klucze v3 nigdy nie trafiają do
    raportu. Testy anonimizacji w CI (żadna wartość z listy wrażliwych nie przechodzi).
-4. **Formularz**: co to za urządzenie (model, firmware, jeśli NetPulse ich nie odczytał), uwagi użytkownika,
+4. **Formularz**: co to za urządzenie (model, firmware, jeśli UplinkView ich nie odczytał), uwagi użytkownika,
    np. „port 5 to WAN”, „to NAS z dwoma dyskami w RAID 1”.
 5. **Podgląd całej treści przed wysłaniem** i wyraźna zgoda.
 
-Raport zawiera też: wersję NetPulse, wybrany driver, `sysObjectID`, `sysDescr` (zanonimizowany), czas zrzutu.
+Raport zawiera też: wersję UplinkView, wybrany driver, `sysObjectID`, `sysDescr` (zanonimizowany), czas zrzutu.
 
 ### Jak raport trafia do właściciela
 
 | Sposób | Plusy | Minusy |
 |---|---|---|
 | **A. Plik do pobrania + link do gotowego zgłoszenia na GitHubie** (szablon issue „Nowe urządzenie”, pola wypełnione z raportu) | bez serwera, za darmo, jawne, od razu | użytkownik potrzebuje konta GitHub i sam dołącza plik (link ma limit długości), zgłoszenie publiczne |
-| **B. Przycisk „Wyślij do NetPulse”** – mały serwis pośredniczący (funkcja serverless z aplikacją GitHub) zakłada zgłoszenie w prywatnym repo | jedno kliknięcie, bez konta, raporty prywatne | serwis do utrzymania, polityka prywatności, zgoda, ochrona przed spamem i limit zgłoszeń |
+| **B. Przycisk „Wyślij do UplinkView”** – mały serwis pośredniczący (funkcja serverless z aplikacją GitHub) zakłada zgłoszenie w prywatnym repo | jedno kliknięcie, bez konta, raporty prywatne | serwis do utrzymania, polityka prywatności, zgoda, ochrona przed spamem i limit zgłoszeń |
 | C. E-mail | prosty | trudny do obsługi, łatwo coś zgubić |
 
 **Rekomendacja:** najpierw **A**. **B** razem z chmurą i po decyzji o licencji i modelu biznesowym
 (`docs/09-licencje-propozycja.md`) – automatyczna wysyłka danych z cudzej sieci wymaga zgody i ustalenia
-administratora danych. NetPulse zapamiętuje, że raport dla urządzenia został przygotowany / wysłany.
+administratora danych. UplinkView zapamiętuje, że raport dla urządzenia został przygotowany / wysłany.
 
 ### Co dzieje się u właściciela
 
@@ -80,7 +80,7 @@ administratora danych. NetPulse zapamiętuje, że raport dla urządzenia został
 
 ### Co dzieje się u użytkownika po aktualizacji
 
-Panel pokazuje „dostępna aktualizacja”; po `netpulse update` (albo z panelu) urządzenie z driverem `auto` **samo**
+Panel pokazuje „dostępna aktualizacja”; po `uplinkview update` (albo z panelu) urządzenie z driverem `auto` **samo**
 dostaje nowy driver – wybór drivera odbywa się przy każdym odczycie (`poll_device`). Komunikat o raporcie znika.
 Historia ruchu portów zostaje (te same `ifIndex`).
 

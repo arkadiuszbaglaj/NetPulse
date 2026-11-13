@@ -48,7 +48,7 @@ dodatkowo dostępny UCD-DISKIO-MIB (`.1.3.6.1.4.1.2021.13.15`).
    driver musi działać, gdy ich brak.
 5. **iSCSI / NVMeoF** – przepustowość jako dwie liczby 32-bit (High/Low) do złożenia.
 6. **SNMPv3** – Synology zaleca v2c dla pełnych danych z gałęzi Synology; sprawdzić, czy v3 czegoś nie ukrywa.
-7. **Brak pułapek SNMP w DSM** – nie przeszkadza, NetPulse odpytuje cyklicznie.
+7. **Brak pułapek SNMP w DSM** – nie przeszkadza, UplinkView odpytuje cyklicznie.
 8. **Anonimizacja zrzutów** – numery seryjne NAS-a, dysków i UPS, nazwy wolumenów i usług, `sysName`.
 
 ## Propozycja

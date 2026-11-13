@@ -1,6 +1,6 @@
 # Szyfrowanie sekretów w bazie (od 0.15.0)
 
-NetPulse przechowuje w bazie dane, które dają dostęp do innych urządzeń i usług:
+UplinkView przechowuje w bazie dane, które dają dostęp do innych urządzeń i usług:
 
 | Tabela | Kolumny |
 |--------|---------|
@@ -17,12 +17,12 @@ pokazują ich jawnym tekstem. API ich nie zwraca (tak było już wcześniej).
   w wolumenie Dockera `netpulse_keys` (widzą go tylko kontenery `api` i `collector`, prawa 600).
 - Można go podać samemu w `deploy/.env` jako `NETPULSE_SECRET_KEY=...`. Zmienna ma pierwszeństwo przed plikiem
   (przydaje się przy przenoszeniu na nowy serwer).
-- **Klucza nie zmieniaj.** Sekretów zapisanych starym kluczem nie da się odczytać nowym. NetPulse traktuje je
+- **Klucza nie zmieniaj.** Sekretów zapisanych starym kluczem nie da się odczytać nowym. UplinkView traktuje je
   wtedy jak puste (w logu jest błąd), a urządzenia, kontrolery i webhooki trzeba uzupełnić w panelu.
 
 ## Aktualizacja ze starszej wersji
 
-Przy pierwszym starcie 0.15 kolektor (`netpulse db init`):
+Przy pierwszym starcie 0.15 kolektor (`uplinkview db init`):
 
 1. migracja `0004` zmienia typ tych kolumn na `TEXT` (zaszyfrowana wartość jest dłuższa),
 2. powstaje klucz,

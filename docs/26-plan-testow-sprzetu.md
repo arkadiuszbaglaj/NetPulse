@@ -4,7 +4,7 @@ Status: **propozycja** (4.11.2026). Etap 1 ✅ zrobiony w 0.77.0 (13.11.2026) �
 
 ## Cel
 
-NetPulse ma działać u ludzi z różnym sprzętem: inni producenci, różne wersje firmware, NAS-y, serwery. Dziś
+UplinkView ma działać u ludzi z różnym sprzętem: inni producenci, różne wersje firmware, NAS-y, serwery. Dziś
 sprawdzony jest głównie sprzęt UniFi użytkownika, MikroTik CHR, Linux i Proxmox. Plan ma odpowiedzieć na
 dwa pytania:
 
@@ -94,7 +94,7 @@ Odczyt v1 (liczniki 32-bitowe) działa kontra snmpsim.
 - OPNsense albo pfSense oraz OpenWrt: dodanie przez panel, lista portów (R2), rola WAN (R3), ruch pod obciążeniem
   (`iperf3` przez router), zrzut do fixtures,
 - TrueNAS SCALE i OpenMediaVault: dyski, pule, CPU/RAM (R8), zrzut do fixtures,
-- Debian jako serwer NetPulse: `install.sh`, `netpulse update` (R10).
+- Debian jako serwer UplinkView: `install.sh`, `uplinkview update` (R10).
 
 Wynik: nowe fixtures z prawdziwych systemów + decyzje, czy potrzebne nowe drivery (np. `opnsense`, `truenas`).
 
@@ -132,6 +132,6 @@ nowym fixture. Użytkownik widzi przed instalacją, czego się spodziewać.
 
 ## Pytania otwarte
 
-- Czy wspieramy Raspberry Pi / ARM jako serwer NetPulse – jeśli tak, potrzebny runner ARM w CI.
+- Czy wspieramy Raspberry Pi / ARM jako serwer UplinkView – jeśli tak, potrzebny runner ARM w CI.
 - Czy przyjmować zrzuty publicznie (GitHub) przed decyzją o licencji (`docs/09-licencje-propozycja.md`) –
   zrzut to dane, nie kod, ale warto mieć zgodę na użycie w repo.

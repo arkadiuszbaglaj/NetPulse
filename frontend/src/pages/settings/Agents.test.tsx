@@ -64,7 +64,7 @@ describe("Ustawienia → Agenci", () => {
   it("w Urządzeniach serwer z agentem nie ma testu SNMP ani edycji", async () => {
     mockApi({ devices: [AGENT_DEVICE, DEVICE] });
     renderApp("/settings/devices");
-    expect(await screen.findByText(/nas · Serwer · agent NetPulse/)).toBeInTheDocument();
+    expect(await screen.findByText(/nas · Serwer · agent UplinkView/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edytuj NAS" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Testuj.* NAS/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edytuj UCG Ultra" })).toBeInTheDocument();
@@ -119,14 +119,14 @@ describe("karta serwera z agentem", () => {
     expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Usługi: 12 działa, bez błędów"]);
   });
 
-  it("agent starszy niż NetPulse: ostrzeżenie na karcie", async () => {
+  it("agent starszy niż UplinkView: ostrzeżenie na karcie", async () => {
     mockApi({
       devices: [AGENT_DEVICE],
       server: status({ ...base, temps: [], services: null, containers: null, smart: null, outdated: true, server_version: "0.24.0" }),
     });
     renderApp();
     const list = await screen.findByRole("list", { name: "Stan z agenta" });
-    expect(within(list).getByText("Agent 0.11.0 jest starszy niż NetPulse – zaktualizuj go")).toHaveClass("text-warning");
+    expect(within(list).getByText("Agent 0.11.0 jest starszy niż UplinkView – zaktualizuj go")).toHaveClass("text-warning");
   });
 });
 
@@ -187,8 +187,8 @@ describe("strona szczegółów serwera", () => {
     expect(within(services).getAllByRole("row")[1]).toHaveTextContent("backup");
     expect(screen.getByText("eth0")).toBeInTheDocument();
     expect(screen.getByText("90°C")).toHaveClass("text-danger");
-    // Agent starszy niż NetPulse: polecenie aktualizacji
-    const note = screen.getByText("Agent 0.11.0 jest starszy niż NetPulse 0.24.0").closest("div")!;
+    // Agent starszy niż UplinkView: polecenie aktualizacji
+    const note = screen.getByText("Agent 0.11.0 jest starszy niż UplinkView 0.24.0").closest("div")!;
     expect(within(note).getByText(updateCommand(window.location.origin))).toBeInTheDocument();
   });
 

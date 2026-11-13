@@ -1,37 +1,42 @@
-# NetPulse – kontekst projektu dla Claude Code
+# UplinkView – kontekst projektu dla Claude Code
 
 ## O projekcie
 
-NetPulse to self-hosted aplikacja webowa do monitorowania sieci w homelabie. Zbiera w jednym
+UplinkView to self-hosted aplikacja webowa do monitorowania sieci w homelabie. Zbiera w jednym
 panelu ruch i stan portów routera, switchy i access pointów: wykresy przepustowości, błędy,
 status portów, klienci WiFi, a później topologia i alerty.
 
-Repozytorium: https://github.com/arkadiuszbaglaj/NetPulse
+Repozytorium: https://github.com/uplinkview/uplinkview
 
-**Nowa nazwa: UplinkView** (wybrana 13.11.2026, nazwa NetPulse jest zajęta; domena uplinkview.com, konto GitHub `uplinkview`).
-Zmiana nazwy w kodzie, obrazach, repozytorium i aplikacji to etap 6 planu (`docs/40`) – po wyborze licencji; do tego czasu
-w kodzie zostaje NetPulse, a istniejące instalacje muszą się dać zaktualizować.
+**Nazwa: UplinkView** (od 0.78.0; wybrana 13.11.2026, dawna nazwa NetPulse była zajęta; domena uplinkview.com, konto GitHub `uplinkview`).
+Wszystko, co widać, mówi UplinkView: panel, dokumentacja, instalator, powiadomienia, raporty, nazwy pobieranych plików, aplikacja Android.
+Polecenie `uplinkview` (dawne `netpulse` działa dalej – oba to dowiązania do `scripts/netpulse`), nowe instalacje w `/opt/uplinkview`,
+stare zostają w `/opt/netpulse` (`np_install_dir`, `np_default_dir`). Stary adres repozytorium `arkadiuszbaglaj/NetPulse` zamieniają
+na nowy `uplinkview update` i updater (`np_migrate_origin`, `git_ops.set_origin`). **Celowo bez zmiany (zgodność istniejących instalacji):**
+pakiet Pythona `netpulse`, `netpulse_updater`, zmienne `NETPULSE_*`, nazwa projektu compose, wolumeny i baza `netpulse`, obrazy
+`netpulse-*`, ciasteczka `netpulse_session*`, klucze `netpulse.*` w przeglądarce, plik `scripts/netpulse`, agent `/opt/netpulse-agent`,
+`applicationId` `pl.netpulse.app` (inaczej telefon uznałby aplikację za nową), nazwy plików kopii zapasowych.
 
 ## Zasady współpracy
 
 - Komunikacja z użytkownikiem **po polsku**. Kod, nazwy w kodzie i komentarze techniczne mogą być po angielsku, dokumentacja w `docs/` po polsku.
 - Użytkownik chce być prowadzony **krok po kroku**: po każdym etapie krótko podsumuj, co powstało i jak to sprawdzić, i zaproponuj następny krok.
 - Testuj na prawdziwych urządzeniach (sieć 192.168.1.0/24 jest osiągalna z serwera).
-- **Instalacja jednym linkiem** jest wymaganiem: NetPulse ma się instalować na czystym Ubuntu Server
+- **Instalacja jednym linkiem** jest wymaganiem: UplinkView ma się instalować na czystym Ubuntu Server
   jedną komendą, np.
-  `curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash`
+  `curl -fsSL https://raw.githubusercontent.com/uplinkview/uplinkview/main/install.sh | sudo bash`
   (skrypt instaluje Dockera, jeśli go brak, pobiera projekt, tworzy `.env` z losowymi hasłami i uruchamia `docker compose up -d`).
 
 ## Sposób pracy
 
 - Kod pisze Claude i wypycha na GitHub (`main`). Użytkownik instaluje/aktualizuje na serwerze
-  (`install.sh`, potem `netpulse update`) i zgłasza wyniki.
+  (`install.sh`, potem `uplinkview update`) i zgłasza wyniki.
 - **Każdy commit na `main` musi być podpisany** (od 0.69.0, klucz `~/.ssh/netpulse_signing`, w tym repo `commit.gpgsign true`): updater
-  i `netpulse update` odrzucają aktualizację bez podpisu kluczem z `deploy/update-signers` zainstalowanej wersji. Przed pushem
+  i `uplinkview update` odrzucają aktualizację bez podpisu kluczem z `deploy/update-signers` zainstalowanej wersji. Przed pushem
   `git log --format='%h %G? %s' -3` (ma być `G`). Nie commitować ani nie scalać w przeglądarce na GitHubie. Opis: `docs/41-podpisane-aktualizacje.md`.
 - Każdy push przechodzi CI (`.github/workflows/ci.yml`): ruff, pytest (drivery na fixtures,
   pysnmp kontra snmpsim v2c/v3, kolektor + TimescaleDB, API) oraz test end-to-end `install.sh`
-  → `device add` → dane w API → `netpulse update`. Wynik CI sprawdzać przed zgłoszeniem
+  → `device add` → dane w API → `uplinkview update`. Wynik CI sprawdzać przed zgłoszeniem
   użytkownikowi, że wersja jest gotowa.
 - **Numer wersji** (`backend/netpulse/__init__.py` i `frontend/package.json` + `package-lock.json`) podnosimy przy każdym wypchnięciu zmian, które użytkownik ma zainstalować: drobne zmiany i poprawki → patch (0.8.0 → 0.8.1), nowa funkcja albo etap → minor (0.8.x → 0.9.0). Bez tego panel pokazuje „dostępne zmiany” przy tym samym numerze wersji.
 - Fixtures `backend/tests/fixtures/*.snmprec` to zanonimizowane zrzuty z prawdziwych urządzeń
@@ -76,7 +81,7 @@ zapisuje do TimescaleDB. Port idzie za nazwą (`ifName`), nie numerem: przesuni�
 przenosi wiersz `interfaces` (`netpulse/ifindex.py`, od 0.65.7), port, którego numer zajął inny, dostaje `if_index = -id`.
 
 Schemat bazy zmieniają **migracje Alembic** (od 0.10.0; `backend/netpulse/db/migrations/`, opis:
-`docs/13-migracje-bazy.md`). `init_db` (kolektor przy starcie, `netpulse db init`) wykonuje `upgrade head` pod blokadą
+`docs/13-migracje-bazy.md`). `init_db` (kolektor przy starcie, `uplinkview db init`) wykonuje `upgrade head` pod blokadą
 w jednej transakcji, potem zakłada hypertables. Każda zmiana w `models.py` = nowa migracja (`--rev-id 0002`, …);
 brak migracji wyłapie `test_migrations.py::test_fresh_db_matches_models`. Nowa hypertable = indeks (obiekt, `time`) – klucz główny zaczyna się od czasu (0017, 0.65.4).
 Od 0.67.0 kompresja chunków starszych niż 7 dni (`netpulse/compression.py`, zakłada `init_db`; `NETPULSE_COMPRESS_AFTER_DAYS`, 0 = wyłączona):
@@ -96,9 +101,9 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 ## Plan prac
 
 1. ✅ Inwentaryzacja i test SNMP
-2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`, `netpulse update`
+2. ✅ Szkielet projektu – struktura, Docker Compose, baza, `install.sh`, `uplinkview update`
 3. ✅ Kolektor SNMP – driver generyczny IF-MIB + UniFi, zapis metryk (+ wstępne API tylko do odczytu)
-4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
+4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `uplinkview user passwd`)
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
    5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
    5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – wykresy kołowe (od 0.40.0), a od 0.45.0 także bieżący ruch WAN, nagłówki wykresów, tabele i paski portów oraz CPU/RAM urządzeń SNMP, od 0.72.0 strona urządzenia i portu, mapa sieci i VPN (WebSocket `/api/live/device`, co ~1,5 s; jeden wspólny kanał `lib/liveHub.ts`, przełącznik „Na żywo” w pasku górnym; historia dalej co 30 s; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
@@ -109,12 +114,12 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 7. ✅ Topologia LLDP – mapa sieci (od 0.35.0 obciążenie i prędkość kabli, przybliżanie; opis: `docs/22-wykresy.md`)
 8. ✅ Alerty (8a silnik, 8b panel, reguły dysku i błędów portów, powiadomienia: webhook/Telegram, od 0.25.0 ntfy i e-mail (SMTP), ciche godziny z podsumowaniem po ciszy, grupowanie po topologii LLDP; opis: `docs/21-powiadomienia.md`) – port down, przeciążenie, urządzenie offline; reguły z progami (ruch, błędy, CPU/RAM, dysk), lista i historia w panelu, dzwonek w pasku górnym (opis w `docs/06-projekt-panelu.md`, backlog)
 9. SNMP v3 ✅ (testowane klientem pysnmp kontra snmpsim w CI), MikroTik i Omada: drivery SNMP gotowe, ale na zrzutach syntetycznych – czekają na prawdziwe zrzuty (opis: `docs/12-mikrotik-omada-snmp.md`); API kontrolera Omada i RouterOS dalej do zrobienia
-10. Serwery Linux – etap A ✅ SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B ✅ (0.11.0) własny agent: push z tokenem (`api/agents.py`), jeden plik Pythona `backend/netpulse/agent/netpulse_agent.py` + `install.sh` serwowane przez API, systemd, Docker, SMART, ogólna tabela `metrics` (migracja 0002), Ustawienia → Agenci. Opis: `docs/14-agent-linux.md`. Alerty z agenta ✅ (0.12.0: kontener, usługa, SMART, temperatura; pole `alert_rules.match`, migracja 0003); wykresy z `metrics` ✅ (0.13.0, źródła `agent_*` w edytorze wykresu); strona szczegółów serwera `/devices/<id>/server` i ostrzeżenie „agent starszy niż NetPulse” ✅ (0.24.0)
+10. Serwery Linux – etap A ✅ SNMP (`snmpd`, driver `linux`, dyski, karta serwera), etap B ✅ (0.11.0) własny agent: push z tokenem (`api/agents.py`), jeden plik Pythona `backend/netpulse/agent/netpulse_agent.py` + `install.sh` serwowane przez API, systemd, Docker, SMART, ogólna tabela `metrics` (migracja 0002), Ustawienia → Agenci. Opis: `docs/14-agent-linux.md`. Alerty z agenta ✅ (0.12.0: kontener, usługa, SMART, temperatura; pole `alert_rules.match`, migracja 0003); wykresy z `metrics` ✅ (0.13.0, źródła `agent_*` w edytorze wykresu); strona szczegółów serwera `/devices/<id>/server` i ostrzeżenie „agent starszy niż UplinkView” ✅ (0.24.0)
 
 ## Kopie zapasowe
 
-Od 0.14.0: Ustawienia → Kopia zapasowa (utworzenie, pobranie, wgranie z komputera od 0.16.0, przywrócenie z kopią bezpieczeństwa) i `netpulse backup`;
-`netpulse update` robi kopię przed zmianą kodu. Od 0.43.3 `netpulse backup` działa bez sudo dla użytkownika z grupy `docker`
+Od 0.14.0: Ustawienia → Kopia zapasowa (utworzenie, pobranie, wgranie z komputera od 0.16.0, przywrócenie z kopią bezpieczeństwa) i `uplinkview backup`;
+`uplinkview update` robi kopię przed zmianą kodu. Od 0.43.3 `uplinkview backup` działa bez sudo dla użytkownika z grupy `docker`
 (zleca kopię usłudze updater, jak panel). Wykonuje je updater (`updater/netpulse_updater/backups.py`), opis: `docs/15-kopia-zapasowa.md`.
 
 ## Szyfrowanie sekretów
@@ -168,7 +173,7 @@ ok. ±20 %. `Collector(peaks=None)` w testach działa jak dotąd. Opis: `docs/42
 ## Zgodność z UniFi (0.71.0)
 
 Wykresy ruchu mają się zgadzać z UCG Ultra 1:1 (wymaganie użytkownika). UniFi trzyma historię w kubełkach 5 min / 1 h
-(bajty; dla WAN też najwyższa chwilowa prędkość), wykres UniFi rysuje średnią z kubełka. NetPulse od 0.71.0: odczyty kolektora
+(bajty; dla WAN też najwyższa chwilowa prędkość), wykres UniFi rysuje średnią z kubełka. UplinkView od 0.71.0: odczyty kolektora
 równo o :00/:30 (`rates.wait_for_slot`), czas próbki = środek jej przedziału (`rates.sample_times`, `collector.spread`),
 kubełki wykresów z drabinki `aggregates.RAW_BUCKETS_S` (24 h = 5 min, 7 dni = 1 h; w panelu `bucketSeconds` – **zmiana tylko
 w obu miejscach**), szczyt WAN w dymku obok średniej (`PanelLine.peaks`), niemożliwa szybkość w jednym kierunku odrzuca próbkę.
@@ -271,8 +276,8 @@ Proxy kompresuje odpowiedzi (gzip w `deploy/proxy/nginx.conf`). API pamięta spr
 
 Kontener `proxy` (nginx, `deploy/proxy/`) przyjmuje `NETPULSE_PORT` (HTTP, jak dotąd) i `NETPULSE_HTTPS_PORT` (8443);
 **API nie ma już opublikowanego portu** (dlatego `NETPULSE_FORWARDED_ALLOW_IPS="*"` – adres klienta z `X-Forwarded-For`).
-Certyfikat lokalnego CA NetPulse wystawia i odnawia `deploy/proxy/tls.sh` w `<katalog>/deploy/tls` (adresy: `NETPULSE_TLS_NAMES`
-z instalatora/`netpulse update` – `np_tls_names` – oraz dopisane w panelu `request/names`; własny certyfikat w `custom/`).
+Certyfikat lokalnego CA UplinkView wystawia i odnawia `deploy/proxy/tls.sh` w `<katalog>/deploy/tls` (adresy: `NETPULSE_TLS_NAMES`
+z instalatora/`uplinkview update` – `np_tls_names` – oraz dopisane w panelu `request/names`; własny certyfikat w `custom/`).
 API: `netpulse/tls.py`, `api/tls.py` (`/api/system/tls`, `ca.pem`, `PUT names`), panel: `HttpsCard` w Ustawienia → System.
 Ciasteczko sesji: `netpulse_session` (HTTPS, Secure) i `netpulse_session_http` (HTTP) – jedna nazwa blokowała logowanie przez HTTP
 po HTTPS (0.65.5); token czytać przez `session_token()`, nie `request.cookies`.
@@ -291,7 +296,7 @@ TOTP (RFC 6238, `netpulse/totp.py`, bez biblioteki; QR z `segno`) i 10 jednorazo
 (migracja 0015, sekret w `SECRET_COLUMNS`). Login: bez kodu 401 `detail.code = "totp_required"`, zły kod `totp_invalid`
 (liczony do limitu logowań) – panel czyta `ApiError.code`. Każdy krok czasu działa raz (`totp_last_step`). Własne konto:
 `/api/auth/totp*` (wszystkie role, wpisy w `ROLE_RULES`), administrator: `reset_totp` w `PATCH /api/users/{id}`,
-serwer: `netpulse user 2fa-off <login>`. Opis: `docs/35-logowanie-dwuskladnikowe.md`.
+serwer: `uplinkview user 2fa-off <login>`. Opis: `docs/35-logowanie-dwuskladnikowe.md`.
 
 ## DNS i potwierdzenie danych (0.64.0)
 
@@ -317,8 +322,8 @@ login, hasło, kod 2FA), ekran ruchu WAN (`/api/wan/status`, `/api/dashboard/tra
 Od 0.2.0 widget „Ruch WAN” (Glance, `WanWidget.kt`; odświeżanie WorkManager co 15 min, przycisk ↻ i aplikacja – `WidgetData.kt`).
 0.1.0 sprawdzona przez użytkownika na telefonie (7.11.2026).
 Buduje GitHub Actions (`.github/workflows/android.yml`, lokalnie brak Javy/SDK), podpis kluczem z sekretów
-`NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `NetPulse-android-klucz/`), na `main` wydanie `android-v<wersja>`.
-Od 0.3.0 po angielsku albo po polsku według języka telefonu (`res/values`, `res/values-pl`). Wersja aplikacji (0.2.1 przyjmuje obie nazwy ciasteczka) osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
+`NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `UplinkView-android-klucz/`), na `main` wydanie `android-v<wersja>`.
+Od 0.3.0 po angielsku albo po polsku według języka telefonu (`res/values`, `res/values-pl`). Wersja aplikacji (0.2.1 przyjmuje obie nazwy ciasteczka, 0.4.0 = nazwa UplinkView) osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
 Android 12, instalacja ręczna (bez konta Google Play). Opis: `docs/38-aplikacja-android.md`.
 
 ## Wykresy (przebudowa w stylu Grafany)
@@ -399,5 +404,5 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
 - **API RouterOS i API kontrolera Omada** – robić dopiero z prawdziwym sprzętem (razem z weryfikacją MikroTika).
 - **Proxmox – reszta na prawdziwym sprzęcie** – PVE 9.2.24 (192.168.1.86, VM 100 + LXC 101, kopia LXC 101) działa;
   po 0.28.5 sprawdzić „ostatnia kopia” LXC 101 w panelu i alert „brak świeżej kopii” po 36 h bez nowej kopii.
-- **Wersja 0.9.0 na serwerze** – użytkownik jeszcze nie potwierdził `netpulse update` i działania: karta serwera
-  NetPulse, serwery Linux przez SNMP, reguły alertów dla dysku i błędów portów, powiadomienia webhookiem.
+- **Wersja 0.9.0 na serwerze** – użytkownik jeszcze nie potwierdził `uplinkview update` i działania: karta serwera
+  UplinkView, serwery Linux przez SNMP, reguły alertów dla dysku i błędów portów, powiadomienia webhookiem.

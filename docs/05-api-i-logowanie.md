@@ -1,6 +1,6 @@
 # API i logowanie
 
-API NetPulse działa pod `http://IP-serwera:PORT/api` (port z `NETPULSE_PORT` w `.env`,
+API UplinkView działa pod `http://IP-serwera:PORT/api` (port z `NETPULSE_PORT` w `.env`,
 domyślnie 8000). Interaktywna dokumentacja z możliwością wywoływania: `http://IP-serwera:PORT/docs`.
 
 ## Pierwsze konto (kreator)
@@ -37,10 +37,10 @@ Bezpieczeństwo:
 Na serwerze:
 
 ```bash
-netpulse user passwd admin
+uplinkview user passwd admin
 ```
 
-Pyta dwa razy o nowe hasło i wylogowuje wszystkie sesje tego konta. Lista kont: `netpulse user list`.
+Pyta dwa razy o nowe hasło i wylogowuje wszystkie sesje tego konta. Lista kont: `uplinkview user list`.
 
 ## Urządzenia
 

@@ -329,7 +329,7 @@ class WanSuggestionOut(BaseModel):
 
 @router.get("/suggestions", response_model=list[WanSuggestionOut])
 async def suggestions():
-    """Porty, które kontroler UniFi zna jako WAN bramy, a nie są ustawione jako łącza WAN w NetPulse."""
+    """Porty, które kontroler UniFi zna jako WAN bramy, a nie są ustawione jako łącza WAN w UplinkView."""
     if not await is_enabled("unifi"):
         return []
     async with Session() as session:

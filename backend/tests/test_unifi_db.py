@@ -170,7 +170,7 @@ def test_poll_saves_poe_clients_and_status(client):
             clients = (await s.scalars(select(NetworkClient))).all()
             assert len(clients) == 9
             tv = next(c for c in clients if c.is_wired and c.uplink_port == 7)
-            assert tv.uplink_device_id is not None  # port 7 switcha przypisany do urządzenia NetPulse
+            assert tv.uplink_device_id is not None  # port 7 switcha przypisany do urządzenia UplinkView
             wifi = [c for c in clients if not c.is_wired]
             assert all(c.uplink_device_id is not None and c.signal_dbm for c in wifi)
 
@@ -309,7 +309,7 @@ async def _drop_snmp_switch() -> None:
 def test_known_snmp_devices_are_not_duplicated(client):
     api = FakeApi()
     assert poll(api) is True
-    assert api.detail_calls == []  # wszystkie trzy urządzenia NetPulse zna z SNMP
+    assert api.detail_calls == []  # wszystkie trzy urządzenia UplinkView zna z SNMP
 
     async def check():
         async with Session() as s:

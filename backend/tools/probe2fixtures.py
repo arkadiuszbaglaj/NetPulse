@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Zrzut `unifi_probe.py` → małe fixtures testowe (stat/device i stat/sta).
 
-Zostawia tylko pola, których używa NetPulse; resztę (klucze, adresy adopcji, odciski SSH itp.) odrzuca.
+Zostawia tylko pola, których używa UplinkView; resztę (klucze, adresy adopcji, odciski SSH itp.) odrzuca.
 
 Użycie:
     python probe2fixtures.py unifi_probe_192.168.1.1.json tests/fixtures
@@ -39,7 +39,7 @@ def pick(obj: dict, keys: tuple[str, ...]) -> dict:
 
 
 def device_fixture(d: dict) -> dict:
-    """Jedno urządzenie ze `stat/device` – tylko pola, których używa NetPulse."""
+    """Jedno urządzenie ze `stat/device` – tylko pola, których używa UplinkView."""
     item = pick(d, DEVICE_KEYS)
     item["port_table"] = [pick(p, PORT_KEYS) for p in d.get("port_table", [])]
     if "ethernet_table" in d:

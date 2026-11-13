@@ -126,7 +126,7 @@ def test_monthly_report_json(client):
 def test_monthly_report_downloads(client):
     r = client.get(f"/api/reports/monthly.csv?month={MONTH}")
     assert r.status_code == 200
-    assert r.headers["content-disposition"] == f'attachment; filename="netpulse-raport-{MONTH}.csv"'
+    assert r.headers["content-disposition"] == f'attachment; filename="uplinkview-raport-{MONTH}.csv"'
     rows = list(csv.reader(io.StringIO(r.content.decode("utf-8-sig")), delimiter=";"))
     assert any(row[:4] == ["UCG Ultra", "192.168.1.1", "router", "95,000"] for row in rows)
 

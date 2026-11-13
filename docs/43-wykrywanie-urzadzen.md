@@ -21,7 +21,7 @@ ręcznie”) i Ustawienia → Urządzenia → **Wykryj w sieci** (bez urządzeń
 5. Rozpoznanie (`discovery.describe`): ten sam wybór drivera co w kolektorze (`detect_driver` po `sysObjectID`/`sysDescr`)
    i `enrich_system` drivera bez odczytu portów – model, firmware, rodzaj (router / switch / AP / serwer / inne).
    Na driverze ogólnym producent z numeru w `sysObjectID` (`ENTERPRISES`: Synology, HP, Cisco, QNAP…), net-snmp (8072)
-   nic nie mówi. Oznaczenia: „już w NetPulse” (adres jest w bazie), „podstawowa obsługa” (driver `generic`).
+   nic nie mówi. Oznaczenia: „już w UplinkView” (adres jest w bazie), „podstawowa obsługa” (driver `generic`).
 6. Panel zaznacza od razu nowy sprzęt sieciowy (driver UniFi / MikroTik / Omada albo rodzaj router/switch/AP), resztę
    (drukarki, NAS-y, telewizory) – tylko na życzenie. Nazwa = `sysName` (do zmiany w wierszu). „Dodaj zaznaczone” wysyła
    kolejno `POST /api/devices` z danymi SNMP skanu i `driver = "auto"` (jak formularz – z testem SNMP).
@@ -33,7 +33,7 @@ UCG-Ultra (router, UCG-Ultra 6.0.17), USW (switch), U6+ (AP, 6.7.54.15663) – d
 
 ## Część B – raport urządzenia
 
-Gdzie: strona urządzenia SNMP (administrator). Przy driverze `generic` karta „NetPulse zna to urządzenie tylko częściowo”
+Gdzie: strona urządzenia SNMP (administrator). Przy driverze `generic` karta „UplinkView zna to urządzenie tylko częściowo”
 z przyciskiem „Przygotuj raport”, przy pozostałych – dyskretny link na dole strony.
 
 `POST /api/devices/{id}/report?interval=30` (`netpulse/devreport.py`, bez zapisu, trwa ok. `interval` + odczyt):
@@ -68,7 +68,7 @@ Sprawdzone 13.11.2026 na UCG Ultra, USW Lite 8 PoE i U6+: 724 / 411 / 1234 warto
 w raportach 0 adresów 192.168.*, 0 prawdziwych MAC-ów, brak nazw urządzeń i SSID.
 
 W panelu: podgląd (gałęzie z liczbą wartości, pierwsze 400 wierszy zrzutu), pola „Model i wersja firmware” i „Uwagi”,
-**Pobierz raport** (`netpulse-report-<sysObjectID>-<data>.json` z uwagami) i **Zgłoś na GitHubie** – link do szablonu
+**Pobierz raport** (`uplinkview-report-<sysObjectID>-<data>.json` z uwagami) i **Zgłoś na GitHubie** – link do szablonu
 `.github/ISSUE_TEMPLATE/nowe-urzadzenie.yml` z wypełnionymi polami (model, sysObjectID, sysDescr, driver, wersja, uwagi);
 plik użytkownik dołącza sam (link ma limit długości).
 

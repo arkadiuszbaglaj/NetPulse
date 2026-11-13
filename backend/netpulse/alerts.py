@@ -59,9 +59,9 @@ METRICS: dict[str, tuple[str, str]] = {
     "wan_out_bps": ("Wysyłanie WAN", "b/s"),
     "disk_used_percent": ("Zajętość dysku (każda partycja serwera)", "%"),
     "port_errors": ("Błędy na porcie (w jednym cyklu odczytu)", ""),
-    "system_cpu_percent": ("Serwer NetPulse: CPU", "%"),
-    "system_mem_used_percent": ("Serwer NetPulse: RAM", "%"),
-    "system_disk_used_percent": ("Serwer NetPulse: dysk", "%"),
+    "system_cpu_percent": ("Serwer UplinkView: CPU", "%"),
+    "system_mem_used_percent": ("Serwer UplinkView: RAM", "%"),
+    "system_disk_used_percent": ("Serwer UplinkView: dysk", "%"),
     "temp_c": ("Temperatura (każdy czujnik: serwer z agentem, MikroTik)", "°C"),
     "sfp_rx_dbm": ("SFP: moc odbierana (każdy moduł SFP: MikroTik, switche TP-Link)", " dBm"),
     "smart_reallocated": ("SMART: realokowane sektory (każdy dysk serwera z agentem)", ""),
@@ -73,7 +73,7 @@ METRICS: dict[str, tuple[str, str]] = {
 DEVICE_METRICS = ("cpu_percent", "mem_used_percent", "load1")
 DISK_METRICS = ("disk_used_percent",)
 PORT_METRICS = ("port_errors",)
-# Metryki serwera, na którym działa NetPulse → kolumna w `system_metrics`
+# Metryki serwera, na którym działa UplinkView → kolumna w `system_metrics`
 SYSTEM_METRICS = {
     "system_cpu_percent": "cpu_percent",
     "system_mem_used_percent": "mem_used_percent",
@@ -89,7 +89,7 @@ AGENT_METRIC_WHAT = {
     "backup_age_h": "ostatnia kopia",
     "sfp_rx_dbm": "SFP moc odbierana",
 }
-# Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer NetPulse) są globalne
+# Można je zawęzić do jednego urządzenia; pozostałe (WAN, serwer UplinkView) są globalne
 PER_DEVICE_METRICS = DEVICE_METRICS + DISK_METRICS + PORT_METRICS + tuple(AGENT_METRICS)
 # Sprawdzenia dostępności (od 0.30.0): metryka reguły → kolumna `check_metrics`; alert na każde sprawdzenie
 CHECK_METRICS = {"check_latency_ms": "latency_ms", "check_loss_percent": "loss_percent", "check_cert_days": "cert_days"}
@@ -142,7 +142,7 @@ DEFAULT_RULE_SETS = (
 DEFAULTS_KEY = "alert_defaults"
 DEFAULT_COMMUNITY_HINT = (
     "Community „public” albo „private” zna każdy – każdy w sieci może odczytać to urządzenie. "
-    "Ustaw na urządzeniu własne community (albo SNMPv3) i wpisz je w NetPulse: Ustawienia → Urządzenia."
+    "Ustaw na urządzeniu własne community (albo SNMPv3) i wpisz je w UplinkView: Ustawienia → Urządzenia."
 )
 
 
@@ -728,7 +728,7 @@ class AlertEngine:
         return hits
 
     async def _system(self, session, rule: AlertRule, since: datetime, now: datetime) -> list[Hit]:
-        """Serwer, na którym działa NetPulse (CPU, RAM, dysk): jeden alert na regułę."""
+        """Serwer, na którym działa UplinkView (CPU, RAM, dysk): jeden alert na regułę."""
         metric, op, threshold = rule.metric, rule.op, float(rule.threshold)
         column = getattr(SystemMetric, SYSTEM_METRICS[metric])
         rows = (await session.execute(select(SystemMetric.time, column).where(SystemMetric.time >= since).order_by(SystemMetric.time))).all()
@@ -793,7 +793,7 @@ class AlertEngine:
 
     @staticmethod
     def _state_detail(rule: AlertRule) -> str:
-        text = f"Stan z agenta NetPulse od {rule.duration_s // 60} min" if rule.duration_s >= 60 else "Stan z agenta NetPulse"
+        text = f"Stan z agenta UplinkView od {rule.duration_s // 60} min" if rule.duration_s >= 60 else "Stan z agenta UplinkView"
         return f"{text} (filtr: {rule.match})" if rule.match else text
 
     @staticmethod

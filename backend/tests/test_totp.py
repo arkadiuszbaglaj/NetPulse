@@ -38,9 +38,9 @@ def test_new_secret_and_uri():
     assert totp.code_at(secret, 1).isdigit()
     uri = totp.otpauth_uri(secret, "jan kowalski")
     parts = urlsplit(uri)
-    assert parts.scheme == "otpauth" and parts.netloc == "totp" and parts.path == "/NetPulse%3Ajan%20kowalski"
+    assert parts.scheme == "otpauth" and parts.netloc == "totp" and parts.path == "/UplinkView%3Ajan%20kowalski"
     q = parse_qs(parts.query)
-    assert q["secret"] == [secret] and q["issuer"] == ["NetPulse"] and q["digits"] == ["6"] and q["period"] == ["30"]
+    assert q["secret"] == [secret] and q["issuer"] == ["UplinkView"] and q["digits"] == ["6"] and q["period"] == ["30"]
     assert totp.qr_svg(uri).startswith("<svg")
 
 

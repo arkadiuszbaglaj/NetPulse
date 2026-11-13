@@ -1,13 +1,13 @@
-"""Linia poleceń NetPulse.
+"""Linia poleceń UplinkView.
 
-    netpulse probe 192.168.1.1 --community public   # test urządzenia bez zapisu
-    netpulse device add "UCG Ultra" 192.168.1.1     # dodanie urządzenia
-    netpulse device list
-    netpulse device remove 3
-    netpulse user list                               # konta panelu
-    netpulse user passwd admin                       # nowe hasło (np. zapomniane)
-    netpulse user 2fa-off admin                      # wyłącz logowanie dwuskładnikowe (zgubiony telefon)
-    netpulse db init
+    uplinkview probe 192.168.1.1 --community public   # test urządzenia bez zapisu
+    uplinkview device add "UCG Ultra" 192.168.1.1     # dodanie urządzenia
+    uplinkview device list
+    uplinkview device remove 3
+    uplinkview user list                               # konta panelu
+    uplinkview user passwd admin                       # nowe hasło (np. zapomniane)
+    uplinkview user 2fa-off admin                      # wyłącz logowanie dwuskładnikowe (zgubiony telefon)
+    uplinkview db init
     netpulse collector                               # usługa kolektora
     netpulse api                                     # usługa API
 """
@@ -188,7 +188,7 @@ def cmd_device_list(args) -> int:
         async with Session() as session:
             devices = (await session.scalars(select(Device).order_by(Device.id))).all()
         if not devices:
-            print("Brak urządzeń. Dodaj: netpulse device add NAZWA IP --community public")
+            print("Brak urządzeń. Dodaj: uplinkview device add NAZWA IP --community public")
             return 0
         print(f"  {'id':>3}  {'Nazwa':<20} {'Adres':<16} {'Typ':<8} {'Model':<14} {'Status':<7} Ostatni odczyt")
         for d in devices:
@@ -247,7 +247,7 @@ def cmd_user_list(args) -> int:
         async with Session() as session:
             users = (await session.scalars(select(User).order_by(User.id))).all()
         if not users:
-            print("Brak kont – załóż konto administratora w panelu (kreator) albo: netpulse user add NAZWA")
+            print("Brak kont – załóż konto administratora w panelu (kreator) albo: uplinkview user add NAZWA")
             return 0
         print(f"  {'id':>3}  {'Login':<20} {'Rola':<9} {'2FA':<4} Ostatnie logowanie")
         for u in users:
@@ -276,7 +276,7 @@ def cmd_user_add(args) -> int:
         await init_db()
         async with Session() as session, session.begin():
             if await session.scalar(select(User).where(User.username == args.username)):
-                print(f"Konto {args.username} już istnieje (zmiana hasła: netpulse user passwd).", file=sys.stderr)
+                print(f"Konto {args.username} już istnieje (zmiana hasła: uplinkview user passwd).", file=sys.stderr)
                 return 1
             user = User(username=args.username, password_hash=hash_password(password))
             user.set_role(getattr(args, "role", None) or "admin")
@@ -299,7 +299,7 @@ def cmd_user_passwd(args) -> int:
         async with Session() as session, session.begin():
             user = await session.scalar(select(User).where(User.username == args.username))
             if user is None:
-                print(f"Nie ma konta {args.username} (lista: netpulse user list).", file=sys.stderr)
+                print(f"Nie ma konta {args.username} (lista: uplinkview user list).", file=sys.stderr)
                 return 1
             password = _read_password(args)  # pytanie o hasło dopiero, gdy konto istnieje
             if password is None:
@@ -323,7 +323,7 @@ def cmd_user_2fa_off(args) -> int:
         async with Session() as session, session.begin():
             user = await session.scalar(select(User).where(User.username == args.username))
             if user is None:
-                print(f"Nie ma konta {args.username} (lista: netpulse user list).", file=sys.stderr)
+                print(f"Nie ma konta {args.username} (lista: uplinkview user list).", file=sys.stderr)
                 return 1
             was = user.totp_enabled
             clear_totp(user)
@@ -359,7 +359,7 @@ def cmd_db_status(args) -> int:
     print(f"Wersja schematu bazy: {current or 'brak (baza sprzed migracji albo pusta)'}")
     print(f"Najnowsza wersja schematu: {head}")
     if current != head:
-        print("Schemat zostanie zaktualizowany przy starcie kolektora (albo: netpulse db init).")
+        print("Schemat zostanie zaktualizowany przy starcie kolektora (albo: uplinkview db init).")
     return 0
 
 
@@ -384,8 +384,8 @@ def cmd_api(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="netpulse", description="NetPulse – monitoring sieci")
-    parser.add_argument("--version", action="version", version=f"NetPulse {__version__}")
+    parser = argparse.ArgumentParser(prog="uplinkview", description="UplinkView – monitoring sieci")
+    parser.add_argument("--version", action="version", version=f"UplinkView {__version__}")
     parser.add_argument("-v", "--verbose", action="store_true")
     sub = parser.add_subparsers(dest="command", required=True)
 

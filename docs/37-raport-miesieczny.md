@@ -23,7 +23,7 @@ Miesiąc liczony jest w strefie czasowej instalacji (`TZ`). Ruch WAN to średnia
 ## Formaty
 
 - **CSV**: średnik, przecinek dziesiętny, UTF-8 z BOM (Excel po polsku otwiera bez importu). Jeden plik, sekcje
-  oddzielone pustym wierszem, każda z nagłówkiem. Nazwa: `netpulse-raport-RRRR-MM.csv`.
+  oddzielone pustym wierszem, każda z nagłówkiem. Nazwa: `uplinkview-raport-RRRR-MM.csv`.
 - **PDF**: `fpdf2`, czcionka DejaVu z obrazu (`fonts-dejavu-core` w `backend/Dockerfile`; własna: `NETPULSE_REPORT_FONT`
   i `NETPULSE_REPORT_FONT_BOLD`). Bez czcionki TTF raport powstaje Helvetiką bez polskich znaków.
 

@@ -1,7 +1,7 @@
 """Proxmox VE: serwery (token API), maszyny VM/LXC, magazyny i stan kopii zapasowych.
 
 Zmiany serwerów może robić tylko administrator; odczyt – każdy zalogowany. Sekret tokenu nie wraca z API.
-Odczyt danych z Proxmoxa: proxmox_collector.py (węzły stają się urządzeniami NetPulse).
+Odczyt danych z Proxmoxa: proxmox_collector.py (węzły stają się urządzeniami UplinkView).
 """
 
 from __future__ import annotations

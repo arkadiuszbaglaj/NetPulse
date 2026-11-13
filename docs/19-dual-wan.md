@@ -2,7 +2,7 @@
 
 Router może mieć dwa (lub więcej) łącza do internetu, np. światłowód jako łącze główne i LTE jako zapasowe.
 W trybie **failover** ruch idzie łączem głównym, a gdy ono padnie, router przełącza go na zapasowe.
-NetPulse pokazuje, które łącze działa, którym idzie teraz ruch, kiedy nastąpiło przełączenie i jaka jest
+UplinkView pokazuje, które łącze działa, którym idzie teraz ruch, kiedy nastąpiło przełączenie i jaka jest
 dostępność (SLA) każdego łącza.
 
 ## Co jest w panelu
@@ -19,26 +19,26 @@ Widgety dodaje się jak inne: Dashboard → Edytuj pulpit → Dodaj widget. W us
 
 ## Konfiguracja: które porty są WAN 1 i WAN 2
 
-1. Port, który driver rozpoznaje jako WAN (na UCG Ultra `eth4`), NetPulse dodaje sam jako **WAN 1** przy pierwszym
+1. Port, który driver rozpoznaje jako WAN (na UCG Ultra `eth4`), UplinkView dodaje sam jako **WAN 1** przy pierwszym
    odczycie routera.
 2. Drugie łącze dodajesz w **Ustawienia → Łącza WAN → Dodaj łącze**: router, port (np. `LAN 4 (eth3)`, jeśli ten port
    ustawiłeś w UniFi jako WAN 2) i nazwa (np. „LTE”). Strzałkami ustawiasz kolejność, potem **Zapisz**.
-3. Port ustawiony jako łącze WAN dostaje w NetPulse rolę WAN. Jego ruch wlicza się do kafelków i wykresu ruchu WAN,
+3. Port ustawiony jako łącze WAN dostaje w UplinkView rolę WAN. Jego ruch wlicza się do kafelków i wykresu ruchu WAN,
    trybu „Na żywo” i alertów progowych WAN, a na liście portów ma nazwę łącza.
-4. Od pierwszego zapisu w panelu NetPulse nie dodaje już sam portów WAN, bo możesz celowo usunąć któryś port z listy.
+4. Od pierwszego zapisu w panelu UplinkView nie dodaje już sam portów WAN, bo możesz celowo usunąć któryś port z listy.
    Usunięcie łącza kasuje jego historię i SLA.
 
 **Podpowiedź z kontrolera (od 0.47.0).** Gdy kontroler UniFi zgłasza łącze WAN bramy, którego nie ma na liście
 (np. nowo podłączony internet mobilny ustawiony w UniFi jako WAN 2 na porcie 4), na stronie Łącza WAN pojawia się
 podpowiedź z numerem łącza w UniFi, portem i stanem oraz przyciskiem **Dodaj**. Port trafia na listę; potem sprawdź
-kolejność i kliknij **Zapisz**. NetPulse zapamiętuje porty WAN zgłoszone przez kontroler (`app_settings`, klucz
+kolejność i kliknij **Zapisz**. UplinkView zapamiętuje porty WAN zgłoszone przez kontroler (`app_settings`, klucz
 `wan_detected:<id routera>`), API: `GET /api/wan/suggestions`.
 
 Zmiany zapisuje tylko administrator. Stan łączy odświeża się w następnym cyklu kolektora (co 30 s).
 
 ## Skąd wiadomo, że łącze działa i że jest aktywne
 
-Co cykl kolektora (30 s) NetPulse ustala dla każdego łącza dwie rzeczy.
+Co cykl kolektora (30 s) UplinkView ustala dla każdego łącza dwie rzeczy.
 
 **Sprawne (up).** Port ma link (`ifOperStatus` = up z SNMP), a kontroler UniFi, jeśli coś o łączu wie, nie zgłasza
 awarii. UniFi sprawdza też, czy przez łącze jest internet, więc wykrywa awarię u operatora nawet wtedy, gdy kabel
@@ -47,8 +47,8 @@ jest podłączony i link jest „up”.
 **W użyciu (active)** – którym łączem idzie ruch. Źródła informacji, od najważniejszego:
 
 1. **Kontroler UniFi** (moduł UniFi włączony i kontroler dodany w Ustawienia → Kontrolery UniFi). Z `stat/device`
-   bramy NetPulse czyta pola `wan1`/`wan2` (czy łącze działa), `uplink` (interfejs, którym idzie teraz ruch) i porty
-   oznaczone `is_uplink`. Ta informacja jest ważna przez 90 s, potem NetPulse przechodzi na metodę 2.
+   bramy UplinkView czyta pola `wan1`/`wan2` (czy łącze działa), `uplink` (interfejs, którym idzie teraz ruch) i porty
+   oznaczone `is_uplink`. Ta informacja jest ważna przez 90 s, potem UplinkView przechodzi na metodę 2.
 2. **Ruch z SNMP** (zawsze dostępny). Jeśli sprawne jest tylko jedno łącze, to ono jest aktywne, nawet nocą bez ruchu.
    Jeśli sprawne są oba, aktywne jest to, którym idzie ruch: łącze zapasowe w trybie failover przenosi tylko małe
    pakiety kontrolne. Za aktywne uznawane jest łącze z ruchem od 50 kb/s i co najmniej 20% ruchu najbardziej
@@ -81,7 +81,7 @@ Historia jest trzymana tak długo jak inne metryki (`NETPULSE_RETENTION_DAYS`, d
 
 ## Pingi łączy i kolor łącza zapasowego (0.55.0)
 
-**Pingi każdego łącza, także zapasowego.** Serwer NetPulse nie może sam pingować przez łącze zapasowe (ruch idzie
+**Pingi każdego łącza, także zapasowego.** Serwer UplinkView nie może sam pingować przez łącze zapasowe (ruch idzie
 łączem aktywnym), więc pingi mierzy brama UniFi. W `stat/device` każda brama podaje dla każdego WAN-u opóźnienie
 (`wan1.latency`, `wan2.latency`), dostępność (`availability`) i wyniki pingów do serwerów monitorujących
 (`uptime_stats.WAN`/`WAN2.monitors`, typ `icmp`, np. `google.com`, `1.1.1.1`). Kolektor UniFi zapisuje je co cykl
@@ -128,7 +128,7 @@ publiczny przepuszcza `/api/wan/history`, gdy jakiś wykres ma tę opcję.
 ## Stan
 
 **Sprawdzone na prawdziwym sprzęcie 11.11.2026 (0.65.9):** UCG Ultra z UniFi OS 6.0.17, WAN 1 = `eth4`, internet
-mobilny jako WAN 2 („GSM”) na `eth3`, kontroler z kluczem API; dwie instancje NetPulse naraz (serwer lokalny i VPS).
+mobilny jako WAN 2 („GSM”) na `eth3`, kontroler z kluczem API; dwie instancje UplinkView naraz (serwer lokalny i VPS).
 
 - Awaria WAN 1 (kabel wyjęty na 27 min): przełączenie na GSM w pierwszym cyklu (≤ 30 s), alerty „Port WAN wyłączony”
   i „Przełączenie WAN: WAN 1 → GSM”, ruch zapisany na GSM bez przerw.

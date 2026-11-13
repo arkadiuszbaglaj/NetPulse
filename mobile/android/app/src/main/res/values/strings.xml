@@ -2,11 +2,11 @@
 <!-- Teksty aplikacji (od 0.3.0). values/ = angielski (każdy język telefonu poza polskim), values-pl/ = polski.
      Nowy tekst = wpis w obu plikach. -->
 <resources>
-    <string name="app_name">NetPulse</string>
+    <string name="app_name">UplinkView</string>
     <string name="widget_name">WAN traffic</string>
     <string name="widget_description">Download and upload on the WAN link</string>
 
-    <string name="login_intro">Sign in to your NetPulse server.</string>
+    <string name="login_intro">Sign in to your UplinkView server.</string>
     <string name="login_address">Server address</string>
     <string name="login_address_hint">No port = :8000. You can enter a full address, e.g. https://…:8443</string>
     <string name="login_username">Username</string>
@@ -44,6 +44,6 @@
     <string name="error_no_address">No server address</string>
     <string name="error_connection">No connection to the server (%1$s)</string>
     <string name="error_status">Error %1$d</string>
-    <string name="error_not_netpulse">This does not look like a NetPulse server (404)</string>
+    <string name="error_not_netpulse">This does not look like a UplinkView server (404)</string>
     <string name="error_server">Server error (%1$d)</string>
 </resources>

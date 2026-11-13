@@ -93,7 +93,7 @@ async def ensure(engine: AsyncEngine, raw_days: int, keep_days: int) -> list[str
     Nowy widok od razu dostaje dane z całej zachowanej historii – zanim dostanie zasadę odświeżania, bo zadanie
     TimescaleDB rusza zaraz po jej dodaniu i dwa odświeżenia naraz się blokują. Okno odświeżania jest krótsze niż
     retencja surowych danych – inaczej odświeżenie po usunięciu starych chunków skasowałoby też ich agregaty.
-    Błąd agregatu nie zatrzymuje startu: wykresy z ostatnich 7 dni i reszta NetPulse działają bez niego."""
+    Błąd agregatu nie zatrzymuje startu: wykresy z ostatnich 7 dni i reszta UplinkView działają bez niego."""
     refresh_days = max(1, min(7, raw_days - 1))
     created: list[str] = []
     async with engine.connect() as base:

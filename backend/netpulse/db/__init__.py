@@ -141,9 +141,9 @@ async def init_db(retention_days: int | None = None) -> bool:
         if missing:
             details = "; ".join(f"{t}: {', '.join(cols)}" for t, cols in missing.items())
             raise SchemaMismatchError(
-                "Baza danych pochodzi ze starszej, niezgodnej wersji NetPulse "
+                "Baza danych pochodzi ze starszej, niezgodnej wersji UplinkView "
                 f"(brakujące kolumny – {details}).\n"
-                "Jeśli nie potrzebujesz zapisanej historii, wyczyść bazę poleceniem: netpulse reset"
+                "Jeśli nie potrzebujesz zapisanej historii, wyczyść bazę poleceniem: uplinkview reset"
             )
         await encrypt_existing(conn)
         timescale = await has_timescale(conn)

@@ -1,4 +1,4 @@
-// Atrapa API NetPulse do rozwoju panelu bez bazy i urządzeń:
+// Atrapa API UplinkView do rozwoju panelu bez bazy i urządzeń:
 //   npm run mock   (port 8000)   +   npm run dev   (port 5173, proxy /api → 8000)
 // Dane są w pamięci i znikają po restarcie. Pierwsze konto zakłada kreator, jak w prawdziwym API.
 import { createServer } from "node:http";
@@ -270,7 +270,7 @@ createServer(async (req, res) => {
           current: { version: installed, commit: "abc1234" }, latest: { version: NEXT_VERSION, commit: "def5678" }, behind: 3, ahead: 0, diverged: false, update_available: true, checked_at: now(),
           changes: [
             { sha: "def5678", subject: "Etap 5d: aktualizacja jednym kliknięciem" },
-            { sha: "b0c1d2e", subject: "Kontrola miejsca na dysku w install.sh i netpulse update" },
+            { sha: "b0c1d2e", subject: "Kontrola miejsca na dysku w install.sh i uplinkview update" },
             { sha: "9a8b7c6", subject: "Etap 5c: ustawienia – zarządzanie urządzeniami z panelu" },
           ],
         };
@@ -547,4 +547,4 @@ createServer(async (req, res) => {
     socket.on("close", () => clearInterval(timer));
     socket.on("error", () => clearInterval(timer));
   })
-  .listen(PORT, "127.0.0.1", () => console.log(`Atrapa API NetPulse: http://127.0.0.1:${PORT}`));
+  .listen(PORT, "127.0.0.1", () => console.log(`Atrapa API UplinkView: http://127.0.0.1:${PORT}`));

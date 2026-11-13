@@ -58,7 +58,7 @@ class CheckSource(Strict):
 
 
 class ServerSource(Strict):
-    kind: Literal["server"]  # serwer, na którym działa NetPulse
+    kind: Literal["server"]  # serwer, na którym działa UplinkView
 
 
 class AgentSource(Strict):
@@ -440,7 +440,7 @@ class VpnConfig(Strict):
 
 
 class ServerConfig(Strict):
-    pass  # karta stanu serwera NetPulse nie ma ustawień
+    pass  # karta stanu serwera UplinkView nie ma ustawień
 
 
 class PoeConfig(Strict):

@@ -1,7 +1,7 @@
 import { IconTerminal2 } from "@tabler/icons-react";
 import { t } from "../../i18n";
 
-export const UPDATE_COMMAND = "netpulse update";
+export const UPDATE_COMMAND = "uplinkview update";
 
 /**
  * Blok informacyjny na stronie Ustawienia → Aktualizacja: aktualizację można też wykonać

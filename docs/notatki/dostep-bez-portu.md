@@ -1,7 +1,7 @@
 # Notatka: dostęp do panelu bez numeru portu
 
-Pytanie: czy da się wchodzić do NetPulse bez wpisywania `IP-serwera:8080`? Odpowiedź: tak, a całą
-konfigurację robi się na serwerze, w jednym pliku `/opt/netpulse/deploy/.env`.
+Pytanie: czy da się wchodzić do UplinkView bez wpisywania `IP-serwera:8080`? Odpowiedź: tak, a całą
+konfigurację robi się na serwerze, w jednym pliku `/opt/uplinkview/deploy/.env`.
 (Notatka robocza, nie jest jeszcze częścią dokumentacji użytkownika.)
 
 ## 1. Port 80 → `http://IP-serwera`
@@ -17,11 +17,11 @@ sudo ss -ltn 'sport = :80'
 Ustaw port i zastosuj zmianę:
 
 ```bash
-sudo sed -i 's/^NETPULSE_PORT=.*/NETPULSE_PORT=80/' /opt/netpulse/deploy/.env
-netpulse start
+sudo sed -i 's/^NETPULSE_PORT=.*/NETPULSE_PORT=80/' /opt/uplinkview/deploy/.env
+uplinkview start
 ```
 
-- Samo `netpulse restart` **nie wystarczy**, bo nie odtwarza kontenera z nowym portem. Robi to `netpulse start`.
+- Samo `uplinkview restart` **nie wystarczy**, bo nie odtwarza kontenera z nowym portem. Robi to `uplinkview start`.
 - Dane, konto i urządzenia zostają. Stare zakładki z `:8080` przestaną działać.
 - Powrót: ta sama komenda z `8080`.
 
@@ -36,13 +36,13 @@ Port 80 + nazwa = samo `http://netpulse.lan`.
 
 ## 3. HTTPS z ładnym adresem (reverse proxy)
 
-Przed NetPulse stoi proxy (np. Caddy) na portach 80 i 443, a NetPulse zostaje na porcie wewnętrznym.
+Przed UplinkView stoi proxy (np. Caddy) na portach 80 i 443, a UplinkView zostaje na porcie wewnętrznym.
 
 - Certyfikat: wewnętrzny urząd Caddy (trzeba go raz zaufać na każdym urządzeniu) albo Let's Encrypt,
   jeśli jest własna domena wskazująca na adres w LAN.
-- W `.env` dopisz `NETPULSE_TRUSTED_ORIGINS=https://twoja-nazwa` i uruchom `netpulse start`.
+- W `.env` dopisz `NETPULSE_TRUSTED_ORIGINS=https://twoja-nazwa` i uruchom `uplinkview start`.
   Bez tego ochrona CSRF odrzuci logowanie i zmiany przez proxy.
-- Gdy proxy stoi na innym hoście niż NetPulse, ciasteczko sesji może nie dostać flagi `Secure`
+- Gdy proxy stoi na innym hoście niż UplinkView, ciasteczko sesji może nie dostać flagi `Secure`
   (uvicorn domyślnie ufa nagłówkom `X-Forwarded-*` tylko z 127.0.0.1). Trzeba to ustawić świadomie.
 - Nie wystawiaj panelu do internetu bez VPN albo porządnie skonfigurowanego HTTPS.
 

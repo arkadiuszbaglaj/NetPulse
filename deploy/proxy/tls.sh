@@ -1,8 +1,8 @@
 #!/bin/sh
-# Certyfikat HTTPS panelu NetPulse (od 0.62.0) i start nginx.
+# Certyfikat HTTPS panelu UplinkView (od 0.62.0) i start nginx.
 #
 # Katalog /tls (na serwerze: <katalog instalacji>/deploy/tls):
-#   ca.pem, ca-key.pem          lokalne CA NetPulse (10 lat) – ca.pem można zaimportować do przeglądarki/systemu
+#   ca.pem, ca-key.pem          lokalne CA UplinkView (10 lat) – ca.pem można zaimportować do przeglądarki/systemu
 #   server.pem, server-key.pem  certyfikat panelu podpisany przez to CA (397 dni, odnawiany 30 dni przed końcem)
 #   names.active                adresy w bieżącym certyfikacie
 #   request/names               adresy dopisane w panelu (Ustawienia → System → HTTPS) – zapisuje je API
@@ -40,11 +40,11 @@ wanted_names() {
 
 ensure_ca() {
   [ -s "$TLS/ca.pem" ] && [ -s "$TLS/ca-key.pem" ] && return 0
-  log "tworzę lokalne CA NetPulse"
+  log "tworzę lokalne CA UplinkView"
   suffix=$(openssl rand -hex 4)
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -sha256 -days 3650 \
     -keyout "$TLS/ca-key.pem.tmp" -out "$TLS/ca.pem.tmp" \
-    -subj "/O=NetPulse/CN=NetPulse local CA $suffix" \
+    -subj "/O=UplinkView/CN=UplinkView local CA $suffix" \
     -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
     -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null     || { log "nie udało się utworzyć CA"; rm -f "$TLS/ca-key.pem.tmp" "$TLS/ca.pem.tmp"; return 1; }
   chmod 600 "$TLS/ca-key.pem.tmp"
@@ -66,7 +66,7 @@ issue() {
   done
   printf 'basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\nsubjectAltName=%s\n' "$san" >"$tmp/ext"
   openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
-    -keyout "$tmp/key.pem" -out "$tmp/req.csr" -subj "/O=NetPulse/CN=${cn:-netpulse}" 2>/dev/null     || { log "nie udało się utworzyć klucza"; rm -rf "$tmp"; return 1; }
+    -keyout "$tmp/key.pem" -out "$tmp/req.csr" -subj "/O=UplinkView/CN=${cn:-netpulse}" 2>/dev/null     || { log "nie udało się utworzyć klucza"; rm -rf "$tmp"; return 1; }
   openssl x509 -req -in "$tmp/req.csr" -CA "$TLS/ca.pem" -CAkey "$TLS/ca-key.pem" \
     -set_serial "0x$(openssl rand -hex 16)" -days 397 -sha256 -extfile "$tmp/ext" -out "$tmp/cert.pem" 2>/dev/null     || { log "nie udało się podpisać certyfikatu"; rm -rf "$tmp"; return 1; }
   install_pair "$tmp/cert.pem" "$tmp/key.pem"

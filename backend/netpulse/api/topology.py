@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api", tags=["topologia"], dependencies=[Depends(requ
 
 
 class NodeOut(BaseModel):
-    id: str  # "d<id>" dla urządzenia NetPulse, "x<mac>" dla nieznanego sąsiada (np. modem na WAN)
+    id: str  # "d<id>" dla urządzenia UplinkView, "x<mac>" dla nieznanego sąsiada (np. modem na WAN)
     kind: str  # device | external
     device_id: int | None
     name: str

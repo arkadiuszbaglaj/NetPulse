@@ -29,17 +29,17 @@ describe("aktualizacja – stan początkowy", () => {
     await openPage({
       updates: {
         ...UPDATES,
-        updater: { configured: false, reachable: false, message: "Aktualizacja z panelu jest wyłączona. Zaktualizuj poleceniem: netpulse update" },
+        updater: { configured: false, reachable: false, message: "Aktualizacja z panelu jest wyłączona. Zaktualizuj poleceniem: uplinkview update" },
       },
     });
     expect(await screen.findByText(/Aktualizacja z panelu jest niedostępna/)).toBeInTheDocument();
-    expect(screen.getByText(/Zaktualizuj poleceniem: netpulse update/)).toBeInTheDocument();
+    expect(screen.getByText(/Zaktualizuj poleceniem: uplinkview update/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sprawdź aktualizacje" })).not.toBeInTheDocument();
   });
 
   it("gdy usługa aktualizacji nie odpowiada, pokazuje powód", async () => {
     await openPage({
-      updates: { ...UPDATES, updater: { configured: true, reachable: false, message: "Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status" } },
+      updates: { ...UPDATES, updater: { configured: true, reachable: false, message: "Usługa aktualizacji nie odpowiada. Sprawdź: uplinkview status" } },
     });
     expect(await screen.findByText(/Usługa aktualizacji nie odpowiada/)).toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe("aktualizacja z terminala", () => {
 
   it("podpowiedź z komendą jest widoczna zawsze", async () => {
     await openPage();
-    expect(within(cli()).getByText("netpulse update")).toBeInTheDocument();
+    expect(within(cli()).getByText("uplinkview update")).toBeInTheDocument();
   });
 
   it("jest widoczna także, gdy aktualizacja z panelu jest wyłączona", async () => {
@@ -58,7 +58,7 @@ describe("aktualizacja z terminala", () => {
       updates: { ...UPDATES, updater: { configured: false, reachable: false, message: "Aktualizacja z panelu jest wyłączona." } },
     });
     await screen.findByText(/Aktualizacja z panelu jest niedostępna/);
-    expect(within(cli()).getByText("netpulse update")).toBeInTheDocument();
+    expect(within(cli()).getByText("uplinkview update")).toBeInTheDocument();
   });
 
   it("jest widoczna także, gdy usługa aktualizacji nie odpowiada", async () => {
@@ -66,13 +66,13 @@ describe("aktualizacja z terminala", () => {
       updates: { ...UPDATES, updater: { configured: true, reachable: false, message: "Usługa aktualizacji nie odpowiada." } },
     });
     await screen.findByText(/Usługa aktualizacji nie odpowiada/);
-    expect(within(cli()).getByText("netpulse update")).toBeInTheDocument();
+    expect(within(cli()).getByText("uplinkview update")).toBeInTheDocument();
   });
 
   it("zostaje widoczna podczas aktualizacji z panelu", async () => {
     await openPage({ updates: { ...UPDATES, job: RUNNING_JOB } });
     await screen.findByRole("heading", { name: "Trwa aktualizacja" });
-    expect(within(cli()).getByText("netpulse update")).toBeInTheDocument();
+    expect(within(cli()).getByText("uplinkview update")).toBeInTheDocument();
   });
 });
 
@@ -136,7 +136,7 @@ describe("instalowanie aktualizacji", () => {
   it("prosi o potwierdzenie, a „Anuluj” niczego nie uruchamia", async () => {
     const { user, calls } = await openPage({ updates: available });
     await user.click(await screen.findByRole("button", { name: "Aktualizuj do 0.3.0" }));
-    const dialog = await screen.findByRole("dialog", { name: "Zaktualizować NetPulse?" });
+    const dialog = await screen.findByRole("dialog", { name: "Zaktualizować UplinkView?" });
     expect(within(dialog).getByText(/kopia bazy danych/)).toBeInTheDocument();
     expect(within(dialog).getByText(/sam wróci do poprzedniej/)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Anuluj" })).toHaveFocus();

@@ -146,7 +146,7 @@ function AgentRow({ agent, onToken, onDelete }: { agent: Agent; onToken: () => v
   );
 }
 
-/** Ustawienia → Agenci: serwery Linux z agentem NetPulse (kontenery, usługi, temperatury, SMART). */
+/** Ustawienia → Agenci: serwery Linux z agentem UplinkView (kontenery, usługi, temperatury, SMART). */
 export function AgentsPage() {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useAgents();

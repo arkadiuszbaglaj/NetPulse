@@ -20,7 +20,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rolldownOptions: {
       output: {
-        // Biblioteki zmieniają się rzadko – osobny plik zostaje w pamięci przeglądarki po aktualizacji NetPulse.
+        // Biblioteki zmieniają się rzadko – osobny plik zostaje w pamięci przeglądarki po aktualizacji UplinkView.
         // Strony i ECharts są ładowane na żądanie (lazy w modules.tsx i przy wykresach).
         codeSplitting: {
           groups: [

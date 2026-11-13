@@ -52,7 +52,7 @@ describe("logowanie dwuskładnikowe", () => {
 
     const list = await within(card).findByRole("list", { name: "Kody zapasowe" });
     expect(within(list).getByText("abcd-efgh")).toBeInTheDocument();
-    expect(within(card).getByRole("link", { name: "Pobierz plik" })).toHaveAttribute("download", "netpulse-kody-zapasowe.txt");
+    expect(within(card).getByRole("link", { name: "Pobierz plik" })).toHaveAttribute("download", "uplinkview-kody-zapasowe.txt");
     await user.click(within(card).getByRole("button", { name: "Zapisałem kody" }));
     expect(await within(card).findByText("włączone")).toBeInTheDocument();
     expect(within(card).getByText(/Pozostałe kody zapasowe: 10/)).toBeInTheDocument();

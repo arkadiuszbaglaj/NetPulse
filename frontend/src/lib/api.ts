@@ -1,4 +1,4 @@
-/** Klient API NetPulse. Sesja siedzi w ciasteczku HttpOnly, więc wystarczy `same-origin`. */
+/** Klient API UplinkView. Sesja siedzi w ciasteczku HttpOnly, więc wystarczy `same-origin`. */
 
 import { getLanguage } from "../i18n";
 

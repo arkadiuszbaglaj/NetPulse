@@ -90,7 +90,7 @@ SOURCES: tuple[Source, ...] = (
     ),
     Source(
         "agent",
-        "Agent NetPulse (Linux): CPU, RAM, dyski, Docker, usługi, SMART",
+        "Agent UplinkView (Linux): CPU, RAM, dyski, Docker, usługi, SMART",
         "verified",
         "instalowany i sprawdzany na Ubuntu w teście CI każdej wersji",
         ("agent",),
@@ -113,7 +113,7 @@ SOURCES: tuple[Source, ...] = (
         "checks",
         "Sprawdzenia dostępności: ping, HTTP(S), TCP, DNS",
         "verified",
-        "pomiar wykonuje sam NetPulse",
+        "pomiar wykonuje sam UplinkView",
     ),
 )
 

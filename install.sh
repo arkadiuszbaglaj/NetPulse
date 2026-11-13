@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Instalator NetPulse dla Ubuntu Server.
+# Instalator UplinkView dla Ubuntu Server.
 #
-#   curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/uplinkview/uplinkview/main/install.sh | sudo bash
 #
-# Zmienne (opcjonalnie): NETPULSE_DIR (domyślnie /opt/netpulse), NETPULSE_BRANCH (main),
+# Zmienne (opcjonalnie): NETPULSE_DIR (domyślnie /opt/uplinkview; instalacja sprzed zmiany nazwy w /opt/netpulse
+# jest wykrywana i aktualizowana na miejscu), NETPULSE_BRANCH (main),
 # NETPULSE_REPO (adres repozytorium), NETPULSE_PORT (8000), NETPULSE_HTTPS_PORT (8443).
 #
 # Ponowne uruchomienie jest bezpieczne – działa jak aktualizacja, nie rusza danych ani haseł.
@@ -71,10 +72,31 @@ np_fill_tls_names() {
   fi
 }
 
+# Repozytorium przeniesione przy zmianie nazwy na UplinkView (0.78.0). GitHub przekierowuje stary adres, ale tylko
+# dopóki nikt nie zajmie starej nazwy – instalacja przestawia `origin` na nowy adres sama.
+NP_REPO="https://github.com/uplinkview/uplinkview.git"
+np_migrate_origin() {
+  local dir=$1 url
+  url=$(git -C "$dir" remote get-url origin 2>/dev/null) || return 0
+  if printf '%s' "$url" | grep -qiE 'github\.com[/:]arkadiuszbaglaj/netpulse(\.git)?/?$'; then
+    git -C "$dir" remote set-url origin "$NP_REPO"
+  fi
+}
+
+# Katalog instalacji: NETPULSE_DIR, a bez niego /opt/uplinkview – chyba że na serwerze jest już instalacja sprzed
+# zmiany nazwy w /opt/netpulse (ponowne uruchomienie instalatora aktualizuje ją na miejscu, z danymi)
+np_default_dir() {
+  if [ -n "${NETPULSE_DIR:-}" ]; then echo "$NETPULSE_DIR"
+  elif [ ! -d /opt/uplinkview/.git ] && [ -d /opt/netpulse/.git ]; then echo /opt/netpulse
+  else echo /opt/uplinkview
+  fi
+}
+
 main() {
-  local REPO="${NETPULSE_REPO:-https://github.com/arkadiuszbaglaj/NetPulse.git}"
+  local REPO="${NETPULSE_REPO:-$NP_REPO}"
   local BRANCH="${NETPULSE_BRANCH:-main}"
-  local DIR="${NETPULSE_DIR:-/opt/netpulse}"
+  local DIR
+  DIR=$(np_default_dir)
   local PORT="${NETPULSE_PORT:-8000}"
 
   info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -92,7 +114,7 @@ main() {
   fi
 
   echo
-  echo "  NetPulse – instalacja"
+  echo "  UplinkView – instalacja"
   echo "  katalog: $DIR   gałąź: $BRANCH"
   echo
 
@@ -117,11 +139,12 @@ main() {
   # 3. Kod aplikacji
   if [ -d "$DIR/.git" ]; then
     info "Aktualizuję istniejącą instalację w $DIR..."
+    [ -n "${NETPULSE_REPO:-}" ] || np_migrate_origin "$DIR"
     git -C "$DIR" fetch --quiet origin "$BRANCH"
     git -C "$DIR" checkout --quiet "$BRANCH"
     git -C "$DIR" merge --ff-only --quiet "origin/$BRANCH"
   else
-    info "Pobieram NetPulse do $DIR..."
+    info "Pobieram UplinkView do $DIR..."
     git clone --quiet --branch "$BRANCH" "$REPO" "$DIR"
   fi
 
@@ -141,8 +164,9 @@ main() {
   np_fill_tls_names "$ENV_FILE"
   grep -q '^NETPULSE_HTTPS_PORT=' "$ENV_FILE" || echo "NETPULSE_HTTPS_PORT=${NETPULSE_HTTPS_PORT:-8443}" >>"$ENV_FILE"
 
-  # 5. Polecenie `netpulse`
+  # 5. Polecenie `uplinkview` (i dawne `netpulse` – to samo polecenie, dla instalacji sprzed zmiany nazwy)
   chmod +x "$DIR/scripts/netpulse"
+  ln -sf "$DIR/scripts/netpulse" /usr/local/bin/uplinkview
   ln -sf "$DIR/scripts/netpulse" /usr/local/bin/netpulse
 
   # 6. Start
@@ -158,25 +182,25 @@ main() {
       local ip
       ip=$(hostname -I 2>/dev/null | awk '{print $1}')
       echo
-      ok "NetPulse działa!  Panel: http://${ip:-localhost}:${PORT}"
-      echo "  HTTPS: https://${ip:-localhost}:${HTTPS_PORT:-8443}  (certyfikat lokalnego CA NetPulse –"
+      ok "UplinkView działa!  Panel: http://${ip:-localhost}:${PORT}"
+      echo "  HTTPS: https://${ip:-localhost}:${HTTPS_PORT:-8443}  (certyfikat lokalnego CA UplinkView –"
       echo "         CA do zaimportowania: panel → Ustawienia → System → HTTPS)"
       echo
       echo "  1. Otwórz panel i załóż konto administratora (kreator, tylko raz):"
       echo "     http://${ip:-localhost}:${PORT}"
       echo
       echo "  2. Dodaj urządzenia, np.:"
-      echo "    netpulse device add \"UCG Ultra\" 192.168.1.1 --community public"
-      echo "    netpulse device list"
+      echo "    uplinkview device add \"UCG Ultra\" 192.168.1.1 --community public"
+      echo "    uplinkview device list"
       echo
-      echo "  Aktualizacja do najnowszej wersji:  netpulse update"
-      echo "  Pomoc:                              netpulse help"
+      echo "  Aktualizacja do najnowszej wersji:  uplinkview update"
+      echo "  Pomoc:                              uplinkview help"
       echo
       return 0
     fi
     sleep 2
   done
-  die "Usługi nie wystartowały. Sprawdź logi: netpulse logs"
+  die "Usługi nie wystartowały. Sprawdź logi: uplinkview logs"
 }
 
 # Całość w funkcji – przy `curl | bash` nic się nie wykona, dopóki skrypt nie pobierze się w całości.

@@ -9,10 +9,10 @@ krytyczne”), opcję powiadamiania o zakończeniu alertu, ciche godziny i przyc
 |--------|----------|-------|
 | Webhook | adres webhooka | JSON z polami `text` (Slack, Telegram, Mattermost, Home Assistant) i `content` (Discord) oraz pełnymi danymi alertu |
 | ntfy | adres tematu, np. `https://ntfy.sh/netpulse-xyz`; opcjonalnie token `tk_…` | ważność → priorytet (krytyczny 5, ostrzeżenie 4, informacja 3) i ikona. Na ntfy.sh temat zna każdy, kto zna jego nazwę – wybierz trudną do zgadnięcia albo własny serwer ntfy z tokenem |
-| E-mail | serwer SMTP, port, szyfrowanie (STARTTLS / SSL / bez), użytkownik, hasło, nadawca, adresaci | temat `[NetPulse] …`. Gmail: hasło aplikacji (konto Google → Bezpieczeństwo → Hasła aplikacji), `smtp.gmail.com`, 587 STARTTLS |
+| E-mail | serwer SMTP, port, szyfrowanie (STARTTLS / SSL / bez), użytkownik, hasło, nadawca, adresaci | temat `[UplinkView] …`. Gmail: hasło aplikacji (konto Google → Bezpieczeństwo → Hasła aplikacji), `smtp.gmail.com`, 587 STARTTLS |
 
-ntfy na telefonie: zainstaluj aplikację ntfy (Android, iOS), dodaj temat o tej samej nazwie, potem w NetPulse
-„Wyślij wiadomość próbną”. NetPulse publikuje JSON-em na adres serwera (`POST https://ntfy.sh/` z polem `topic`),
+ntfy na telefonie: zainstaluj aplikację ntfy (Android, iOS), dodaj temat o tej samej nazwie, potem w UplinkView
+„Wyślij wiadomość próbną”. UplinkView publikuje JSON-em na adres serwera (`POST https://ntfy.sh/` z polem `topic`),
 bo nagłówki HTTP nie przenoszą polskich znaków w tytule.
 
 Sekrety (adres webhooka i tematu ntfy, token ntfy, hasło SMTP) są w bazie zaszyfrowane (kolumny `url` i `secret`,
@@ -22,12 +22,12 @@ albo hasło usuwa pole wyboru „Usuń zapisany token / hasło”.
 ## Ciche godziny
 
 Przy kanale: „Nie wysyłaj w nocy”, godziny od–do (okno może przechodzić przez północ, np. 22:00–07:00). Godziny
-liczą się w strefie serwera NetPulse (zmienna `TZ` w `.env`, domyślnie Europe/Warsaw).
+liczą się w strefie serwera UplinkView (zmienna `TZ` w `.env`, domyślnie Europe/Warsaw).
 
 - W ciszy alerty krytyczne przychodzą od razu (można to wyłączyć: „Alerty krytyczne wysyłaj także w ciszy”).
 - Pozostałe czekają w `notification_channels.quiet_backlog` (w bazie, więc restart ich nie gubi; najwyżej 200
   pozycji, reszta jako liczba). Panel pokazuje przy kanale plakietkę „czeka: N”.
-- Po końcu ciszy, w pierwszym cyklu kolektora, przychodzi jedna wiadomość „NetPulse po cichych godzinach: …”
+- Po końcu ciszy, w pierwszym cyklu kolektora, przychodzi jedna wiadomość „UplinkView po cichych godzinach: …”
   z listą alertów i zakończeń. Wyłączenie cichych godzin wysyła zaległości od razu.
 
 ## Grupowanie

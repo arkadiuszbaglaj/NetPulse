@@ -30,18 +30,18 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Nowe połączenie VPN", "New VPN connection"),
     (
         "Community „public” albo „private” zna każdy – każdy w sieci może odczytać to urządzenie. "
-        "Ustaw na urządzeniu własne community (albo SNMPv3) i wpisz je w NetPulse: Ustawienia → Urządzenia.",
+        "Ustaw na urządzeniu własne community (albo SNMPv3) i wpisz je w UplinkView: Ustawienia → Urządzenia.",
         "Everyone knows the “public” and “private” communities – anyone on the network can read this device. "
-        "Set your own community (or SNMPv3) on the device and enter it in NetPulse: Settings → Devices.",
+        "Set your own community (or SNMPv3) on the device and enter it in UplinkView: Settings → Devices.",
     ),
     ("Obciążenie (1 min)", "Load (1 min)"),
     ("Pobieranie WAN", "WAN download"),
     ("Wysyłanie WAN", "WAN upload"),
     ("Zajętość dysku (każda partycja serwera)", "Disk usage (each server partition)"),
     ("Błędy na porcie (w jednym cyklu odczytu)", "Port errors (in one polling cycle)"),
-    ("Serwer NetPulse: CPU", "NetPulse server: CPU"),
-    ("Serwer NetPulse: RAM", "NetPulse server: RAM"),
-    ("Serwer NetPulse: dysk", "NetPulse server: disk"),
+    ("Serwer UplinkView: CPU", "UplinkView server: CPU"),
+    ("Serwer UplinkView: RAM", "UplinkView server: RAM"),
+    ("Serwer UplinkView: dysk", "UplinkView server: disk"),
     ("Temperatura (każdy czujnik: serwer z agentem, MikroTik)", "Temperature (each sensor: server with agent, MikroTik)"),
     ("SFP: moc odbierana (każdy moduł SFP: MikroTik, switche TP-Link)", "SFP: received power (each SFP module: MikroTik, TP-Link switches)"),
     ("SMART: realokowane sektory (każdy dysk serwera z agentem)", "SMART: reallocated sectors (each disk of a server with agent)"),
@@ -84,9 +84,9 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("{device}: Obciążenie (1 min) {num}", "{device}: Load (1 min) {num}"),
     ("Pobieranie WAN {num}", "WAN download {num}"),
     ("Wysyłanie WAN {num}", "WAN upload {num}"),
-    ("Serwer NetPulse: CPU {num}", "NetPulse server: CPU {num}"),
-    ("Serwer NetPulse: RAM {num}", "NetPulse server: RAM {num}"),
-    ("Serwer NetPulse: dysk {num}", "NetPulse server: disk {num}"),
+    ("Serwer UplinkView: CPU {num}", "UplinkView server: CPU {num}"),
+    ("Serwer UplinkView: RAM {num}", "UplinkView server: RAM {num}"),
+    ("Serwer UplinkView: dysk {num}", "UplinkView server: disk {num}"),
     ("{check}: opóźnienie {num}", "{check}: latency {num}"),
     ("{check}: utrata pakietów {num}", "{check}: packet loss {num}"),
     ("{check}: certyfikat wygasa za {num}", "{check}: certificate expires in {num}"),
@@ -101,8 +101,8 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("{device}: kopia zapasowa {name} zakończyła się błędem", "{device}: backup {name} failed"),
     ("Warunek: {metric} {op} {num}", "Condition: {metric} {op} {num}"),
     ("{condition} przez {minutes} min", "{condition} for {minutes} min"),
-    ("Stan z agenta NetPulse", "State from the NetPulse agent"),
-    ("Stan z agenta NetPulse od {minutes} min", "State from the NetPulse agent for {minutes} min"),
+    ("Stan z agenta UplinkView", "State from the UplinkView agent"),
+    ("Stan z agenta UplinkView od {minutes} min", "State from the UplinkView agent for {minutes} min"),
     ("{state} (filtr: {match})", "{state} (filter: {match})"),
     # --- logowanie, sesje, role (api/auth_routes.py, api/security.py, auth.py) ---
     ("Podaj kod z aplikacji uwierzytelniającej", "Enter the code from your authenticator app"),
@@ -153,8 +153,8 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Nieznana metryka; dostępne: {metrics}", "Unknown metric; available: {metrics}"),
     ("Reguła metryki wymaga warunku (op) i progu (threshold)", "A metric rule requires a condition (op) and a threshold"),
     (
-        "Ta metryka dotyczy całości (ruch WAN albo serwer NetPulse) – nie wybieraj urządzenia",
-        "This metric applies to the whole (WAN traffic or the NetPulse server) – do not select a device",
+        "Ta metryka dotyczy całości (ruch WAN albo serwer UplinkView) – nie wybieraj urządzenia",
+        "This metric applies to the whole (WAN traffic or the UplinkView server) – do not select a device",
     ),
     ("Przełączenie WAN dotyczy wszystkich łączy – nie wybieraj urządzenia", "WAN failover applies to all links – do not select a device"),
     (
@@ -165,7 +165,7 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Nie ma takiej kopii", "No such backup"),
     ("Brak rozmiaru pliku (Content-Length)", "Missing file size (Content-Length)"),
     ("Usługa aktualizacji (kopie bazy) jest wyłączona albo jeszcze nie wystartowała", "The update service (database backups) is disabled or has not started yet"),
-    ("Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status", "The update service is not responding. Check: netpulse status"),
+    ("Usługa aktualizacji nie odpowiada. Sprawdź: uplinkview status", "The update service is not responding. Check: uplinkview status"),
     ("Nie udało się wgrać kopii", "Could not upload the backup"),
     ("Nie udało się pobrać kopii", "Could not download the backup"),
     # --- sprawdzenia dostępności (api/checks.py, checks.py, dnsquery.py) ---
@@ -376,19 +376,19 @@ MESSAGES: tuple[tuple[str, str], ...] = (
         "Could not decrypt a secret – a different NETPULSE_SECRET_KEY than when it was saved? Enter the secret again in the panel",
     ),
     (
-        "Baza danych pochodzi ze starszej, niezgodnej wersji NetPulse (brakujące kolumny – {details}).\n"
-        "Jeśli nie potrzebujesz zapisanej historii, wyczyść bazę poleceniem: netpulse reset",
-        "The database comes from an older, incompatible NetPulse version (missing columns – {details}).\n"
-        "If you do not need the saved history, clear the database with: netpulse reset",
+        "Baza danych pochodzi ze starszej, niezgodnej wersji UplinkView (brakujące kolumny – {details}).\n"
+        "Jeśli nie potrzebujesz zapisanej historii, wyczyść bazę poleceniem: uplinkview reset",
+        "The database comes from an older, incompatible UplinkView version (missing columns – {details}).\n"
+        "If you do not need the saved history, clear the database with: uplinkview reset",
     ),
     # --- aktualizacje (api/updates.py) ---
     ("Nieprawidłowa odpowiedź usługi aktualizacji.", "Invalid response from the update service."),
     (
-        "Aktualizacja z panelu jest wyłączona albo usługa aktualizacji jeszcze nie wystartowała. Zaktualizuj poleceniem: netpulse update",
-        "Updating from the panel is disabled or the update service has not started yet. Update with: netpulse update",
+        "Aktualizacja z panelu jest wyłączona albo usługa aktualizacji jeszcze nie wystartowała. Zaktualizuj poleceniem: uplinkview update",
+        "Updating from the panel is disabled or the update service has not started yet. Update with: uplinkview update",
     ),
     ("Usługa aktualizacji zgłosiła błąd.", "The update service reported an error."),
-    ("Usługa aktualizacji odrzuciła żądanie. Uruchom ponownie usługi: netpulse restart", "The update service rejected the request. Restart the services: netpulse restart"),
+    ("Usługa aktualizacji odrzuciła żądanie. Uruchom ponownie usługi: uplinkview restart", "The update service rejected the request. Restart the services: uplinkview restart"),
     # --- łącza WAN (api/wan.py) ---
     ("Podaj nazwę łącza", "Enter a link name"),
     ("Ten sam port nie może być dwoma łączami WAN", "The same port cannot be two WAN links"),
@@ -411,7 +411,7 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("zrzuty syntetyczne według oficjalnych MIB TP-Link – czeka na prawdziwy sprzęt", "synthetic dumps based on the official TP-Link MIBs – waiting for real hardware"),
     ("Serwer Linux przez SNMP (snmpd): dyski, obciążenie", "Linux server over SNMP (snmpd): disks, load"),
     ("zrzut syntetyczny odwzorowujący snmpd – czeka na zrzut z prawdziwego serwera", "synthetic dump modelled on snmpd – waiting for a dump from a real server"),
-    ("Agent NetPulse (Linux): CPU, RAM, dyski, Docker, usługi, SMART", "NetPulse agent (Linux): CPU, RAM, disks, Docker, services, SMART"),
+    ("Agent UplinkView (Linux): CPU, RAM, dyski, Docker, usługi, SMART", "UplinkView agent (Linux): CPU, RAM, disks, Docker, services, SMART"),
     ("instalowany i sprawdzany na Ubuntu w teście CI każdej wersji", "installed and checked on Ubuntu in the CI test of every version"),
     ("Proxmox VE: węzły, maszyny VM i LXC, magazyny, kopie vzdump", "Proxmox VE: nodes, VMs and LXC, storage, vzdump backups"),
     ("PVE 9.1 / 9.2 z jednym węzłem; klaster kilku węzłów tylko na atrapie API", "PVE 9.1 / 9.2 with one node; a multi-node cluster only on a fake API"),
@@ -423,7 +423,7 @@ MESSAGES: tuple[tuple[str, str], ...] = (
         "(11.11.2026); controller dump unifi_gateway_dual_wan.json",
     ),
     ("Sprawdzenia dostępności: ping, HTTP(S), TCP, DNS", "Availability checks: ping, HTTP(S), TCP, DNS"),
-    ("pomiar wykonuje sam NetPulse", "measured by NetPulse itself"),
+    ("pomiar wykonuje sam UplinkView", "measured by UplinkView itself"),
     # --- raport miesięczny (report.py; język pliku z panelu, od 0.76.0) ---
     ("Podaj miesiąc w postaci RRRR-MM", "Enter the month as YYYY-MM"),
     ("Ten miesiąc jeszcze się nie zaczął", "This month has not started yet"),
@@ -459,10 +459,10 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("(trwa)", "(ongoing)"),
     ("tak", "yes"),
     ("serwis", "maintenance"),
-    ("Raport NetPulse", "NetPulse report"),
-    ("NetPulse – raport {month}", "NetPulse – report {month}"),
-    ("Raport miesięczny NetPulse", "NetPulse monthly report"),
-    ("NetPulse {version} · wygenerowano {time} · strona {page}", "NetPulse {version} · generated {time} · page {page}"),
+    ("Raport UplinkView", "UplinkView report"),
+    ("UplinkView – raport {month}", "UplinkView – report {month}"),
+    ("Raport miesięczny UplinkView", "UplinkView monthly report"),
+    ("UplinkView {version} · wygenerowano {time} · strona {page}", "UplinkView {version} · generated {time} · page {page}"),
     ("Okres", "Period"),
     ("Wygenerowano", "Generated"),
     ("Sprawdzenia i SLA WAN od", "Checks and WAN SLA since"),
@@ -526,10 +526,10 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     # --- powiadomienia (notifications.py; język: ustawienie serwera, od 0.76.0) ---
     ("Zakończono: {title}", "Resolved: {title}"),
     ("…i {count} więcej", "…and {count} more"),
-    ("NetPulse: {firing} nowych alertów, {resolved} zakończonych", "NetPulse: {firing} new alerts, {resolved} resolved"),
-    ("NetPulse po cichych godzinach: {firing} alertów, {resolved} zakończonych", "NetPulse after quiet hours: {firing} alerts, {resolved} resolved"),
+    ("UplinkView: {firing} nowych alertów, {resolved} zakończonych", "UplinkView: {firing} new alerts, {resolved} resolved"),
+    ("UplinkView po cichych godzinach: {firing} alertów, {resolved} zakończonych", "UplinkView after quiet hours: {firing} alerts, {resolved} resolved"),
     ("(+{count} niezapisanych)", "(+{count} not saved)"),
-    ("NetPulse: powiadomienia działają", "NetPulse: notifications work"),
+    ("UplinkView: powiadomienia działają", "UplinkView: notifications work"),
     # --- usługa aktualizacji i kopii (updater/netpulse_updater) – komunikaty i dziennik przekazywane przez API ---
     ("Nieprawidłowa nazwa kopii.", "Invalid backup name."),
     ("Nie ma takiej kopii.", "No such backup."),
@@ -541,24 +541,24 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Przesyłanie zostało przerwane – plik jest niepełny.", "The upload was interrupted – the file is incomplete."),
     ("Kopia o tej nazwie już istnieje – spróbuj ponownie za sekundę.", "A backup with this name already exists – try again in a second."),
     ("Przywracanie już trwa.", "A restore is already in progress."),
-    ("Nie udało się zatrzymać usług NetPulse. Baza nie została zmieniona.", "Could not stop the NetPulse services. The database was not changed."),
+    ("Nie udało się zatrzymać usług UplinkView. Baza nie została zmieniona.", "Could not stop the UplinkView services. The database was not changed."),
     ("Wczytanie kopii nie powiodło się. Przywrócono stan sprzed próby.", "Loading the backup failed. The previous state was restored."),
     (
         "Wczytanie kopii nie powiodło się. Przywrócenie stanu sprzed próby też się nie udało – kopia: {file}.",
         "Loading the backup failed. Restoring the previous state also failed – backup: {file}.",
     ),
     ("Nieoczekiwany błąd: {error}", "Unexpected error: {error}"),
-    ("Kopia została wczytana, ale usługi nie wystartowały. Sprawdź: netpulse status", "The backup was loaded but the services did not start. Check: netpulse status"),
-    ("Kopia została wczytana, ale API nie odpowiada. Sprawdź: netpulse logs", "The backup was loaded but the API is not responding. Check: netpulse logs"),
-    ("To nie jest kopia NetPulse (brak nagłówka zrzutu PostgreSQL).", "This is not a NetPulse backup (no PostgreSQL dump header)."),
+    ("Kopia została wczytana, ale usługi nie wystartowały. Sprawdź: uplinkview status", "The backup was loaded but the services did not start. Check: uplinkview status"),
+    ("Kopia została wczytana, ale API nie odpowiada. Sprawdź: uplinkview logs", "The backup was loaded but the API is not responding. Check: uplinkview logs"),
+    ("To nie jest kopia UplinkView (brak nagłówka zrzutu PostgreSQL).", "This is not a UplinkView backup (no PostgreSQL dump header)."),
     ("Plik nie jest poprawnym archiwum .sql.gz: {error}", "The file is not a valid .sql.gz archive: {error}"),
     ("brak szczegółów", "no details"),
     ("brak podpisu", "no signature"),
     ("Nie udało się połączyć ze źródłem aktualizacji: {error}", "Could not connect to the update source: {error}"),
     (
-        "Aktualizacja w źródle nie ma prawidłowego podpisu NetPulse – nie zostanie zainstalowana. Jeśli świadomie używasz "
+        "Aktualizacja w źródle nie ma prawidłowego podpisu UplinkView – nie zostanie zainstalowana. Jeśli świadomie używasz "
         "własnego źródła aktualizacji, ustaw NETPULSE_UPDATE_VERIFY=off w deploy/.env.",
-        "The update in the source has no valid NetPulse signature – it will not be installed. If you deliberately use "
+        "The update in the source has no valid UplinkView signature – it will not be installed. If you deliberately use "
         "your own update source, set NETPULSE_UPDATE_VERIFY=off in deploy/.env.",
     ),
     ("Polecenie trwało zbyt długo: {command}", "The command took too long: {command}"),
@@ -568,9 +568,9 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Wolne miejsce po sprzątaniu: {free} MB", "Free space after cleanup: {free} MB"),
     (
         "Za mało miejsca na dysku: wolne {free} MB, a aktualizacja wymaga co najmniej {need} MB. Zwolnij miejsce "
-        "(polecenie: netpulse cleanup) i spróbuj ponownie. Nic nie zostało zmienione.",
+        "(polecenie: uplinkview cleanup) i spróbuj ponownie. Nic nie zostało zmienione.",
         "Not enough disk space: {free} MB free, and the update needs at least {need} MB. Free up space "
-        "(command: netpulse cleanup) and try again. Nothing was changed.",
+        "(command: uplinkview cleanup) and try again. Nothing was changed.",
     ),
     (
         "Nie udało się wykonać kopii bazy danych, więc aktualizacji nie rozpoczęto. Nic nie zostało zmienione.",
@@ -582,8 +582,8 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("{error} Nic nie zostało zmienione.", "{error} Nothing was changed."),
     ("Podpis aktualizacji prawidłowy ({commit})", "Update signature valid ({commit})"),
     (
-        "Nie można prosto zaktualizować kodu (instalacja ma lokalne zmiany). Zaktualizuj ręcznie: netpulse update",
-        "Cannot update the code automatically (the installation has local changes). Update manually: netpulse update",
+        "Nie można prosto zaktualizować kodu (instalacja ma lokalne zmiany). Zaktualizuj ręcznie: uplinkview update",
+        "Cannot update the code automatically (the installation has local changes). Update manually: uplinkview update",
     ),
     ("Dopisano do .env nowe zmienne: {names}", "New variables added to .env: {names}"),
     ("Budowanie nowej wersji nie powiodło się.", "Building the new version failed."),
@@ -597,15 +597,15 @@ MESSAGES: tuple[tuple[str, str], ...] = (
     ("Usługi działają dalej na poprzedniej wersji.", "The services keep running on the previous version."),
     ("Przywrócono poprzednią wersję. Dane są nienaruszone.", "The previous version was restored. Data is intact."),
     (
-        "Nie udało się przywrócić poprzedniej wersji automatycznie. Kopia bazy jest w katalogu backups. Sprawdź: netpulse logs",
-        "Could not restore the previous version automatically. The database backup is in the backups directory. Check: netpulse logs",
+        "Nie udało się przywrócić poprzedniej wersji automatycznie. Kopia bazy jest w katalogu backups. Sprawdź: uplinkview logs",
+        "Could not restore the previous version automatically. The database backup is in the backups directory. Check: uplinkview logs",
     ),
     ("Aktualizacja została przerwana.", "The update was interrupted."),
     (
-        "Katalog instalacji {path} nie zawiera NetPulse. Ustaw w deploy/.env zmienną NETPULSE_DIR na katalog, w którym "
-        "zainstalowano NetPulse, i uruchom: netpulse restart",
-        "The installation directory {path} does not contain NetPulse. Set NETPULSE_DIR in deploy/.env to the directory "
-        "where NetPulse is installed and run: netpulse restart",
+        "Katalog instalacji {path} nie zawiera UplinkView. Ustaw w deploy/.env zmienną NETPULSE_DIR na katalog, w którym "
+        "zainstalowano UplinkView, i uruchom: uplinkview restart",
+        "The installation directory {path} does not contain UplinkView. Set NETPULSE_DIR in deploy/.env to the directory "
+        "where UplinkView is installed and run: uplinkview restart",
     ),
     ("Aktualizacja już trwa.", "An update is already in progress."),
     ("Trwa przywracanie kopii bazy – aktualizację uruchom po jego zakończeniu.", "A database restore is in progress – start the update after it finishes."),

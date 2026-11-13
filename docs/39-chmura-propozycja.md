@@ -3,11 +3,11 @@
 **Status: tylko propozycja (12.11.2026). Nic z tego nie jest wdrożone. Nie wdrażać bez decyzji użytkownika.**
 Dokument daje pełny obraz etapu 9 z planu działania: łącznik wychodzący, panel w chmurze, powiadomienia push,
 licencje i płatności. Łączy się z `docs/09-licencje-propozycja.md` (licencje) i `docs/38-aplikacja-android.md`.
-Nazwa „NetPulse” jest tu robocza – domeny i nazwy usług powstaną po wyborze nazwy produktu.
+Nazwa „UplinkView” jest tu robocza – domeny i nazwy usług powstaną po wyborze nazwy produktu.
 
 ## Cel w jednym zdaniu
 
-Użytkownik instaluje NetPulse u siebie jak dotąd, a po sparowaniu z kontem w chmurze widzi swoją sieć (albo
+Użytkownik instaluje UplinkView u siebie jak dotąd, a po sparowaniu z kontem w chmurze widzi swoją sieć (albo
 kilka sieci) z dowolnego miejsca i dostaje powiadomienia na telefon – **bez otwierania portów na routerze,
 bez VPN i bez przenoszenia historii pomiarów do chmury**.
 
@@ -36,7 +36,7 @@ organizacji są te same.
  │              │ HTTP (sieć    │   WSS :443     │  API chmury ── PostgreSQL ── Redis   │
  │              │ wewnętrzna)   │ ─────────────► │      │                               │
  │        kontener „cloud”      │                │  panel chmury (moje sieci, konto)    │
- │        (łącznik, moduł)      │                │  + ten sam panel NetPulse przez tunel│
+ │        (łącznik, moduł)      │                │  + ten sam panel UplinkView przez tunel│
  └──────────────────────────────┘                │      │                               │
                                                  │  push (FCM / APNs) ─► telefon        │
    telefon / przeglądarka ── HTTPS ────────────► │  płatności (dostawca zewnętrzny)     │
@@ -75,7 +75,7 @@ Jedno połączenie WSS, w nim ramki z numerem strumienia:
 
 | Ramka | Kierunek | Do czego |
 |-------|----------|----------|
-| `hello` / `challenge` / `auth` | obie | logowanie podpisem, wersja NetPulse i protokołu |
+| `hello` / `challenge` / `auth` | obie | logowanie podpisem, wersja UplinkView i protokołu |
 | `snapshot` | instalacja → chmura | skrót stanu co 60 s (część B) |
 | `event` | instalacja → chmura | alert otwarty / zakończony – od razu, bez czekania na skrót |
 | `req` / `res` / `body` | chmura → instalacja → chmura | żądanie HTTP panelu przekazane do lokalnego API, odpowiedź strumieniem |
@@ -109,7 +109,7 @@ Zasady, których chmura nie może zmienić:
 ### Co widzi użytkownik
 
 1. **Moje sieci** – lista instalacji z organizacji: nazwa, stan (działa / problemy / brak połączenia od…),
-   liczba urządzeń online, aktywne alerty, łącze WAN (aktywne, zapasowe), wersja NetPulse.
+   liczba urządzeń online, aktywne alerty, łącze WAN (aktywne, zapasowe), wersja UplinkView.
 2. **Otwórz panel** – pełny panel wybranej instalacji przez tunel: te same pulpity, wykresy i ustawienia
    (w granicach roli), co w sieci domowej.
 3. **Konto i organizacja** – członkowie, role, urządzenia do powiadomień, plan i płatności.
@@ -122,7 +122,7 @@ Lista jest zamknięta i pokazana w Ustawienia → Chmura (z podglądem ostatnieg
 - urządzenia: nazwa, rodzaj, stan, od kiedy (nazwy można zastąpić numerami – przełącznik „ukryj nazwy”),
 - aktywne alerty: tytuł, waga, od kiedy,
 - łącza WAN: nazwa, stan, które aktywne, bieżące pobieranie i wysyłanie,
-- wersja NetPulse, czy jest dostępna aktualizacja, czas ostatniego odczytu kolektora.
+- wersja UplinkView, czy jest dostępna aktualizacja, czas ostatniego odczytu kolektora.
 
 **Nie wychodzą:** adresy IP i MAC, klienci sieci, SSID, community i klucze, historia pomiarów, topologia,
 treść dziennika zdarzeń. Jeden skrót to kilka kB na minutę.
@@ -136,7 +136,7 @@ wysyła je tunelem do właściwej instalacji.
 - **Każda instalacja pod własną subdomeną** (`<id>.app.<domena>`, certyfikat wildcard). Przeglądarka traktuje
   je jak osobne strony, więc ewentualny błąd XSS w danych jednej sieci nie sięga do innej ani do konta chmury.
 - Pliki panelu (JS, CSS) serwuje chmura w wersji zgodnej z instalacją – tunelem idą tylko dane. Chmura trzyma
-  paczki panelu kilku ostatnich wersji; starsza instalacja dostaje komunikat „zaktualizuj NetPulse”.
+  paczki panelu kilku ostatnich wersji; starsza instalacja dostaje komunikat „zaktualizuj UplinkView”.
 - Ograniczenia tunelu (do ustalenia w testach): rozmiar odpowiedzi, liczba równoległych żądań, liczba
   połączeń „Na żywo”. Pobieranie kopii zapasowych jest zablokowane i tak (patrz część A).
 
@@ -148,13 +148,13 @@ awaria serwera, awaria internetu bez łącza zapasowego).
 
 ### Budowa chmury
 
-Ten sam stack co NetPulse, żeby nie utrzymywać dwóch technologii:
+Ten sam stack co UplinkView, żeby nie utrzymywać dwóch technologii:
 
 | Usługa | Rola | Uwagi |
 |--------|------|-------|
 | `gateway` | trzyma połączenia łączników, przekazuje żądania | asyncio; stan połączeń w Redis, żeby dało się uruchomić kilka kopii |
 | `cloud-api` | konta, organizacje, instalacje, push, licencje, płatności | FastAPI + PostgreSQL |
-| `cloud-web` | panel chmury i paczki panelu NetPulse | React, wspólne komponenty z `frontend/` |
+| `cloud-web` | panel chmury i paczki panelu UplinkView | React, wspólne komponenty z `frontend/` |
 | `postgres`, `redis` | dane kont i kolejki | bez TimescaleDB – chmura nie trzyma metryk |
 
 Osobne repozytorium (prywatne), wdrożenie na start jednym `docker compose` na serwerze w UE. Jedno połączenie
@@ -200,7 +200,7 @@ przez tunel (wykresy, „Na żywo”). Ile instalacji udźwignie jeden serwer �
 ### Rodzaje powiadomień w pierwszej wersji
 
 Alert otwarty, alert zakończony (opcjonalnie), instalacja nie łączy się z chmurą, przełączenie na łącze
-zapasowe, dostępna aktualizacja NetPulse (opcjonalnie). Ustawienia na telefon i na sieć: wagi alertów, ciche
+zapasowe, dostępna aktualizacja UplinkView (opcjonalnie). Ustawienia na telefon i na sieć: wagi alertów, ciche
 godziny telefonu.
 
 ## Część D – licencje i płatności
@@ -222,7 +222,7 @@ z modelem B z `docs/09`:
 
 | Poziom | Dla kogo | Co zawiera |
 |--------|----------|-----------|
-| **Lokalny** | każdy | cały NetPulse u siebie, bez ograniczeń funkcji monitoringu |
+| **Lokalny** | każdy | cały UplinkView u siebie, bez ograniczeń funkcji monitoringu |
 | **Chmura osobista** | hobbysta | 1–2 sieci, zdalny panel, push, alarm „instalacja zamilkła” |
 | **Chmura dla firm** | mała firma, informatyk obsługujący klientów | wiele sieci, organizacja z rolami, SSO, raporty e-mailem, dłuższa historia alertów |
 
@@ -254,14 +254,14 @@ Przed startem płatnej usługi: zewnętrzny test bezpieczeństwa bramy i łączn
 - Podmiot, który sprzedaje usługę (działalność albo spółka) – potrzebny do umowy z dostawcą płatności.
 - RODO: producent przetwarza dane kont (e-mail) i skróty stanu. Potrzebne: polityka prywatności, regulamin,
   umowa powierzenia dla klientów firmowych, serwery w UE, procedura usunięcia konta i danych.
-- Stała obsługa: monitoring chmury (własny NetPulse nadaje się do tego dobrze), kopie bazy kont, strona
+- Stała obsługa: monitoring chmury (własny UplinkView nadaje się do tego dobrze), kopie bazy kont, strona
   stanu usługi, kontakt do zgłoszeń. Chmura to zobowiązanie do dostępności, którego produkt lokalny nie ma.
 
 ## Etapy
 
 | Etap | Zakres | Jak sprawdzić |
 |------|--------|---------------|
-| **C0 – przygotowanie w NetPulse** | `install_id`, tożsamości inne niż sesja z ciasteczka w `api/security.py`, kody błędów zamiast polskich tekstów, panel z konfigurowalnym adresem API | CI; wspólne z etapami 4 i 7 planu (angielski, tokeny API) |
+| **C0 – przygotowanie w UplinkView** | `install_id`, tożsamości inne niż sesja z ciasteczka w `api/security.py`, kody błędów zamiast polskich tekstów, panel z konfigurowalnym adresem API | CI; wspólne z etapami 4 i 7 planu (angielski, tokeny API) |
 | **C1 – łącznik i brama** | parowanie, logowanie podpisem, tunel żądań HTTP, wyłącznik, wpisy w dzienniku | panel serwera domowego otwarty przez testową bramę na VPS |
 | **C2 – skrót stanu i „Moje sieci”** | konta, organizacje, lista sieci, alarm „instalacja zamilkła”, pomiar obciążenia | dwie instalacje (dom + maszyna testowa) na jednym koncie |
 | **C3 – pełny panel przez tunel** | subdomeny, paczki panelu wg wersji, „Na żywo” przez tunel, role i blokady | przejście całego panelu poza siecią domową |

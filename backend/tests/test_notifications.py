@@ -65,7 +65,7 @@ def test_summary_for_many_events_is_truncated():
     p = summary_payload(events)
     assert p["event"] == "summary" and p["firing"] == SUMMARY_LISTED + 5 and p["resolved"] == 1
     lines = p["text"].splitlines()
-    assert lines[0] == f"NetPulse: {SUMMARY_LISTED + 5} nowych alertów, 1 zakończonych"
+    assert lines[0] == f"UplinkView: {SUMMARY_LISTED + 5} nowych alertów, 1 zakończonych"
     assert len(lines) == 1 + SUMMARY_LISTED + 1 and lines[-1] == "…i 6 więcej"
 
 
@@ -104,7 +104,7 @@ def test_new_metrics_are_defined_consistently():
     for m in ("disk_used_percent", "port_errors", "system_cpu_percent", "system_mem_used_percent", "system_disk_used_percent"):
         assert m in METRICS
     assert {"disk_used_percent", "port_errors"} <= set(PER_DEVICE_METRICS)
-    assert not set(SYSTEM_METRICS) & set(PER_DEVICE_METRICS)  # serwer NetPulse jest globalny
+    assert not set(SYSTEM_METRICS) & set(PER_DEVICE_METRICS)  # serwer UplinkView jest globalny
     assert format_value("disk_used_percent", 92.04) == "92,0%"
     assert format_value("port_errors", 5.0) == "5"
 
@@ -145,7 +145,7 @@ def test_quiet_hours_hold_non_critical_and_send_digest_after(monkeypatch):
     c.quiet_backlog = backlog
     messages, backlog = Notifier().plan(c, [], morning)
     assert backlog is None and len(messages) == 1
-    assert messages[0].title == "NetPulse po cichych godzinach: 1 alertów, 1 zakończonych"
+    assert messages[0].title == "UplinkView po cichych godzinach: 1 alertów, 1 zakończonych"
     assert "🟠 CPU wysoko" in messages[0].text and "✅ CPU wysoko" in messages[0].text
 
     c.quiet_backlog, c.quiet_critical = None, False
@@ -199,7 +199,7 @@ def test_email_goes_through_smtp_sender():
     asyncio.run(notifier._send_one(c, event_message(event(kind="resolved"))))
     cfg, password, msg = sent[0]
     assert cfg["host"] == "smtp.example.com" and password == "haslo"
-    assert msg["Subject"] == "[NetPulse] Zakończono: USW nie odpowiada"
+    assert msg["Subject"] == "[UplinkView] Zakończono: USW nie odpowiada"
     assert msg["From"] == "ja@example.com" and msg["To"] == "a@example.com, b@example.com"
     assert "✅ Zakończono: USW nie odpowiada" in msg.get_content()
 
@@ -258,8 +258,8 @@ def test_messages_in_server_language():
     m = event_message(event(message="Za nim nie odpowiada też: U6+"), "en")
     assert m.payload["title"] == "USW is not responding" and m.payload["message"] == "Also not responding behind it: U6+"
     m = summary_message([event(), event(kind="resolved"), event(), event()], "en")
-    assert m.title == "NetPulse: 3 new alerts, 1 resolved" and "✅ USW is not responding" in m.text
+    assert m.title == "UplinkView: 3 new alerts, 1 resolved" and "✅ USW is not responding" in m.text
     m = digest_message([{"kind": "firing", "severity": "warning", "title": "USW nie odpowiada"}], 2, "en")
-    assert m.title == "NetPulse after quiet hours: 3 alerts, 0 resolved" and m.text.endswith("(+2 not saved)")
-    assert probe_message("en").title == "NetPulse: notifications work"
+    assert m.title == "UplinkView after quiet hours: 3 alerts, 0 resolved" and m.text.endswith("(+2 not saved)")
+    assert probe_message("en").title == "UplinkView: notifications work"
     assert event_message(event()).title == "USW nie odpowiada"  # domyślnie po polsku, jak dotąd

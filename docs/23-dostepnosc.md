@@ -1,6 +1,6 @@
 # Sprawdzanie dostępności (od 0.30.0)
 
-Strona **Dostępność** (od 0.58.3 w Ustawieniach, `/settings/checks`; stary adres `/checks` przekierowuje): sprawdzenia, które NetPulse wykonuje sam, niezależnie od SNMP i agentów.
+Strona **Dostępność** (od 0.58.3 w Ustawieniach, `/settings/checks`; stary adres `/checks` przekierowuje): sprawdzenia, które UplinkView wykonuje sam, niezależnie od SNMP i agentów.
 
 | Rodzaj | Co mierzy | Kiedy „niedostępne” |
 |---|---|---|
@@ -19,7 +19,7 @@ Od 0.64.0 także **DNS** (rozwiązywanie nazwy, czas, zgodność odpowiedzi) –
 - **Sprawdzaj co** – 30 s … 1 godz. (API przyjmuje 10–3600 s); **limit czasu** 1–30 s, krótszy niż odstęp.
 - **HTTP**: oczekiwany kod (`200`, `200-399`, `2xx`, lista po przecinku), opcjonalny tekst na stronie (szukany
   w pierwszym megabajcie), weryfikacja certyfikatu – wyłącz dla samopodpisanych (Proxmox, router); datę wygaśnięcia
-  NetPulse odczyta i tak (osobne połączenie TLS bez weryfikacji). Przekierowania są śledzone.
+  UplinkView odczyta i tak (osobne połączenie TLS bez weryfikacji). Przekierowania są śledzone.
 - **Sprawdź teraz** w formularzu wykonuje sprawdzenie od razu, bez zapisu.
 - **Szybko dodaj** (od 0.30.3): ping do bramy każdego włączonego routera z listy urządzeń („Brama – UCG Ultra”:
   awaria w sieci domowej czy u dostawcy?), ping do publicznych DNS i strona www; gotowe sprawdzenia, których cel już
@@ -52,7 +52,7 @@ sprawdzenia, więc sprawdzenie co 5 min nie „gubi” danych w regule „przez 
 - `backend/netpulse/checks.py` – same sprawdzenia. Ping bez uprawnień roota: gniazdo `SOCK_DGRAM` + `IPPROTO_ICMP`
   (Docker domyślnie ustawia `net.ipv4.ping_group_range = 0 2147483647`, więc działa w kontenerze kolektora jako
   użytkownik `netpulse`); jądro liczy sumę kontrolną i identyfikator, odpowiedzi rozpoznajemy po numerze sekwencji.
-  Bez zewnętrznej biblioteki (popularna `icmplib` jest na LGPL – decyzja o licencji NetPulse jest otwarta).
+  Bez zewnętrznej biblioteki (popularna `icmplib` jest na LGPL – decyzja o licencji UplinkView jest otwarta).
   Gniazdo obsługujemy sami (`sendto` + `add_reader`): API działa na uvloop, który nie ma `loop.sock_sendto`
   (w 0.30.0 „Sprawdź teraz” dla pingu kończył się `NotImplementedError`; poprawione w 0.30.1).
 - `backend/netpulse/checks_collector.py` – pętla w procesie kolektora: co 5 s wybiera sprawdzenia, których odstęp

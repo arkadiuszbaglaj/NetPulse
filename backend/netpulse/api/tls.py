@@ -1,4 +1,4 @@
-"""HTTPS panelu (od 0.62.0): stan certyfikatu, pobranie CA NetPulse, adresy dopisane przez administratora."""
+"""HTTPS panelu (od 0.62.0): stan certyfikatu, pobranie CA UplinkView, adresy dopisane przez administratora."""
 
 from __future__ import annotations
 
@@ -65,14 +65,14 @@ async def status(request: Request):
 
 @router.get("/ca.pem")
 async def ca_certificate():
-    """Certyfikat lokalnego CA NetPulse – do zaimportowania w systemie albo przeglądarce (bez klucza)."""
+    """Certyfikat lokalnego CA UplinkView – do zaimportowania w systemie albo przeglądarce (bez klucza)."""
     pem = tls.ca_pem()
     if pem is None:
         raise HTTPException(404, "Brak certyfikatu CA (kontener proxy jeszcze go nie utworzył)")
     return Response(
         pem,
         media_type="application/x-pem-file",
-        headers={"Content-Disposition": 'attachment; filename="netpulse-ca.pem"'},
+        headers={"Content-Disposition": 'attachment; filename="uplinkview-ca.pem"'},
     )
 
 

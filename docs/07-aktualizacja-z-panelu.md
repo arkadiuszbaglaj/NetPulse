@@ -1,7 +1,7 @@
 # Aktualizacja z panelu
 
-**Ustawienia → Aktualizacja** pozwala sprawdzić, czy jest nowa wersja NetPulse, zobaczyć listę zmian
-i zainstalować ją jednym kliknięciem. To samo robi polecenie `netpulse update` w terminalu –
+**Ustawienia → Aktualizacja** pozwala sprawdzić, czy jest nowa wersja UplinkView, zobaczyć listę zmian
+i zainstalować ją jednym kliknięciem. To samo robi polecenie `uplinkview update` w terminalu –
 oba sposoby działają równolegle i nie wchodzą sobie w drogę.
 
 ## Jak z tego korzystać
@@ -30,7 +30,7 @@ Aktualizację może zlecić wyłącznie **administrator**; pozostali użytkownic
 Po udanej aktualizacji usuwany jest cache budowania starszy niż 72 godziny.
 
 **Wycofanie** to powrót kodu do poprzedniego commita i ponowne uruchomienie usług. Jeśli i to się nie uda,
-panel pokaże to wprost i wskaże kopię bazy; ratunek: `netpulse logs`, a dane są w kopii.
+panel pokaże to wprost i wskaże kopię bazy; ratunek: `uplinkview logs`, a dane są w kopii.
 Stan i dziennik zadania są zapisywane w plikach (`.update/`), więc przetrwają restart API w trakcie aktualizacji.
 
 ## Przywracanie kopii bazy
@@ -39,7 +39,7 @@ Kopia nie jest potrzebna przy zwykłej aktualizacji, tylko gdy trzeba wrócić d
 Procedura jest sprawdzana w testach (CI odtwarza kopię do osobnej bazy). Na serwerze:
 
 ```bash
-cd /opt/netpulse
+cd /opt/uplinkview
 DC="sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env"
 $DC stop api collector
 $DC exec -T db psql -U netpulse -d postgres -c "DROP DATABASE netpulse" -c "CREATE DATABASE netpulse"
@@ -64,19 +64,19 @@ Dlatego jest zamknięty w osobnym kontenerze `updater`:
 - Zlecić aktualizację może tylko administrator panelu. Token nigdy nie trafia do przeglądarki.
 - Samo zadanie aktualizacji działa w osobnym, jednorazowym kontenerze, więc wymiana usługi `updater`
   w trakcie aktualizacji go nie przerywa.
-- Kod pochodzi wyłącznie ze **źródła aktualizacji**: adresu `origin` repozytorium w `/opt/netpulse`
+- Kod pochodzi wyłącznie ze **źródła aktualizacji**: adresu `origin` repozytorium w `/opt/uplinkview`
   (domyślnie GitHub). Inne źródło ustawisz w `.env`: `NETPULSE_UPDATE_REPO` (adres repozytorium git)
   i `NETPULSE_UPDATE_BRANCH`. Źródło ma pełną władzę nad tym, co zostanie zbudowane i uruchomione,
   więc wskazuj tylko repozytoria, którym ufasz.
 
 **Wyłączenie aktualizacji z panelu:** dopisz w `deploy/.env` linię `NETPULSE_UPDATER=off` i uruchom
-`netpulse restart`. Usługa nie tworzy wtedy tokenu i odrzuca wszystkie żądania, a panel pokazuje, że
-aktualizacja z panelu jest wyłączona, i podpowiada `netpulse update`. Całkowite usunięcie kontenera:
-usuń usługę `updater` z `deploy/docker-compose.yml` i uruchom `netpulse update --force`.
+`uplinkview restart`. Usługa nie tworzy wtedy tokenu i odrzuca wszystkie żądania, a panel pokazuje, że
+aktualizacja z panelu jest wyłączona, i podpowiada `uplinkview update`. Całkowite usunięcie kontenera:
+usuń usługę `updater` z `deploy/docker-compose.yml` i uruchom `uplinkview update --force`.
 
 **Własny katalog instalacji:** usługa musi widzieć katalog instalacji pod tą samą ścieżką co serwer
 (docker compose przekazuje demonowi ścieżki hosta). Ścieżkę trzyma `NETPULSE_DIR` w `deploy/.env`
-(instalator ustawia ją sam; domyślnie `/opt/netpulse`). Gdy wskazuje zły katalog, panel pokazuje
+(instalator ustawia ją sam; domyślnie `/opt/uplinkview`). Gdy wskazuje zły katalog, panel pokazuje
 komunikat zamiast uruchamiać aktualizację.
 
 ## Pierwsze włączenie na istniejącej instalacji
@@ -85,17 +85,17 @@ Usługa `updater` pojawia się razem z wersją 0.6.0. Na instalacji starszej ni�
 zaktualizować z terminala:
 
 ```bash
-netpulse update
+uplinkview update
 ```
 
 Polecenie dopisze do `.env` katalog instalacji (`NETPULSE_DIR`), zbuduje i uruchomi `updater`, który
-sam utworzy token. Dalej wystarczy panel. Jeśli instalowałeś NetPulse w innym katalogu niż `/opt/netpulse`
-i `netpulse update` uruchamiałeś wcześniej starszą wersją skryptu, sprawdź, czy `NETPULSE_DIR` w
+sam utworzy token. Dalej wystarczy panel. Jeśli instalowałeś UplinkView w innym katalogu niż `/opt/uplinkview`
+i `uplinkview update` uruchamiałeś wcześniej starszą wersją skryptu, sprawdź, czy `NETPULSE_DIR` w
 `deploy/.env` wskazuje właściwy katalog.
 
 ## Ograniczenia i plany
 
-- Aktualizacja **buduje obrazy na serwerze** (jak `netpulse update`), więc potrzebuje kilku GB wolnego miejsca
+- Aktualizacja **buduje obrazy na serwerze** (jak `uplinkview update`), więc potrzebuje kilku GB wolnego miejsca
   i kilku minut. Gotowe obrazy w rejestrze (GHCR) skrócą to do pobrania i są w planie.
 - Lista zmian to tytuły commitów. Opisy wydań z numerami wersji dojdą razem z wydaniami.
 - Źródło aktualizacji to repozytorium git. Format źródła dla własnego serwera (chmura, subskrypcje)

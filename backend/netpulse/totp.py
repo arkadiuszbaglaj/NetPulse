@@ -20,7 +20,7 @@ from urllib.parse import quote, urlencode
 
 import segno
 
-ISSUER = "NetPulse"
+ISSUER = "UplinkView"
 DIGITS = 6
 PERIOD = 30
 WINDOW = 1  # ile kroków w przód i w tył

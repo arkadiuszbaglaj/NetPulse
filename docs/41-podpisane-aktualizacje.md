@@ -1,17 +1,17 @@
 # Podpisane aktualizacje (od 0.69.0)
 
 Usługa aktualizacji ma dostęp do Dockera, czyli pełną kontrolę nad serwerem, i instaluje kod z GitHuba. Bez podpisów
-przejęcie konta na GitHubie oznaczałoby przejęcie każdej instalacji NetPulse. Od 0.69.0 aktualizacja musi być
+przejęcie konta na GitHubie oznaczałoby przejęcie każdej instalacji UplinkView. Od 0.69.0 aktualizacja musi być
 **podpisana kluczem, którego na GitHubie nie ma**.
 
 ## Jak to działa
 
 1. Każdy commit wypychany na `main` jest podpisany kluczem SSH (`git commit -S`, format podpisu `ssh`).
 2. W repozytorium jest plik `deploy/update-signers` z **kluczem publicznym** (format `allowed_signers` programu `ssh-keygen`).
-3. Przed zmianą kodu updater (`git_ops.verify_commit`) i polecenie `netpulse update` (`verify_update` w `scripts/netpulse`)
+3. Przed zmianą kodu updater (`git_ops.verify_commit`) i polecenie `uplinkview update` (`verify_update` w `scripts/netpulse`)
    sprawdzają podpis ostatniego commita ze źródła: `git verify-commit` z listą kluczy **z zainstalowanej wersji**.
 4. Podpis nieprawidłowy albo go brak → aktualizacja nie rusza, nic się nie zmienia. W panelu (Ustawienia → Aktualizacja)
-   zamiast przycisku instalacji jest komunikat „Aktualizacja w źródle nie ma prawidłowego podpisu NetPulse”.
+   zamiast przycisku instalacji jest komunikat „Aktualizacja w źródle nie ma prawidłowego podpisu UplinkView”.
 
 Podpis ostatniego commita obejmuje całą historię przed nim (każdy commit zawiera skrót poprzedniego), więc jeden wystarcza.
 Instalowany jest dokładnie ten commit, którego podpis sprawdzono – nie nazwa gałęzi, która mogłaby się w międzyczasie przesunąć.
@@ -52,20 +52,20 @@ klucz warto trzymać w pliku długo.
 Na każdym serwerze jednorazowo, jako root, podmienić zaufaną listę na nową i zaktualizować:
 
 ```bash
-cd /opt/netpulse && sudo git fetch origin main && sudo git show origin/main:deploy/update-signers | sudo tee deploy/update-signers
-sudo netpulse update
+cd /opt/uplinkview && sudo git fetch origin main && sudo git show origin/main:deploy/update-signers | sudo tee deploy/update-signers
+sudo uplinkview update
 ```
 
 Ten krok wymaga dostępu do serwera – i o to chodzi: sam GitHub nie wystarczy, żeby zmienić zaufany klucz.
 
 ## Własne źródło aktualizacji
 
-Kto ustawia `NETPULSE_UPDATE_REPO` na własny fork, nie ma podpisów NetPulse. Do wyboru:
+Kto ustawia `NETPULSE_UPDATE_REPO` na własny fork, nie ma podpisów UplinkView. Do wyboru:
 
 - `NETPULSE_UPDATE_VERIFY=off` w `deploy/.env` (wyłącza sprawdzanie; zmienić może tylko ktoś z dostępem do serwera), albo
 - własny klucz w `deploy/update-signers` forka i podpisywanie własnych commitów.
 
-## Zasady dla pracy nad NetPulse
+## Zasady dla pracy nad UplinkView
 
 - **Każdy commit na `main` musi być podpisany** – niepodpisany zablokuje aktualizację wszystkim instalacjom do czasu
   wypchnięcia kolejnego, podpisanego. Sprawdzenie przed wypchnięciem: `git log --format='%h %G? %s' -3` (`G` = dobry podpis).

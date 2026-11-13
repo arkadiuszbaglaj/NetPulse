@@ -1,6 +1,6 @@
-# NetPulse: kompletny poradnik
+# UplinkView: kompletny poradnik
 
-NetPulse to self-hosted panel do monitorowania sieci w homelabie. Zbiera w jednym miejscu ruch i stan portów
+UplinkView to self-hosted panel do monitorowania sieci w homelabie. Zbiera w jednym miejscu ruch i stan portów
 routera, switchy i access pointów, klientów sieci, zasilanie PoE, mapę połączeń i stan serwerów Linux.
 Ten poradnik prowadzi od czystego serwera do działającego panelu i opisuje codzienną obsługę.
 
@@ -41,23 +41,23 @@ Docker instaluje skrypt instalacyjny sam, jeśli go brak.
 Jedna komenda na serwerze:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/uplinkview/uplinkview/main/install.sh | sudo bash
 ```
 
 Skrypt:
 
 1. sprawdza wolne miejsce i w razie potrzeby sprząta nieużywane dane Dockera,
 2. instaluje Dockera (jeśli go nie ma),
-3. pobiera NetPulse do `/opt/netpulse`,
-4. tworzy `/opt/netpulse/deploy/.env` z losowym hasłem do bazy,
+3. pobiera UplinkView do `/opt/uplinkview`,
+4. tworzy `/opt/uplinkview/deploy/.env` z losowym hasłem do bazy,
 5. instaluje polecenie `netpulse`,
 6. uruchamia usługi: baza (PostgreSQL + TimescaleDB), kolektor, API z panelem i usługę aktualizacji.
 
 Pierwsza instalacja trwa kilka minut (pobieranie obrazów i budowanie). Sprawdź, że wszystko działa:
 
 ```bash
-netpulse status
-netpulse version
+uplinkview status
+uplinkview version
 ```
 
 Panel jest pod adresem `http://IP-SERWERA:8000` (port ze zmiennej `NETPULSE_PORT`, patrz [rozdział 10](#10-konfiguracja)).
@@ -73,16 +73,16 @@ administratora i od razu Cię zaloguje. Działa tylko raz.
 Konta z terminala:
 
 ```bash
-netpulse user list
-netpulse user add NAZWA
-netpulse user passwd admin
+uplinkview user list
+uplinkview user add NAZWA
+uplinkview user passwd admin
 ```
 
 `passwd` ustawia nowe hasło (np. zapomniane) i wylogowuje wszystkie sesje tego konta.
 
 ## 4. Przygotowanie urządzeń: SNMP
 
-NetPulse odpytuje urządzenia przez SNMP v1, v2c lub v3. Najpierw SNMP trzeba włączyć na urządzeniu.
+UplinkView odpytuje urządzenia przez SNMP v1, v2c lub v3. Najpierw SNMP trzeba włączyć na urządzeniu.
 
 ### UniFi (router, switche, access pointy)
 
@@ -113,37 +113,37 @@ wyłączone SNMP albo zapora.
 ### W panelu
 
 **Ustawienia → Urządzenia → Dodaj urządzenie.** Podaj nazwę, adres IP, wersję SNMP i community (dla SNMP v3
-nazwę użytkownika i klucze), a potem **Testuj połączenie**: NetPulse pokaże, co wykrył (typ, model, liczba portów).
+nazwę użytkownika i klucze), a potem **Testuj połączenie**: UplinkView pokaże, co wykrył (typ, model, liczba portów).
 Sterownik zostaw na „Automatyczny" (zalecany). Zapisane community i klucze nigdy nie wracają do przeglądarki;
 przy edycji puste pole oznacza „zostaw zapisane".
 
 ### Z terminala
 
 ```bash
-netpulse device add "UCG Ultra" 192.168.1.1 --community netpulse-ro
-netpulse device add "USW Lite 8 PoE" 192.168.1.2 --community netpulse-ro
-netpulse device add "U6+" 192.168.1.3 --community netpulse-ro
-netpulse device list
+uplinkview device add "UCG Ultra" 192.168.1.1 --community netpulse-ro
+uplinkview device add "USW Lite 8 PoE" 192.168.1.2 --community netpulse-ro
+uplinkview device add "U6+" 192.168.1.3 --community netpulse-ro
+uplinkview device list
 ```
 
 Sam test, bez dodawania:
 
 ```bash
-netpulse probe 192.168.1.2 --community netpulse-ro
+uplinkview probe 192.168.1.2 --community netpulse-ro
 ```
 
 SNMP v3 (uwierzytelnianie i szyfrowanie):
 
 ```bash
-netpulse device add "Router" 192.168.1.1 --snmp-version 3 \
+uplinkview device add "Router" 192.168.1.1 --snmp-version 3 \
   --v3-user monitor --v3-auth-proto SHA --v3-auth-key 'KLUCZ-AUTH' \
   --v3-priv-proto AES --v3-priv-key 'KLUCZ-PRIV'
 ```
 
-Usunięcie urządzenia razem z historią (ID z `netpulse device list`):
+Usunięcie urządzenia razem z historią (ID z `uplinkview device list`):
 
 ```bash
-netpulse device remove 3
+uplinkview device remove 3
 ```
 
 Pierwsze wykresy ruchu pojawiają się po drugim odczycie, czyli około minuty po dodaniu urządzenia
@@ -152,26 +152,26 @@ Pierwsze wykresy ruchu pojawiają się po drugim odczycie, czyli około minuty p
 ## 6. Kontroler UniFi: PoE, klienci, mapa sieci
 
 SNMP nie podaje mocy PoE na portach, listy klientów (nazwa, sygnał, port) ani połączeń między urządzeniami.
-Te dane NetPulse czyta z kontrolera UniFi Network przez klucz API (tylko odczyt).
+Te dane UplinkView czyta z kontrolera UniFi Network przez klucz API (tylko odczyt).
 
 1. W UniFi Network: **Settings → Control Plane → Integrations → Create API Key**. Nazwa dowolna, np. `netpulse`.
    Klucz widać tylko raz, więc skopiuj go od razu. Nie wklejaj go do czatów ani do repozytoriów.
-2. W NetPulse: **Ustawienia → Kontrolery UniFi → Dodaj kontroler**. Podaj adres kontrolera (u Ciebie brama,
+2. W UplinkView: **Ustawienia → Kontrolery UniFi → Dodaj kontroler**. Podaj adres kontrolera (u Ciebie brama,
    np. `192.168.1.1`), klucz API i `site` (zwykle `default`). Kontrolery mają zwykle certyfikat samopodpisany,
    więc zostaw weryfikację certyfikatu wyłączoną. **Testuj połączenie** pokaże wersję UniFi Network i liczbę
    urządzeń oraz klientów.
 3. Po jednym cyklu (ok. 30 s) działają: strona **Klienci**, widget **PoE switcha** oraz **Mapa sieci**.
 
-Urządzenie z kontrolera łączone jest z urządzeniem w NetPulse po adresie IP, więc dodaj je też w Ustawienia → Urządzenia
+Urządzenie z kontrolera łączone jest z urządzeniem w UplinkView po adresie IP, więc dodaj je też w Ustawienia → Urządzenia
 (adres musi się zgadzać).
 
-Uwaga: NetPulse używa też starszego, nieoficjalnego API kontrolera, bo tylko ono ma moc PoE i sygnał klientów.
+Uwaga: UplinkView używa też starszego, nieoficjalnego API kontrolera, bo tylko ono ma moc PoE i sygnał klientów.
 Po dużej aktualizacji UniFi coś może się zmienić. Testy na zapisanych odpowiedziach wykrywają taką zmianę
-w nowej wersji NetPulse.
+w nowej wersji UplinkView.
 
 ## 7. Serwery Linux
 
-Serwer Linux jest w NetPulse zwykłym urządzeniem i działa przez SNMP (`snmpd`). Pokazuje CPU, RAM, swap,
+Serwer Linux jest w UplinkView zwykłym urządzeniem i działa przez SNMP (`snmpd`). Pokazuje CPU, RAM, swap,
 obciążenie, dyski, liczbę procesów, czas pracy i ruch na interfejsach (bez śmieci z Dockera).
 
 Na monitorowanym serwerze:
@@ -180,7 +180,7 @@ Na monitorowanym serwerze:
 sudo apt update && sudo apt install -y snmpd
 ```
 
-Wpisz do `/etc/snmp/snmpd.conf` (zastąp zawartość). Podmień `192.168.1.10` na adres serwera z NetPulse,
+Wpisz do `/etc/snmp/snmpd.conf` (zastąp zawartość). Podmień `192.168.1.10` na adres serwera z UplinkView,
 a `netpulse-ro` na własne community:
 
 ```
@@ -195,7 +195,7 @@ sudo systemctl restart snmpd && sudo systemctl enable snmpd
 sudo ufw allow from 192.168.1.10 to any port 161 proto udp
 ```
 
-(Ostatnie polecenie tylko, jeśli używasz zapory `ufw`.) Sprawdzenie z serwera NetPulse:
+(Ostatnie polecenie tylko, jeśli używasz zapory `ufw`.) Sprawdzenie z serwera UplinkView:
 
 ```bash
 snmpwalk -v2c -c netpulse-ro 192.168.1.20 1.3.6.1.2.1.25.2.3.1.3
@@ -222,7 +222,7 @@ Czego SNMP nie da: kontenerów, usług systemd, SMART i temperatur (to zakres pl
 (układ zapisuje się na koncie). **Przywróć domyślny** wraca do wyglądu początkowego. Dostępne widgety:
 Wykres, Podsumowanie, Karty urządzeń, PoE switcha, Serwer.
 
-Wykres ma własne ustawienia: źródło (ruch WAN, port, urządzenie, sieć WiFi, klienci WiFi, serwer NetPulse),
+Wykres ma własne ustawienia: źródło (ruch WAN, port, urządzenie, sieć WiFi, klienci WiFi, serwer UplinkView),
 metryki i kolory, typ (linia, obszar, słupki), jednostkę (bity albo bajty), maksimum osi, zakres czasu, odświeżanie
 i wysokość.
 
@@ -243,8 +243,8 @@ ok. minuty – porty negocjujące link zaraz po starcie switcha nie dają fałsz
 
 ### System
 
-**Ustawienia → System** pokazuje stan usług NetPulse (API, baza, kolektor, kontrolery UniFi, usługa aktualizacji)
-oraz stan serwera, na którym NetPulse działa: CPU, RAM, dysk, obciążenie, temperaturę i rozmiar bazy, z wykresami.
+**Ustawienia → System** pokazuje stan usług UplinkView (API, baza, kolektor, kontrolery UniFi, usługa aktualizacji)
+oraz stan serwera, na którym UplinkView działa: CPU, RAM, dysk, obciążenie, temperaturę i rozmiar bazy, z wykresami.
 
 ## 9. Aktualizacja
 
@@ -258,25 +258,25 @@ w pasku górnym, gdy jest nowa wersja.
 ### Z terminala
 
 ```bash
-netpulse update
+uplinkview update
 ```
 
 Pobiera najnowszą wersję, pokazuje listę zmian, przebudowuje i restartuje usługi. Dane i konfiguracja zostają.
 Wymuszenie, gdy po nieudanym budowaniu potrzebna jest ponowna próba:
 
 ```bash
-netpulse update --force
+uplinkview update --force
 ```
 
 Aktualizacja z panelu pojawiła się w wersji 0.6.0. Na starszej instalacji zaktualizuj raz z terminala.
 
 ### Miejsce na dysku
 
-`install.sh` i `netpulse update` sprawdzają wolne miejsce przed zmianą czegokolwiek: poniżej 4 GB sprzątają
+`install.sh` i `uplinkview update` sprawdzają wolne miejsce przed zmianą czegokolwiek: poniżej 4 GB sprzątają
 nieużywane dane Dockera, a poniżej 2 GB po sprzątaniu zatrzymują się bez żadnych zmian. Ręcznie:
 
 ```bash
-netpulse cleanup
+uplinkview cleanup
 ```
 
 Gdy dysk jest duży, ale system używa tylko jego części (domyślny układ LVM w Ubuntu Server):
@@ -290,7 +290,7 @@ sudo lvextend -r -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
 
 ## 10. Konfiguracja
 
-Plik `/opt/netpulse/deploy/.env`. Po zmianie zastosuj ją poleceniem `netpulse start` (samo `netpulse restart`
+Plik `/opt/uplinkview/deploy/.env`. Po zmianie zastosuj ją poleceniem `uplinkview start` (samo `uplinkview restart`
 nie odtwarza kontenerów z nowym portem).
 
 | Zmienna | Domyślnie | Opis |
@@ -307,8 +307,8 @@ nie odtwarza kontenerów z nowym portem).
 Przykład edycji:
 
 ```bash
-sudo nano /opt/netpulse/deploy/.env
-netpulse start
+sudo nano /opt/uplinkview/deploy/.env
+uplinkview start
 ```
 
 Krótszy interwał odpytywania daje gęstsze wykresy, ale baza rośnie proporcjonalnie (10 s to około 3 razy więcej
@@ -327,8 +327,8 @@ sudo ss -ltn 'sport = :80'
 Ustaw port i zastosuj zmianę:
 
 ```bash
-sudo sed -i 's/^NETPULSE_PORT=.*/NETPULSE_PORT=80/' /opt/netpulse/deploy/.env
-netpulse start
+sudo sed -i 's/^NETPULSE_PORT=.*/NETPULSE_PORT=80/' /opt/uplinkview/deploy/.env
+uplinkview start
 ```
 
 Dane, konto i urządzenia zostają, a stare zakładki z `:8000` przestaną działać. Powrót: ta sama komenda z `8000`.
@@ -341,30 +341,30 @@ Dane, konto i urządzenia zostają, a stare zakładki z `:8000` przestaną dzia�
 
 ### HTTPS (reverse proxy)
 
-Przed NetPulse można postawić proxy (np. Caddy) na portach 80 i 443. Wtedy w `.env` dopisz adres, pod którym panel
+Przed UplinkView można postawić proxy (np. Caddy) na portach 80 i 443. Wtedy w `.env` dopisz adres, pod którym panel
 jest dostępny, i zastosuj zmianę, bo inaczej ochrona CSRF odrzuci logowanie:
 
 ```bash
-echo 'NETPULSE_TRUSTED_ORIGINS=https://netpulse.lan' | sudo tee -a /opt/netpulse/deploy/.env
-netpulse start
+echo 'NETPULSE_TRUSTED_ORIGINS=https://netpulse.lan' | sudo tee -a /opt/uplinkview/deploy/.env
+uplinkview start
 ```
 
 Nie wystawiaj panelu bezpośrednio do internetu: dostęp z zewnątrz tylko przez VPN albo porządnie skonfigurowane HTTPS.
 
 ## 12. Kopia i przywracanie bazy
 
-Aktualizacja z panelu zapisuje kopię bazy w `/opt/netpulse/backups/netpulse-RRRRMMDD-GGMMSS.sql.gz` (zostają 3 ostatnie,
+Aktualizacja z panelu zapisuje kopię bazy w `/opt/uplinkview/backups/netpulse-RRRRMMDD-GGMMSS.sql.gz` (zostają 3 ostatnie,
 prawa tylko dla roota). Ręczna kopia:
 
 ```bash
-cd /opt/netpulse
+cd /opt/uplinkview
 sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec -T db pg_dump -U netpulse netpulse | gzip | sudo tee backups/reczna-$(date +%Y%m%d-%H%M%S).sql.gz > /dev/null
 ```
 
 Przywracanie (potrzebne tylko, gdy trzeba wrócić do stanu sprzed zmiany). Podmień nazwę pliku:
 
 ```bash
-cd /opt/netpulse
+cd /opt/uplinkview
 DC="sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env"
 $DC stop api collector
 $DC exec -T db psql -U netpulse -d postgres -c "DROP DATABASE netpulse" -c "CREATE DATABASE netpulse"
@@ -380,24 +380,24 @@ Polecenia `netpulse` uruchamiaj na serwerze (większość wymaga `sudo`, a gdy g
 
 | Polecenie | Co robi |
 |-----------|---------|
-| `netpulse status` | stan usług (kontenerów) |
-| `netpulse logs` | logi wszystkich usług (Ctrl+C kończy) |
-| `netpulse logs collector` | logi tylko kolektora (analogicznie `api`, `db`, `updater`) |
-| `netpulse start` | uruchom usługi (zastosuje też zmiany z `.env`) |
-| `netpulse stop` | zatrzymaj usługi |
-| `netpulse restart` | restart usług |
-| `netpulse update` | aktualizacja do najnowszej wersji (`--force` wymusza) |
-| `netpulse version` | zainstalowana wersja |
-| `netpulse cleanup` | zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje) |
-| `netpulse reset` | wyczyść bazę (urządzenia i historia), konfiguracja zostaje |
-| `netpulse uninstall` | usuń NetPulse (pyta o usunięcie danych) |
-| `netpulse device add NAZWA ADRES [opcje]` | dodaj urządzenie (opcje: `--community`, `--snmp-version`, `--port`, `--driver`, `--v3-*`, `--no-probe`) |
-| `netpulse device list` | lista urządzeń ze statusem i czasem ostatniego odczytu |
-| `netpulse device remove ID` | usuń urządzenie razem z historią |
-| `netpulse probe ADRES [--community C] [--all]` | test SNMP bez zapisu (`--all` pokazuje też ukryte interfejsy) |
-| `netpulse user list` | konta panelu |
-| `netpulse user add NAZWA` | dodaj konto administratora |
-| `netpulse user passwd NAZWA` | nowe hasło |
+| `uplinkview status` | stan usług (kontenerów) |
+| `uplinkview logs` | logi wszystkich usług (Ctrl+C kończy) |
+| `uplinkview logs collector` | logi tylko kolektora (analogicznie `api`, `db`, `updater`) |
+| `uplinkview start` | uruchom usługi (zastosuje też zmiany z `.env`) |
+| `uplinkview stop` | zatrzymaj usługi |
+| `uplinkview restart` | restart usług |
+| `uplinkview update` | aktualizacja do najnowszej wersji (`--force` wymusza) |
+| `uplinkview version` | zainstalowana wersja |
+| `uplinkview cleanup` | zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje) |
+| `uplinkview reset` | wyczyść bazę (urządzenia i historia), konfiguracja zostaje |
+| `uplinkview uninstall` | usuń UplinkView (pyta o usunięcie danych) |
+| `uplinkview device add NAZWA ADRES [opcje]` | dodaj urządzenie (opcje: `--community`, `--snmp-version`, `--port`, `--driver`, `--v3-*`, `--no-probe`) |
+| `uplinkview device list` | lista urządzeń ze statusem i czasem ostatniego odczytu |
+| `uplinkview device remove ID` | usuń urządzenie razem z historią |
+| `uplinkview probe ADRES [--community C] [--all]` | test SNMP bez zapisu (`--all` pokazuje też ukryte interfejsy) |
+| `uplinkview user list` | konta panelu |
+| `uplinkview user add NAZWA` | dodaj konto administratora |
+| `uplinkview user passwd NAZWA` | nowe hasło |
 
 Interaktywna dokumentacja API (z możliwością wywołań po zalogowaniu): `http://IP-SERWERA:8000/docs`.
 
@@ -409,31 +409,31 @@ Interaktywna dokumentacja API (z możliwością wywołań po zalogowaniu): `http
 - Community SNMP, klucze SNMP v3 i klucze API kontrolerów nigdy nie wracają do przeglądarki.
 - Aktualizacja z panelu działa w osobnym kontenerze `updater`, jedynym z dostępem do Dockera. API rozmawia z nim przez sieć
   wewnętrzną z losowym tokenem, a zlecić aktualizację może tylko administrator. Wyłączenie: `NETPULSE_UPDATER=off` w `.env`.
-- Używaj własnego community SNMP zamiast `public` i ograniczaj odczyt do adresu serwera NetPulse (patrz [rozdział 7](#7-serwery-linux)).
+- Używaj własnego community SNMP zamiast `public` i ograniczaj odczyt do adresu serwera UplinkView (patrz [rozdział 7](#7-serwery-linux)).
 - Nie wystawiaj portu panelu do internetu bez VPN albo HTTPS.
 
 ## 15. Rozwiązywanie problemów
 
 | Objaw | Co sprawdzić |
 |-------|--------------|
-| Panel się nie otwiera | `netpulse status`, `netpulse logs api`; port w `.env` i zapora serwera |
+| Panel się nie otwiera | `uplinkview status`, `uplinkview logs api`; port w `.env` i zapora serwera |
 | „Brak odpowiedzi SNMP" przy dodawaniu | SNMP włączone na urządzeniu, nazwa community, adres, zapora (UDP 161): `snmpwalk -v2c -c COMMUNITY ADRES 1.3.6.1.2.1.1` |
-| Brak wykresów po dodaniu urządzenia | poczekaj 1–2 minuty (potrzebne dwa odczyty); `netpulse device list` pokazuje status |
-| Urządzenie „nie odpowiada" | `netpulse logs collector`; ten sam test `snmpwalk` z serwera |
-| „Baza danych pochodzi ze starszej, niezgodnej wersji" | `netpulse reset` (usuwa urządzenia i historię), potem dodaj urządzenia ponownie |
-| Brak PoE, klientów albo mapy sieci | dodany kontroler UniFi (rozdział 6), poprawny klucz API i `site`; adres urządzenia w NetPulse zgodny z kontrolerem |
-| Za mało miejsca przy aktualizacji | `netpulse cleanup`, potem `netpulse update`; ewentualnie powiększ wolumen LVM (rozdział 9) |
-| Aktualizacja nieudana po pobraniu kodu | usuń przyczynę (`netpulse logs`), potem `netpulse update --force` |
-| Po zmianie `.env` nic się nie zmieniło | użyj `netpulse start` (samo `restart` nie odtwarza kontenerów) |
-| Za reverse proxy nie da się zalogować | dopisz adres w `NETPULSE_TRUSTED_ORIGINS` i `netpulse start` |
-| Zapomniane hasło | `netpulse user passwd admin` |
+| Brak wykresów po dodaniu urządzenia | poczekaj 1–2 minuty (potrzebne dwa odczyty); `uplinkview device list` pokazuje status |
+| Urządzenie „nie odpowiada" | `uplinkview logs collector`; ten sam test `snmpwalk` z serwera |
+| „Baza danych pochodzi ze starszej, niezgodnej wersji" | `uplinkview reset` (usuwa urządzenia i historię), potem dodaj urządzenia ponownie |
+| Brak PoE, klientów albo mapy sieci | dodany kontroler UniFi (rozdział 6), poprawny klucz API i `site`; adres urządzenia w UplinkView zgodny z kontrolerem |
+| Za mało miejsca przy aktualizacji | `uplinkview cleanup`, potem `uplinkview update`; ewentualnie powiększ wolumen LVM (rozdział 9) |
+| Aktualizacja nieudana po pobraniu kodu | usuń przyczynę (`uplinkview logs`), potem `uplinkview update --force` |
+| Po zmianie `.env` nic się nie zmieniło | użyj `uplinkview start` (samo `restart` nie odtwarza kontenerów) |
+| Za reverse proxy nie da się zalogować | dopisz adres w `NETPULSE_TRUSTED_ORIGINS` i `uplinkview start` |
+| Zapomniane hasło | `uplinkview user passwd admin` |
 | Serwer Linux bez dysków lub rozpoznany jako ogólne urządzenie | [`docs/10-serwer-linux-snmp.md`](10-serwer-linux-snmp.md) |
 
 ## 16. Odinstalowanie
 
 ```bash
-netpulse uninstall
+uplinkview uninstall
 ```
 
-Polecenie zapyta, czy usunąć NetPulse z serwera i czy usunąć też bazę z historią metryk. Odpowiedź „nie" na drugie pytanie
+Polecenie zapyta, czy usunąć UplinkView z serwera i czy usunąć też bazę z historią metryk. Odpowiedź „nie" na drugie pytanie
 zostawia dane do ewentualnej ponownej instalacji.

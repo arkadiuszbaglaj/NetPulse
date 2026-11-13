@@ -99,7 +99,7 @@ export function PublicDashboardPage() {
   });
 
   useEffect(() => {
-    if (page.data?.name) document.title = `${page.data.name} · NetPulse`;
+    if (page.data?.name) document.title = `${page.data.name} · UplinkView`;
   }, [page.data?.name]);
 
   if (page.isLoading) return <Message title={t("app.loading")} />;

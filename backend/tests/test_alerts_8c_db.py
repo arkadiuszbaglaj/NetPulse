@@ -1,4 +1,4 @@
-"""Etap 8c na prawdziwej bazie: reguły dysku, błędów portów i serwera NetPulse oraz powiadomienia webhookiem.
+"""Etap 8c na prawdziwej bazie: reguły dysku, błędów portów i serwera UplinkView oraz powiadomienia webhookiem.
 
 Uruchamiane, gdy ustawiono NETPULSE_TEST_DB=1 i NETPULSE_DATABASE_URL (CI ma usługę bazy).
 """
@@ -171,7 +171,7 @@ def test_system_rules_cover_netpulse_server(client):
     add_rows([SystemMetric(time=NOW, cpu_percent=20.0, disk_used_percent=93.0)])
     evaluate()
     (a,) = alerts(client)
-    assert a["title"] == "Serwer NetPulse: dysk 93,0%" and a["device_id"] is None and a["severity"] == "critical"
+    assert a["title"] == "Serwer UplinkView: dysk 93,0%" and a["device_id"] is None and a["severity"] == "critical"
 
     add_rows([SystemMetric(time=NOW + timedelta(seconds=30), cpu_percent=20.0, disk_used_percent=50.0)])
     evaluate(now=NOW + timedelta(seconds=30))

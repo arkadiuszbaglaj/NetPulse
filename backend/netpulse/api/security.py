@@ -108,7 +108,7 @@ class _CachedSession:
 # Pamięć sprawdzonych sesji (od 0.67.0): skrót tokenu → użytkownik. Pulpit z kilkunastoma widgetami pyta API
 # kilkadziesiąt razy na odświeżenie, a każde żądanie czytało z bazy sesję i użytkownika. Wpis żyje
 # `settings.session_cache_s` sekund; zmiany sesji i kont w API czyszczą pamięć od razu (`forget_sessions`).
-# Zmiana z innego procesu (`netpulse user passwd`, `2fa-off`) działa najpóźniej po tym czasie.
+# Zmiana z innego procesu (`uplinkview user passwd`, `2fa-off`) działa najpóźniej po tym czasie.
 SESSION_CACHE_S = settings.session_cache_s  # osobna zmienna: testy włączają pamięć u siebie
 _sessions: dict[str, _CachedSession] = {}
 _SESSIONS_MAX = 1000

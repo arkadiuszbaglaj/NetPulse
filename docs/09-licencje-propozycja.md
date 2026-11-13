@@ -5,7 +5,7 @@ Dokument ma pomóc podjąć decyzje, zanim powstanie jakikolwiek kod.
 
 ## Po co to jest
 
-NetPulse ma być aplikacją do samodzielnej instalacji przez innych (cel z `CLAUDE.md`), a później mieć
+UplinkView ma być aplikacją do samodzielnej instalacji przez innych (cel z `CLAUDE.md`), a później mieć
 chmurę i aplikację mobilną. Jeśli część funkcji ma być płatna albo ograniczona, instalacja potrzebuje
 sposobu, żeby dowiedzieć się, co jej wolno, bez grzebania w kodzie. Pomysł: **licencja jako podpisany
 dokument wystawiany przez zewnętrzny serwis licencyjny**, który instalacja pobiera po wpisaniu klucza.
@@ -29,7 +29,7 @@ zabezpieczenia da się obejść, więc celem jest **uczciwość i wygoda, nie DR
 1. Użytkownik kupuje (albo dostaje) **klucz licencji** w serwisie.
 2. W panelu: **Ustawienia → Licencja → wpisz klucz → Aktywuj**.
 3. Instalacja wysyła do serwisu: klucz, losowy **identyfikator instalacji** (UUID tworzony przy pierwszym
-   uruchomieniu, bez związku ze sprzętem) i wersję NetPulse. **Nic o sieci użytkownika** (adresy, nazwy,
+   uruchomieniu, bez związku ze sprzętem) i wersję UplinkView. **Nic o sieci użytkownika** (adresy, nazwy,
    metryki, klienci).
 4. Serwis odsyła **podpisany token** (Ed25519): plan, dozwolone funkcje, limity, data ważności, id instalacji.
 5. Instalacja **weryfikuje podpis offline** kluczem publicznym wbudowanym w aplikację i zapisuje token w bazie.
@@ -79,7 +79,7 @@ Użytkownik, który przestał płacić, dalej widzi swoją sieć i swoje dane.
 - `backend/netpulse/licensing.py`: weryfikacja podpisu, stan licencji, funkcje `has_feature("notifications")`
   i `limit("devices")`; **jedno miejsce**, z którego korzysta reszta (kolektor, API, panel).
 - Nowe tabele `license` (token, klucz, ostatnie odświeżenie, błąd) i `installation` (id instalacji). Nowe tabele
-  powstają same przy `netpulse update`, więc **nie wymagają migracji Alembic**.
+  powstają same przy `uplinkview update`, więc **nie wymagają migracji Alembic**.
 - API: `GET /api/license` (stan, plan, limity, data), `POST /api/license/activate`, `POST /api/license/deactivate`.
   Tylko administrator.
 - Panel: Ustawienia → Licencja oraz małe oznaczenia przy funkcjach płatnych. Panel pyta API o `features`, nie ma

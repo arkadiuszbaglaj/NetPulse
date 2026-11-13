@@ -41,7 +41,7 @@ data class WanLink(
 data class TrafficPoint(val time: Instant, val inBps: Double?, val outBps: Double?)
 
 /**
- * Klient API serwera NetPulse. Loguje tak samo jak panel (ciasteczko sesji `netpulse_session`, przez HTTP `netpulse_session_http`),
+ * Klient API serwera UplinkView. Loguje tak samo jak panel (ciasteczko sesji `netpulse_session`, przez HTTP `netpulse_session_http`),
  * więc serwer nie potrzebuje nic dodatkowego. Adres serwera i ciasteczko zostają w pamięci telefonu,
  * hasło – nigdy.
  */

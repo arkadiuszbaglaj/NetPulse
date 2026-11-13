@@ -1,6 +1,6 @@
 """Kolektor Proxmox VE: węzły, maszyny VM/LXC, magazyny i kopie zapasowe (co cykl, razem z kolektorem SNMP).
 
-Węzeł Proxmox staje się urządzeniem NetPulse (`driver = "proxmox"`, rodzaj „Serwer”), więc działają dla niego
+Węzeł Proxmox staje się urządzeniem UplinkView (`driver = "proxmox"`, rodzaj „Serwer”), więc działają dla niego
 karta serwera, alerty (nie odpowiada, CPU, RAM, dysk) i wykresy. Do tabel wpisujemy:
 - `device_metrics` (CPU, RAM, obciążenie, czas pracy węzła), `disk_metrics` (system plików węzła i magazyny),
 - `metrics` (ogólna): `guest_up`, `guest_cpu_percent`, `guest_mem_bytes`, `guest_net_rx_bps`/`tx`,
@@ -340,7 +340,7 @@ class ProxmoxCollector:
         await _write_with_retry(write)
 
     async def _ensure_node_devices(self, session, target: ServerTarget, snap: PveSnapshot, now: datetime) -> dict[str, int]:
-        """Urządzenie NetPulse dla każdego węzła (tworzone przy pierwszym odczycie); zwraca {węzeł: id urządzenia}."""
+        """Urządzenie UplinkView dla każdego węzła (tworzone przy pierwszym odczycie); zwraca {węzeł: id urządzenia}."""
         known = {n.node: n for n in (await session.scalars(select(ProxmoxNode).where(ProxmoxNode.server_id == target.id))).all()}
         taken = set((await session.scalars(select(Device.host))).all())
         out: dict[str, int] = {}

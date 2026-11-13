@@ -90,7 +90,7 @@ def env(tmp_path):
 
 
 def test_restart_recreates_containers_with_current_env(env):
-    """`netpulse restart` = kontenery od nowa z aktualnym .env (od 0.71.1); samo `compose restart` zostawiało stare zmienne."""
+    """`uplinkview restart` = kontenery od nowa z aktualnym .env (od 0.71.1); samo `compose restart` zostawiało stare zmienne."""
     r = env.run(NETPULSE, "restart_services")
     assert r.returncode == 0, r.stderr
     (line,) = env.docker_log.splitlines()
@@ -243,7 +243,7 @@ def test_fill_tls_names_only_when_missing_or_empty(env, script):
     assert f.read_text() == "NETPULSE_TLS_NAMES=moj.serwer\n"
 
 
-# --- podpis aktualizacji w `netpulse update` (od 0.69.0) ---------------------------------
+# --- podpis aktualizacji w `uplinkview update` (od 0.69.0) ---------------------------------
 
 
 @pytest.mark.skipif(shutil.which("ssh-keygen") is None or shutil.which("git") is None, reason="brak ssh-keygen albo gita")
@@ -294,3 +294,48 @@ def test_verify_update_accepts_only_commits_signed_with_trusted_key(tmp_path):
     assert verify(plain, "NETPULSE_UPDATE_VERIFY=off") == 0
     (repo / "deploy" / ".env").write_text("POSTGRES_PASSWORD=x\nNETPULSE_UPDATE_VERIFY=off\n")
     assert verify(plain) == 0
+
+
+# --- zmiana nazwy na UplinkView (0.78.0) -------------------------------------------------------------------------
+
+
+def test_cli_finds_its_install_dir():
+    """Bez NETPULSE_DIR polecenie bierze katalog, w którym leży (/opt/uplinkview albo /opt/netpulse sprzed zmiany nazwy)."""
+    env = {k: v for k, v in os.environ.items() if k != "NETPULSE_DIR"}
+    r = subprocess.run(
+        ["bash", "-c", 'source "$0"; np_install_dir', posix(NETPULSE)], env=env, capture_output=True, text=True
+    )
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip().splitlines()[-1] == posix(ROOT)
+
+
+@pytest.mark.parametrize(
+    ("old", "moved"),
+    [
+        ("https://github.com/arkadiuszbaglaj/NetPulse.git", True),
+        ("git@github.com:arkadiuszbaglaj/NetPulse.git", True),
+        ("https://example.com/moje/zrodlo.git", False),
+    ],
+)
+def test_cli_moves_old_repository_address(tmp_path, old, moved):
+    repo = tmp_path / "inst"
+    (repo / "deploy").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "remote", "add", "origin", old], check=True)
+    script = f'source "{posix(NETPULSE)}"; INSTALL_DIR="{posix(repo)}"; ENV_FILE="$INSTALL_DIR/deploy/.env"; np_migrate_origin'
+    assert subprocess.run(["bash", "-c", script], capture_output=True, text=True).returncode == 0
+    url = subprocess.run(["git", "-C", str(repo), "remote", "get-url", "origin"], capture_output=True, text=True).stdout.strip()
+    assert url == ("https://github.com/uplinkview/uplinkview.git" if moved else old)
+
+
+def test_cli_keeps_own_update_source(tmp_path):
+    repo = tmp_path / "inst"
+    (repo / "deploy").mkdir(parents=True)
+    (repo / "deploy" / ".env").write_text("NETPULSE_UPDATE_REPO=https://example.com/fork.git\n")
+    old = "https://github.com/arkadiuszbaglaj/NetPulse.git"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "remote", "add", "origin", old], check=True)
+    script = f'source "{posix(NETPULSE)}"; INSTALL_DIR="{posix(repo)}"; ENV_FILE="$INSTALL_DIR/deploy/.env"; np_migrate_origin'
+    subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    url = subprocess.run(["git", "-C", str(repo), "remote", "get-url", "origin"], capture_output=True, text=True).stdout.strip()
+    assert url == old

@@ -4,7 +4,7 @@ SNMP nie podaje PoE na portach ani listy klientów, więc czytamy je z kontroler
 
 - **Oficjalne** (`/proxy/network/integration/v1`, opis: developer.ui.com, wersja 11.0.97 z plikiem OpenAPI):
   wersja aplikacji, lista urządzeń, porty (stan, prędkość, stan PoE), CPU, RAM, load, uptime. Od 0.52.0 z niego
-  bierzemy urządzenia, których NetPulse nie zna z SNMP (np. switche USW Flex i Ultra – nie mają SNMP).
+  bierzemy urządzenia, których UplinkView nie zna z SNMP (np. switche USW Flex i Ultra – nie mają SNMP).
 - **Starsze** `/proxy/network/api/s/<site>/stat/...` (ten sam klucz): moc PoE w watach, sygnał klientów i ich
   porty, LLDP, stan WAN i liczniki ruchu portów – tego oficjalne API nadal nie podaje.
 

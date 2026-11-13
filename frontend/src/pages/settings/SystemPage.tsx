@@ -72,7 +72,7 @@ const chart = (title: string, keys: string[], height: ChartConfig["height"] = "m
   height,
 });
 
-/** Ustawienia → System: stan usług NetPulse, bieżący stan serwera i jego wykresy. */
+/** Ustawienia → System: stan usług UplinkView, bieżący stan serwera i jego wykresy. */
 export function SystemPage() {
   const services = useServices();
   const charts = useMemo(

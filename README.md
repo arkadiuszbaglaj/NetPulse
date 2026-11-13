@@ -1,4 +1,4 @@
-# NetPulse
+# UplinkView
 
 Self-hosted aplikacja webowa do monitorowania sieci w homelabie. W jednym panelu zbiera ruch i stan portów
 routera, switchy i access pointów, klientów WiFi, topologię, serwery Linux i Proxmox oraz alerty.
@@ -9,14 +9,14 @@ Jedna komenda na czystym Ubuntu Server (instaluje Dockera, jeśli go brak, tworz
 i uruchamia usługi):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/uplinkview/uplinkview/main/install.sh | sudo bash
 ```
 
 Potem otwórz panel w przeglądarce (`http://ADRES-SERWERA:8000`): załóż konto, a kreator pierwszej konfiguracji
 pomoże dodać urządzenia. Aktualizacja jednym kliknięciem w panelu (Ustawienia → Aktualizacje) albo poleceniem:
 
 ```bash
-netpulse update
+uplinkview update
 ```
 
 Szczegóły: [`docs/04-instalacja-i-aktualizacja.md`](docs/04-instalacja-i-aktualizacja.md).
@@ -34,7 +34,7 @@ Szczegóły: [`docs/04-instalacja-i-aktualizacja.md`](docs/04-instalacja-i-aktua
   Proxmox VE (maszyny VM/LXC, magazyny, kopie vzdump).
 - **Alerty:** urządzenie offline, port down, przeciążenie, CPU/RAM, dysk, błędy portów, dane z agenta;
   powiadomienia przez webhook i Telegram.
-- **Administracja:** kopie zapasowe z panelu i `netpulse backup`, sekrety zaszyfrowane w bazie, moduły
+- **Administracja:** kopie zapasowe z panelu i `uplinkview backup`, sekrety zaszyfrowane w bazie, moduły
   do włączania i wyłączania, migracje bazy (Alembic).
 
 ## Obsługiwane urządzenia
@@ -42,7 +42,7 @@ Szczegóły: [`docs/04-instalacja-i-aktualizacja.md`](docs/04-instalacja-i-aktua
 | Producent        | Status | Źródła danych |
 |------------------|--------|---------------|
 | Ubiquiti UniFi   | ✅ sprawdzone na sprzęcie (UCG Ultra, USW Lite 8 PoE, U6+) | SNMP (IF-MIB, UBNT-UniFi-MIB) + UniFi Network API |
-| Serwery Linux    | ✅ | SNMP (`snmpd`) albo agent NetPulse |
+| Serwery Linux    | ✅ | SNMP (`snmpd`) albo agent UplinkView |
 | Proxmox VE       | sprawdzone na atrapie API, czeka na prawdziwy serwer | API Proxmox (token, rola PVEAuditor) |
 | MikroTik         | driver SNMP na zrzutach syntetycznych | SNMP (IF-MIB, MIKROTIK-MIB, HOST-RESOURCES); RouterOS API planowane |
 | TP-Link Omada    | driver SNMP na zrzutach syntetycznych | SNMP (IF-MIB); Omada Controller API planowane |
@@ -80,7 +80,7 @@ Wybór drivera jest automatyczny (`sysObjectID` / `sysDescr`).
 ## Plan prac
 
 1. ✅ Inwentaryzacja i test SNMP
-2. ✅ Szkielet projektu: Docker Compose, baza, `install.sh`, `netpulse update`
+2. ✅ Szkielet projektu: Docker Compose, baza, `install.sh`, `uplinkview update`
 3. ✅ Kolektor SNMP: driver generyczny + UniFi
 4. ✅ Backend API: urządzenia, porty, metryki, logowanie
 5. ✅ Panel: pulpit, ustawienia, aktualizacja jednym kliknięciem, personalizacja, tryb „Na żywo”
@@ -97,7 +97,7 @@ do Prometheus i Home Assistant): [`docs/06-projekt-panelu.md`](docs/06-projekt-p
 ## Struktura katalogów
 
 ```
-NetPulse/
+UplinkView/
 ├── backend/        # FastAPI + kolektor + agent Linux (wspólne modele i drivery)
 ├── frontend/       # React + Vite
 ├── updater/        # kontener aktualizacji i kopii zapasowych

@@ -52,7 +52,7 @@ metryki. Przerwa dłuższa niż 3 cykle kolektora to rozłączenie.
 
 ## Jak sprawdzić po aktualizacji
 
-1. `netpulse update`, potem w panelu klik w nazwę urządzenia na pulpicie → strona urządzenia, klik w port → strona portu.
+1. `uplinkview update`, potem w panelu klik w nazwę urządzenia na pulpicie → strona urządzenia, klik w port → strona portu.
 2. Klienci → klik w klienta → strona klienta (historia rośnie od aktualizacji).
 3. Zakres „30 dni” / „1 rok” na wykresie – pokaże dane od początku zachowanej historii.
 4. Ustawienia → Dashboardy → Nowy dashboard → szablon „Wyświetlacz ścienny” → publiczny → Utwórz → otwórz link

@@ -22,9 +22,9 @@ logowanie kodem zapasowym jest w dzienniku z liczbą pozostałych kodów.
 ## Zgubiony telefon i kody zapasowe
 
 - administrator: Ustawienia → Konta → edycja konta → „Wyłącz logowanie dwuskładnikowe” (konto loguje się od nowa samym hasłem),
-- na serwerze: `netpulse user 2fa-off <login>` (także dla jedynego administratora).
+- na serwerze: `uplinkview user 2fa-off <login>` (także dla jedynego administratora).
 
-`netpulse user list` pokazuje, które konta mają 2FA.
+`uplinkview user list` pokazuje, które konta mają 2FA.
 
 ## Szczegóły
 

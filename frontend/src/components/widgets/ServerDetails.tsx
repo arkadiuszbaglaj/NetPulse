@@ -12,7 +12,7 @@ export interface ServerDisk {
   used_percent: number;
 }
 
-/** Zdjęcie stanu z agenta NetPulse (backend: api/servers.py AgentInfo). */
+/** Zdjęcie stanu z agenta UplinkView (backend: api/servers.py AgentInfo). */
 export interface AgentContainer {
   name: string;
   image: string | null;
@@ -49,7 +49,7 @@ export interface AgentInfo {
   } | null;
   containers: AgentContainer[] | null;
   smart: AgentSmart[] | null;
-  /** Agent starszy niż NetPulse (server_version) – do zaktualizowania na serwerze. */
+  /** Agent starszy niż UplinkView (server_version) – do zaktualizowania na serwerze. */
   outdated?: boolean;
   server_version?: string;
 }

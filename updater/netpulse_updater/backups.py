@@ -3,7 +3,7 @@
 Kopia to `pg_dump` w formacie tekstowym, spakowany gzipem, w katalogu `backups` instalacji. Nazwa mówi,
 skąd kopia pochodzi (to jedyne, co z żądania trafia do poleceń – sprawdzane wyrażeniem regularnym):
   netpulse-20261025-101500.sql.gz           przed aktualizacją (zadanie aktualizacji, zostają 3)
-  netpulse-manual-20261025-101500.sql.gz    z panelu albo `netpulse backup` (zostaje 10)
+  netpulse-manual-20261025-101500.sql.gz    z panelu albo `uplinkview backup` (zostaje 10)
   netpulse-prerestore-20261025-101500.sql.gz  automatycznie przed przywróceniem (zostają 3)
   netpulse-upload-20261025-101500.sql.gz    wgrana z komputera przez panel (zostaje 5)
 
@@ -262,7 +262,7 @@ class Backups:
             status["safety"] = self.create("prerestore")["name"]
             step("stop")
             if self.compose_cmd(self.s, "stop", "api", "collector") != 0:
-                raise BackupError("Nie udało się zatrzymać usług NetPulse. Baza nie została zmieniona.")
+                raise BackupError("Nie udało się zatrzymać usług UplinkView. Baza nie została zmieniona.")
             stopped = True
             step("load")
             if not self._load(source):
@@ -292,7 +292,7 @@ class Backups:
             self._write(status)
 
     def _load(self, source: Path) -> bool:
-        """Nowa, pusta baza i wczytanie kopii. True, gdy w bazie są tabele NetPulse."""
+        """Nowa, pusta baza i wczytanie kopii. True, gdy w bazie są tabele UplinkView."""
         self.psql(self.s, "postgres", sql="DROP DATABASE IF EXISTS netpulse WITH (FORCE)")
         if self.psql(self.s, "postgres", sql="CREATE DATABASE netpulse OWNER netpulse") != 0:
             return False
@@ -304,13 +304,13 @@ class Backups:
 
     def _start_and_wait(self) -> None:
         if self.compose_cmd(self.s, "start", "collector", "api") != 0:
-            raise BackupError("Kopia została wczytana, ale usługi nie wystartowały. Sprawdź: netpulse status")
+            raise BackupError("Kopia została wczytana, ale usługi nie wystartowały. Sprawdź: uplinkview status")
         deadline = time.monotonic() + self.health_timeout_s
         while time.monotonic() < deadline:
             if self.healthy(self.s):
                 return
             self.sleep(3)
-        raise BackupError("Kopia została wczytana, ale API nie odpowiada. Sprawdź: netpulse logs")
+        raise BackupError("Kopia została wczytana, ale API nie odpowiada. Sprawdź: uplinkview logs")
 
 
 def check_dump(path: Path) -> None:
@@ -319,7 +319,7 @@ def check_dump(path: Path) -> None:
         with gzip.open(path, "rb") as f:
             head = f.read(4096)
             if DUMP_MARKER not in head:
-                raise BackupError("To nie jest kopia NetPulse (brak nagłówka zrzutu PostgreSQL).")
+                raise BackupError("To nie jest kopia UplinkView (brak nagłówka zrzutu PostgreSQL).")
             while f.read(CHUNK):
                 pass
     except (OSError, EOFError) as exc:  # gzip.BadGzipFile dziedziczy z OSError

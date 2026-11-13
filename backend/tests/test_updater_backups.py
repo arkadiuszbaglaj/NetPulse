@@ -253,7 +253,7 @@ def test_upload_saves_checked_copy_under_own_name(settings):
     "data, cut, message",
     [
         (b"to nie gzip", 0, "poprawnym archiwum"),
-        (gzip.compress(b"jakis inny plik"), 0, "nie jest kopia NetPulse"),
+        (gzip.compress(b"jakis inny plik"), 0, "nie jest kopia UplinkView"),
         (_dump_gz("-- PostgreSQL database dump\n" + "x" * 200_000), 40, "poprawnym archiwum"),  # ucięty
     ],
 )

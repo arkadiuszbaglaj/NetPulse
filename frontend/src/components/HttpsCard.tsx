@@ -87,7 +87,7 @@ export function HttpsCard() {
         {local && (
           <a
             href={CA_URL}
-            download="netpulse-ca.pem"
+            download="uplinkview-ca.pem"
             className="ml-auto inline-flex items-center gap-2 rounded-[10px] border border-border-strong bg-surface px-3.5 py-2 text-sm font-medium text-text hover:bg-surface-2"
           >
             <IconDownload size={18} aria-hidden="true" />

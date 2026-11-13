@@ -54,7 +54,7 @@ function StateBadge({ ok, children }: { ok: boolean; children: ReactNode }) {
   return <span className={`rounded-md px-2 py-0.5 text-xs ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>{children}</span>;
 }
 
-/** Agent starszy niż NetPulse: polecenie aktualizacji do wklejenia na serwerze. */
+/** Agent starszy niż UplinkView: polecenie aktualizacji do wklejenia na serwerze. */
 function OutdatedNote({ agent }: { agent: AgentInfo }) {
   return (
     <div role="status" className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm">

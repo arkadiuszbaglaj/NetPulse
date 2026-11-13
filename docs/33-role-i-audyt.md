@@ -10,8 +10,8 @@
 
 Konta zakłada administrator w **Ustawienia → Konta** (login, hasło, rola). Pierwsze konto (kreator) jest administratorem.
 Ostatniego administratora nie da się usunąć ani zdegradować, własnego konta nie da się usunąć. Zmiana roli albo hasła
-innego konta wylogowuje je ze wszystkich sesji. Z wiersza poleceń: `netpulse user add <login> --role operator`,
-`netpulse user list` pokazuje role.
+innego konta wylogowuje je ze wszystkich sesji. Z wiersza poleceń: `uplinkview user add <login> --role operator`,
+`uplinkview user list` pokazuje role.
 
 Aktualizacja z wersji sprzed 0.61.0: dotychczasowe konta administratorów zostają administratorami, pozostałe dostają
 rolę „Podgląd” (migracja `0014`).

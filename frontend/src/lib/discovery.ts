@@ -18,7 +18,7 @@ export interface FoundDevice {
   driver: string;
   /** Tylko driver ogólny: porty i ruch działają, szczegóły producenta nie */
   generic: boolean;
-  /** Już w NetPulse */
+  /** Już w UplinkView */
   device_id: number | null;
 }
 
@@ -76,7 +76,7 @@ export interface DeviceReport {
   notes: string;
 }
 
-/** Czy urządzenie warto zgłosić: NetPulse zna je tylko ogólnie (driver `generic`). */
+/** Czy urządzenie warto zgłosić: UplinkView zna je tylko ogólnie (driver `generic`). */
 export function partiallyKnown(detectedDriver: string | null | undefined): boolean {
   return detectedDriver === "generic";
 }
@@ -85,10 +85,10 @@ export function partiallyKnown(detectedDriver: string | null | undefined): boole
 export function reportFile(report: DeviceReport, notes: string): { name: string; text: string } {
   const oid = (report.device.sys_object_id ?? "unknown").replace(/[^\d.]/g, "");
   const day = report.created_at.slice(0, 10);
-  return { name: `netpulse-report-${oid || "unknown"}-${day}.json`, text: JSON.stringify({ ...report, notes: notes.trim() }, null, 1) };
+  return { name: `uplinkview-report-${oid || "unknown"}-${day}.json`, text: JSON.stringify({ ...report, notes: notes.trim() }, null, 1) };
 }
 
-export const ISSUE_URL = "https://github.com/arkadiuszbaglaj/NetPulse/issues/new";
+export const ISSUE_URL = "https://github.com/uplinkview/uplinkview/issues/new";
 
 /** Link do gotowego zgłoszenia „Nowe urządzenie” (szablon w `.github/ISSUE_TEMPLATE/nowe-urzadzenie.yml`); plik dołącza użytkownik. */
 export function issueLink(report: DeviceReport, model: string, notes: string): string {

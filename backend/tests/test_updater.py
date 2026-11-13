@@ -39,7 +39,7 @@ GIT_ENV = {
     "GIT_COMMITTER_EMAIL": "t@example.com",
 }
 ENV_EXAMPLE_V1 = "POSTGRES_PASSWORD=zmien-mnie\nNETPULSE_PORT=8000\n"
-ENV_EXAMPLE_V2 = ENV_EXAMPLE_V1 + "NETPULSE_DIR=/opt/netpulse\nNETPULSE_NOWA_FUNKCJA=on\n#KOMENTARZ=x\n"
+ENV_EXAMPLE_V2 = ENV_EXAMPLE_V1 + "NETPULSE_DIR=/opt/uplinkview\nNETPULSE_NOWA_FUNKCJA=on\n#KOMENTARZ=x\n"
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -58,7 +58,7 @@ class Repo:
         git(tmp, "init", "-q", "--bare", "-b", "main", str(self.remote))
         git(tmp, "clone", "-q", str(self.remote), str(self.author))
         (self.author / "deploy").mkdir()
-        (self.author / "deploy" / "docker-compose.yml").write_text("services: {}\n")  # znacznik instalacji NetPulse
+        (self.author / "deploy" / "docker-compose.yml").write_text("services: {}\n")  # znacznik instalacji UplinkView
         self.commit("0.1.0", "Pierwsza wersja", ENV_EXAMPLE_V1)
         git(tmp, "clone", "-q", str(self.remote), str(self.install))
         # .env instalacji (nieśledzony) powstaje przy instalacji
@@ -137,6 +137,27 @@ def test_check_fails_clearly_when_source_unreachable(repo):
     break_source(repo)
     with pytest.raises(git_ops.UpdateError, match="Nie udało się połączyć ze źródłem"):
         git_ops.check(settings(repo))
+
+
+@pytest.mark.parametrize(
+    "old",
+    [
+        "https://github.com/arkadiuszbaglaj/NetPulse.git",
+        "https://github.com/arkadiuszbaglaj/NetPulse",
+        "git@github.com:arkadiuszbaglaj/NetPulse.git",
+    ],
+)
+def test_old_repository_address_moves_to_uplinkview(repo, old):
+    """Zmiana nazwy (0.78.0): `origin` ze starym adresem GitHuba dostaje nowy, bez NETPULSE_UPDATE_REPO."""
+    git(repo.install, "remote", "set-url", "origin", old)
+    git_ops.set_origin(settings(repo))
+    assert git(repo.install, "remote", "get-url", "origin") == git_ops.NEW_REPO == "https://github.com/uplinkview/uplinkview.git"
+
+
+def test_other_origin_is_left_alone(repo):
+    before = git(repo.install, "remote", "get-url", "origin")
+    git_ops.set_origin(settings(repo))
+    assert git(repo.install, "remote", "get-url", "origin") == before
 
 
 def test_check_can_use_another_source(repo, tmp_path):
@@ -226,7 +247,7 @@ def test_status_check_and_status_again(repo):
 
 
 def test_status_after_install_drops_stale_update_available(repo):
-    """Po instalacji (z panelu albo `netpulse update`) zapamiętane „jest nowa wersja” znika od razu."""
+    """Po instalacji (z panelu albo `uplinkview update`) zapamiętane „jest nowa wersja” znika od razu."""
     app, _, _ = make_app(repo)
     auth = "Bearer tajny-token"
     repo.commit("0.2.0", "nowa funkcja")
@@ -359,7 +380,7 @@ def test_wrong_install_dir_is_reported_and_blocks_update(tmp_path):
     launcher = Launcher()
     app = UpdaterApp(Settings(install_dir=empty, token="t"), launcher=launcher, is_running=lambda _: False)
     code, body = app.handle("POST", "/update", "Bearer t")
-    assert code == 409 and "nie zawiera NetPulse" in body["error"] and "NETPULSE_DIR" in body["error"]
+    assert code == 409 and "nie zawiera UplinkView" in body["error"] and "NETPULSE_DIR" in body["error"]
     assert launcher.calls == 0
 
 

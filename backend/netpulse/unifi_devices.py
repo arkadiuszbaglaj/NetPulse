@@ -1,6 +1,6 @@
 """Urządzenia UniFi bez SNMP (np. USW Flex, USW Ultra) z oficjalnego Network API – od 0.52.0.
 
-Kolektor UniFi zakłada dla nich urządzenie NetPulse z `driver = "unifi_api"` i co cykl buduje `PollResult`
+Kolektor UniFi zakłada dla nich urządzenie UplinkView z `driver = "unifi_api"` i co cykl buduje `PollResult`
 taki jak z drivera SNMP, więc zapis, wykresy, alerty i karta urządzenia działają bez zmian:
 
 - oficjalne API (`/integration/v1`): model, firmware, stan, uptime, CPU, RAM, load, porty (stan, prędkość),

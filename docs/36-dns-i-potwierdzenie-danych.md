@@ -34,12 +34,12 @@ Alert „sprawdzenie nie przechodzi” (`check_down`) działa bez zmian.
 
 ## Potwierdzenie danych
 
-Specyfikacja wymaga, żeby system pokazywał, które dane zostały rzeczywiście potwierdzone. NetPulse prowadzi rejestr
+Specyfikacja wymaga, żeby system pokazywał, które dane zostały rzeczywiście potwierdzone. UplinkView prowadzi rejestr
 źródeł danych z poziomem:
 
 | Poziom | Znaczenie |
 |--------|-----------|
-| `verified` – potwierdzone | sprawdzone na prawdziwym sprzęcie (zanonimizowany zrzut w `tests/fixtures`) albo mierzone przez sam NetPulse |
+| `verified` – potwierdzone | sprawdzone na prawdziwym sprzęcie (zanonimizowany zrzut w `tests/fixtures`) albo mierzone przez sam UplinkView |
 | `partial` – częściowo | część przypadków sprawdzona, reszta tylko na atrapie (np. Proxmox: jeden węzeł tak, klaster nie) |
 | `test` – dane testowe | tylko zrzuty syntetyczne według oficjalnych MIB albo atrapy API |
 

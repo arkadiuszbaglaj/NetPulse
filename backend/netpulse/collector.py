@@ -175,7 +175,7 @@ class Collector:
         for dev_id in [d for d in self._clients if d not in active]:
             await self._drop_client(dev_id)
         if not targets:
-            log.info("Brak urządzeń do odpytania – dodaj je: netpulse device add")
+            log.info("Brak urządzeń do odpytania – dodaj je: uplinkview device add")
             return
         sem = asyncio.Semaphore(settings.poll_concurrency)
 

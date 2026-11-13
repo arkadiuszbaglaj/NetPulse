@@ -47,7 +47,7 @@ describe("Ustawienia → Kopia zapasowa", () => {
     const user = userEvent.setup({ applyAccept: false });
     await screen.findByText("Nie ma jeszcze żadnej kopii");
     await user.upload(screen.getByLabelText("Wgraj kopię z komputera"), new File(["x"], "zdjecie.jpg", { type: "image/jpeg" }));
-    expect(await screen.findByText(/Wybierz plik kopii NetPulse z rozszerzeniem .sql.gz/)).toBeInTheDocument();
+    expect(await screen.findByText(/Wybierz plik kopii UplinkView z rozszerzeniem .sql.gz/)).toBeInTheDocument();
     expect(calls.some((c) => c.path === "/api/backups/upload")).toBe(false);
   });
 

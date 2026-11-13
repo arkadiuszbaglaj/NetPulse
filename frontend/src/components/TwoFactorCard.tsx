@@ -49,7 +49,7 @@ function RecoveryCodesView({ codes, onDone }: { codes: string[]; onDone: () => v
         </Button>
         <a
           href={fileUrl}
-          download="netpulse-kody-zapasowe.txt"
+          download="uplinkview-kody-zapasowe.txt"
           className="inline-flex items-center gap-2 rounded-[10px] border border-border-strong bg-surface px-3.5 py-2 text-sm font-medium text-text hover:bg-surface-2"
         >
           <IconDownload size={18} aria-hidden="true" />

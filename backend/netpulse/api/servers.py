@@ -52,7 +52,7 @@ class AgentInfo(BaseModel):
     services: dict | None = None
     containers: list[dict] | None = None
     smart: list[dict] | None = None
-    outdated: bool = False  # agent starszy niż NetPulse – do zaktualizowania na serwerze
+    outdated: bool = False  # agent starszy niż UplinkView – do zaktualizowania na serwerze
     server_version: str = __version__
 
 

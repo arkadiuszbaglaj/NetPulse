@@ -4,7 +4,7 @@ Status: **propozycja** (4.11.2026). Nic z tego nie jest jeszcze zrobione. Do dec
 
 ## Problem
 
-Dziś każdy OID, który NetPulse odczytuje, jest wpisany w kodzie drivera (`backend/netpulse/drivers/*.py`). Żeby
+Dziś każdy OID, który UplinkView odczytuje, jest wpisany w kodzie drivera (`backend/netpulse/drivers/*.py`). Żeby
 pokazać na wykresie coś, czego driver nie zna (czujnik temperatury, licznik sesji, stan zasilacza, wartość z MIB-u
 producenta), trzeba napisać kod i wydać nową wersję. Przy aplikacji instalowanej przez innych to nie wystarczy:
 użytkownicy mają sprzęt, którego nie mamy.
@@ -73,7 +73,7 @@ Wersja: minor.
 
 Na stronie urządzenia → **Przeglądaj SNMP**:
 
-- NetPulse robi walk wybranej gałęzi (domyślnie: system, IF-MIB, HOST-RESOURCES, ENTITY-SENSOR, UCD, gałąź producenta
+- UplinkView robi walk wybranej gałęzi (domyślnie: system, IF-MIB, HOST-RESOURCES, ENTITY-SENSOR, UCD, gałąź producenta
   z `sysObjectID`), z limitem czasu i liczby wartości,
 - wynik jako drzewo z **nazwami i opisami z MIB-ów**: standardowe MIB-y w paczce (skompilowane przez `pysmi` do JSON-a
   przy budowaniu obrazu), MIB-y producenta wgrywane przez użytkownika (Ustawienia → MIB-y, kompilacja na serwerze),

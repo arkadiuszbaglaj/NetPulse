@@ -1,4 +1,4 @@
-# Usługa aktualizacji NetPulse. Kontekst budowania: katalog główny repozytorium (patrz deploy/docker-compose.yml)
+# Usługa aktualizacji UplinkView. Kontekst budowania: katalog główny repozytorium (patrz deploy/docker-compose.yml)
 # Obraz z klientem Dockera i pluginem compose; ma dostęp do gniazda Dockera, dlatego jest mały, osobny
 # i nie wystawia żadnego portu poza siecią wewnętrzną.
 FROM docker:27-cli

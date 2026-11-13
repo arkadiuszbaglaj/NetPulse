@@ -1,6 +1,6 @@
 """Kolektor kontrolerów UniFi: PoE na portach switchy i klienci sieci (co cykl, razem z kolektorem SNMP).
 
-Od 0.52.0 także urządzenia kontrolera, których NetPulse nie zna z SNMP (np. USW Flex, USW Ultra – nie mają SNMP):
+Od 0.52.0 także urządzenia kontrolera, których UplinkView nie zna z SNMP (np. USW Flex, USW Ultra – nie mają SNMP):
 zakłada je jako urządzenia `driver = "unifi_api"` i zapisuje jak wynik drivera SNMP (`unifi_devices.py`)."""
 
 from __future__ import annotations
@@ -116,11 +116,11 @@ def make_api(target: ControllerTarget) -> UnifiApi:
 
 
 def match_devices(devices: list[UnifiDevice], by_host: dict[str, int], by_iface_mac: dict[str, int]) -> dict[str, int]:
-    """Łączy urządzenia kontrolera z urządzeniami NetPulse (SNMP): {MAC z kontrolera: id urządzenia}.
+    """Łączy urządzenia kontrolera z urządzeniami UplinkView (SNMP): {MAC z kontrolera: id urządzenia}.
 
     Samo pole `ip` z kontrolera bywa mylące (brama podaje tam adres WAN), więc próbujemy po kolei:
     1) `ip` z kontrolera, 2) adresy, pod którymi widzą to urządzenie sąsiedzi w LLDP (adres w sieci LAN),
-    3) adresy MAC interfejsów, które NetPulse zna z SNMP (ifPhysAddress)."""
+    3) adresy MAC interfejsów, które UplinkView zna z SNMP (ifPhysAddress)."""
     lan_ips: dict[str, list[str]] = {}
     for d in devices:
         for link in d.lldp:
@@ -366,7 +366,7 @@ class UnifiCollector:
                     status="up", last_polled_at=now, last_ok_at=now, last_error=None, app_version=version
                 )
             )
-            # Urządzenia NetPulse (SNMP) łączymy z kontrolerem po adresie IP
+            # Urządzenia UplinkView (SNMP) łączymy z kontrolerem po adresie IP
             by_host = {host: dev_id for dev_id, host in (await session.execute(select(Device.id, Device.host))).all()}
             by_iface_mac = {
                 mac.lower(): dev_id

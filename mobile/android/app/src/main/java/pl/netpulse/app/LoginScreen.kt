@@ -55,7 +55,7 @@ fun LoginScreen(model: AppViewModel) {
         verticalArrangement = Arrangement.Center,
     ) {
         Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("NetPulse", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            Text("UplinkView", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             Text(
                 stringResource(R.string.login_intro),
                 style = MaterialTheme.typography.bodyMedium,

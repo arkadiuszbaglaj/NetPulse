@@ -6,8 +6,8 @@ plugins {
 
 // Wersja aplikacji niezależna od serwera: versionName widać w aplikacji, versionCode musi rosnąć przy każdym wydaniu,
 // inaczej Android odmówi instalacji aktualizacji.
-val appVersionName = "0.3.0"
-val appVersionCode = 4
+val appVersionName = "0.4.0"
+val appVersionCode = 5
 
 // Podpis wydania z sekretów CI (NETPULSE_KEYSTORE = ścieżka do pliku .p12). Bez nich – klucz debug (tylko lokalnie).
 val keystorePath: String? = System.getenv("NETPULSE_KEYSTORE")

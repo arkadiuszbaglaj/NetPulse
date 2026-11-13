@@ -43,16 +43,16 @@ Od 0.71.0:
 5. **Niemożliwa szybkość w jednym kierunku odrzuca całą próbkę** – router „dogania” zatrzymane liczniki, drugi kierunek
    z tego odczytu też jest zawyżony (12.11.2026: wysyłanie 75,9 Mb/s na łączu 50 Mb/s podniosło 5 minut z 1,6 do 9,2 Mb/s).
 
-Granice zgodności: NetPulse liczy bajty z liczników SNMP z dokładnością do odświeżania licznika w urządzeniu (UCG Ultra
-ok. 1 s). Najwyższa prędkość UniFi to wartość chwilowa z bramy, NetPulse – najwyższa średnia z 5 s (odczyt co 0,5 s,
+Granice zgodności: UplinkView liczy bajty z liczników SNMP z dokładnością do odświeżania licznika w urządzeniu (UCG Ultra
+ok. 1 s). Najwyższa prędkość UniFi to wartość chwilowa z bramy, UplinkView – najwyższa średnia z 5 s (odczyt co 0,5 s,
 dokładność ok. ±10 %), więc „maks.” bywa niższe niż w UniFi. Na portach switcha UniFi sam rozkłada raporty na kubełki,
 stąd pojedyncze kubełki mogą się różnić, choć suma się zgadza. Narzędzie porównania (kubełki z bazy bramy kontra
-NetPulse) było jednorazowe, poza repo.
+UplinkView) było jednorazowe, poza repo.
 
 ## Testy prędkości bramy
 
 Kontroler UniFi podaje w `stat/device` bramy pole `speedtest-status`: pobieranie, wysyłanie, ping, czas testu, czas
-trwania, serwer i interfejs łącza. NetPulse czyta to przy każdym odczycie kontrolera (`unifi.parse_speedtest`) i zapisuje
+trwania, serwer i interfejs łącza. UplinkView czyta to przy każdym odczycie kontrolera (`unifi.parse_speedtest`) i zapisuje
 każdy **nowy** test do tabeli `metrics` na bramie, z czasem samego testu i kluczem = interfejs łącza (`eth4`):
 `speedtest_down_bps`, `speedtest_up_bps`, `speedtest_ping_ms` (`unifi_collector.save_speedtest`). Ten sam wynik odczytany
 ponownie trafia w ten sam wiersz (klucz główny), więc nie ma powtórek.
@@ -82,7 +82,7 @@ obok średniej: `interface_metrics.in_bps_max` i `out_bps_max` (migracja 0018).
 - **Zakresy powyżej 7 dni** czytają agregaty godzinowe, w których szczytu nie ma – seria jest wtedy pusta. Dane sprzed
   0.70.0 też nie mają szczytu.
 - Wyłączenie: `NETPULSE_PEAK_INTERVAL=0` w `deploy/.env` (domyślnie od 0.71.0 `0.5` – odczyt co pół sekundy; instalacje
-  sprzed 0.71.0 mają w `.env` wpisane `1` – zmiana na `0.5` i `sudo netpulse restart` daje dokładniejszy szczyt).
+  sprzed 0.71.0 mają w `.env` wpisane `1` – zmiana na `0.5` i `sudo uplinkview restart` daje dokładniejszy szczyt).
 
 W panelu szczyt jest **w dymku wykresu** obok średniej (od 0.71.0, „· maks.”), dla serii pobierania i wysyłania źródeł
 **Ruch WAN** i **Port**. Osobne serie „Pobieranie – szczyt” i „Wysyłanie – szczyt” (`in_bps_max`, `out_bps_max`) zostały

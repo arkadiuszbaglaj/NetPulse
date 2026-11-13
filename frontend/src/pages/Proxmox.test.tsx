@@ -171,7 +171,7 @@ describe("strona Proxmox", () => {
     const form = await screen.findByRole("dialog", { name: "Nowa reguła" });
     await user.type(within(form).getByLabelText("Nazwa"), "Home Assistant");
     await user.selectOptions(within(form).getByLabelText("Rodzaj reguły"), "guest_stopped");
-    expect(within(form).getByText(/Dane czyta NetPulse z Proxmox VE/)).toBeInTheDocument();
+    expect(within(form).getByText(/Dane czyta UplinkView z Proxmox VE/)).toBeInTheDocument();
     await user.type(within(form).getByLabelText("Tylko o nazwie (opcjonalnie)"), "homeassistant*");
     await user.click(within(form).getByRole("button", { name: "Zapisz" }));
     await waitFor(() => expect(state.rules[0]).toMatchObject({ kind: "guest_stopped", match: "homeassistant*" }));

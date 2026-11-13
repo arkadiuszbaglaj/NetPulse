@@ -1,12 +1,12 @@
 name: Nowe urządzenie
-description: Urządzenie, które NetPulse zna tylko częściowo – z raportem urządzenia z panelu (Urządzenie → Przygotuj raport).
+description: Urządzenie, które UplinkView zna tylko częściowo – z raportem urządzenia z panelu (Urządzenie → Przygotuj raport).
 title: "Nowe urządzenie: "
 labels: ["nowe-urządzenie"]
 body:
   - type: markdown
     attributes:
       value: |
-        Dziękujemy! Pola niżej wypełnia panel NetPulse. **Dołącz pobrany plik raportu** (`netpulse-report-….json`)
+        Dziękujemy! Pola niżej wypełnia panel UplinkView. **Dołącz pobrany plik raportu** (`uplinkview-report-….json`)
         w polu „Raport” – przeciągnij go albo wybierz. Raport jest zanonimizowany na Twoim serwerze (adresy IP i MAC,
         nazwy, SSID, numery seryjne), ale przejrzyj go przed wysłaniem – zgłoszenia są publiczne.
   - type: input
@@ -27,11 +27,11 @@ body:
   - type: input
     id: driver
     attributes:
-      label: Driver wybrany przez NetPulse
+      label: Driver wybrany przez UplinkView
   - type: input
     id: version
     attributes:
-      label: Wersja NetPulse
+      label: Wersja UplinkView
   - type: textarea
     id: notes
     attributes:
@@ -41,7 +41,7 @@ body:
     id: report
     attributes:
       label: Raport
-      description: Przeciągnij tu plik `netpulse-report-….json`.
+      description: Przeciągnij tu plik `uplinkview-report-….json`.
     validations:
       required: true
   - type: checkboxes
@@ -49,5 +49,5 @@ body:
     attributes:
       label: Zgoda
       options:
-        - label: Zgadzam się, żeby zanonimizowany zrzut trafił do repozytorium NetPulse jako dane testowe (fixture).
+        - label: Zgadzam się, żeby zanonimizowany zrzut trafił do repozytorium UplinkView jako dane testowe (fixture).
           required: true

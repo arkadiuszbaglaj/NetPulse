@@ -347,4 +347,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    raise NotImplementedError("Cofnięcie schematu bazowego oznacza utratę danych – użyj: netpulse reset")
+    raise NotImplementedError("Cofnięcie schematu bazowego oznacza utratę danych – użyj: uplinkview reset")

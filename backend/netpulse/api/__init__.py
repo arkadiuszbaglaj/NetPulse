@@ -1,4 +1,4 @@
-"""REST API NetPulse (FastAPI).
+"""REST API UplinkView (FastAPI).
 
 Wszystko poza /api/health i /api/auth/{status,setup,login} wymaga zalogowania
 (ciasteczko sesji). Wyjątki: agenci serwerów (/api/agent/v1/report) logują się tokenem, a pulpity publiczne
@@ -71,7 +71,7 @@ async def lifespan(_: FastAPI):
 
 # Dokumentacja i schemat API tylko dla zalogowanych (od 0.65.6) – trasy niżej, standardowe są wyłączone
 app = FastAPI(
-    title="NetPulse API",
+    title="UplinkView API",
     version=__version__,
     dependencies=[Depends(check_origin)],
     lifespan=lifespan,
@@ -176,7 +176,7 @@ DOCS_CSP = (
 
 @app.get("/docs", include_in_schema=False)
 async def api_docs(_: CurrentUser) -> HTMLResponse:
-    page = get_swagger_ui_html(openapi_url="/openapi.json", title="NetPulse API")
+    page = get_swagger_ui_html(openapi_url="/openapi.json", title="UplinkView API")
     page.headers["Content-Security-Policy"] = DOCS_CSP
     return page
 

@@ -21,7 +21,7 @@ class Settings:
     repo_url: str = ""  # puste = adres `origin` z instalacji; ustawienie pozwala wskazać inne źródło
     branch: str = ""  # puste = bieżąca gałąź instalacji
     # Sprawdzanie podpisu aktualizacji (od 0.69.0), gdy instalacja ma plik deploy/update-signers.
-    # Wyłączenie (NETPULSE_UPDATE_VERIFY=off) jest dla własnego źródła aktualizacji (fork bez podpisów NetPulse).
+    # Wyłączenie (NETPULSE_UPDATE_VERIFY=off) jest dla własnego źródła aktualizacji (fork bez podpisów UplinkView).
     verify_signatures: bool = True
     min_free_mb: int = 2000
     keep_cache_hours: int = 72
@@ -43,7 +43,7 @@ class Settings:
     def from_env(cls) -> Settings:
         env = os.environ
         return cls(
-            install_dir=Path(env.get("NETPULSE_DIR", "/opt/netpulse")),
+            install_dir=Path(env.get("NETPULSE_DIR", "/opt/uplinkview")),
             token=env.get("NETPULSE_UPDATER_TOKEN", ""),
             token_file=env.get("NETPULSE_UPDATER_TOKEN_FILE", ""),
             token_uid=int(env.get("NETPULSE_UPDATER_TOKEN_UID", "10001")),

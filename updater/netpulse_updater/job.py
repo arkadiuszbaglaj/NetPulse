@@ -114,7 +114,7 @@ class Job:
         if free < self.s.min_free_mb:
             raise StepError(
                 f"Za mało miejsca na dysku: wolne {free} MB, a aktualizacja wymaga co najmniej {self.s.min_free_mb} MB. "
-                "Zwolnij miejsce (polecenie: netpulse cleanup) i spróbuj ponownie. Nic nie zostało zmienione."
+                "Zwolnij miejsce (polecenie: uplinkview cleanup) i spróbuj ponownie. Nic nie zostało zmienione."
             )
 
     def backup(self) -> None:
@@ -133,8 +133,7 @@ class Job:
     def fetch(self) -> bool:
         """Pobiera i scala kod. False = nie było nic do zainstalowania."""
         branch = git_ops.branch_name(self.s)
-        if self.s.repo_url:
-            self.sh(["git", "remote", "set-url", "origin", self.s.repo_url])
+        git_ops.set_origin(self.s)
         self.must(["git", "fetch", "--quiet", "origin", branch], "Nie udało się pobrać aktualizacji ze źródła.")
         before = self.status["from_commit"]
         # Instalujemy dokładnie ten commit, którego podpis sprawdziliśmy (nie nazwę gałęzi – mogłaby się przesunąć)
@@ -151,7 +150,7 @@ class Job:
                 self.log(f"Podpis aktualizacji prawidłowy ({target[:7]})")
         self.must(
             ["git", "merge", "--ff-only", "--quiet", target],
-            "Nie można prosto zaktualizować kodu (instalacja ma lokalne zmiany). Zaktualizuj ręcznie: netpulse update",
+            "Nie można prosto zaktualizować kodu (instalacja ma lokalne zmiany). Zaktualizuj ręcznie: uplinkview update",
         )
         after = git_ops.current(self.s)
         self.status["to_version"] = after["version"]
@@ -254,7 +253,7 @@ class Job:
             return self._finish("rolled_back")
         self.status["note"] = (
             "Nie udało się przywrócić poprzedniej wersji automatycznie. "
-            "Kopia bazy jest w katalogu backups. Sprawdź: netpulse logs"
+            "Kopia bazy jest w katalogu backups. Sprawdź: uplinkview logs"
         )
         return self._finish("failed")
 

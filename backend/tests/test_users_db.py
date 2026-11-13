@@ -167,7 +167,7 @@ def test_two_factor_login_flow(admin):
     assert jan.post("/api/auth/totp/setup", json={"password": "zle-haslo-000"}).status_code == 403
     setup = jan.post("/api/auth/totp/setup", json={"password": PASSWORD}).json()
     secret = setup["secret"]
-    assert setup["uri"].startswith("otpauth://totp/NetPulse%3Ajan?") and setup["qr_svg"].startswith("<svg")
+    assert setup["uri"].startswith("otpauth://totp/UplinkView%3Ajan?") and setup["qr_svg"].startswith("<svg")
     assert jan.get("/api/auth/totp").json()["pending"] is True
     # bez potwierdzenia kodem logowanie dalej działa samym hasłem
     login("jan")

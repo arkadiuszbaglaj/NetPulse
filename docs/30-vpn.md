@@ -1,6 +1,6 @@
 # VPN użytkowników zdalnych (od 0.57.0)
 
-NetPulse pokazuje, kto jest połączony z serwerem VPN bramy UniFi (WireGuard, a także OpenVPN / L2TP, jeśli kontroler
+UplinkView pokazuje, kto jest połączony z serwerem VPN bramy UniFi (WireGuard, a także OpenVPN / L2TP, jeśli kontroler
 je zgłasza): od kiedy, skąd, ile przesłał i z jakim ruchem. Dane daje kontroler UniFi (moduł UniFi, klucz API), więc
 nie trzeba nic ustawiać – wystarczy skonfigurowany kontroler w Ustawienia → UniFi.
 
@@ -15,7 +15,7 @@ Kolektor UniFi co cykl (30 s) czyta z kontrolera (sprawdzone na UCG Ultra, Netwo
 | `stat/remoteuservpn` | trwające połączenia: klient, adres publiczny, czas połączenia, bajty i bieżący ruch |
 
 `rx` w `remoteuservpn` = od klienta (jego wysyłanie), `tx` = do klienta (jego pobieranie); szybkości (`rx_rate`,
-`tx_rate`) są **już w b/s** i tak je NetPulse zapisuje. Do 0.71.1 były mnożone ×8 (wykresy, widget i alerty VPN pokazywały
+`tx_rate`) są **już w b/s** i tak je UplinkView zapisuje. Do 0.71.1 były mnożone ×8 (wykresy, widget i alerty VPN pokazywały
 prędkość 8 razy za dużą) – sprawdzone 13.11.2026 na UCG Ultra: 30 MB przez tunel WireGuard to w kontrolerze 66,8 Mb/s
 przy ok. 9 MB/s (72 Mb/s) w liczniku `wg show`. Migracja 0019 dzieli zapisaną historię `vpn_down_bps|vpn_up_bps` przez 8. Brak serwera VPN = żadnych dalszych zapytań. Błąd odczytu VPN nie psuje reszty odczytu kontrolera.
 

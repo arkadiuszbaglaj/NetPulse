@@ -35,7 +35,7 @@ class Window:
     duration_min: int | None = None
 
     def covers(self, device_id: int | None) -> bool:
-        """Czy okno dotyczy urządzenia; `None` = zdarzenie bez urządzenia (sprawdzenie, serwer NetPulse) – tylko okno na wszystko."""
+        """Czy okno dotyczy urządzenia; `None` = zdarzenie bez urządzenia (sprawdzenie, serwer UplinkView) – tylko okno na wszystko."""
         return self.device_ids is None or (device_id is not None and device_id in self.device_ids)
 
     def occurrences(self, start: datetime, end: datetime, tz: ZoneInfo | None = None) -> list[tuple[datetime, datetime]]:

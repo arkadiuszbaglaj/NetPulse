@@ -34,7 +34,7 @@ export function UsageBar({ label, percent, note }: { label: string; percent: num
 
 const fixed = (v: number | null) => (v == null ? "–" : formatNumber(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
-/** Stan serwera, na którym działa NetPulse: CPU, RAM, swap, dysk, obciążenie, temperatura, baza. */
+/** Stan serwera, na którym działa UplinkView: CPU, RAM, swap, dysk, obciążenie, temperatura, baza. */
 export function ServerWidget() {
   const { data, isLoading, isError } = useSystem();
   return (

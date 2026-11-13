@@ -32,7 +32,7 @@ from . import dnsquery
 PING_COUNT = 5
 PING_GAP_S = 0.2
 MAX_BODY = 1_000_000  # słowo kluczowe szukamy w pierwszym megabajcie odpowiedzi
-USER_AGENT = "NetPulse-check"
+USER_AGENT = "UplinkView-check"
 
 
 @dataclass

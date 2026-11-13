@@ -59,7 +59,7 @@ Raporty i Ustawienia → System, bo atrapa API (`test/mockApi.ts`) odpowiada po 
   (`localized`) i stałe teksty („Zakończono: …”, podsumowania, ciche godziny, wiadomość próbna) – katalogiem `messages.py`.
 - **Raport PDF/CSV**: w języku panelu – linki pobierania mają `&lang=<język panelu>` (bez parametru: `Accept-Language`).
   Po angielsku: nazwy miesięcy, nagłówki i opisy z katalogu, liczby z kropką, daty `RRRR-MM-DD GG:MM`, CSV z przecinkiem
-  (po polsku dalej średnik i przecinek dziesiętny – Excel po polsku), plik `netpulse-report-RRRR-MM`. Podgląd raportu
+  (po polsku dalej średnik i przecinek dziesiętny – Excel po polsku), plik `uplinkview-report-RRRR-MM`. Podgląd raportu
   w panelu (JSON) tłumaczy middleware jak resztę API.
 - **Aplikacja Android 0.3.0**: teksty w zasobach – `res/values/strings.xml` (angielski: każdy język telefonu poza
   polskim) i `res/values-pl/strings.xml` (polski); **nowy tekst = wpis w obu plikach**. Język wybiera system według

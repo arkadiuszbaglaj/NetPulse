@@ -1,4 +1,4 @@
-"""Urządzenia UniFi z oficjalnego API (bez SNMP, np. USW Flex i Ultra): powiązanie z urządzeniem NetPulse.
+"""Urządzenia UniFi z oficjalnego API (bez SNMP, np. USW Flex i Ultra): powiązanie z urządzeniem UplinkView.
 
 Revision ID: 0012
 Revises: 0011

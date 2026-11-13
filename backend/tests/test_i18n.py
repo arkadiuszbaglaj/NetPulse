@@ -124,7 +124,7 @@ def test_translate_titles_errors_and_details():
         "NAS: kontener nginx zatrzymany": "NAS: container nginx stopped",
         "Warunek: Obciążenie (1 min) > 2,0 przez 5 min": "Condition: Load (1 min) > 2.0 for 5 min",
         "Warunek: Pobieranie WAN > 100,0 Mb/s": "Condition: WAN download > 100.0 Mb/s",
-        "Stan z agenta NetPulse od 2 min (filtr: web*)": "State from the NetPulse agent for 2 min (filter: web*)",
+        "Stan z agenta UplinkView od 2 min (filtr: web*)": "State from the UplinkView agent for 2 min (filter: web*)",
         "Ta operacja wymaga uprawnień podglądu": "This operation requires viewer permissions",
         "Kontroler UniFi: urządzenie niedostępne": "UniFi controller: device unavailable",
         "NXDOMAIN: nazwa nie istnieje": "NXDOMAIN: name does not exist",

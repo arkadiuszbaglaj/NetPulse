@@ -20,8 +20,8 @@ Wymagany plan Pro, Max, Team lub Enterprise (darmowy plan nie obejmuje Claude Co
 
 ```bash
 sudo apt update && sudo apt install -y git
-git clone https://github.com/arkadiuszbaglaj/NetPulse.git
-cd NetPulse
+git clone https://github.com/uplinkview/uplinkview.git
+cd UplinkView
 ```
 
 ## 3. Uruchom Claude Code w katalogu projektu

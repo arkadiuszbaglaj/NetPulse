@@ -37,7 +37,7 @@ async def run_standalone() -> None:
 
 
 if context.is_offline_mode():
-    raise SystemExit("NetPulse nie obsługuje migracji offline (--sql)")
+    raise SystemExit("UplinkView nie obsługuje migracji offline (--sql)")
 
 connection = context.config.attributes.get("connection")
 if connection is not None:

@@ -1,4 +1,4 @@
-# NetPulse – panel (frontend)
+# UplinkView – panel (frontend)
 
 React 19 + TypeScript + Vite + Tailwind CSS 4, TanStack Query, React Router.
 Panel jest wyłącznie klientem API (`/api`); w obrazie Dockera jest budowany w osobnym etapie

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NetPulse"
+rootProject.name = "UplinkView"
 include(":app")

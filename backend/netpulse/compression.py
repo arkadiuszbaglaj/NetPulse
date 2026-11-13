@@ -6,7 +6,7 @@ zajmują zwykle kilka–kilkanaście razy mniej miejsca. Do 7 dni wykresy czytaj
 godzinowe, raport miesięczny i dostępność.
 
 Zakłada to `init_db` (obiekty TimescaleDB, poza Alembikiem – jak agregaty). Błąd kompresji jednej tabeli nie
-zatrzymuje startu: tabela zostaje nieskompresowana, reszta NetPulse działa.
+zatrzymuje startu: tabela zostaje nieskompresowana, reszta UplinkView działa.
 
 Zasady dla migracji: do skompresowanej hypertable można dodać kolumnę (bez wartości domyślnej albo ze stałą),
 ale nie zmienić typu kolumny ani nie dodać ograniczenia – taka migracja musi najpierw zdekompresować chunki.

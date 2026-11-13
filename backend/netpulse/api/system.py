@@ -1,4 +1,4 @@
-"""Stan serwera NetPulse: bieżące wartości i wykresy (próbki zapisuje kolektor, patrz sysinfo.py)."""
+"""Stan serwera UplinkView: bieżące wartości i wykresy (próbki zapisuje kolektor, patrz sysinfo.py)."""
 
 from __future__ import annotations
 
@@ -112,7 +112,7 @@ async def _updater_service() -> ServiceOut:
 
 @router.get("/services", response_model=list[ServiceOut])
 async def services():
-    """Stan usług NetPulse: API, baza, kolektory (po świeżości ostatnich zapisów), kontrolery UniFi, updater."""
+    """Stan usług UplinkView: API, baza, kolektory (po świeżości ostatnich zapisów), kontrolery UniFi, updater."""
     now = datetime.now(UTC)
     interval = settings.poll_interval
     out = [ServiceOut(id="api", state="ok", detail=__version__)]

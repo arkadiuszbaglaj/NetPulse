@@ -20,7 +20,7 @@ from pathlib import Path
 import markdown
 
 ROOT = Path(__file__).resolve().parents[2]
-REPO_BLOB = "https://github.com/arkadiuszbaglaj/NetPulse/blob/main/docs/"
+REPO_BLOB = "https://github.com/uplinkview/uplinkview/blob/main/docs/"
 
 
 def slugify(value: str, separator: str) -> str:
@@ -61,7 +61,7 @@ TEMPLATE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}}</title>
-<meta name="description" content="Instalacja, konfiguracja i obsługa NetPulse: monitorowanie sieci w homelabie.">
+<meta name="description" content="Instalacja, konfiguracja i obsługa UplinkView: monitorowanie sieci w homelabie.">
 <style>
 :root {
   --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef1f5; --text: #1b2330; --text-2: #5a6678; --border: #dde2ea;
@@ -145,7 +145,7 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; color: var(--t
 <body>
 <header class="top">
   <button id="menu-btn" type="button" aria-expanded="false" aria-controls="toc">Spis treści</button>
-  <span class="brand">NetPulse · poradnik</span>
+  <span class="brand">UplinkView · poradnik</span>
   <button id="theme-btn" type="button" aria-label="Przełącz motyw jasny i ciemny">Motyw</button>
 </header>
 <div class="layout">
@@ -159,7 +159,7 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; color: var(--t
 {{BODY}}
   </main>
 </div>
-<footer>NetPulse · self-hosted monitoring sieci w homelabie</footer>
+<footer>UplinkView · self-hosted monitoring sieci w homelabie</footer>
 <script>
 (function () {
   var root = document.documentElement;

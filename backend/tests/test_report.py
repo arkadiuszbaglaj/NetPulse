@@ -88,7 +88,7 @@ def test_csv_sections_and_polish_excel_format():
     data = rp.to_csv(sample())
     assert data.startswith("﻿".encode())
     rows = list(csv.reader(io.StringIO(data.decode("utf-8-sig")), delimiter=";"))
-    assert rows[0] == ["Raport NetPulse", "październik 2026"]
+    assert rows[0] == ["Raport UplinkView", "październik 2026"]
     assert rows[1] == ["Okres", "01.10.2026 00:00", "01.11.2026 00:00"]
     flat = [r for r in rows if r]
     assert ["UCG Ultra", "192.168.1.1", "router", "99,995", "2,0", "0,0", "89000"] in flat
@@ -119,14 +119,14 @@ def test_pdf_empty_month():
 
 
 def test_filename():
-    assert rp.filename(sample(), "pdf") == "netpulse-raport-2026-10.pdf"
+    assert rp.filename(sample(), "pdf") == "uplinkview-raport-2026-10.pdf"
 
 
 def test_csv_and_pdf_in_english():
     """0.76.0: raport w języku panelu – teksty z katalogu, liczby z kropką, daty RRRR-MM-DD, CSV z przecinkiem."""
     data = rp.to_csv(sample(), "en")
     rows = list(csv.reader(io.StringIO(data.decode("utf-8-sig"))))
-    assert rows[0] == ["NetPulse report", "October 2026"]
+    assert rows[0] == ["UplinkView report", "October 2026"]
     assert rows[1] == ["Period", "2026-10-01 00:00", "2026-11-01 00:00"]
     flat = [r for r in rows if r]
     assert ["UCG Ultra", "192.168.1.1", "router", "99.995", "2.0", "0.0", "89000"] in flat
@@ -135,5 +135,5 @@ def test_csv_and_pdf_in_english():
     assert alert[1] == "ongoing" and alert[3] == "critical" and alert[6] == "yes"
     text = data.decode("utf-8-sig").replace("Przełącznik – biuro", "").replace("Port 7 przeszedł w stan down", "")  # nazwy z danych
     assert not any(c in text for c in "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ"), text
-    assert rp.filename(sample(), "pdf", "en") == "netpulse-report-2026-10.pdf"
+    assert rp.filename(sample(), "pdf", "en") == "uplinkview-report-2026-10.pdf"
     assert rp.to_pdf(sample(), font=None, lang="en").startswith(b"%PDF-")

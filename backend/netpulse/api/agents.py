@@ -37,7 +37,7 @@ _VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
 def agent_outdated(version: str | None) -> bool:
-    """Agent pobrany ze starszej wersji NetPulse (agent dostaje numer wersji serwera przy instalacji).
+    """Agent pobrany ze starszej wersji UplinkView (agent dostaje numer wersji serwera przy instalacji).
     Agent uruchomiony z repozytorium („dev”) albo z nieznanym numerem nie jest oznaczany."""
     mine, theirs = _VERSION.match(__version__), _VERSION.match(version or "")
     if mine is None or theirs is None:

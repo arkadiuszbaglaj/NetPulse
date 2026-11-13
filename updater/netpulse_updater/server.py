@@ -113,17 +113,17 @@ class UpdaterApp:
         return {**status, "log": state.log_tail(self.s)}
 
     def problem(self) -> str | None:
-        """Czytelny opis, gdy katalog instalacji (NETPULSE_DIR) nie wskazuje instalacji NetPulse."""
+        """Czytelny opis, gdy katalog instalacji (NETPULSE_DIR) nie wskazuje instalacji UplinkView."""
         if not (self.s.install_dir / "deploy" / "docker-compose.yml").is_file() or not (self.s.install_dir / ".git").exists():
             return (
-                f"Katalog instalacji {self.s.install_dir} nie zawiera NetPulse. "
-                "Ustaw w deploy/.env zmienną NETPULSE_DIR na katalog, w którym zainstalowano NetPulse, i uruchom: netpulse restart"
+                f"Katalog instalacji {self.s.install_dir} nie zawiera UplinkView. "
+                "Ustaw w deploy/.env zmienną NETPULSE_DIR na katalog, w którym zainstalowano UplinkView, i uruchom: uplinkview restart"
             )
         return None
 
     def fresh_check(self, cur: dict[str, Any]) -> dict[str, Any] | None:
         """Zapamiętany wynik sprawdzenia; gdy od tamtej pory zmieniła się zainstalowana wersja
-        (aktualizacja z panelu albo `netpulse update`), liczy go na nowo bez łączenia się ze źródłem."""
+        (aktualizacja z panelu albo `uplinkview update`), liczy go na nowo bez łączenia się ze źródłem."""
         info = state.read_check(self.s)
         if not info or (info.get("current") or {}).get("commit") == cur["commit"]:
             return info
@@ -342,5 +342,5 @@ def serve(settings: Settings) -> None:
     app = UpdaterApp(settings)
     server = ThreadingHTTPServer(("0.0.0.0", settings.port), make_handler(app))
     state_msg = "włączona" if settings.token else "WYŁĄCZONA (NETPULSE_UPDATER=off)"
-    print(f"Usługa aktualizacji NetPulse {state_msg}, nasłuchuje na :{settings.port}", flush=True)
+    print(f"Usługa aktualizacji UplinkView {state_msg}, nasłuchuje na :{settings.port}", flush=True)
     server.serve_forever()

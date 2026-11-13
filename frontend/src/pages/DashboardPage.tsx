@@ -254,7 +254,7 @@ export function DashboardPage() {
           </Link>
           <p className="mt-4 text-sm text-text-2">{t("dash.empty.body")}</p>
           <code className="mt-2 block overflow-x-auto rounded-lg bg-surface-2 px-3 py-2 font-mono text-xs">
-            netpulse device add &quot;UCG Ultra&quot; 192.168.1.1 --community public
+            uplinkview device add &quot;UCG Ultra&quot; 192.168.1.1 --community public
           </code>
         </Card>
       )}

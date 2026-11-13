@@ -76,10 +76,10 @@ describe("wykrywanie – logika", () => {
 
   it("raport: plik z uwagami, link do zgłoszenia i czytelne wartości", () => {
     const f = reportFile(REPORT, " port 5 to WAN ");
-    expect(f.name).toBe("netpulse-report-1.3.6.1.4.1.99999.1-2026-11-13.json");
+    expect(f.name).toBe("uplinkview-report-1.3.6.1.4.1.99999.1-2026-11-13.json");
     expect(JSON.parse(f.text).notes).toBe("port 5 to WAN");
     const url = new URL(issueLink(REPORT, "Printer 3000 v2", "uwagi"));
-    expect(url.origin + url.pathname).toBe("https://github.com/arkadiuszbaglaj/NetPulse/issues/new");
+    expect(url.origin + url.pathname).toBe("https://github.com/uplinkview/uplinkview/issues/new");
     expect(url.searchParams.get("template")).toBe("nowe-urzadzenie.yml");
     expect(url.searchParams.get("title")).toBe("Nowe urządzenie: Printer 3000 v2");
     expect(url.searchParams.get("object_id")).toBe("1.3.6.1.4.1.99999.1");
@@ -135,7 +135,7 @@ describe("wykrywanie w kreatorze (0.73.0)", () => {
     await user.click(await screen.findByRole("button", { name: "Wykryj w sieci" }));
     await waitFor(() => expect(screen.getByLabelText("Podsieć")).toHaveValue("192.168.1.0/24"));
     await user.click(screen.getByRole("button", { name: "Szukaj urządzeń" }));
-    expect(await screen.findByText("już w NetPulse")).toBeInTheDocument();
+    expect(await screen.findByText("już w UplinkView")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Dodaj 192.168.1.1" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Dodaj zaznaczone/ })).not.toBeInTheDocument();
   });
@@ -157,7 +157,7 @@ describe("raport urządzenia (0.73.0)", () => {
     state.overrides[`POST /api/devices/${state.devices[0].id}/report`] = { status: 200, body: REPORT };
     renderApp(`/devices/${state.devices[0].id}`);
     const user = userEvent.setup();
-    expect(await screen.findByText("NetPulse zna to urządzenie tylko częściowo")).toBeInTheDocument();
+    expect(await screen.findByText("UplinkView zna to urządzenie tylko częściowo")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Przygotuj raport" }));
     expect(await screen.findByText("Podgląd: 2 wartości, 0 zmienionych w drugim odczycie")).toBeInTheDocument();
     expect(calls.some((c) => c.method === "POST" && c.path === `/api/devices/${state.devices[0].id}/report?interval=30`)).toBe(true);
@@ -172,8 +172,8 @@ describe("raport urządzenia (0.73.0)", () => {
     state.devices[0] = { ...state.devices[0], detected_driver: "unifi" };
     renderApp(`/devices/${state.devices[0].id}`);
     const user = userEvent.setup();
-    const open = await screen.findByRole("button", { name: "Przygotuj raport urządzenia dla twórców NetPulse" });
-    expect(screen.queryByText("NetPulse zna to urządzenie tylko częściowo")).not.toBeInTheDocument();
+    const open = await screen.findByRole("button", { name: "Przygotuj raport urządzenia dla twórców UplinkView" });
+    expect(screen.queryByText("UplinkView zna to urządzenie tylko częściowo")).not.toBeInTheDocument();
     await user.click(open);
     expect(screen.getByRole("heading", { name: "Raport urządzenia" })).toBeInTheDocument();
   });

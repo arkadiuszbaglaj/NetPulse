@@ -17,7 +17,7 @@ MAX_CHANGES = 50
 # wersji – nowy klucz może więc wprowadzić tylko aktualizacja podpisana kluczem dotychczasowym.
 SIGNERS_FILE = "deploy/update-signers"
 UNSIGNED = (
-    "Aktualizacja w źródle nie ma prawidłowego podpisu NetPulse – nie zostanie zainstalowana. "
+    "Aktualizacja w źródle nie ma prawidłowego podpisu UplinkView – nie zostanie zainstalowana. "
     "Jeśli świadomie używasz własnego źródła aktualizacji, ustaw NETPULSE_UPDATE_VERIFY=off w deploy/.env."
 )
 
@@ -33,6 +33,22 @@ def sh(cmd: list[str], cwd: Path, timeout: int = 60) -> subprocess.CompletedProc
         raise UpdateError(f"Polecenie trwało zbyt długo: {' '.join(cmd[:3])}") from exc
     except FileNotFoundError as exc:
         raise UpdateError(f"Brak programu: {cmd[0]}") from exc
+
+
+# Repozytorium przeniesione przy zmianie nazwy na UplinkView (0.78.0). GitHub przekierowuje stary adres, dopóki nikt nie
+# zajmie starej nazwy – updater przestawia `origin` na nowy adres sam (bez NETPULSE_UPDATE_REPO).
+NEW_REPO = "https://github.com/uplinkview/uplinkview.git"
+_OLD_REPO = re.compile(r"github\.com[/:]arkadiuszbaglaj/netpulse(\.git)?/?$", re.IGNORECASE)
+
+
+def set_origin(s: Settings) -> None:
+    """Adres źródła przed pobraniem: NETPULSE_UPDATE_REPO albo – zamiast starego adresu repozytorium – nowy."""
+    if s.repo_url:
+        sh(["git", "remote", "set-url", "origin", s.repo_url], s.install_dir)
+        return
+    r = sh(["git", "remote", "get-url", "origin"], s.install_dir)
+    if r.returncode == 0 and _OLD_REPO.search(r.stdout.strip()):
+        sh(["git", "remote", "set-url", "origin", NEW_REPO], s.install_dir)
 
 
 def parse_version(text: str) -> str | None:
@@ -99,8 +115,7 @@ def check(s: Settings, fetch: bool = True) -> dict[str, Any]:
     `fetch=False` liczy wynik na nowo z tego, co już pobrano (bez łączenia się ze źródłem)."""
     branch = branch_name(s)
     if fetch:
-        if s.repo_url:
-            sh(["git", "remote", "set-url", "origin", s.repo_url], s.install_dir)
+        set_origin(s)
         r = sh(["git", "fetch", "--quiet", "origin", branch], s.install_dir, timeout=120)
         if r.returncode != 0:
             detail = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["brak szczegółów"]

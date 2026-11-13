@@ -159,7 +159,7 @@ describe("Internet i grupowanie klientów na porcie", () => {
     const nodes = [...TOPO.nodes, xsw];
     expect(isInternetNode(nodes.find((n) => n.id === "xaa")!, nodes, edges)).toBe(true);
     expect(isInternetNode(xsw, nodes, edges)).toBe(false);
-    expect(isInternetNode(nodes[0], nodes, edges)).toBe(false); // urządzenie NetPulse nigdy
+    expect(isInternetNode(nodes[0], nodes, edges)).toBe(false); // urządzenie UplinkView nigdy
     expect(isInternetNode(node("xzz", "02:00:00:00:00:01", null, "external"), nodes, edges)).toBe(false); // bez kabla
   });
 

@@ -1,4 +1,4 @@
-/** Stan serwera NetPulse (API: backend/netpulse/api/system.py). */
+/** Stan serwera UplinkView (API: backend/netpulse/api/system.py). */
 import { useQuery } from "@tanstack/react-query";
 import { get } from "./api";
 import { useRefresh } from "./refresh";

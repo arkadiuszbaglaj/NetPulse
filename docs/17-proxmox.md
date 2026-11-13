@@ -1,6 +1,6 @@
 # Integracja z Proxmox VE (od 0.17.0)
 
-NetPulse czyta z Proxmox VE (7 i 8) przez API, tylko do odczytu:
+UplinkView czyta z Proxmox VE (7 i 8) przez API, tylko do odczytu:
 
 - **węzły**: każdy węzeł staje się serwerem na pulpicie. Karta pokazuje CPU, RAM, obciążenie, czas pracy,
   system plików i magazyny węzła, maszyny i wynik ostatniej kopii. Działają dla niego alerty: nie odpowiada,
@@ -26,7 +26,7 @@ Kolekcja `guests` (pulpit) działa tak samo od 0.43.3.
    **odznacz „Privilege Separation”**. Skopiuj *Token Secret*, bo pokazuje się tylko raz.
 3. **Uprawnienia:** Datacenter → Permissions → Add → User Permission: ścieżka `/`, użytkownik `netpulse@pve`,
    rola **PVEAuditor** (tylko odczyt).
-4. **NetPulse:** Ustawienia → Proxmox → Dodaj serwer: adres dowolnego węzła (w klastrze wystarczy jeden),
+4. **UplinkView:** Ustawienia → Proxmox → Dodaj serwer: adres dowolnego węzła (w klastrze wystarczy jeden),
    port 8006, identyfikator `netpulse@pve!monitor`, sekret. Najpierw kliknij **Testuj połączenie**, potem **Zapisz**.
 
 Węzły pojawią się na pulpicie po pierwszym odczycie (do 30 s). Sekret tokenu jest w bazie zaszyfrowany
@@ -54,7 +54,7 @@ pveum acl modify / --users netpulse@pve --roles PVEAuditor
 | Proxmox: kopia zapasowa nie powiodła się | ostatnie zadanie vzdump na węźle zakończyło się błędem | krytyczny |
 | Proxmox: brak świeżej kopii VM | ostatnia kopia maszyny starsza niż 36 h (maszyny bez żadnej kopii nie alarmują) | ostrzeżenie |
 
-Przy aktualizacji ze starszej wersji reguły dochodzą raz. Usuniętej reguły NetPulse nie odtwarza.
+Przy aktualizacji ze starszej wersji reguły dochodzą raz. Usuniętej reguły UplinkView nie odtwarza.
 
 ## Jak to działa
 
@@ -62,7 +62,7 @@ Przy aktualizacji ze starszej wersji reguły dochodzą raz. Usuniętej reguły N
   (`/version`, `/cluster/status`, `/cluster/resources`, `/nodes/<węzeł>/status`, zadania vzdump i ich logi, pliki kopii).
 - `backend/netpulse/proxmox_collector.py`: co cykl kolektora (30 s) węzły, maszyny i magazyny; kopie co 10 minut.
   Węzeł = urządzenie `driver = "proxmox"` (kolektor SNMP go nie odpytuje). Jeśli adres IP węzła jest już
-  w NetPulse (np. ten sam serwer dodany przez SNMP), węzeł dostaje adres `nazwa.proxmox`.
+  w UplinkView (np. ten sam serwer dodany przez SNMP), węzeł dostaje adres `nazwa.proxmox`.
 - Tabele (migracja `0005`): `proxmox_servers`, `proxmox_nodes`, `proxmox_guests`, `proxmox_storages`. Historia
   maszyn trafia do ogólnej tabeli `metrics` (klucz „nazwa (vmid)”): `guest_up`, `guest_cpu_percent`,
   `guest_mem_bytes`, `guest_net_rx_bps`/`tx`, `guest_disk_read_bps`/`write`, `backup_age_h`, a na węźle `backup_task_ok`.
@@ -75,11 +75,11 @@ magazyny `local` i `local-lvm`, alert „maszyna zatrzymana” przy restarcie w�
 wszystkie odpowiedzi parsują się bez zmian w kodzie, testy `test_parsers_real_pve9*` trzymają te dane.
 Różnice względem atrapy: brak wpisu `cluster` przy pojedynczym węźle, zasób `network` (SDN) w `/cluster/resources`
 – pomijany, pole `memhost` przy VM i LXC (PVE 9) – nieużywane. Na prawdziwym sprzęcie czeka jeszcze klaster
-kilku węzłów. Problemy widać w logu kolektora: `netpulse logs collector`.
+kilku węzłów. Problemy widać w logu kolektora: `uplinkview logs collector`.
 
 **Kopie a rola PVEAuditor** (sprawdzone na PVE 9.2.24): magazyn nie pokazuje tokenowi plików kopii –
 `/storage/<magazyn>/content` wymaga do tego `VM.Backup`, czyli uprawnienia do robienia kopii. Dlatego od 0.28.5
-czas ostatniej kopii każdej maszyny NetPulse bierze też z udanych zadań vzdump: zadanie jednej maszyny ma jej numer,
+czas ostatniej kopii każdej maszyny UplinkView bierze też z udanych zadań vzdump: zadanie jednej maszyny ma jej numer,
 zadanie kilku – log zadania („Finished Backup of VM 101”), czytany raz na zadanie. Wystarcza PVEAuditor.
 Ograniczenie: widać tylko ostatnie 20 zadań na węźle – kopia starsza niż 20 zadań vzdump wstecz nie liczy się,
 a ręcznie usunięty plik kopii dalej się liczy (zadanie zostaje w historii).

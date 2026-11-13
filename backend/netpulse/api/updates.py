@@ -138,18 +138,18 @@ def _out(updater: UpdaterState, payload: dict[str, Any] | None = None) -> Update
 async def _forward(method: str, path: str, timeout: float, ok: tuple[int, ...]) -> dict[str, Any]:
     """Wywołuje usługę aktualizacji; błędy zamienia na czytelne odpowiedzi HTTP."""
     if not _configured():
-        raise HTTPException(503, "Aktualizacja z panelu jest wyłączona albo usługa aktualizacji jeszcze nie wystartowała. Zaktualizuj poleceniem: netpulse update")
+        raise HTTPException(503, "Aktualizacja z panelu jest wyłączona albo usługa aktualizacji jeszcze nie wystartowała. Zaktualizuj poleceniem: uplinkview update")
     try:
         code, payload = await _call(method, path, timeout)
     except _Unreachable:
-        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status") from None
+        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: uplinkview status") from None
     if code in ok:
         return payload
     message = payload.get("error", "Usługa aktualizacji zgłosiła błąd.")
     if code == 409:
         raise HTTPException(409, message)
     if code in (401, 503):
-        raise HTTPException(502, "Usługa aktualizacji odrzuciła żądanie. Uruchom ponownie usługi: netpulse restart")
+        raise HTTPException(502, "Usługa aktualizacji odrzuciła żądanie. Uruchom ponownie usługi: uplinkview restart")
     raise HTTPException(502, message)
 
 
@@ -161,7 +161,7 @@ async def get_updates():
             UpdaterState(
                 configured=False,
                 reachable=False,
-                message="Aktualizacja z panelu jest wyłączona albo usługa aktualizacji jeszcze nie wystartowała. Zaktualizuj poleceniem: netpulse update",
+                message="Aktualizacja z panelu jest wyłączona albo usługa aktualizacji jeszcze nie wystartowała. Zaktualizuj poleceniem: uplinkview update",
             )
         )
     try:
@@ -171,7 +171,7 @@ async def get_updates():
             UpdaterState(
                 configured=True,
                 reachable=False,
-                message="Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status",
+                message="Usługa aktualizacji nie odpowiada. Sprawdź: uplinkview status",
             )
         )
     if code != 200:
@@ -179,7 +179,7 @@ async def get_updates():
             UpdaterState(
                 configured=True,
                 reachable=False,
-                message="Usługa aktualizacji odrzuciła żądanie. Uruchom ponownie usługi: netpulse restart",
+                message="Usługa aktualizacji odrzuciła żądanie. Uruchom ponownie usługi: uplinkview restart",
             )
         )
     problem = payload.get("problem")

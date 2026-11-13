@@ -25,7 +25,7 @@ NOT_AFTER = datetime(2027, 12, 8, 1, 2, 3, tzinfo=UTC)
 
 
 def _name(cn: str) -> x509.Name:
-    return x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NetPulse"), x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+    return x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "UplinkView"), x509.NameAttribute(NameOID.COMMON_NAME, cn)])
 
 
 def make_tls_dir(root: Path, names: list[str], *, custom: bool = False) -> Path:
@@ -34,8 +34,8 @@ def make_tls_dir(root: Path, names: list[str], *, custom: bool = False) -> Path:
     now = datetime.now(UTC)
     ca = (
         x509.CertificateBuilder()
-        .subject_name(_name("NetPulse local CA test"))
-        .issuer_name(_name("NetPulse local CA test"))
+        .subject_name(_name("UplinkView local CA test"))
+        .issuer_name(_name("UplinkView local CA test"))
         .public_key(ca_key.public_key())
         .serial_number(1)
         .not_valid_before(now - timedelta(days=1))
@@ -111,7 +111,7 @@ def test_state_reads_certificate(tls_dir):
     assert st.available and st.mode == "local"
     assert set(st.names) == {"localhost", "127.0.0.1", "192.168.1.34", "netpulse"}
     assert st.not_after == NOT_AFTER
-    assert st.issuer == "NetPulse local CA test"
+    assert st.issuer == "UplinkView local CA test"
     assert st.ca_fingerprint and len(st.ca_fingerprint.split(":")) == 32
 
 
@@ -144,7 +144,7 @@ def test_api_status_and_ca_download(tls_dir):
 
     ca = c.get("/api/system/tls/ca.pem")
     assert ca.status_code == 200 and ca.content.startswith(b"-----BEGIN CERTIFICATE-----")
-    assert "netpulse-ca.pem" in ca.headers["content-disposition"]
+    assert "uplinkview-ca.pem" in ca.headers["content-disposition"]
     assert b"PRIVATE" not in ca.content
 
 

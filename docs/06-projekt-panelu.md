@@ -6,7 +6,7 @@ Decyzje zapadły wspólnie z autorem projektu; zmiany zapisujemy tutaj.
 
 ## Założenia produktowe
 
-- NetPulse ma być **pełnoprawną aplikacją webową**, którą każdy instaluje u siebie jedną komendą.
+- UplinkView ma być **pełnoprawną aplikacją webową**, którą każdy instaluje u siebie jedną komendą.
 - Panel jest **tylko klientem API**. Wszystko, co robi panel, może zrobić też aplikacja mobilna
   albo chmura (to samo API, te same definicje widgetów).
 - Sekcje panelu dochodzą z czasem – menu i ustawienia budujemy jako **rejestr modułów**, a nie na sztywno.
@@ -34,7 +34,7 @@ i wykończenie. Wszystko przez tokeny w `frontend/src/index.css`, więc kolejną
   niepotwierdzonych – po zwinięciu menu kropka), **Integracje** (od 0.58.4 sam Proxmox – pusta grupa znika) i **System**.
   Grupa to pole `group` w rejestrze `frontend/src/modules.tsx` (`NAV_GROUPS`; bez pola – Monitoring); nowa integracja
   = `group: "integrations"`. Grupa według przeznaczenia strony, nie źródła danych: Klienci (dane z UniFi) od 0.58.4
-  w Monitoringu (Dashboard, Klienci, Mapa sieci); Integracje = strony osobnych systemów podglądanych przez NetPulse.
+  w Monitoringu (Dashboard, Klienci, Mapa sieci); Integracje = strony osobnych systemów podglądanych przez UplinkView.
 - **Karty** zaokrąglone 16 px (`rounded-2xl`), przyciski i pola 10 px; paski CPU/RAM w tabeli urządzeń – akcent.
 - Ikony aplikacji (favicon, PWA) i `theme-color` – niebieskie.
 
@@ -74,7 +74,7 @@ Wybrany z trzech makiet (A klasyczny jasny, B grafitowe menu, C minimalny z menu
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ NetPulse   [odświeżanie ▾] [zakres czasu ▾]      Jan K. ▾    │  pasek górny
+│ UplinkView   [odświeżanie ▾] [zakres czasu ▾]      Jan K. ▾    │  pasek górny
 ├────────────┬─────────────────────────────────────────────────┤
 │ Dashboard  │                                                 │
 │ Ustawienia │              widoki / widgety                   │
@@ -198,7 +198,7 @@ panel ──(admin)──► API ──(sieć wewnętrzna, token)──► updat
 Uwaga bezpieczeństwa: dostęp do gniazda Dockera jest równoważny uprawnieniom roota na
 serwerze. Dlatego jest wyłącznie w małym, osobnym kontenerze z minimalną powierzchnią,
 a ustawienie można wyłączyć (`NETPULSE_UPDATER=off`) – wtedy panel pokazuje tylko komunikat
-o nowej wersji i komendę `netpulse update`.
+o nowej wersji i komendę `uplinkview update`.
 
 Warunek wstępny: **gotowe obrazy w rejestrze (GHCR)** zamiast budowania na serwerze użytkownika.
 
@@ -282,7 +282,7 @@ Ostatni punkt etapu 3:
 - Leniwie też: edytor widgetów (`WidgetEditDialog` – dopiero w trybie edycji), pulpit publiczny, ECharts
   (`PanelChart`, przy pierwszym wykresie).
 - `vite.config.ts` (`codeSplitting`): biblioteki React/router/TanStack w pliku `vendor`, ikony w `icons` – po
-  aktualizacji NetPulse przeglądarka ma je w pamięci (API wysyła `/assets` jako `immutable`).
+  aktualizacji UplinkView przeglądarka ma je w pamięci (API wysyła `/assets` jako `immutable`).
 - Efekt: kod startowy 795 kB → ok. 100 kB (+ `vendor` 294 kB, raz na zawsze); po kompresji 222 kB → ok. 130 kB
   razem z bibliotekami. Podgląd zbudowanej wersji: konfiguracja `panel-build` w `.claude/launch.json`
   (`npm --prefix frontend run preview`, API z atrapy).
@@ -312,7 +312,7 @@ gdy ktoś zapyta „co jeszcze chcieliśmy zrobić”.
 | Wskaźnik siły hasła ✅ wdrożone (2026-10-25, podpowiedź bez twardej reguły) | Przy ustawianiu i zmianie hasła pokazuje na żywo, czy hasło spełnia wymagania: liczba znaków, cyfry, wielkie litery, znaki specjalne (każdy warunek jako ✓/✗ pod polem, plus pasek siły). Ten sam komponent w kreatorze pierwszego konta i w Ustawienia → Konto. | Kreator konta, Ustawienia → Konto | 2026-10-24 |
 | Monitorowanie serwerów Linux | Serwer jako urządzenie w panelu: CPU, RAM, dyski, obciążenie, sieć. Etap 1 przez SNMP (`snmpd`), etap 2 własny agent z usługami systemd, kontenerami Docker i SMART. | Dashboard (karty), Ustawienia → Urządzenia, alerty | 2026-10-24 |
 | Alerty w panelu | Reguły z progami (np. ruch, błędy, CPU/RAM, zajętość dysku, port down, urządzenie offline), lista aktywnych i historii alertów, wskaźnik w pasku górnym. To rozwinięcie etapu 8. | Pasek górny (dzwonek), nowa sekcja Alerty, Ustawienia → Alerty | 2026-10-24 |
-| Stan serwera NetPulse | Parametry maszyny, na której działa aplikacja: CPU, RAM i swap, obciążenie, dyski (zajętość, miejsce pod bazę), czas pracy, temperatura, rozmiar bazy, stan usług NetPulse. Z historią na wykresach. | Dashboard (karta „Serwer”), Ustawienia → System | 2026-10-25 |
+| Stan serwera UplinkView | Parametry maszyny, na której działa aplikacja: CPU, RAM i swap, obciążenie, dyski (zajętość, miejsce pod bazę), czas pracy, temperatura, rozmiar bazy, stan usług UplinkView. Z historią na wykresach. | Dashboard (karta „Serwer”), Ustawienia → System | 2026-10-25 |
 | Kreator dashboardów: prywatny i publiczny ✅ wdrożone (0.23.0, opis: `docs/20-szczegoly-i-pulpity.md`) | Kreator tworzenia własnych dashboardów (nazwa lub szablon, wybór i układ widgetów, widoczność). **Prywatny** widzi tylko administrator po zalogowaniu, **publiczny** otwiera się pod osobnym adresem bez logowania (tylko do odczytu, np. wyświetlacz ścienny, podgląd dla domowników). | Dashboard (lista i przełącznik dashboardów), Ustawienia → Dashboardy, publiczna strona poza powłoką aplikacji | 2026-10-25 |
 | Powiadomienie o aktualizacji w pasku górnym ✅ wdrożone (2026-10-25) | Po automatycznym, cyklicznym sprawdzeniu wydań (bez klikania „Sprawdź”) pasek górny pokazuje wyraźną informację, że jest nowa wersja (np. plakietka „Dostępna aktualizacja 0.7.0” z linkiem do Ustawienia → Aktualizacje), żeby użytkownik nie przegapił, gdy zapomni zajrzeć. Wymaga cyklicznego sprawdzania po stronie API (np. co kilka godzin) i zapamiętania wyniku; można dać „odłóż/ukryj tę wersję”. W Ustawienia → Aktualizacje przełącznik **„Automatycznie sprawdzaj aktualizacje”** (domyślnie włączony; po wyłączeniu nic nie jest odpytywane i pasek nie pokazuje plakietki, zostaje ręczne „Sprawdź”) oraz wybór częstotliwości sprawdzania; ustawienie na poziomie instalacji, nie konta, bo sprawdza API. Po wprowadzeniu alertów (etap 8) ta sama informacja trafi też do dzwonka. | Pasek górny, Ustawienia → Aktualizacje | 2026-10-25 |
 | Licencje z zewnętrznego serwisu (propozycja, niewdrażane) | Klucz licencji wpisywany w panelu, instalacja pobiera z serwisu podpisany token (plan, funkcje, limity), weryfikuje go offline i odświeża co dobę. Brak internetu i wygaśnięcie nigdy nie wyłączają zbierania danych; degradują tylko funkcje dodatkowe. Szczegóły, etapy L1–L4 i pytania otwarte: `docs/09-licencje-propozycja.md`. | Ustawienia → Licencja, oznaczenia przy funkcjach płatnych | 2026-10-25 |
@@ -324,7 +324,7 @@ kolejność rekomendowana jest na końcu.
 
 **Niezawodność i bezpieczeństwo**
 
-- **Migracje Alembic.** Dziś zmiana kolumny w istniejącej tabeli wymaga `netpulse reset` (utrata historii).
+- **Migracje Alembic.** Dziś zmiana kolumny w istniejącej tabeli wymaga `uplinkview reset` (utrata historii).
   Blokuje też agenta Linux i część alertów. Największy dług techniczny.
 - **Kopia zapasowa i przywracanie z panelu.** Updater robi kopię bazy przy aktualizacji, ale nie ma przycisku
   „pobierz kopię” ani „przywróć”.
@@ -408,7 +408,7 @@ trzecie jest najbardziej widoczne w codziennym użyciu.
   odczytu), prywatny może być współdzielony z wybranymi użytkownikami; to osobna decyzja.
 - **Model danych:** nowa tabela `dashboards` (nazwa, właściciel, widoczność, token publiczny, ustawienia
   prywatności, wygaśnięcie, skrót hasła, JSON z układem i widgetami w wersjonowanym schemacie z etapu 5e).
-  Nowa tabela powstaje sama przy `netpulse update` (bez migracji Alembic). Ten sam model posłuży aplikacji
+  Nowa tabela powstaje sama przy `uplinkview update` (bez migracji Alembic). Ten sam model posłuży aplikacji
   mobilnej i widgetom.
 - **Zależności:** etap 5e (rejestr widgetów, edytor układu, zapis na koncie), etap 5f (tryb „Na żywo” może
   napędzać wyświetlacz ścienny), ograniczanie liczby żądań w API (nie ma go jeszcze).
@@ -417,12 +417,12 @@ trzecie jest najbardziej widoczne w codziennym użyciu.
   WiFi, stan urządzeń bez adresów); czy dopuścić wiele publicznych dashboardów naraz; czy dashboard główny
   (domyślny po zalogowaniu) też jest jednym z dashboardów kreatora.
 
-### Szczegóły: stan serwera NetPulse
+### Szczegóły: stan serwera UplinkView
 
 - **Skąd dane:** kontener czyta `/proc` (CPU, RAM, obciążenie, czas pracy pokazują wartości całego serwera,
   nie kontenera), `/sys` (temperatura, jeśli system ją udostępnia) i zajętość dysku. Bez SNMP i bez agenta.
 - **Historia:** próbka co cykl kolektora (30 s) do **nowej tabeli** metryk systemowych (nowa tabela powstaje
-  sama przy `netpulse update`, więc nie wymaga migracji Alembic); wykresy i interwały jak na Dashboardzie.
+  sama przy `uplinkview update`, więc nie wymaga migracji Alembic); wykresy i interwały jak na Dashboardzie.
 - **Zakres:** CPU %, obciążenie 1/5/15 min, RAM i swap, dyski (root i dysk z danymi Dockera), czas pracy,
   temperatura, rozmiar bazy i jej przyrost, czas ostatniego cyklu kolektora, stan usług (api, kolektor, baza,
   updater). Stan kontenerów podaje `updater` (jedyny z dostępem do Dockera) w osobnej akcji tylko do odczytu.
@@ -465,14 +465,14 @@ trzecie jest najbardziej widoczne w codziennym użyciu.
   znak specjalny. Lista warunków i progi mają być w jednym miejscu, żeby dało się je zmienić.
 - **Decyzja do podjęcia:** czy to tylko podpowiedź dla użytkownika (zalecane na start,
   bo nie blokuje długich haseł z samych słów), czy twarda reguła egzekwowana także w backendzie
-  (wtedy te same reguły w `auth.py` i w panelu, a `netpulse user passwd` stosuje je również).
+  (wtedy te same reguły w `auth.py` i w panelu, a `uplinkview user passwd` stosuje je również).
 - **Wskazówka techniczna:** komponent `PasswordRequirements` w `frontend/src/components/`,
   czysta funkcja oceny hasła w `src/lib/` z testami; teksty w `src/i18n/pl.ts`.
   Dostępność: wyniki warunków ogłaszane czytnikom ekranu (`aria-live="polite"`), nie tylko kolorem.
 
 ### Szczegóły: monitorowanie serwerów Linux
 
-Rozszerzenie NetPulse z urządzeń sieciowych na serwery. Cel: sieć i serwery w jednym lekkim panelu,
+Rozszerzenie UplinkView z urządzeń sieciowych na serwery. Cel: sieć i serwery w jednym lekkim panelu,
 z tą samą instalacją jednym linkiem. Dwa etapy, od najtańszego.
 
 **Etap A – SNMP (`snmpd` na serwerze).**
@@ -481,11 +481,11 @@ z tą samą instalacją jednym linkiem. Dwa etapy, od najtańszego.
   swap, liczba procesów, czas pracy.
 - W panelu: karta serwera na Dashboardzie (CPU, RAM, dysk z paskiem zapełnienia) i dodawanie
   w Ustawienia → Urządzenia (typ „Serwer Linux”, podpowiedź, jak włączyć `snmpd`).
-- Wygoda: opis konfiguracji `snmpd` (tylko odczyt, tylko z adresu serwera NetPulse) w dokumentacji.
+- Wygoda: opis konfiguracji `snmpd` (tylko odczyt, tylko z adresu serwera UplinkView) w dokumentacji.
 - Ograniczenia SNMP: brak kontenerów, usług systemd, SMART i temperatur (poza tym, co wystawi `snmpd`).
 
 **Etap B – własny agent (`netpulse-agent`).**
-- Mały program lub kontener na monitorowanym serwerze, czyta `/proc` i `/sys`, wysyła metryki do NetPulse
+- Mały program lub kontener na monitorowanym serwerze, czyta `/proc` i `/sys`, wysyła metryki do UplinkView
   przez HTTPS z tokenem instalacji (**push**: działa za NAT-em, bez otwierania portów na serwerze, pasuje do chmury).
 - Zakres: CPU (także na rdzeń), RAM i swap, dyski (zajętość, IO), sieć, temperatury, SMART,
   stan usług systemd, kontenery Docker (stan, zasoby). Bez logów i śledzenia procesów – to ma pozostać lekkie.

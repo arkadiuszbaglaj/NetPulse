@@ -1,7 +1,7 @@
 # Okna serwisowe (0.60.0)
 
 Planowane prace (restart routera, aktualizacja firmware, wymiana kabla) nie powinny budzić powiadomieniami
-ani obniżać dostępności. Okno serwisowe mówi NetPulse: „w tym czasie to jest zaplanowane”.
+ani obniżać dostępności. Okno serwisowe mówi UplinkView: „w tym czasie to jest zaplanowane”.
 
 ## Co robi okno
 
@@ -22,7 +22,7 @@ ani obniżać dostępności. Okno serwisowe mówi NetPulse: „w tym czasie to j
   zostaje o tej samej godzinie lokalnej.
 
 **Zakres:** wybrane urządzenia albo „Wszystkie urządzenia”. Okno na wszystko obejmuje też alerty bez urządzenia
-(sprawdzenia dostępności, dysk serwera NetPulse).
+(sprawdzenia dostępności, dysk serwera UplinkView).
 
 ## Kod
 

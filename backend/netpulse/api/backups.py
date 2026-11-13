@@ -87,7 +87,7 @@ async def upload_backup(request: Request):
                 headers={"Authorization": f"Bearer {_token()}", "Content-Length": length, "Content-Type": "application/gzip"},
             )
     except httpx.HTTPError as exc:
-        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status") from exc
+        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: uplinkview status") from exc
     try:
         payload = r.json()
     except ValueError:
@@ -123,7 +123,7 @@ async def download_backup(name: str):
         upstream = await client.send(request, stream=True)
     except httpx.HTTPError as exc:
         await client.aclose()
-        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: netpulse status") from exc
+        raise HTTPException(502, "Usługa aktualizacji nie odpowiada. Sprawdź: uplinkview status") from exc
     if upstream.status_code != 200:
         await upstream.aclose()
         await client.aclose()

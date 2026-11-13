@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NetPulse Agent – metryki serwera Linux wysyłane do NetPulse (push, HTTPS albo HTTP w sieci domowej).
+"""UplinkView Agent – metryki serwera Linux wysyłane do UplinkView (push, HTTPS albo HTTP w sieci domowej).
 
 Jeden plik, tylko biblioteka standardowa Pythona 3.8+ (Ubuntu 20.04 i nowsze, Debian 11 i nowsze).
 Czyta /proc i /sys, opcjonalnie systemctl, gniazdo Dockera (tylko odczyt) i smartctl. Bez logów i śledzenia procesów.
@@ -514,7 +514,7 @@ def send(cfg: dict, report: dict) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="netpulse-agent", description="NetPulse Agent – metryki serwera Linux")
+    parser = argparse.ArgumentParser(prog="netpulse-agent", description="UplinkView Agent – metryki serwera Linux")
     parser.add_argument("--config", default=CONFIG_PATH)
     parser.add_argument("--once", action="store_true", help="wyślij jeden raport i zakończ (test połączenia)")
     parser.add_argument("--print", action="store_true", help="pokaż raport zamiast wysyłać")
@@ -537,12 +537,12 @@ def main(argv: list[str] | None = None) -> int:
         except SendError as exc:
             log.error("%s", exc)
             return 1
-        log.info("Raport przyjęty przez NetPulse %s%s", ack.get("server_version", "?"),
+        log.info("Raport przyjęty przez UplinkView %s%s", ack.get("server_version", "?"),
                  "" if ack.get("accepted", True) else " (serwer wyłączony w panelu – dane nie są zapisywane)")
         return 0
 
     interval = DEFAULT_INTERVAL
-    log.info("NetPulse Agent %s → %s", VERSION, cfg["NETPULSE_URL"])
+    log.info("UplinkView Agent %s → %s", VERSION, cfg["NETPULSE_URL"])
     while True:
         started = time.monotonic()
         try:
@@ -556,7 +556,7 @@ def main(argv: list[str] | None = None) -> int:
             log.warning("%s", exc)
             if exc.status == 401:
                 # Token odwołany albo serwer usunięty z panelu – nie męczymy API co 30 s
-                log.error("Token odrzucony. Nowy token: NetPulse → Ustawienia → Agenci, potem ponowna instalacja.")
+                log.error("Token odrzucony. Nowy token: UplinkView → Ustawienia → Agenci, potem ponowna instalacja.")
                 time.sleep(300)
                 continue
         except Exception:

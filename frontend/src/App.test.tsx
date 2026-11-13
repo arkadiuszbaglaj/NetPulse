@@ -7,7 +7,7 @@ describe("kreator pierwszego konta", () => {
   it("pokazuje kreator, gdy nie ma jeszcze kont", async () => {
     mockApi({ setupRequired: true, authenticated: false });
     renderApp();
-    expect(await screen.findByRole("heading", { name: "Witaj w NetPulse" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Witaj w UplinkView" })).toBeInTheDocument();
     expect(screen.getByLabelText("Powtórz hasło")).toBeInTheDocument();
   });
 

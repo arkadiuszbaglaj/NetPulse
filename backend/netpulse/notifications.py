@@ -125,7 +125,7 @@ def summary_lines(events: list[AlertEvent], header: str, lang: str = "pl") -> st
 def summary_payload(events: list[AlertEvent], lang: str = "pl") -> dict:
     firing = [e for e in events if e.kind == "firing"]
     resolved = [e for e in events if e.kind == "resolved"]
-    text = summary_lines(events, translate(f"NetPulse: {len(firing)} nowych alertów, {len(resolved)} zakończonych", lang), lang)
+    text = summary_lines(events, translate(f"UplinkView: {len(firing)} nowych alertów, {len(resolved)} zakończonych", lang), lang)
     return {"text": text, "content": text, "event": "summary", "firing": len(firing), "resolved": len(resolved)}
 
 
@@ -155,7 +155,7 @@ def digest_message(backlog: list[dict], skipped: int = 0, lang: str = "pl") -> M
     events = [localized(e, lang) for e in events]
     firing = sum(1 for e in events if e.kind == "firing")
     resolved = len(events) - firing
-    header = translate(f"NetPulse po cichych godzinach: {firing + skipped} alertów, {resolved} zakończonych", lang)
+    header = translate(f"UplinkView po cichych godzinach: {firing + skipped} alertów, {resolved} zakończonych", lang)
     text = summary_lines(events, header, lang)
     if skipped:
         text += "\n" + translate(f"(+{skipped} niezapisanych)", lang)
@@ -164,7 +164,7 @@ def digest_message(backlog: list[dict], skipped: int = 0, lang: str = "pl") -> M
 
 
 def probe_message(lang: str = "pl") -> Message:
-    title = translate("NetPulse: powiadomienia działają", lang)
+    title = translate("UplinkView: powiadomienia działają", lang)
     text = f"✅ {title}"
     return Message(title=title, text=text, severity="info", payload={"text": text, "content": text, "event": "test"})
 
@@ -244,12 +244,12 @@ def smtp_send(config: dict, password: str | None, msg: EmailMessage) -> None:
 
 def email_message(config: dict, m: Message) -> EmailMessage:
     msg = EmailMessage()
-    msg["Subject"] = f"[NetPulse] {m.title}"
+    msg["Subject"] = f"[UplinkView] {m.title}"
     msg["From"] = config.get("sender") or config.get("username") or "netpulse@localhost"
     msg["To"] = ", ".join(config.get("recipients") or [])
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain="netpulse")
-    msg.set_content(m.text + "\n\n— NetPulse")
+    msg.set_content(m.text + "\n\n— UplinkView")
     return msg
 
 

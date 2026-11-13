@@ -14,9 +14,9 @@ Od 0.62.0 panel jest dostępny przez HTTP **i** HTTPS:
   dziennik zdarzeń i limit logowań widzą prawdziwy adres klienta, a ciasteczko sesji przez HTTPS ma flagę `Secure`.
   Proxy nadpisuje `X-Forwarded-For` (nie dopisuje), więc klient nie podrobi swojego adresu.
 - Certyfikat wystawia skrypt `deploy/proxy/tls.sh` w katalogu **`<katalog instalacji>/deploy/tls`**:
-  - `ca.pem` / `ca-key.pem` – **lokalne CA NetPulse** (10 lat, klucz tylko dla roota),
+  - `ca.pem` / `ca-key.pem` – **lokalne CA UplinkView** (10 lat, klucz tylko dla roota),
   - `server.pem` / `server-key.pem` – certyfikat panelu podpisany przez to CA (397 dni, odnawiany sam 30 dni przed końcem),
-  - adresy w certyfikacie: `localhost`, `127.0.0.1`, `NETPULSE_TLS_NAMES` z `.env` (instalator i `netpulse update`
+  - adresy w certyfikacie: `localhost`, `127.0.0.1`, `NETPULSE_TLS_NAMES` z `.env` (instalator i `uplinkview update`
     wpisują nazwę i adresy IPv4 serwera, bez sieci Dockera) oraz adresy dopisane w panelu (`request/names`).
   - Co 30 s skrypt sprawdza, czy trzeba wystawić nowy certyfikat (nowe adresy, koniec ważności), i przeładowuje nginx.
 - Katalog `deploy/tls` jest w `.gitignore`; kopia zapasowa bazy go nie obejmuje (CA zostaje na dysku serwera).
@@ -34,7 +34,7 @@ Od 0.62.0 panel jest dostępny przez HTTP **i** HTTPS:
 
 Wgraj pełny łańcuch i klucz jako `deploy/tls/custom/cert.pem` i `deploy/tls/custom/key.pem` (np. z Let's Encrypt
 albo firmowego CA). Proxy użyje ich w ciągu 30 s; gdy klucz nie pasuje do certyfikatu, zostaje certyfikat lokalnego CA
-(wpis w `netpulse logs proxy`). Usunięcie plików przywraca certyfikat lokalnego CA.
+(wpis w `uplinkview logs proxy`). Usunięcie plików przywraca certyfikat lokalnego CA.
 
 ## Sesja przez HTTP i HTTPS (0.65.5)
 
@@ -65,7 +65,7 @@ kontenerów, maszyn, etykiety) na tekst – wcześniej nazwa z HTML-em mogła ur
 
 ## Jak sprawdzić
 
-1. `netpulse update`, potem `netpulse status` – jest usługa `proxy`.
+1. `uplinkview update`, potem `uplinkview status` – jest usługa `proxy`.
 2. Otwórz `https://<adres serwera>:8443` – przeglądarka ostrzeże (CA jeszcze nie jest zaufane), przejdź dalej.
 3. Ustawienia → System → HTTPS → „Pobierz certyfikat CA”, zaimportuj go według instrukcji i otwórz stronę ponownie –
    kłódka bez ostrzeżeń.
@@ -116,7 +116,7 @@ kontrolę nad serwerem – dostał tylko `no-new-privileges`. System plików tyl
 
 ### Przypięte wersje
 
-- **Baza:** `timescale/timescaledb:2.32.0-pg17` zamiast `latest-pg17` (też w CI). Przy `netpulse update` Docker pobiera
+- **Baza:** `timescale/timescaledb:2.32.0-pg17` zamiast `latest-pg17` (też w CI). Przy `uplinkview update` Docker pobiera
   ten obraz, a `init_db` aktualizuje rozszerzenie w bazie (`update_timescale_extension`: `ALTER EXTENSION timescaledb UPDATE`
   jako pierwsze polecenie świeżego połączenia; w logu kolektora „Rozszerzenie TimescaleDB w bazie: …”).
   **Wersji nie obniżać** – baza nie cofnie rozszerzenia. Podniesienie = zmiana w `docker-compose.yml` i `ci.yml`.
@@ -130,6 +130,6 @@ kontrolę nad serwerem – dostał tylko `no-new-privileges`. System plików tyl
 - **Podpisane aktualizacje** – zrobione w 0.69.0, opis: `docs/41-podpisane-aktualizacje.md`.
 - **Osobna rola bazy bez uprawnień superużytkownika** – odłożona po analizie: przywracanie kopii zapasowej i tak
   musi działać jako superużytkownik (wymaga tego TimescaleDB), więc osobna rola nie zamyka drogi „wgrana kopia wykonuje
-  kod”. Kopię wgrywa tylko administrator, który i tak może zainstalować dowolną wersję NetPulse. Zysk byłby tylko przy
+  kod”. Kopię wgrywa tylko administrator, który i tak może zainstalować dowolną wersję UplinkView. Zysk byłby tylko przy
   błędzie typu SQL injection, a ryzyko przebudowy uprawnień w istniejących bazach jest duże.
 

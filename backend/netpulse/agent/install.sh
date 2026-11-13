@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instalacja (i aktualizacja) agenta NetPulse na serwerze Linux. Polecenie z tokenem pokazuje panel:
+# Instalacja (i aktualizacja) agenta UplinkView na serwerze Linux. Polecenie z tokenem pokazuje panel:
 #   curl -fsSL http://NETPULSE:8000/agent/install.sh | sudo bash -s -- --url http://NETPULSE:8000 --token npa_...
 # Ponowne uruchomienie z tym samym adresem aktualizuje agenta (konfiguracja zostaje).
 # Odinstalowanie:
@@ -32,7 +32,7 @@ if [ "$UNINSTALL" = 1 ]; then
   rm -f "$UNIT" "$CONF"
   rm -rf "$DIR"
   systemctl daemon-reload
-  echo "Agent NetPulse usunięty. Serwer usuń też w panelu (Ustawienia → Agenci), jeśli nie jest już potrzebny."
+  echo "Agent UplinkView usunięty. Serwer usuń też w panelu (Ustawienia → Agenci), jeśli nie jest już potrzebny."
   exit 0
 fi
 
@@ -41,7 +41,7 @@ if [ -f "$CONF" ]; then
   [ -n "$URL" ] || URL=$(sed -n 's/^NETPULSE_URL=//p' "$CONF")
   [ -n "$TOKEN" ] || TOKEN=$(sed -n 's/^NETPULSE_TOKEN=//p' "$CONF")
 fi
-[ -n "$URL" ] || err "podaj adres NetPulse: --url http://ADRES:8000"
+[ -n "$URL" ] || err "podaj adres UplinkView: --url http://ADRES:8000"
 [ -n "$TOKEN" ] || err "podaj token agenta: --token npa_... (Ustawienia → Agenci w panelu)"
 URL="${URL%/}"
 
@@ -77,13 +77,13 @@ grep -q '^SERVICES=' "$CONF" || echo "SERVICES=" >>"$CONF"
 grep -q '^DOCKER=' "$CONF" || echo "DOCKER=auto" >>"$CONF"
 grep -q '^SMART=' "$CONF" || echo "SMART=auto" >>"$CONF"
 
-echo "Sprawdzam połączenie z NetPulse..."
-python3 "$DIR/netpulse-agent.py" --config "$CONF" --once || err "NetPulse nie przyjął raportu (sprawdź adres i token)"
+echo "Sprawdzam połączenie z UplinkView..."
+python3 "$DIR/netpulse-agent.py" --config "$CONF" --once || err "UplinkView nie przyjął raportu (sprawdź adres i token)"
 
 # Root jest potrzebny do SMART i gniazda Dockera; reszta systemu tylko do odczytu
 cat >"$UNIT" <<EOF
 [Unit]
-Description=NetPulse Agent (metryki serwera dla NetPulse)
+Description=UplinkView Agent (metryki serwera dla UplinkView)
 After=network-online.target
 Wants=network-online.target
 
@@ -106,4 +106,4 @@ EOF
 systemctl daemon-reload
 systemctl enable netpulse-agent >/dev/null 2>&1
 systemctl restart netpulse-agent
-echo "Gotowe: agent NetPulse działa (systemctl status netpulse-agent). Serwer pojawi się w panelu w ciągu minuty."
+echo "Gotowe: agent UplinkView działa (systemctl status netpulse-agent). Serwer pojawi się w panelu w ciągu minuty."

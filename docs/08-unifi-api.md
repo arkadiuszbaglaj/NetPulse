@@ -15,10 +15,10 @@ SNMP nie podaje PoE na portach ani listy klientów WiFi (nazwa, IP, sygnał). Te
 1. W UniFi Network: **Settings → Control Plane → Integrations → Create API Key**
    (nazwa dowolna, np. `netpulse`). Skopiuj klucz – widać go tylko raz. Klucz daje dostęp tylko do odczytu
    tego, co udostępnia API integracji; nie wpisuj go do czatu ani do repozytorium.
-2. Na serwerze z NetPulse pobierz sondę i uruchom ją, podając klucz zmienną środowiskową:
+2. Na serwerze z UplinkView pobierz sondę i uruchom ją, podając klucz zmienną środowiskową:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/arkadiuszbaglaj/NetPulse/main/backend/tools/unifi_probe.py
+curl -fsSLO https://raw.githubusercontent.com/uplinkview/uplinkview/main/backend/tools/unifi_probe.py
 UNIFI_API_KEY='wklej-klucz' python3 unifi_probe.py 192.168.1.1
 ```
 
@@ -46,7 +46,7 @@ więc parsery (`backend/netpulse/unifi.py`) są tolerancyjne (brak pola = brak w
 a test na zanonimizowanych odpowiedziach (`backend/tests/fixtures/unifi_*.json`, powstałych
 z `backend/tools/probe2fixtures.py`) wykryje zmianę formatu po aktualizacji UniFi.
 
-Urządzenie z kontrolera łączymy z urządzeniem NetPulse (SNMP) po adresie IP, a port PoE z portem
+Urządzenie z kontrolera łączymy z urządzeniem UplinkView (SNMP) po adresie IP, a port PoE z portem
 `0/N` switcha. LLDP z tej samej odpowiedzi posłuży w etapie 7 (mapa sieci).
 
 ## Stan prac
@@ -54,7 +54,7 @@ Urządzenie z kontrolera łączymy z urządzeniem NetPulse (SNMP) po adresie IP,
 - **6a ✅** rozpoznanie.
 - **6b ✅ (backend)** kontrolery UniFi (tabela `controllers`, klucz API w bazie jak community SNMP, nigdy nie wraca w API),
   kolektor (`unifi_collector.py`, uruchamiany razem z kolektorem SNMP), tabele `poe_port_metrics`, `poe_budget_metrics`,
-  `network_clients` (nowe tabele powstają same przy `netpulse update`), API: `/api/controllers` (CRUD i test połączenia),
+  `network_clients` (nowe tabele powstają same przy `uplinkview update`), API: `/api/controllers` (CRUD i test połączenia),
   `/api/clients?kind=wifi|wired`, `/api/devices/{id}/poe`.
 - **6c** panel: Ustawienia → Kontrolery UniFi (dodawanie z testem), strona Klienci, PoE przy portach switcha, widgety.
 
@@ -62,7 +62,7 @@ Urządzenie z kontrolera łączymy z urządzeniem NetPulse (SNMP) po adresie IP,
 
 Część sprzętu UniFi nie ma SNMP (np. USW Flex, USW Flex Mini, USW Ultra). Od 0.52.0 kolektor UniFi czyta
 oficjalne Network API (`/proxy/network/integration/v1`, ten sam klucz API) i **sam zakłada** urządzenia, których
-NetPulse nie zna z SNMP, z `driver = "unifi_api"`:
+UplinkView nie zna z SNMP, z `driver = "unifi_api"`:
 
 - lista: `GET /sites` (site, którego `internalReference` to nazwa ze starszego API, zwykle `default`),
   `GET /sites/{site}/devices` (strony `offset`/`limit` ≤ 200, `totalCount`),

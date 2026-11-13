@@ -46,7 +46,7 @@ Sprawdzenia dostępności mają taką samą plakietkę. Wspólne funkcje: `devic
 
 ## Jak sprawdzić na serwerze
 
-1. Po `netpulse update` panel działa jak dotąd (wszystkie urządzenia „działa”).
+1. Po `uplinkview update` panel działa jak dotąd (wszystkie urządzenia „działa”).
 2. Zatrzymaj kolektor: `docker stop netpulse-collector-1`.
 3. Po około 2 minutach karty urządzeń pokazują „brak aktualnych danych”, a podpowiedź mówi, kiedy był ostatni odczyt.
    Nie przychodzą powiadomienia „nie odpowiada” ani „zakończony”.

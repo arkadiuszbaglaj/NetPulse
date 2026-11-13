@@ -67,7 +67,7 @@ Pliki statyczne dalej serwuje API (przez nginx z kompresją) – przeniesienie i
 
 Zrobione 12.11.2026 (opis: `docs/34-https.md`, „Utwardzenie”): pełny CSP, limit logowań na konto, utwardzenie kontenerów,
 przypięty obraz bazy i plik blokady Pythona. Podpisane aktualizacje (0.69.0): commity na `main` podpisane kluczem SSH,
-updater i `netpulse update` sprawdzają podpis – `docs/41-podpisane-aktualizacje.md`. Aktualizacje idą dalej z `main` (nie z tagów
+updater i `uplinkview update` sprawdzają podpis – `docs/41-podpisane-aktualizacje.md`. Aktualizacje idą dalej z `main` (nie z tagów
 wydań) – podpis commita daje tę samą ochronę bez zmiany sposobu pracy. Osobna rola bazy odłożona – uzasadnienie w `docs/34-https.md`.
 
 - Aktualizacje z podpisanych tagów wydań zamiast gałęzi `main`; updater odrzuca niepodpisany kod,
@@ -78,7 +78,7 @@ wydań) – podpis commita daje tę samą ochronę bez zmiany sposobu pracy. Oso
 - Utwardzenie kontenerów: `cap_drop`, `no-new-privileges`, `read_only` tam, gdzie się da.
 - Przypięte wersje: obraz bazy na konkretny numer, plik blokady zależności Pythona.
 
-**Gotowe, gdy:** CI przechodzi z nowym sposobem aktualizacji (`install.sh` → `netpulse update`), a aktualizacja
+**Gotowe, gdy:** CI przechodzi z nowym sposobem aktualizacji (`install.sh` → `uplinkview update`), a aktualizacja
 serwera użytkownika działa bez ręcznych kroków.
 
 ## Etap 3 – dopracowanie wyglądu ✅ (0.66.0, widok na telefonie 0.76.1)
@@ -130,7 +130,7 @@ Bez nich etap 6 nie ruszy: nazwa z listy użytkownika, licencja kodu i model z `
 
 ## Etap 6 – publikacja (1.0.0)
 
-- Zmiana nazwy w kodzie, obrazach, repozytorium i aplikacji Android (ze ścieżką aktualizacji dla istniejącej instalacji).
+- ✅ (0.78.0) Zmiana nazwy na UplinkView w panelu, dokumentacji, instalatorze, repozytorium (`uplinkview/uplinkview`) i aplikacji Android; istniejące instalacje aktualizują się dalej (stary katalog i polecenie `netpulse` działają). Nazwy wewnętrzne (pakiet, zmienne, wolumeny) bez zmiany – lista w `CLAUDE.md`.
 - Plik LICENSE, angielskie README ze zrzutami, dokumentacja instalacji po angielsku.
 - Publiczne demo tylko do odczytu, oparte na atrapie `frontend/dev/mock-api.mjs`.
 - Gotowe obrazy w GHCR – instalacja bez budowania na serwerze użytkownika.
@@ -163,5 +163,5 @@ etapy C0–C6). C0 warto zrobić przy okazji etapów 4 i 7; C1–C3 można zbudo
 
 - **Teraz:** zgoda na start etapu 1.
 - **Do końca etapu 5:** nazwa i licencja.
-- **Po każdym etapie:** `netpulse update` na serwerze i informacja, czy działa.
+- **Po każdym etapie:** `uplinkview update` na serwerze i informacja, czy działa.
 - **Przed etapem 9:** odpowiedzi na pytania otwarte z `docs/39`.

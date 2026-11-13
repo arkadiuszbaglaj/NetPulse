@@ -81,7 +81,7 @@ export const TLS: TlsStatus = {
   names: ["127.0.0.1", "192.168.1.34", "localhost", "netpulse"],
   requested: [],
   not_after: "2027-12-08T01:02:11Z",
-  issuer: "NetPulse local CA 1a2b3c4d",
+  issuer: "UplinkView local CA 1a2b3c4d",
   ca_fingerprint: "AB:CD:EF",
   host: "localhost",
   host_covered: true,
@@ -717,7 +717,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (key === "POST /api/auth/totp/setup") {
         if ((body as { password: string }).password !== "haslo-testowe-1") return json(403, { detail: "Hasło jest nieprawidłowe" });
         state.totp = { ...state.totp, pending: true };
-        return json(200, { secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP", uri: "otpauth://totp/NetPulse:admin?secret=JBSWY3DPEHPK3PXP", qr_svg: "<svg xmlns='http://www.w3.org/2000/svg'></svg>" });
+        return json(200, { secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP", uri: "otpauth://totp/UplinkView:admin?secret=JBSWY3DPEHPK3PXP", qr_svg: "<svg xmlns='http://www.w3.org/2000/svg'></svg>" });
       }
       if (key === "POST /api/auth/totp/enable") {
         if ((body as { code: string }).code !== "123456") return json(422, { detail: "Nieprawidłowy kod – sprawdź czas w telefonie i spróbuj ponownie" });

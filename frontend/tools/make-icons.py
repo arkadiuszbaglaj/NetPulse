@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generuje ikony panelu (favicon.ico, apple-touch-icon, ikony PWA) z logo NetPulse.
+"""Generuje ikony panelu (favicon.ico, apple-touch-icon, ikony PWA) z logo UplinkView.
 
 Logo to ten sam rysunek co `public/favicon.svg` i komponent `Logo` w `src/components/ui.tsx`:
 niebieski kwadrat z zaokrąglonymi rogami i biała linia tętna. Zmiana logo = zmiana stałych

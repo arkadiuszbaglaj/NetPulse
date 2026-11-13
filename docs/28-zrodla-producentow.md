@@ -59,7 +59,7 @@ Switche i bramy UniFi nie mają prywatnego MIB – dają IF-MIB (liczniki 64-bit
 - Adres lokalny: `https://<konsola>/proxy/network/integration/v1/...`, nagłówek `X-API-Key`. Ten sam interfejs
   przez chmurę: `https://api.ui.com/v1/connector/consoles/{consoleId}/proxy/network/integration/...`.
 - **Site Manager API** (`api.ui.com/v1`) – zbiorczo dla wszystkich lokalizacji (stan urządzeń, ISP); przyda się
-  przy wersji chmurowej NetPulse.
+  przy wersji chmurowej UplinkView.
 
 Co daje Network API 11.0.97 (sprawdzone w specyfikacji):
 
@@ -115,7 +115,7 @@ Wniosek: driver musi **sprawdzać, czy tabela odpowiada**, a nie zakładać wers
   (przerobiona w październiku 2026, testowana na 7.26beta1).
 - Standardowe MIB-y: IF-MIB, HOST-RESOURCES-MIB, IP-MIB, IP-FORWARD-MIB, IPV6-MIB, BRIDGE-MIB, UPS-MIB, ENTITY-MIB.
 - SNMPv3 w 7.x: uwierzytelnianie MD5, SHA1, **SHA256, SHA384, SHA512**; szyfrowanie DES, AES. Hasła min. 8 znaków.
-  NetPulse obsługuje te same algorytmy (formularz i `--v3-auth-proto` mają SHA224–SHA512).
+  UplinkView obsługuje te same algorytmy (formularz i `--v3-auth-proto` mają SHA224–SHA512).
 - **Wolne OID-y:** gdy usługa odpowiada wolno, agent loguje „timeout while waiting for program” i przez chwilę
   pomija ten OID. Producent zaleca nie odpytywać wolnych OID-ów stale (albo blokować je `denied-oids`).
   Dla nas: tabele klientów i LTE odpytywać rzadziej niż interfejsy.
@@ -133,7 +133,7 @@ Wniosek: driver musi **sprawdzać, czy tabela odpowiada**, a nie zakładać wers
 - SwOS / SwOS Lite to **inny system** niż RouterOS. Według forum MikroTika: tylko SNMP v1/v2c, IF-MIB,
   SNMPv2-MIB, BRIDGE-MIB i **podzbiór MIKROTIK-MIB** (czujniki, PoE, SFP); bez CPU, bez pułapek. SwOS Lite 2.17
   dodał OID-y numeru seryjnego i wersji. To informacje z forum, nie z dokumentacji – do sprawdzenia na sprzęcie.
-- Dla NetPulse: rozpoznanie SwOS po `sysDescr` i driver `mikrotik` bez HOST-RESOURCES.
+- Dla UplinkView: rozpoznanie SwOS po `sysDescr` i driver `mikrotik` bez HOST-RESOURCES.
 
 ---
 
@@ -176,7 +176,7 @@ VLAN-y widać w Network → VLAN), LAN = `br-lan`, reszta to interfejsy wewnętr
   Client ID, Client Secret, Omada ID i adres interfejsu. Nagłówek `Authorization: AccessToken=<token>`.
   Dokumentacja dopasowana do wersji: przycisk „Online API Document” w kontrolerze.
 - Specyfikacja OpenAPI w chmurze TP-Link: `https://use1-omada-northbound.tplinkcloud.com/v3/api-docs/00%20All`
-  (1868 ścieżek). Przydatne dla NetPulse (`/openapi/v1/{omadacId}/sites/{siteId}/…`):
+  (1868 ścieżek). Przydatne dla UplinkView (`/openapi/v1/{omadacId}/sites/{siteId}/…`):
 
 | Ścieżka | Dane |
 |---|---|
@@ -194,7 +194,7 @@ wersję kontrolera i testować na prawdziwym.
 
 ---
 
-## 4. Co z tego wynika dla NetPulse
+## 4. Co z tego wynika dla UplinkView
 
 Znalezione rozbieżności w kodzie (stan 4.11.2026; punkty 1–3 poprawione w **0.51.0**, etap A):
 

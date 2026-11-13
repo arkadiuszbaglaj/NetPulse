@@ -63,14 +63,14 @@ jobs:
         id: meta
         run: |
           version=$(sed -n 's/^val appVersionName = "\(.*\)"/\1/p' app/build.gradle.kts)
-          cp app/build/outputs/apk/release/app-release.apk "NetPulse-$version.apk"
+          cp app/build/outputs/apk/release/app-release.apk "UplinkView-$version.apk"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --print-certs "NetPulse-$version.apk" | head -3
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --print-certs "UplinkView-$version.apk" | head -3
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NetPulse-${{ steps.meta.outputs.version }}-apk
-          path: mobile/android/NetPulse-${{ steps.meta.outputs.version }}.apk
+          name: UplinkView-${{ steps.meta.outputs.version }}-apk
+          path: mobile/android/UplinkView-${{ steps.meta.outputs.version }}.apk
 
       - name: Wydanie na GitHubie
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -80,9 +80,9 @@ jobs:
         run: |
           tag="android-v$VERSION"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "NetPulse-$VERSION.apk" --clobber
+            gh release upload "$tag" "UplinkView-$VERSION.apk" --clobber
           else
-            gh release create "$tag" "NetPulse-$VERSION.apk" --target "$GITHUB_SHA" --latest=false \
-              --title "NetPulse na Androida $VERSION" \
-              --notes "Aplikacja NetPulse na Androida (instalacja ręczna). Na telefonie: pobierz plik APK, otwórz go i zezwól na instalację z tego źródła."
+            gh release create "$tag" "UplinkView-$VERSION.apk" --target "$GITHUB_SHA" --latest=false \
+              --title "UplinkView na Androida $VERSION" \
+              --notes "Aplikacja UplinkView na Androida (instalacja ręczna). Na telefonie: pobierz plik APK, otwórz go i zezwól na instalację z tego źródła."
           fi

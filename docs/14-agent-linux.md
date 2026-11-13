@@ -1,4 +1,4 @@
-# Agent NetPulse dla serwerów Linux (etap 10B)
+# Agent UplinkView dla serwerów Linux (etap 10B)
 
 SNMP (`docs/10-serwer-linux-snmp.md`) daje CPU, RAM, obciążenie i dyski. Agent dokłada to, czego SNMP nie poda:
 CPU na rdzeń, przepływ dysków i sieci, temperatury, stan usług systemd, kontenery Docker i SMART dysków.
@@ -7,7 +7,7 @@ CPU na rdzeń, przepływ dysków i sieci, temperatury, stan usług systemd, kont
 
 - Agent to jeden plik Pythona (`/opt/netpulse-agent/netpulse-agent.py`, tylko biblioteka standardowa, Python 3.8+)
   uruchomiony jako usługa systemd `netpulse-agent`.
-- Co interwał kolektora (domyślnie 30 s) wysyła raport do NetPulse: `POST /api/agent/v1/report` z tokenem
+- Co interwał kolektora (domyślnie 30 s) wysyła raport do UplinkView: `POST /api/agent/v1/report` z tokenem
   w nagłówku `Authorization: Bearer npa_…`. To **push**: działa za NAT-em i nie wymaga otwierania portów na serwerze.
 - Token tworzy panel (Ustawienia → Agenci). W bazie jest tylko jego skrót SHA-256, w panelu ostatnie 4 znaki.
 - Serwer z agentem jest zwykłym urządzeniem (`driver = "agent"`, rodzaj „Serwer”): ta sama karta na pulpicie,
@@ -23,7 +23,7 @@ CPU na rdzeń, przepływ dysków i sieci, temperatury, stan usług systemd, kont
    curl -fsSL http://ADRES-NETPULSE:8000/agent/install.sh | sudo bash -s -- --url http://ADRES-NETPULSE:8000 --token npa_...
    ```
 
-3. Instalator pobiera agenta z NetPulse, zapisuje konfigurację `/etc/netpulse-agent.conf` (prawa 600), wysyła
+3. Instalator pobiera agenta z UplinkView, zapisuje konfigurację `/etc/netpulse-agent.conf` (prawa 600), wysyła
    raport testowy i uruchamia usługę. W ciągu minuty serwer pojawi się na pulpicie.
 
 Sprawdzenie na serwerze:
@@ -46,7 +46,7 @@ sudo python3 /opt/netpulse-agent/netpulse-agent.py --print
 
 | Klucz | Znaczenie |
 |-------|-----------|
-| `NETPULSE_URL` | adres panelu NetPulse |
+| `NETPULSE_URL` | adres panelu UplinkView |
 | `NETPULSE_TOKEN` | token agenta |
 | `SERVICES` | usługi systemd obserwowane zawsze, np. `nginx,ssh,smbd`. Usługi w stanie `failed` są raportowane i bez tego |
 | `DOCKER` | `auto` (domyślnie: jeśli jest `/var/run/docker.sock`) albo `off` |
@@ -57,7 +57,7 @@ Po zmianie: `sudo systemctl restart netpulse-agent`.
 
 ## Aktualizacja, nowy token, usunięcie
 
-- **Aktualizacja agenta** po aktualizacji NetPulse: to samo polecenie instalacji, można bez `--token`
+- **Aktualizacja agenta** po aktualizacji UplinkView: to samo polecenie instalacji, można bez `--token`
   (adres i token zostają z konfiguracji). Panel pokazuje wersję agenta przy serwerze.
 - **Nowy token** (wyciek, przeniesienie): ikona klucza przy serwerze w Ustawienia → Agenci. Stary token przestaje
   działać od razu; na serwerze trzeba uruchomić instalację z nowym tokenem.
@@ -70,7 +70,7 @@ Po zmianie: `sudo systemctl restart netpulse-agent`.
 ## Bezpieczeństwo
 
 - Agent tylko czyta: `/proc`, `/sys`, `systemctl list-units`, Docker API (`GET`) i `smartctl`. Nie wykonuje poleceń
-  z NetPulse i nie wysyła logów ani listy procesów.
+  z UplinkView i nie wysyła logów ani listy procesów.
 - Działa jako root (wymaga tego SMART i gniazdo Dockera), ale z ograniczeniami systemd: `ProtectSystem=strict`
   (system plików tylko do odczytu), `ProtectHome`, `NoNewPrivileges`, `PrivateTmp`.
 - Gniazdo Dockera daje pełną kontrolę nad Dockerem. Jeśli to za dużo, ustaw `DOCKER=off`.
@@ -148,16 +148,16 @@ kontenery Docker (zatrzymane na górze), usługi systemd (działające z pamięc
 i temperatury czujników. Serwer przez SNMP pokazuje tu system i systemy plików.
 
 Bieżący ruch dysków i interfejsów (`disk_io`, `net` w `agents.inventory`) przysyła każdy agent od 0.13.0; panel
-pokaże go po pierwszym raporcie po aktualizacji NetPulse do 0.24.0.
+pokaże go po pierwszym raporcie po aktualizacji UplinkView do 0.24.0.
 
-## Agent starszy niż NetPulse (od 0.24.0)
+## Agent starszy niż UplinkView (od 0.24.0)
 
-Agent dostaje numer wersji NetPulse przy instalacji (`VERSION` podmieniane przy pobraniu z `/agent/netpulse-agent.py`).
-Jeśli jest niższy niż wersja NetPulse (`agent_outdated()` w `api/agents.py`, pole `outdated` w `/api/agents`
+Agent dostaje numer wersji UplinkView przy instalacji (`VERSION` podmieniane przy pobraniu z `/agent/netpulse-agent.py`).
+Jeśli jest niższy niż wersja UplinkView (`agent_outdated()` w `api/agents.py`, pole `outdated` w `/api/agents`
 i w `agent` z `/api/devices/{id}/server`), panel pokazuje:
 
 - w Ustawienia → Agenci plakietkę „do aktualizacji” i polecenie aktualizacji,
-- na karcie serwera linijkę „Agent … jest starszy niż NetPulse”,
+- na karcie serwera linijkę „Agent … jest starszy niż UplinkView”,
 - na stronie szczegółów serwera ramkę z poleceniem.
 
 Polecenie (adres i token zostają z `/etc/netpulse-agent.conf`):
@@ -166,6 +166,6 @@ Polecenie (adres i token zostają z `/etc/netpulse-agent.conf`):
 curl -fsSL http://ADRES-NETPULSE:8000/agent/install.sh | sudo bash -s -- --url http://ADRES-NETPULSE:8000
 ```
 
-Agent uruchomiony z repozytorium (`dev`) nie jest oznaczany. Numer rośnie przy każdym wydaniu NetPulse, więc
+Agent uruchomiony z repozytorium (`dev`) nie jest oznaczany. Numer rośnie przy każdym wydaniu UplinkView, więc
 ostrzeżenie pojawia się po każdej aktualizacji, także gdy kod agenta się nie zmienił – to celowe (jedna zasada:
 agent w tej samej wersji co panel).

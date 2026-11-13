@@ -1,4 +1,4 @@
-"""Stan serwera, na którym działa NetPulse: CPU, RAM, obciążenie, dysk, temperatura, rozmiar bazy.
+"""Stan serwera, na którym działa UplinkView: CPU, RAM, obciążenie, dysk, temperatura, rozmiar bazy.
 
 Kontener czyta `/proc` i `/sys`, które pokazują wartości całego serwera (nie kontenera). Parsery są
 osobnymi funkcjami na tekście, żeby dało się je testować bez prawdziwego `/proc`."""

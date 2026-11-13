@@ -1,7 +1,7 @@
-# Serwer Linux w NetPulse przez SNMP
+# Serwer Linux w UplinkView przez SNMP
 
-NetPulse monitoruje serwer tak samo jak router czy switch: przez SNMP, bez agenta. Na serwerze działa `snmpd`
-(net-snmp), a NetPulse czyta z niego CPU, RAM, swap, obciążenie, dyski, liczbę procesów, czas pracy i ruch
+UplinkView monitoruje serwer tak samo jak router czy switch: przez SNMP, bez agenta. Na serwerze działa `snmpd`
+(net-snmp), a UplinkView czyta z niego CPU, RAM, swap, obciążenie, dyski, liczbę procesów, czas pracy i ruch
 na interfejsach. Interfejsy Dockera (`docker0`, `br-…`, `veth…`) są ukrywane, a dyski bez pamięci, `tmpfs`,
 `/run`, `/dev`, snap-ów i warstw Dockera pomijane.
 
@@ -15,7 +15,7 @@ sudo apt update && sudo apt install -y snmpd
 ```
 
 Zastąp zawartość `/etc/snmp/snmpd.conf` minimalną konfiguracją tylko do odczytu. Podmień `192.168.1.10` na adres
-serwera z NetPulse, a `netpulse-ro` na własną nazwę community (nie używaj `public`):
+serwera z UplinkView, a `netpulse-ro` na własną nazwę community (nie używaj `public`):
 
 ```
 agentaddress udp:161
@@ -25,19 +25,19 @@ sysContact   admin
 ```
 
 Domyślnie `snmpd` na Ubuntu nasłuchuje tylko na `127.0.0.1`, dlatego potrzebne jest `agentaddress udp:161`.
-`rocommunity` z adresem dopuszcza odczyt wyłącznie z serwera NetPulse.
+`rocommunity` z adresem dopuszcza odczyt wyłącznie z serwera UplinkView.
 
 ```bash
 sudo systemctl restart snmpd && sudo systemctl enable snmpd
 ```
 
-Jeśli działa zapora `ufw`, wpuść zapytania tylko z NetPulse:
+Jeśli działa zapora `ufw`, wpuść zapytania tylko z UplinkView:
 
 ```bash
 sudo ufw allow from 192.168.1.10 to any port 161 proto udp
 ```
 
-## 2. Sprawdź z serwera NetPulse
+## 2. Sprawdź z serwera UplinkView
 
 ```bash
 snmpwalk -v2c -c netpulse-ro 192.168.1.20 1.3.6.1.2.1.1
@@ -46,7 +46,7 @@ snmpwalk -v2c -c netpulse-ro 192.168.1.20 1.3.6.1.2.1.25.2.3.1.3
 
 Pierwsze polecenie ma zwrócić `Linux nazwa-serwera …`, drugie listę punktów montowania (`/`, `/boot`, …).
 
-## 3. Dodaj w NetPulse
+## 3. Dodaj w UplinkView
 
 **Ustawienia → Urządzenia → Dodaj urządzenie**: adres serwera, community z konfiguracji, sterownik
 „Automatyczny” (serwer zostanie rozpoznany sam) i „Testuj połączenie”. Po pierwszym cyklu kolektora (30 s)

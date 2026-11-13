@@ -92,7 +92,7 @@ def test_not_configured_reports_command_line_fallback(client, monkeypatch):
     configure(monkeypatch, url="", token="")
     r = client.get("/api/updates").json()
     assert r["installed_version"] == __version__
-    assert r["updater"]["configured"] is False and "netpulse update" in r["updater"]["message"]
+    assert r["updater"]["configured"] is False and "uplinkview update" in r["updater"]["message"]
     assert r["info"] is None and r["job"] is None
     assert client.post("/api/updates/check").status_code == 503
     assert client.post("/api/updates/apply").status_code == 503
@@ -186,21 +186,21 @@ def test_wrong_install_dir_is_explained(client, monkeypatch, updater):
     status = client.get("/api/updates").json()
     assert status["updater"]["reachable"] is False and "NETPULSE_DIR" in status["updater"]["message"]
     r = client.post("/api/updates/apply")
-    assert r.status_code == 409 and "nie zawiera NetPulse" in r.json()["detail"]
+    assert r.status_code == 409 and "nie zawiera UplinkView" in r.json()["detail"]
 
 
 def test_wrong_token_gives_hint_to_restart(client, monkeypatch, updater):
     configure(monkeypatch, updater[0], token="inny-token")
     status = client.get("/api/updates").json()
     assert status["updater"]["configured"] is True and status["updater"]["reachable"] is False
-    assert "netpulse restart" in status["updater"]["message"]
-    assert "netpulse restart" in client.post("/api/updates/check").json()["detail"]
+    assert "uplinkview restart" in status["updater"]["message"]
+    assert "uplinkview restart" in client.post("/api/updates/check").json()["detail"]
 
 
 def test_unreachable_updater(client, monkeypatch):
     configure(monkeypatch, "http://127.0.0.1:9")  # nic tam nie nasłuchuje
     status = client.get("/api/updates").json()
-    assert status["updater"]["reachable"] is False and "netpulse status" in status["updater"]["message"]
+    assert status["updater"]["reachable"] is False and "uplinkview status" in status["updater"]["message"]
     assert status["installed_version"] == __version__  # wersja API jest znana mimo braku usługi
     r = client.post("/api/updates/apply")
     assert r.status_code == 502 and "nie odpowiada" in r.json()["detail"]

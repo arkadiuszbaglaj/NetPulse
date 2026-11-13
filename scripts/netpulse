@@ -1,25 +1,38 @@
 #!/usr/bin/env bash
-# NetPulse – polecenie zarządzające na serwerze (instalowane jako /usr/local/bin/netpulse).
+# UplinkView – polecenie zarządzające na serwerze (/usr/local/bin/uplinkview; dawna nazwa `netpulse` działa dalej).
 #
-#   netpulse update          pobierz najnowszą wersję z GitHuba i zrestartuj usługi
-#   netpulse status          stan usług
-#   netpulse logs [usługa]   logi (collector | api | db), Ctrl+C kończy
-#   netpulse restart         uruchom usługi od nowa z aktualnym .env
-#   netpulse stop|start
-#   netpulse version
-#   netpulse uninstall       usuń NetPulse (z pytaniem o usunięcie danych)
-#   netpulse reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
-#   netpulse cleanup         zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje)
-#   netpulse backup          kopia bazy do katalogu backups (przywracanie: panel → Ustawienia → Kopia zapasowa);
-#                            użytkownik z grupy docker nie potrzebuje sudo
+#   uplinkview update          pobierz najnowszą wersję z GitHuba i zrestartuj usługi
+#   uplinkview status          stan usług
+#   uplinkview logs [usługa]   logi (collector | api | db), Ctrl+C kończy
+#   uplinkview restart         uruchom usługi od nowa z aktualnym .env
+#   uplinkview stop|start
+#   uplinkview version
+#   uplinkview uninstall       usuń UplinkView (z pytaniem o usunięcie danych)
+#   uplinkview reset           wyczyść bazę (urządzenia i historia) i uruchom od nowa
+#   uplinkview cleanup         zwolnij miejsce: nieużywane obrazy i cache budowania (baza zostaje)
+#   uplinkview backup          kopia bazy do katalogu backups (przywracanie: panel → Ustawienia → Kopia zapasowa);
+#                              użytkownik z grupy docker nie potrzebuje sudo
 #
 # Pozostałe polecenia trafiają do aplikacji w kontenerze, np.:
-#   netpulse probe 192.168.1.1 --community public
-#   netpulse device add "UCG Ultra" 192.168.1.1 --community public
-#   netpulse device list
+#   uplinkview probe 192.168.1.1 --community public
+#   uplinkview device add "UCG Ultra" 192.168.1.1 --community public
+#   uplinkview device list
 set -euo pipefail
 
-INSTALL_DIR="${NETPULSE_DIR:-/opt/netpulse}"
+# Katalog instalacji: NETPULSE_DIR, a bez niego katalog, w którym leży ten skrypt (/usr/local/bin/uplinkview to dowiązanie
+# do <katalog>/scripts/netpulse). Nowe instalacje są w /opt/uplinkview, sprzed zmiany nazwy (0.78.0) – w /opt/netpulse.
+np_install_dir() {
+  local self
+  self=$(readlink -f "$0" 2>/dev/null || echo "$0")
+  if [ -f "$(dirname "$self")/../deploy/docker-compose.yml" ]; then
+    (cd "$(dirname "$self")/.." && pwd)
+  elif [ -d /opt/uplinkview/deploy ]; then
+    echo /opt/uplinkview
+  else
+    echo /opt/netpulse
+  fi
+}
+INSTALL_DIR="${NETPULSE_DIR:-$(np_install_dir)}"
 COMPOSE_FILE="$INSTALL_DIR/deploy/docker-compose.yml"
 ENV_FILE="$INSTALL_DIR/deploy/.env"
 
@@ -56,12 +69,36 @@ np_fill_tls_names() {
   fi
 }
 
+# Polecenie `uplinkview` (od 0.78.0) obok dawnego `netpulse` – oba wskazują ten skrypt. Instalacja sprzed zmiany nazwy
+# dostaje nowe polecenie przy pierwszym uruchomieniu z uprawnieniami roota (np. `sudo netpulse update`).
+np_ensure_links() {
+  [ "$(id -u)" -eq 0 ] || return 0
+  [ -d /usr/local/bin ] || return 0
+  local target="$INSTALL_DIR/scripts/netpulse" name
+  for name in uplinkview netpulse; do
+    [ "$(readlink -f "/usr/local/bin/$name" 2>/dev/null)" = "$(readlink -f "$target")" ] || ln -sf "$target" "/usr/local/bin/$name" 2>/dev/null || true
+  done
+}
+
+# Repozytorium przeniesione przy zmianie nazwy (0.78.0): stary adres GitHuba → nowy. Bez zmiany, gdy w .env jest
+# własne źródło aktualizacji (NETPULSE_UPDATE_REPO).
+NP_REPO="https://github.com/uplinkview/uplinkview.git"
+np_migrate_origin() {
+  local url
+  grep -q '^NETPULSE_UPDATE_REPO=..*' "$ENV_FILE" 2>/dev/null && return 0
+  url=$(git -C "$INSTALL_DIR" remote get-url origin 2>/dev/null) || return 0
+  if printf '%s' "$url" | grep -qiE 'github\.com[/:]arkadiuszbaglaj/netpulse(\.git)?/?$'; then
+    git -C "$INSTALL_DIR" remote set-url origin "$NP_REPO"
+    c_info "Nowy adres repozytorium: $NP_REPO"
+  fi
+}
+
 compose() {
   docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
 
 # Restart usług z aktualnym .env (od 0.71.1). Samo `docker compose restart` zostawia kontenerom stare zmienne –
-# zmiana w .env (np. NETPULSE_PEAK_INTERVAL) działała dopiero po `netpulse start`. Dane są w wolumenach, zostają.
+# zmiana w .env (np. NETPULSE_PEAK_INTERVAL) działała dopiero po `uplinkview start`. Dane są w wolumenach, zostają.
 restart_services() {
   compose up -d --force-recreate
 }
@@ -70,7 +107,7 @@ version() {
   local ver commit
   ver=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$INSTALL_DIR/backend/netpulse/__init__.py" 2>/dev/null || echo "?")
   commit=$(git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "?")
-  echo "NetPulse $ver ($commit)"
+  echo "UplinkView $ver ($commit)"
 }
 
 wait_healthy() {
@@ -80,12 +117,12 @@ wait_healthy() {
   c_info "Czekam na start usług..."
   for _ in $(seq 1 60); do
     if curl -fsS "http://127.0.0.1:${port}/api/health" >/dev/null 2>&1; then
-      c_ok "NetPulse działa: http://$(hostname -I | awk '{print $1}'):${port}"
+      c_ok "UplinkView działa: http://$(hostname -I | awk '{print $1}'):${port}"
       return 0
     fi
     sleep 2
   done
-  c_err "API nie odpowiada – sprawdź: netpulse logs"
+  c_err "API nie odpowiada – sprawdź: uplinkview logs"
   return 1
 }
 
@@ -133,7 +170,7 @@ check_disk() {
     c_err "Za mało miejsca na dysku: wolne ${free} MB, a aktualizacja wymaga co najmniej ${MIN_FREE_MB} MB."
     c_err "Sprawdź: df -h /   oraz   sudo docker system df"
     c_err "Jeśli dysk jest duży, a system używa tylko jego części (LVM): sudo vgs, potem sudo lvextend -r -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv"
-    c_err "Nic nie zostało zmienione – po zwolnieniu miejsca uruchom ponownie: netpulse update"
+    c_err "Nic nie zostało zmienione – po zwolnieniu miejsca uruchom ponownie: uplinkview update"
     return 1
   fi
   if [ "$free" -lt "$WARN_FREE_MB" ]; then
@@ -194,7 +231,7 @@ cmd_backup() {
     return 0
   fi
   need_root backup "$@"
-  db_running || { c_err "Baza nie działa – uruchom NetPulse: netpulse start"; exit 1; }
+  db_running || { c_err "Baza nie działa – uruchom UplinkView: uplinkview start"; exit 1; }
   c_info "Tworzę kopię bazy..."
   local target
   if ! target=$(do_backup manual); then
@@ -225,7 +262,7 @@ cmd_update() {
     local tmp
     tmp=$(mktemp /tmp/netpulse-update.XXXXXX)
     cp "$(readlink -f "$0")" "$tmp"
-    NETPULSE_UPDATE_COPY="$tmp" exec bash "$tmp" update "$@"
+    NETPULSE_UPDATE_COPY="$tmp" NETPULSE_DIR="$INSTALL_DIR" exec bash "$tmp" update "$@"
   fi
   trap 'rm -f "$NETPULSE_UPDATE_COPY"' EXIT
   cd "$INSTALL_DIR"
@@ -233,6 +270,7 @@ cmd_update() {
   branch=$(git rev-parse --abbrev-ref HEAD)
   before=$(git rev-parse HEAD)
   c_info "Sprawdzam aktualizacje ($branch)..."
+  np_migrate_origin
   git fetch --quiet origin "$branch"
   after=$(git rev-parse "origin/$branch")
   if [ "$before" = "$after" ] && [ "${1:-}" != "--force" ]; then
@@ -241,7 +279,7 @@ cmd_update() {
   fi
   if [ "$before" != "$after" ]; then
     if ! verify_update "$after"; then
-      c_err "Aktualizacja w źródle nie ma prawidłowego podpisu NetPulse – nie zostanie zainstalowana. Nic nie zostało zmienione."
+      c_err "Aktualizacja w źródle nie ma prawidłowego podpisu UplinkView – nie zostanie zainstalowana. Nic nie zostało zmienione."
       c_err "Jeśli świadomie używasz własnego źródła aktualizacji, ustaw NETPULSE_UPDATE_VERIFY=off w deploy/.env."
       exit 1
     fi
@@ -275,7 +313,7 @@ cmd_update() {
   c_info "Buduję i uruchamiam nową wersję..."
   if ! compose up -d --build --remove-orphans; then
     c_err "Budowanie nie powiodło się. Usługi działają dalej na poprzedniej wersji."
-    c_err "Usuń przyczynę (np. zwolnij miejsce: netpulse cleanup) i uruchom: netpulse update --force"
+    c_err "Usuń przyczynę (np. zwolnij miejsce: uplinkview cleanup) i uruchom: uplinkview update --force"
     exit 1
   fi
   prune_build_cache
@@ -286,17 +324,17 @@ cmd_update() {
 cmd_reset() {
   need_root reset "$@"
   echo "Usunięte zostaną wszystkie urządzenia i cała historia metryk. Konfiguracja (.env) zostaje."
-  read -r -p "Wyczyścić bazę NetPulse? [t/N] " ans
+  read -r -p "Wyczyścić bazę UplinkView? [t/N] " ans
   [[ "$ans" =~ ^[tTyY]$ ]] || exit 0
   compose down -v
   compose up -d
   wait_healthy
-  c_ok "Baza wyczyszczona. Dodaj urządzenia: netpulse device add NAZWA IP --community public"
+  c_ok "Baza wyczyszczona. Dodaj urządzenia: uplinkview device add NAZWA IP --community public"
 }
 
 cmd_uninstall() {
   need_root uninstall "$@"
-  read -r -p "Usunąć NetPulse z tego serwera? [t/N] " ans
+  read -r -p "Usunąć UplinkView z tego serwera? [t/N] " ans
   [[ "$ans" =~ ^[tTyY]$ ]] || exit 0
   read -r -p "Usunąć też bazę danych z historią metryk? [t/N] " data
   if [[ "$data" =~ ^[tTyY]$ ]]; then
@@ -305,9 +343,9 @@ cmd_uninstall() {
     compose down --rmi local
     c_info "Dane zostały w wolumenie Dockera 'netpulse_db-data'."
   fi
-  rm -f /usr/local/bin/netpulse
+  rm -f /usr/local/bin/netpulse /usr/local/bin/uplinkview
   rm -rf "$INSTALL_DIR"
-  c_ok "NetPulse usunięty."
+  c_ok "UplinkView usunięty."
 }
 
 main() {
@@ -317,6 +355,7 @@ main() {
   fi
   local cmd="${1:-help}"
   shift || true
+  np_ensure_links
   case "$cmd" in
     update) cmd_update "$@" ;;
     status) need_root status; compose ps ;;

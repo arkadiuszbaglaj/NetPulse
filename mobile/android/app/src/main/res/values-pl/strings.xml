@@ -4,7 +4,7 @@
     <string name="widget_name">Ruch WAN</string>
     <string name="widget_description">Pobieranie i wysyłanie na łączu WAN</string>
 
-    <string name="login_intro">Zaloguj się do swojego serwera NetPulse.</string>
+    <string name="login_intro">Zaloguj się do swojego serwera UplinkView.</string>
     <string name="login_address">Adres serwera</string>
     <string name="login_address_hint">Bez portu = :8000. Można podać pełny adres, np. https://…:8443</string>
     <string name="login_username">Login</string>
@@ -42,6 +42,6 @@
     <string name="error_no_address">Brak adresu serwera</string>
     <string name="error_connection">Brak połączenia z serwerem (%1$s)</string>
     <string name="error_status">Błąd %1$d</string>
-    <string name="error_not_netpulse">To nie wygląda na serwer NetPulse (404)</string>
+    <string name="error_not_netpulse">To nie wygląda na serwer UplinkView (404)</string>
     <string name="error_server">Błąd serwera (%1$d)</string>
 </resources>

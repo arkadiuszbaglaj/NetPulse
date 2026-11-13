@@ -403,7 +403,7 @@ def fmt_time(value: datetime | None, tz: ZoneInfo, lang: str = "pl") -> str:
 
 
 def filename(report: Report, ext: str, lang: str = "pl") -> str:
-    return f"netpulse-{'report' if lang == 'en' else 'raport'}-{report.year}-{report.month:02d}.{ext}"
+    return f"uplinkview-{'report' if lang == 'en' else 'raport'}-{report.year}-{report.month:02d}.{ext}"
 
 
 def to_csv(report: Report, lang: str = "pl") -> bytes:
@@ -424,9 +424,9 @@ def to_csv(report: Report, lang: str = "pl") -> bytes:
 
     buf = io.StringIO()
     w = csv.writer(buf, delimiter="," if lang == "en" else ";", lineterminator="\r\n")
-    w.writerow([t("Raport NetPulse"), report_title(report, lang)])
+    w.writerow([t("Raport UplinkView"), report_title(report, lang)])
     w.writerow([t("Okres"), when(report.start), when(report.end)])
-    w.writerow([t("Wygenerowano"), when(report.generated_at), f"NetPulse {report.version}"])
+    w.writerow([t("Wygenerowano"), when(report.generated_at), f"UplinkView {report.version}"])
     if report.raw_from:
         w.writerow([t("Sprawdzenia i SLA WAN od"), when(report.raw_from)])
     w.writerow([])
@@ -514,15 +514,15 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True, lang: str
         return fmt_time(value, tz, lang)
 
     title = report_title(report, lang)
-    pdf.set_title(tx(t(f"NetPulse – raport {title}")))
-    pdf.set_creator(f"NetPulse {report.version}")
+    pdf.set_title(tx(t(f"UplinkView – raport {title}")))
+    pdf.set_creator(f"UplinkView {report.version}")
     pdf.alias_nb_pages()
 
     def footer() -> None:
         pdf.set_y(-10)
         pdf.set_font(family, "", 7)
         pdf.set_text_color(120)
-        line = t(f"NetPulse {report.version} · wygenerowano {when(report.generated_at)} · strona {pdf.page_no()}/{{nb}}")
+        line = t(f"UplinkView {report.version} · wygenerowano {when(report.generated_at)} · strona {pdf.page_no()}/{{nb}}")
         pdf.cell(0, 4, tx(line), align="C")
 
     pdf.footer = footer  # type: ignore[method-assign]
@@ -566,7 +566,7 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True, lang: str
 
     # Nagłówek
     pdf.set_font(family, "B", 18)
-    pdf.cell(0, 9, tx(t("Raport miesięczny NetPulse")), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 9, tx(t("Raport miesięczny UplinkView")), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font(family, "", 11)
     pdf.set_text_color(80)
     pdf.cell(0, 6, tx(f"{title[:1].upper()}{title[1:]} · {when(report.start)} – {when(report.end)} ({report.timezone})"), new_x="LMARGIN", new_y="NEXT")

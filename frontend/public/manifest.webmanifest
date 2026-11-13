@@ -1,6 +1,6 @@
 {
-  "name": "NetPulse",
-  "short_name": "NetPulse",
+  "name": "UplinkView",
+  "short_name": "UplinkView",
   "description": "Monitoring sieci domowej: ruch, porty i urządzenia w jednym panelu",
   "lang": "pl",
   "start_url": "/",

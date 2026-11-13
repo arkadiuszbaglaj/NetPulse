@@ -96,7 +96,7 @@ services:
       start_period: 15s
 
   # Wejście do panelu (od 0.62.0): HTTP na NETPULSE_PORT (jak dotąd) i HTTPS na NETPULSE_HTTPS_PORT.
-  # Certyfikat lokalnego CA NetPulse (albo własny w deploy/tls/custom/) – patrz deploy/proxy/tls.sh
+  # Certyfikat lokalnego CA UplinkView (albo własny w deploy/tls/custom/) – patrz deploy/proxy/tls.sh
   proxy:
     build:
       context: ..
@@ -146,7 +146,7 @@ services:
       NETPULSE_DIR: ${NETPULSE_DIR:?ustaw NETPULSE_DIR w .env (katalog instalacji)}
       NETPULSE_UPDATE_REPO: ${NETPULSE_UPDATE_REPO:-}
       NETPULSE_UPDATE_BRANCH: ${NETPULSE_UPDATE_BRANCH:-}
-      # Podpis aktualizacji (od 0.69.0): off tylko dla własnego źródła aktualizacji bez podpisów NetPulse
+      # Podpis aktualizacji (od 0.69.0): off tylko dla własnego źródła aktualizacji bez podpisów UplinkView
       NETPULSE_UPDATE_VERIFY: ${NETPULSE_UPDATE_VERIFY:-on}
       NETPULSE_MIN_FREE_MB: ${NETPULSE_MIN_FREE_MB:-2000}
       NETPULSE_MAX_UPLOAD_MB: ${NETPULSE_MAX_UPLOAD_MB:-4096}

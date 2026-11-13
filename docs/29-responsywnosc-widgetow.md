@@ -1,6 +1,6 @@
 # Responsywność widgetów względem treści – analiza i propozycja
 
-Stan: 4.11.2026, NetPulse 0.52.0. **Tylko dokument** – nic nie wdrożone, czeka na decyzję.
+Stan: 4.11.2026, UplinkView 0.52.0. **Tylko dokument** – nic nie wdrożone, czeka na decyzję.
 
 ## Jak to badałem
 

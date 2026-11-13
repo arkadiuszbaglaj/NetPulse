@@ -326,7 +326,7 @@ class Controller(Base):
 class UnifiApiDevice(Base):
     """Urządzenie kontrolera UniFi spoza SNMP (np. USW Flex), czytane z oficjalnego API (od 0.52.0).
 
-    `device_id` = urządzenie NetPulse z `driver = "unifi_api"`. Po usunięciu urządzenia w panelu (albo dodaniu go
+    `device_id` = urządzenie UplinkView z `driver = "unifi_api"`. Po usunięciu urządzenia w panelu (albo dodaniu go
     przez SNMP) zostaje wiersz z `device_id = NULL` – kolektor nie zakłada go wtedy ponownie."""
 
     __tablename__ = "unifi_api_devices"
@@ -354,7 +354,7 @@ class NetworkClient(Base):
     signal_dbm: Mapped[int | None] = mapped_column(Integer)
     tx_rate_kbps: Mapped[int | None] = mapped_column(Integer)
     rx_rate_kbps: Mapped[int | None] = mapped_column(Integer)
-    # Urządzenie NetPulse (AP albo switch), do którego klient jest podłączony, i jego port
+    # Urządzenie UplinkView (AP albo switch), do którego klient jest podłączony, i jego port
     uplink_device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
     uplink_name: Mapped[str | None] = mapped_column(String(128))
     uplink_port: Mapped[int | None] = mapped_column(Integer)
@@ -529,7 +529,7 @@ class PoePortMetric(Base):
 
 
 class SystemMetric(Base):
-    """Stan serwera, na którym działa NetPulse (jedna próbka na cykl kolektora)."""
+    """Stan serwera, na którym działa UplinkView (jedna próbka na cykl kolektora)."""
 
     __tablename__ = "system_metrics"
 
@@ -583,7 +583,7 @@ class ProxmoxServer(Base):
 
 
 class ProxmoxNode(Base):
-    """Węzeł Proxmox = urządzenie NetPulse (`devices.driver = "proxmox"`, rodzaj „Serwer”): karta, alerty, wykresy."""
+    """Węzeł Proxmox = urządzenie UplinkView (`devices.driver = "proxmox"`, rodzaj „Serwer”): karta, alerty, wykresy."""
 
     __tablename__ = "proxmox_nodes"
 
@@ -640,7 +640,7 @@ class ProxmoxStorage(Base):
 
 
 class Agent(Base):
-    """Agent NetPulse na serwerze Linux: wysyła metryki do API (push) z tokenem. Jeden agent = jedno urządzenie
+    """Agent UplinkView na serwerze Linux: wysyła metryki do API (push) z tokenem. Jeden agent = jedno urządzenie
     (`devices.driver = "agent"`), którego kolektor nie odpytuje przez SNMP. W bazie tylko skrót SHA-256 tokenu."""
 
     __tablename__ = "agents"

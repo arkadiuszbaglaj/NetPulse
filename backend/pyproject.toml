@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "netpulse"
 dynamic = ["version"]
-description = "NetPulse – self-hosted monitoring ruchu sieciowego (router, switch, access point)"
+description = "UplinkView – self-hosted monitoring ruchu sieciowego (router, switch, access point)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",

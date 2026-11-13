@@ -45,7 +45,7 @@ class RuleBase(BaseModel):
             if self.op is None or self.threshold is None:
                 raise ValueError("Reguła metryki wymaga warunku (op) i progu (threshold)")
             if self.metric not in PER_DEVICE_METRICS and self.device_id is not None:
-                raise ValueError("Ta metryka dotyczy całości (ruch WAN albo serwer NetPulse) – nie wybieraj urządzenia")
+                raise ValueError("Ta metryka dotyczy całości (ruch WAN albo serwer UplinkView) – nie wybieraj urządzenia")
             if self.metric not in MATCHABLE_METRICS:
                 self.match = None
         else:

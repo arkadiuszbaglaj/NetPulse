@@ -159,7 +159,7 @@ describe("Ustawienia → Powiadomienia", () => {
     await user.type(within(dialog).getByLabelText("Adres tematu"), "netpulse-xyz");
     await user.type(within(dialog).getByLabelText("Token dostępu (opcjonalnie)"), "tk_abc");
     await user.click(within(dialog).getByRole("checkbox", { name: /Nie wysyłaj w nocy/ }));
-    expect(within(dialog).getByText(/strefie serwera NetPulse: zmienna TZ/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/strefie serwera UplinkView: zmienna TZ/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Zapisz" }));
 
     expect(await screen.findByText("Telefon")).toBeInTheDocument();
