@@ -154,3 +154,85 @@ def test_websocket_rejects_foreign_origin():
     headers = {"origin": "http://obca-strona.example"}
     with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect("/api/live/device?device=1", headers=headers):
         pass
+
+
+# --- VPN na żywo (0.72.0) -----------------------------------------------------------------------
+
+
+class FakeVpnApi:
+    def __init__(self, raw=None, fail=False):
+        self.raw, self.fail, self.closed, self.calls = raw, fail, False, []
+
+    async def _get(self, path):
+        self.calls.append(path)
+        if self.fail:
+            raise OSError("brak połączenia")
+        return self.raw
+
+    async def close(self):
+        self.closed = True
+
+
+def make_vpn_hub(monkeypatch, apis: dict, enabled=True):
+    from netpulse import modules
+    from netpulse.api.live import VpnLiveHub
+    from netpulse.unifi_collector import ControllerTarget
+
+    async def is_enabled(module):
+        return enabled
+
+    monkeypatch.setattr(modules, "is_enabled", is_enabled)
+    hub = VpnLiveHub(api_factory=lambda t: apis[t.id])
+    targets = [ControllerTarget(cid, f"K{cid}", "192.0.2.1", 443, "klucz", "default", False) for cid in apis]
+
+    async def load():
+        return targets
+
+    hub._load_targets = load  # type: ignore[method-assign]
+    return hub
+
+
+VPN_RAW = {
+    "data": [
+        {"user": "iPhone", "tunnel_ip": "192.168.3.2", "remote_ip": "203.0.113.7", "assoc_time": 1763020000, "rx_bytes": 2000, "tx_bytes": 9000, "rx_rate": 1500, "tx_rate": 66_800_000},
+        {"user": "Stary", "up": False},
+    ]
+}
+
+
+def test_vpn_live_rates_are_bits_and_direction_is_from_client(monkeypatch):
+    hub = make_vpn_hub(monkeypatch, {1: FakeVpnApi(VPN_RAW)})
+    msg = asyncio.run(hub.sample())
+    assert msg["ok"] is True
+    assert [u["name"] for u in msg["users"]] == ["iPhone"]  # rozłączona sesja pominięta
+    user = msg["users"][0]
+    assert user["down_bps"] == 66_800_000  # bez ×8 – kontroler podaje bity/s
+    assert user["up_bps"] == 1500
+    assert user["down_bytes"] == 9000 and user["up_bytes"] == 2000
+    assert user["since"].startswith("2025-11-13")
+
+
+def test_vpn_live_not_ok_when_no_controller_answers(monkeypatch):
+    broken = FakeVpnApi(fail=True)
+    hub = make_vpn_hub(monkeypatch, {1: broken})
+    msg = asyncio.run(hub.sample())
+    assert msg == {"time": msg["time"], "ok": False, "users": []}
+    assert broken.closed  # zepsuty klient odrzucony, następna próba z nowym
+
+
+def test_vpn_live_one_controller_is_enough(monkeypatch):
+    hub = make_vpn_hub(monkeypatch, {1: FakeVpnApi(fail=True), 2: FakeVpnApi(VPN_RAW)})
+    msg = asyncio.run(hub.sample())
+    assert msg["ok"] is True and len(msg["users"]) == 1
+
+
+def test_vpn_live_disabled_module_asks_nobody(monkeypatch):
+    api = FakeVpnApi(VPN_RAW)
+    hub = make_vpn_hub(monkeypatch, {1: api}, enabled=False)
+    msg = asyncio.run(hub.sample())
+    assert msg["ok"] is False and api.calls == []
+
+
+def test_vpn_websocket_requires_login():
+    with pytest.raises(WebSocketDisconnect), TestClient(app).websocket_connect("/api/live/vpn"):
+        pass

@@ -97,7 +97,7 @@ i przejmuje bazy sprzed migracji bez utraty danych.
 4. ✅ Backend API – urządzenia (CRUD + test SNMP), porty, metryki, logowanie (kreator pierwszego konta, sesje w ciasteczku, `netpulse user passwd`)
 5. Panel (MVP), etapy: 5a ✅ szkielet (pasek górny, menu, motyw, logowanie; kod w `frontend/`), 5b ✅ dashboard + interwały odświeżania,
    5c ✅ ustawienia (konto, urządzenia, odświeżanie), 5d ✅ aktualizacja jednym kliknięciem (updater + obrazy GHCR),
-   5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – wykresy kołowe (od 0.40.0), a od 0.45.0 także bieżący ruch WAN, nagłówki wykresów, tabele i paski portów oraz CPU/RAM urządzeń SNMP (WebSocket `/api/live/device`, co ~1,5 s; jeden wspólny kanał `lib/liveHub.ts`, przełącznik „Na żywo” w pasku górnym; historia dalej co 30 s; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
+   5e ✅ personalizacja wykresów i układu, 5f ✅ dane „Na żywo” – wykresy kołowe (od 0.40.0), a od 0.45.0 także bieżący ruch WAN, nagłówki wykresów, tabele i paski portów oraz CPU/RAM urządzeń SNMP, od 0.72.0 strona urządzenia i portu, mapa sieci i VPN (WebSocket `/api/live/device`, co ~1,5 s; jeden wspólny kanał `lib/liveHub.ts`, przełącznik „Na żywo” w pasku górnym; historia dalej co 30 s; `api/live.py`, opis w `docs/06-projekt-panelu.md`)
 6. ✅ Driver UniFi przez API – PoE, klienci WiFi (kontrolery z kluczem API, starsze API `stat/*`; opis: `docs/08-unifi-api.md`).
    Od 0.52.0 urządzenia bez SNMP (USW Flex/Ultra) z oficjalnego Network API: `driver = "unifi_api"` (`NON_SNMP_DRIVERS`
    w `models.py`), zakładane przez kolektor UniFi, zapis jak SNMP (`unifi_devices.py`), mapowanie `unifi_api_devices`
@@ -176,7 +176,8 @@ sumy bajtów WAN i portów LAN zgodne co do 0,1–1 %. Opis: `docs/42-szczyt-i-t
 Klienci VPN bramy UniFi z kontrolera (`rest/networkconf` → `remote-user-vpn`, `v2/.../wireguard/users`, `stat/remoteuservpn`):
 stan w `app_settings` (`vpn:<kontroler>`), metryki `vpn_connected|vpn_down_bps|vpn_up_bps` w `metrics` na bramie (klucz = klient),
 bez migracji. Kod: `netpulse/vpn.py`, `unifi.py` (`UnifiApi.vpn`), `api/vpn.py` (`GET /api/vpn`), widget `vpn`, źródło wykresu `vpn`,
-alert i zdarzenie `vpn_connect`. Interfejs, którego nie ma w odczycie SNMP (np. `wgsrv1` między sesjami, rola `vpn`), dostaje
+alert i zdarzenie `vpn_connect`. Od 0.72.0: `rx_rate`/`tx_rate` kontrolera są już w b/s (do 0.71.1 ×8, migracja 0019 poprawia
+historię) i widget VPN na żywo (`/api/live/vpn`, `VpnLiveHub`, `useLiveVpn` + `withLiveVpn`). Interfejs, którego nie ma w odczycie SNMP (np. `wgsrv1` między sesjami, rola `vpn`), dostaje
 `oper_status = "notPresent"` bez próbek (panel: „brak sesji” / „nieobecny”). Opis: `docs/30-vpn.md`.
 
 ## Szczegóły, dostępność i pulpity

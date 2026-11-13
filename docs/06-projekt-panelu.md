@@ -147,6 +147,12 @@ w pasku górnym (`LiveToggle`, zapamiętany w przeglądarce, `netpulse.live`), z
 urządzeniami, a szybkość na żywo liczy `LiveRateTracker` (`rates.py`) od ostatniej *zmiany* licznika – UniFi odświeża
 liczniki SNMP co kilka sekund i przy odczycie co 1,5 s co drugi pokazywał 0 (sprawdzone na prawdziwym UCG i USW).
 
+**Od 0.72.0** na żywo są też: tabela portów na stronie urządzenia (ruch i stan każdego portu), strona portu (ruch
+i stan), obciążenie kabli na mapie sieci (`withLiveEdges` w `lib/topology.ts`, `useLiveDeviceSamples` – układ mapy
+liczony z odczytu API, żeby nie przerysowywać go co 1,5 s) i widget VPN (`/api/live/vpn`, opis w `docs/30-vpn.md`).
+Granice sprzętu (zmierzone 13.11.2026): UCG Ultra odświeża liczniki WAN (`eth4`) i WireGuard co ~1 s, portów LAN
+`eth0`–`eth3` co ~5 s, USW Lite 8 PoE co ~3 s – szybciej niż sprzęt się nie da, `LiveRateTracker` liczy od zmiany licznika.
+
 Historia: 5f dodał przełącznik „Na żywo” przy wykresie ruchu WAN, 0.38.0 (na próbę) – porty WAN z obciążeniem,
 tabelę portów urządzenia i wykres na stronie portu. Od 0.40.0 decyzją użytkownika **na żywo działają tylko wykresy
 kołowe**; przełączniki przy wykresach, w tabeli portów i na stronie portu zostały usunięte.

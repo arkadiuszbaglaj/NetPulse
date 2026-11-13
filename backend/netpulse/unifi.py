@@ -465,11 +465,6 @@ class VpnSession:
     tx_bps: float | None
 
 
-def _bits(v: Any) -> float | None:
-    n = _num(v)
-    return n * 8 if n is not None else None
-
-
 def parse_vpn_servers(raw: dict) -> list[VpnServer]:
     out = []
     for n in raw.get("data", []):
@@ -510,8 +505,10 @@ def parse_vpn_sessions(raw: dict) -> list[VpnSession]:
                 last_seen=_int(v.get("last_seen")),
                 rx_bytes=_num(v.get("rx_bytes")),
                 tx_bytes=_num(v.get("tx_bytes")),
-                rx_bps=_bits(v.get("rx_rate")),
-                tx_bps=_bits(v.get("tx_rate")),
+                # `rx_rate`/`tx_rate` są już w bitach/s (sprawdzone 13.11.2026 na UCG Ultra: 30 MB przez tunel WireGuard
+                # = 66,8 Mb/s z kontrolera przy ~9 MB/s w `wg show`). Do 0.71.1 mnożone ×8 – migracja 0019 poprawia historię.
+                rx_bps=_num(v.get("rx_rate")),
+                tx_bps=_num(v.get("tx_rate")),
             )
         )
     return out

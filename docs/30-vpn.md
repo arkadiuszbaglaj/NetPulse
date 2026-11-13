@@ -14,8 +14,10 @@ Kolektor UniFi co cykl (30 s) czyta z kontrolera (sprawdzone na UCG Ultra, Netwo
 | `v2/api/site/<site>/wireguard/users` | skonfigurowani klienci WireGuard (nazwa, adres w tunelu) |
 | `stat/remoteuservpn` | trwające połączenia: klient, adres publiczny, czas połączenia, bajty i bieżący ruch |
 
-`rx` w `remoteuservpn` = od klienta (jego wysyłanie), `tx` = do klienta (jego pobieranie); szybkości są w B/s,
-NetPulse zapisuje je w b/s. Brak serwera VPN = żadnych dalszych zapytań. Błąd odczytu VPN nie psuje reszty odczytu kontrolera.
+`rx` w `remoteuservpn` = od klienta (jego wysyłanie), `tx` = do klienta (jego pobieranie); szybkości (`rx_rate`,
+`tx_rate`) są **już w b/s** i tak je NetPulse zapisuje. Do 0.71.1 były mnożone ×8 (wykresy, widget i alerty VPN pokazywały
+prędkość 8 razy za dużą) – sprawdzone 13.11.2026 na UCG Ultra: 30 MB przez tunel WireGuard to w kontrolerze 66,8 Mb/s
+przy ok. 9 MB/s (72 Mb/s) w liczniku `wg show`. Migracja 0019 dzieli zapisaną historię `vpn_down_bps|vpn_up_bps` przez 8. Brak serwera VPN = żadnych dalszych zapytań. Błąd odczytu VPN nie psuje reszty odczytu kontrolera.
 
 ## Gdzie zapisuje
 
@@ -34,6 +36,17 @@ NetPulse zapisuje je w b/s. Brak serwera VPN = żadnych dalszych zapytań. Błą
 - **Zdarzenia**: „Połączenie VPN: <klient>” w kafelku „Zdarzenia”.
 - **Alert „Nowe połączenie VPN”** (`vpn_connect`, informacja, domyślnie włączony): trwa 10 minut, bez powiadomienia
   o końcu. Nowe połączenie = próbka `vpn_connected` 1 po próbce 0 (przerwa w odczytach dłuższa niż 150 s się nie liczy).
+
+## Na żywo (0.72.0)
+
+Kontroler odświeża `stat/remoteuservpn` (bajty i prędkość) co ok. 1 s (zmierzone na UCG Ultra), więc widget VPN nie
+czeka na cykl kolektora: WebSocket `/api/live/vpn` (`VpnLiveHub` w `api/live.py`) co ~1,5 s czyta trwające sesje ze
+wszystkich włączonych kontrolerów (tylko gdy ktoś ogląda, bez zapisu do bazy) – `{time, ok, users: [...]}`. Panel
+(`useLiveVpn` w `lib/liveHub.ts`, `withLiveVpn` w `lib/vpn.ts`) łączy to z `/api/vpn`: klient z próbki = połączony
+z bieżącą prędkością i transferem, połączony w `/api/vpn`, a nieobecny w próbce = rozłączony, nowy klient jest dopisany.
+`ok = false` (żaden kontroler nie odpowiedział, moduł UniFi wyłączony) = widget zostaje przy odczycie kolektora.
+Przełącznik „Na żywo” w pasku górnym wstrzymuje też ten kanał; na pulpicie publicznym go nie ma. Historia (wykres, alert
+„Nowe połączenie VPN”) dalej z kolektora co 30 s.
 
 API: `GET /api/vpn` (`backend/netpulse/api/vpn.py`); `stale = true`, gdy ostatni odczyt jest starszy niż 3 minuty –
 wtedy nikt nie jest pokazywany jako połączony.

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useParams } from "react-router";
 import { AvailabilityCard } from "../components/Availability";
+import { LiveBadge } from "../components/LiveBadge";
 import { ChartCard } from "../components/charts/ChartCard";
 import { RangePicker } from "../components/RangePicker";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
@@ -11,6 +12,7 @@ import { t } from "../i18n";
 import { ApiError, get, type SeriesPoint } from "../lib/api";
 import { formatSpeed, useInterface, type InterfaceDetail } from "../lib/details";
 import { formatBps, relativeTime } from "../lib/format";
+import { liveValue, useLiveDeviceSample } from "../lib/liveHub";
 import { newChartConfig, type ChartConfig } from "../lib/layout";
 import { isOn, useModules } from "../lib/modules";
 import { useRefresh } from "../lib/refresh";
@@ -20,20 +22,29 @@ import { BackLink, OperBadge } from "./DevicePage";
 
 const ROLE_LABEL = { wan: "port.role.wan", lan: "port.role.lan", port: "port.role.port", virtual: "port.role.virtual", vpn: "port.role.vpn" } as const;
 
-function PortInfo({ port, poeW }: { port: InterfaceDetail; poeW: number | null | undefined }) {
+function PortInfo({ port, poeW, deviceId }: { port: InterfaceDetail; poeW: number | null | undefined; deviceId: number }) {
+  // Ruch i stan łącza na żywo (od 0.72.0, co ~1,5 s), bez – ostatni odczyt kolektora
+  const live = useLiveDeviceSample(deviceId);
+  const inBps = liveValue(live, (s) => s.ports.get(port.id)?.in_bps);
+  const outBps = liveValue(live, (s) => s.ports.get(port.id)?.out_bps);
+  const up = liveValue(live, (s) => s.ports.get(port.id)?.up);
+  const status = up == null ? port.oper_status : up ? "up" : "down";
   const rows: [string, string][] = [
     [t("port.info.name"), port.name],
     [t("port.info.role"), t(ROLE_LABEL[port.role as keyof typeof ROLE_LABEL] ?? "port.role.port")],
-    [t("device.ports.speed"), port.oper_status === "up" ? formatSpeed(port.speed_mbps) : "–"],
-    [t("port.in"), formatBps(port.in_bps)],
-    [t("port.out"), formatBps(port.out_bps)],
+    [t("device.ports.speed"), status === "up" ? formatSpeed(port.speed_mbps) : "–"],
+    [t("port.in"), formatBps(inBps ?? port.in_bps)],
+    [t("port.out"), formatBps(outBps ?? port.out_bps)],
     ["MAC", port.mac ?? "–"],
     [t("port.info.seen"), relativeTime(port.last_seen_at) ?? "–"],
   ];
   if (port.poe_port_idx != null && poeW !== undefined) rows.splice(5, 0, [t("port.info.poe"), formatWatts(poeW)]);
   return (
     <Card className="p-4">
-      <h2 className="mb-3 text-sm font-medium">{t("device.info.title")}</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-medium">
+        {t("device.info.title")}
+        {(inBps != null || outBps != null) && <LiveBadge compact />}
+      </h2>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
@@ -122,7 +133,7 @@ export function PortPage() {
 
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <PortInfo port={p} poeW={poeNow} />
+          <PortInfo port={p} poeW={poeNow} deviceId={deviceId} />
           <AvailabilityCard kind="interfaces" id={id} title={t("port.availability")} />
         </div>
 

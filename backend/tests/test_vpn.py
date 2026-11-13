@@ -27,8 +27,8 @@ def test_parsers_read_servers_users_and_sessions():
     assert [u.name for u in users] == ["iPhone", "Laptop"]
     (s,) = sessions
     assert (s.user, s.interface, s.tunnel_ip, s.server_id, s.connected_at) == ("iPhone", "wgsrv1", "192.168.3.2", "net-wg", 1793835408)
-    # Kontroler podaje bajty/s – w NetPulse bity/s; tx = do klienta
-    assert s.tx_bps == 147888 * 8 and s.rx_bps == 96637 * 8 and s.tx_bytes == 76148892
+    # Kontroler podaje rx_rate/tx_rate w bitach/s (zmierzone 13.11.2026), tx = do klienta
+    assert s.tx_bps == 147888 and s.rx_bps == 96637 and s.tx_bytes == 76148892  # b/s prosto z kontrolera
     assert parse_vpn_sessions({"data": [{"user": "x", "up": False}]}) == []
     assert parse_vpn_servers({}) == [] and parse_vpn_users({"data": "zły format"}) == []
 
@@ -37,7 +37,7 @@ def test_snapshot_keeps_offline_users_and_last_seen():
     snap = snapshot(*parsed(), None, NOW, 1)
     assert snap["servers"] == [{"id": "net-wg", "name": "WG-Home", "type": "WireGuard", "enabled": True, "port": 51820, "subnet": "192.168.3.1/24"}]
     phone, laptop = snap["users"]
-    assert phone["connected"] and phone["down_bps"] == 147888 * 8 and phone["up_bytes"] == 11867028
+    assert phone["connected"] and phone["down_bps"] == 147888 and phone["up_bytes"] == 11867028
     assert phone["since"] == datetime.fromtimestamp(1793835408, UTC).isoformat() and phone["last_seen"] == NOW.isoformat()
     assert not laptop["connected"] and laptop["last_seen"] is None and laptop["tunnel_ip"] == "192.168.3.3"
     # Rozłączenie: zostaje czas ostatniego połączenia i przesłane dane, bez bieżącego ruchu
@@ -53,8 +53,8 @@ def test_metrics_connected_flag_for_everyone_traffic_only_when_connected():
     rows = {(m.name, m.key): m.value for m in metrics(1, snapshot(*parsed(), None, NOW, 1), NOW)}
     assert rows == {
         ("vpn_connected", "iPhone"): 1.0,
-        ("vpn_down_bps", "iPhone"): 147888 * 8,
-        ("vpn_up_bps", "iPhone"): 96637 * 8,
+        ("vpn_down_bps", "iPhone"): 147888,  # rx_rate/tx_rate z kontrolera to już b/s (0.72.0)
+        ("vpn_up_bps", "iPhone"): 96637,
         ("vpn_connected", "Laptop"): 0.0,
     }
 

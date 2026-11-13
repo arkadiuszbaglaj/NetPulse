@@ -2,6 +2,7 @@ import { IconArrowLeft, IconPencil } from "@tabler/icons-react";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 import { AvailabilityCard } from "../components/Availability";
+import { LiveBadge } from "../components/LiveBadge";
 import { DefaultCommunityBadge } from "../components/SnmpWarning";
 import { RangePicker } from "../components/RangePicker";
 import { Card, ErrorNote, PageHeader } from "../components/ui";
@@ -13,6 +14,7 @@ import { t, type TextKey } from "../i18n";
 import { ApiError, type Device } from "../lib/api";
 import { formatSpeed, useDevice, useInterfaces, useSensors, useWifiNetworks, type InterfaceItem, type SensorsData } from "../lib/details";
 import { formatBps, formatDateTime, formatUptime, metricFormatter, relativeTime } from "../lib/format";
+import { liveValue, useLiveDeviceSample } from "../lib/liveHub";
 import { METRICS, newChartConfig, unitClassOf, type ChartConfig } from "../lib/layout";
 import { isOn, useModules } from "../lib/modules";
 import { formatWatts, usePoe, type PoePort } from "../lib/unifi";
@@ -74,9 +76,21 @@ function InfoCard({ device }: { device: Device }) {
 
 function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces: InterfaceItem[]; poe: Map<string, Pick<PoePort, "power_w">> }) {
   const withPoe = poe.size > 0;
+  // Ruch i stan portów na żywo (od 0.72.0, co ~1,5 s); bez kanału – ostatni odczyt kolektora
+  const live = useLiveDeviceSample(deviceId);
+  const now = (i: InterfaceItem) => {
+    const inBps = liveValue(live, (x) => x.ports.get(i.id)?.in_bps);
+    const outBps = liveValue(live, (x) => x.ports.get(i.id)?.out_bps);
+    const up = liveValue(live, (x) => x.ports.get(i.id)?.up);
+    return { in_bps: inBps ?? i.in_bps, out_bps: outBps ?? i.out_bps, oper_status: up == null ? i.oper_status : up ? "up" : "down", live: inBps != null || outBps != null };
+  };
+  const anyLive = interfaces.some((i) => now(i).live);
   return (
     <Card className="overflow-x-auto">
-      <h2 className="px-4 pt-4 text-sm font-medium">{t("device.ports.title", { n: interfaces.length })}</h2>
+      <h2 className="flex items-center gap-2 px-4 pt-4 text-sm font-medium">
+        {t("device.ports.title", { n: interfaces.length })}
+        {anyLive && <LiveBadge compact />}
+      </h2>
       <table className="mt-2 w-full min-w-[36rem] text-left text-sm">
         <thead className="text-xs text-text-2">
           <tr>
@@ -90,7 +104,9 @@ function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces
           </tr>
         </thead>
         <tbody>
-          {interfaces.map((i) => (
+          {interfaces.map((port) => {
+            const i = { ...port, ...now(port) };
+            return (
             <tr key={i.id} className="border-t border-border">
               <td className="px-4 py-2">
                 <Link to={`/devices/${deviceId}/ports/${i.id}`} className="font-medium hover:text-accent-text hover:underline">
@@ -107,7 +123,8 @@ function PortsCard({ deviceId, interfaces, poe }: { deviceId: number; interfaces
               <td className="px-4 py-2 text-right tabular-nums">{formatBps(i.out_bps)}</td>
               {withPoe && <td className="px-4 py-2 text-right tabular-nums">{poe.has(i.name) ? formatWatts(poe.get(i.name)?.power_w) : "–"}</td>}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </Card>

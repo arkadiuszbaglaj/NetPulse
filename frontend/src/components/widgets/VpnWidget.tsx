@@ -1,10 +1,12 @@
 /** Kafelek „VPN” (od 0.57.0): serwery VPN bramy UniFi i klienci – kto jest połączony, od kiedy, skąd i z jakim ruchem;
- * rozłączeni z czasem ostatniego połączenia. Dane z kontrolera UniFi (co cykl kolektora UniFi). */
+ * rozłączeni z czasem ostatniego połączenia. Dane z kontrolera UniFi: zapis kolektora (co 30 s), a przy włączonym
+ * „Na żywo” od 0.72.0 połączenia i ruch co ~1,5 s (`useLiveVpn`). */
 import { IconShieldLock } from "@tabler/icons-react";
 import { t } from "../../i18n";
 import { formatBps, formatBytes, relativeTime } from "../../lib/format";
 import { useRefresh } from "../../lib/refresh";
-import { useVpn, type VpnUser } from "../../lib/vpn";
+import { useLiveVpn } from "../../lib/liveHub";
+import { useVpn, withLiveVpn, type VpnUser } from "../../lib/vpn";
 import { Card, ErrorNote } from "../ui";
 
 function UserRow({ user }: { user: VpnUser }) {
@@ -46,7 +48,10 @@ function UserRow({ user }: { user: VpnUser }) {
 
 export function VpnWidget({ title, showOffline }: { title: string | null; showOffline: boolean }) {
   const { refetchInterval } = useRefresh();
-  const { data, isError, isLoading } = useVpn(refetchInterval);
+  const query = useVpn(refetchInterval);
+  const { isError, isLoading } = query;
+  const live = useLiveVpn(!!query.data && query.data.servers.length > 0);
+  const data = query.data ? withLiveVpn(query.data, live) : undefined;
   const users = (data?.users ?? []).filter((u) => showOffline || u.connected);
   const online = (data?.users ?? []).filter((u) => u.connected).length;
   const servers = data?.servers ?? [];

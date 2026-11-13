@@ -34,9 +34,11 @@ import {
   type Orientation,
   type Placement,
   useTopology,
+  withLiveEdges,
   type TopologyEdge,
   type TopologyNode,
 } from "../lib/topology";
+import { useLiveDeviceSamples } from "../lib/liveHub";
 import { useClients, type NetworkClient } from "../lib/unifi";
 
 const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint } as const;
@@ -329,15 +331,22 @@ export function TopologyPage() {
   const topo = useTopology();
   const clients = useClients();
   const nodes = useMemo(() => topo.data?.nodes ?? [], [topo.data]);
-  const edges = useMemo(() => topo.data?.edges ?? [], [topo.data]);
+  const baseEdges = useMemo(() => topo.data?.edges ?? [], [topo.data]);
+  // Obciążenie kabli na żywo (0.72.0): układ liczony z odczytu API, rysowanie z próbek co ~1,5 s
+  const liveDevices = useMemo(() => baseEdges.flatMap((e) => (e.device_id != null && e.interface_id != null ? [e.device_id] : [])), [baseEdges]);
+  const live = useLiveDeviceSamples(liveDevices);
+  const edges = useMemo(
+    () => withLiveEdges(baseEdges, (dev, iface) => { const st = live.get(dev); return st?.status === "live" ? st.sample?.ports.get(iface) : null; }),
+    [baseEdges, live],
+  );
   // Kierunek mapy: wybór użytkownika (zapamiętany w przeglądarce) albo domyślny z kształtu sieci i szerokości ekranu
   const [chosen, setChosen] = useState<Orientation | null>(readOrientation);
   const [wide] = useState(() => typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches);
-  const vertical = useMemo(() => layoutTopology(nodes, edges), [nodes, edges]);
+  const vertical = useMemo(() => layoutTopology(nodes, baseEdges), [nodes, baseEdges]);
   const orientation = chosen ?? preferredOrientation(vertical, wide);
   const layout = useMemo(
-    () => (orientation === "vertical" ? vertical : layoutTopology(nodes, edges, orientation)),
-    [vertical, nodes, edges, orientation],
+    () => (orientation === "vertical" ? vertical : layoutTopology(nodes, baseEdges, orientation)),
+    [vertical, nodes, baseEdges, orientation],
   );
   const horizontal = orientation === "horizontal";
   const turn = () => {
