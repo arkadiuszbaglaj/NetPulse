@@ -350,7 +350,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
 ## Do sprawdzenia później
 
 - **Wykrywanie urządzeń – reszta** – części A i B zrobione w 0.73.0 (`docs/43`); wysyłka raportu do serwera projektu
-  (sposób B z `docs/24`) dopiero z chmurą i po decyzji o licencji. Skan z kontenera API sprawdzić po aktualizacji na serwerze.
+  (sposób B z `docs/24`) dopiero z chmurą i po decyzji o licencji. Skan z kontenera API sprawdzony na obu serwerach (13.11.2026).
 - **Własne OID-y, przeglądarka MIB, profile YAML** – propozycja w `docs/25-wlasne-oid-propozycja.md` (tylko dokument,
   4.11.2026). Hybryda: drivery zostają, dochodzą własne metryki SNMP (tabela `metrics`), przeglądarka MIB (`pysmi`)
   i profile urządzeń w YAML. Nie wdrażać bez decyzji użytkownika.
