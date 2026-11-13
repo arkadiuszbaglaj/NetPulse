@@ -142,7 +142,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Sesja wygasła albo została unieważniona w panelu
                 stopWan()
                 api.forgetSession()
-                loginError = "Sesja wygasła – zaloguj się ponownie"
+                loginError = getApplication<Application>().getString(R.string.session_expired)
                 screen = Screen.Login
             } else {
                 loadError = e.message

@@ -1,6 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Teksty aplikacji (od 0.3.0). values/ = angielski (każdy język telefonu poza polskim), values-pl/ = polski.
+     Nowy tekst = wpis w obu plikach. -->
 <resources>
     <string name="app_name">NetPulse</string>
-    <string name="widget_name">Ruch WAN</string>
-    <string name="widget_description">Pobieranie i wysyłanie na łączu WAN</string>
+    <string name="widget_name">WAN traffic</string>
+    <string name="widget_description">Download and upload on the WAN link</string>
+
+    <string name="login_intro">Sign in to your NetPulse server.</string>
+    <string name="login_address">Server address</string>
+    <string name="login_address_hint">No port = :8000. You can enter a full address, e.g. https://…:8443</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password</string>
+    <string name="login_code">2FA code or recovery code</string>
+    <string name="login_submit">Sign in</string>
+    <string name="app_version">App version %1$s</string>
+    <string name="session_expired">Session expired – sign in again</string>
+
+    <string name="wan_title">WAN traffic</string>
+    <string name="refresh">Refresh</string>
+    <string name="logout">Sign out</string>
+    <string name="wan_empty">No WAN links. Check in the panel that the router is added and has a WAN port (Settings → WAN links).</string>
+    <string name="wan_history">WAN traffic history</string>
+    <string name="range_7d">7 days</string>
+    <string name="download">Download</string>
+    <string name="upload">Upload</string>
+    <string name="reading_download">↓ Download</string>
+    <string name="reading_upload">↑ Upload</string>
+    <string name="live_hint">● Live (every ~1.5 s)</string>
+    <string name="last_sample">Latest collector sample (every 30 s)</string>
+    <string name="state_active">active</string>
+    <string name="state_standby">standby</string>
+    <string name="state_down">link down</string>
+    <string name="state_unknown">no data</string>
+    <string name="chart_empty">No data for this period</string>
+
+    <string name="widget_login">Sign in to the app</string>
+    <string name="widget_loading">Loading…</string>
+    <string name="widget_empty">No WAN links</string>
+    <string name="widget_offline">No connection · %1$s</string>
+    <string name="widget_login_footer">Sign in to the app · %1$s</string>
+
+    <string name="error_address">Invalid server address</string>
+    <string name="error_no_address">No server address</string>
+    <string name="error_connection">No connection to the server (%1$s)</string>
+    <string name="error_status">Error %1$d</string>
+    <string name="error_not_netpulse">This does not look like a NetPulse server (404)</string>
+    <string name="error_server">Server error (%1$d)</string>
 </resources>

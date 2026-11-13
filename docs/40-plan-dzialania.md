@@ -96,7 +96,7 @@ Zostało: telefon (mini-wykresy w kafelkach, pasek górny).
 
 **Gotowe, gdy:** zrzuty pulpitu, mapy i widoku na telefonie nadają się do README bez retuszu.
 
-## Etap 4 – język angielski (4a ✅ 0.74.0, 4b ✅ 0.75.0)
+## Etap 4 – język angielski ✅ (4a 0.74.0, 4b 0.75.0, 4c 0.76.0)
 
 Podział i stan: `docs/44-jezyk-angielski.md` – 4a panel ✅ (0.74.0), 4b komunikaty z backendu, 4c powiadomienia, raport i Android.
 

@@ -253,3 +253,16 @@ describe("adres ntfy i adresaci e-maila", () => {
     expect(parseRecipients(" a@x.pl, b@y.pl;c@z.pl  d@q.pl ")).toEqual(["a@x.pl", "b@y.pl", "c@z.pl", "d@q.pl"]);
   });
 });
+
+describe("język powiadomień (0.76.0)", () => {
+  it("zapisuje język wiadomości na serwerze", async () => {
+    const { state, calls } = mockApi();
+    renderApp("/settings/notifications");
+    const select = await screen.findByRole("combobox", { name: "Język powiadomień" });
+    expect(select).toHaveValue("pl");
+    await userEvent.setup().selectOptions(select, "en");
+    await waitFor(() => expect(state.notifyLanguage).toBe("en"));
+    expect(calls).toContainEqual(expect.objectContaining({ method: "PUT", path: "/api/notification-channels/language", body: { language: "en" } }));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Język powiadomień" })).toHaveValue("en"));
+  });
+});

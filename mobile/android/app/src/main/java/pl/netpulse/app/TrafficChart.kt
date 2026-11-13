@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -28,7 +29,7 @@ fun TrafficChart(points: List<TrafficPoint>, inColor: Color, outColor: Color, mo
     val grid = MaterialTheme.colorScheme.outline
     if (points.size < 2) {
         Box(modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
-            Text("Brak danych z tego okresu", color = muted, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.chart_empty), color = muted, style = MaterialTheme.typography.bodyMedium)
         }
         return
     }

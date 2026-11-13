@@ -247,3 +247,19 @@ def test_upstream_parents_and_down_root():
     assert down_root(2, parent, devices) is None  # router działa – switch jest przyczyną
     assert down_root(4, parent, devices) is None  # poza mapą
     assert upstream_parents({k: v for k, v in devices.items() if k != 1}, links) == {}  # bez routera nie zgadujemy
+
+
+def test_messages_in_server_language():
+    """0.76.0: język powiadomień (ustawienie serwera) – tytuły alertów i stałe teksty po angielsku."""
+    from netpulse.notifications import digest_message, event_message, probe_message, summary_message
+
+    m = event_message(event(kind="resolved"), "en")
+    assert m.title == "Resolved: USW is not responding" and m.text == "✅ Resolved: USW is not responding"
+    m = event_message(event(message="Za nim nie odpowiada też: U6+"), "en")
+    assert m.payload["title"] == "USW is not responding" and m.payload["message"] == "Also not responding behind it: U6+"
+    m = summary_message([event(), event(kind="resolved"), event(), event()], "en")
+    assert m.title == "NetPulse: 3 new alerts, 1 resolved" and "✅ USW is not responding" in m.text
+    m = digest_message([{"kind": "firing", "severity": "warning", "title": "USW nie odpowiada"}], 2, "en")
+    assert m.title == "NetPulse after quiet hours: 3 alerts, 0 resolved" and m.text.endswith("(+2 not saved)")
+    assert probe_message("en").title == "NetPulse: notifications work"
+    assert event_message(event()).title == "USW nie odpowiada"  # domyślnie po polsku, jak dotąd

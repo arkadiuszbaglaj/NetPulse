@@ -82,7 +82,7 @@ class WanWidget : GlanceAppWidget() {
         ) {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (compact && links.size == 1) links[0].name else "Ruch WAN",
+                    if (compact && links.size == 1) links[0].name else LocalContext.current.getString(R.string.widget_name),
                     style = TextStyle(color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Medium),
                     maxLines = 1,
                 )
@@ -93,14 +93,14 @@ class WanWidget : GlanceAppWidget() {
                 Spacer(GlanceModifier.defaultWeight())
                 Image(
                     provider = ImageProvider(R.drawable.ic_refresh),
-                    contentDescription = "Odśwież",
+                    contentDescription = LocalContext.current.getString(R.string.refresh),
                     colorFilter = ColorFilter.tint(TextMuted),
                     modifier = GlanceModifier.size(20.dp).clickable(actionRunCallback<RefreshAction>()),
                 )
             }
             when {
-                snapshot.status == "login" && snapshot.links.isEmpty() -> Message("Zaloguj się w aplikacji")
-                links.isEmpty() -> Message(if (snapshot.updatedAt == 0L) "Ładowanie…" else "Brak łączy WAN")
+                snapshot.status == "login" && snapshot.links.isEmpty() -> Message(LocalContext.current.getString(R.string.widget_login))
+                links.isEmpty() -> Message(LocalContext.current.getString(if (snapshot.updatedAt == 0L) R.string.widget_loading else R.string.widget_empty))
                 else -> for (link in links) {
                     if (!compact) {
                         Spacer(GlanceModifier.height(4.dp))
@@ -147,14 +147,15 @@ class WanWidget : GlanceAppWidget() {
     @Composable
     private fun footer(snapshot: WidgetSnapshot): String {
         if (snapshot.updatedAt == 0L) return ""
+        val context = LocalContext.current
         val time = DateUtils.formatDateTime(
-            LocalContext.current,
+            context,
             snapshot.updatedAt,
             DateUtils.FORMAT_SHOW_TIME or if (DateUtils.isToday(snapshot.updatedAt)) 0 else DateUtils.FORMAT_SHOW_DATE,
         )
         return when (snapshot.status) {
-            "offline" -> "Brak połączenia · $time"
-            "login" -> "Zaloguj się w aplikacji · $time"
+            "offline" -> context.getString(R.string.widget_offline, time)
+            "login" -> context.getString(R.string.widget_login_footer, time)
             else -> time
         }
     }

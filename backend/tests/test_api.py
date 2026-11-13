@@ -251,3 +251,13 @@ def test_messages_in_english_for_accept_language(client):
     r = client.get("/api/devices/999999", headers={"Accept-Language": "en-GB,en;q=0.9"})
     assert r.status_code == 404, r.text
     assert r.json()["detail"] == "No such device"
+
+
+def test_notification_language_setting(client):
+    """0.76.0: język powiadomień – ustawienie serwera (domyślnie polski), zmienia tylko administrator."""
+    client.post("/api/auth/setup", json=ADMIN)
+    assert client.get("/api/notification-channels/language").json() == {"language": "pl"}
+    assert client.put("/api/notification-channels/language", json={"language": "de"}).status_code == 422
+    assert client.put("/api/notification-channels/language", json={"language": "en"}).json() == {"language": "en"}
+    assert client.get("/api/notification-channels/language").json() == {"language": "en"}
+    client.put("/api/notification-channels/language", json={"language": "pl"})

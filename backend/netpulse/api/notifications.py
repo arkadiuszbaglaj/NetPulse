@@ -16,6 +16,7 @@ from sqlalchemy import select
 from ..config import settings
 from ..db import Session
 from ..db.models import NotificationChannel
+from ..i18n import save_server_language, server_language
 from ..notifications import Notifier, mask_url
 from .security import AdminUser, require_user
 
@@ -216,6 +217,25 @@ async def _get(session, channel_id: int) -> NotificationChannel:
     if channel is None:
         raise HTTPException(404, "Nie ma takiego kanału")
     return channel
+
+
+class LanguageBody(BaseModel):
+    """Język wiadomości ze wszystkich kanałów (od 0.76.0) – ustawienie serwera, nie przeglądarki."""
+
+    language: Literal["pl", "en"]
+
+
+@router.get("/language", response_model=LanguageBody)
+async def get_language():
+    async with Session() as session:
+        return LanguageBody(language=await server_language(session))
+
+
+@router.put("/language", response_model=LanguageBody)
+async def put_language(body: LanguageBody, _: AdminUser):
+    async with Session() as session, session.begin():
+        await save_server_language(session, body.language)
+    return body
 
 
 @router.get("", response_model=list[ChannelOut])

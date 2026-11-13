@@ -6,7 +6,7 @@ Etap 4 planu (`docs/40-plan-dzialania.md`) podzielony na trzy części:
 |---|---|---|
 | **4a** | Panel po angielsku: plik tłumaczeń, wybór języka, formaty dat i liczb | ✅ 0.74.0 |
 | **4b** | Komunikaty z backendu: błędy API, walidacja, tytuły i opisy alertów, opisy źródeł danych, usługa aktualizacji | ✅ 0.75.0 |
-| 4c | Powiadomienia (e-mail, Telegram, ntfy), raport PDF/CSV, aplikacja Android | do zrobienia |
+| **4c** | Powiadomienia (e-mail, Telegram, ntfy, webhook), raport PDF/CSV, aplikacja Android | ✅ 0.76.0 (Android 0.3.0) |
 
 ## 4a – panel (0.74.0)
 
@@ -48,4 +48,23 @@ Raporty i Ustawienia → System, bo atrapa API (`test/mockApi.ts`) odpowiada po 
 - **Nowy komunikat = wpis w `messages.py`.** `tests/test_i18n.py::test_every_polish_message_is_in_catalog` skanuje kod
   backendu i usługi aktualizacji (stałe i f-stringi, bez logów, docstringów i opisów OpenAPI) i sprawdza, że każdy polski
   tekst się tłumaczy. Komunikat składany z kawałków („Podaj adres” + „ webhooka”) trzeba pisać w całości – inaczej
-  wzorzec go nie złapie. Poza zakresem testu: `cli.py`, agent, migracje oraz `notifications.py` i `report.py` (część 4c).
+  wzorzec go nie złapie. Poza zakresem testu: `cli.py`, agent i migracje (teksty w terminalu serwera).
+
+## 4c – powiadomienia, raport, Android (0.76.0)
+
+- **Powiadomienia**: język wiadomości to **ustawienie serwera** (powiadomienia wysyła kolektor, bez przeglądarki):
+  Ustawienia → Powiadomienia → „Język powiadomień”, wspólny dla wszystkich kanałów. Zapis w `app_settings`
+  (klucz `language`, `i18n.server_language`), API `GET|PUT /api/notification-channels/language` (zmiana – administrator).
+  Domyślnie polski, więc istniejące instalacje bez zmian. `notifications.py` tłumaczy tytuł i opis zdarzenia
+  (`localized`) i stałe teksty („Zakończono: …”, podsumowania, ciche godziny, wiadomość próbna) – katalogiem `messages.py`.
+- **Raport PDF/CSV**: w języku panelu – linki pobierania mają `&lang=<język panelu>` (bez parametru: `Accept-Language`).
+  Po angielsku: nazwy miesięcy, nagłówki i opisy z katalogu, liczby z kropką, daty `RRRR-MM-DD GG:MM`, CSV z przecinkiem
+  (po polsku dalej średnik i przecinek dziesiętny – Excel po polsku), plik `netpulse-report-RRRR-MM`. Podgląd raportu
+  w panelu (JSON) tłumaczy middleware jak resztę API.
+- **Aplikacja Android 0.3.0**: teksty w zasobach – `res/values/strings.xml` (angielski: każdy język telefonu poza
+  polskim) i `res/values-pl/strings.xml` (polski); **nowy tekst = wpis w obu plikach**. Język wybiera system według
+  języka telefonu. Aplikacja wysyła `Accept-Language` (pl/en), więc komunikaty serwera (np. błąd logowania) są w tym
+  samym języku; liczby z separatorem dziesiętnym języka telefonu.
+
+Zostaje po polsku: CLI na serwerze (`netpulse …`), instalator, agent Linux i jego `install.sh`, dziennik zdarzeń
+(akcje są kodami, panel je tłumaczy), nazwy nadane przez użytkownika.

@@ -1,6 +1,7 @@
 """Raport miesięczny (od 0.65.0): podgląd JSON, pobranie CSV i PDF. Logika i formaty: netpulse/report.py.
 
 `month=RRRR-MM` (puste = poprzedni pełny miesiąc); każdy zalogowany (także podgląd) – raport tylko czyta dane.
+`lang=pl|en` (od 0.76.0) – język pliku CSV/PDF; bez niego język żądania (`Accept-Language`).
 """
 
 from __future__ import annotations
@@ -13,11 +14,13 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from .. import report as rp
+from ..i18n import current_language
 from .security import require_user
 
 router = APIRouter(prefix="/api/reports", tags=["raporty"], dependencies=[Depends(require_user)])
 
 MonthQuery = Query(None, pattern=r"^\d{4}-\d{2}$", description="miesiąc RRRR-MM; puste = poprzedni pełny miesiąc")
+LangQuery = Query(None, pattern=r"^(pl|en)$", description="język pliku; puste = język żądania")
 
 
 class DeviceRowOut(BaseModel):
@@ -103,13 +106,15 @@ async def monthly(month: str | None = MonthQuery):
 
 
 @router.get("/monthly.csv")
-async def monthly_csv(month: str | None = MonthQuery):
+async def monthly_csv(month: str | None = MonthQuery, lang: str | None = LangQuery):
     r = await _build(month)
-    return _download(rp.to_csv(r), rp.filename(r, "csv"), "text/csv; charset=utf-8")
+    lang = lang or current_language()
+    return _download(rp.to_csv(r, lang), rp.filename(r, "csv", lang), "text/csv; charset=utf-8")
 
 
 @router.get("/monthly.pdf")
-async def monthly_pdf(month: str | None = MonthQuery):
+async def monthly_pdf(month: str | None = MonthQuery, lang: str | None = LangQuery):
     r = await _build(month)
-    data = await asyncio.to_thread(rp.to_pdf, r)  # fpdf2 jest synchroniczny – nie blokujemy pętli API
-    return _download(data, rp.filename(r, "pdf"), "application/pdf")
+    lang = lang or current_language()
+    data = await asyncio.to_thread(rp.to_pdf, r, True, lang)  # fpdf2 jest synchroniczny – nie blokujemy pętli API
+    return _download(data, rp.filename(r, "pdf", lang), "application/pdf")

@@ -15,6 +15,9 @@ from functools import lru_cache
 
 from .messages import MESSAGES
 
+# Język serwera (od 0.76.0): powiadomienia; panel i raporty mają język przeglądarki
+SERVER_LANGUAGE_KEY = "language"
+
 LANGUAGES = ("pl", "en")
 DEFAULT = "pl"
 _language: ContextVar[str] = ContextVar("netpulse_language", default=DEFAULT)
@@ -196,3 +199,22 @@ class LanguageMiddleware:
             await send({"type": "http.response.body", "body": body})
 
         await self.app(scope, receive, wrapped)
+
+
+async def server_language(session) -> str:
+    """Język powiadomień zapisany w ustawieniach (`app_settings`), domyślnie polski."""
+    from .db.models import AppSetting
+
+    row = await session.get(AppSetting, SERVER_LANGUAGE_KEY)
+    value = (row.value or {}).get("language") if row else None
+    return value if value in LANGUAGES else DEFAULT
+
+
+async def save_server_language(session, lang: str) -> None:
+    from .db.models import AppSetting
+
+    row = await session.get(AppSetting, SERVER_LANGUAGE_KEY, with_for_update=True)
+    if row is None:
+        session.add(AppSetting(key=SERVER_LANGUAGE_KEY, value={"language": lang}))
+    else:
+        row.value = {"language": lang}

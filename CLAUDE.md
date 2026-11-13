@@ -192,7 +192,7 @@ anonimizacja `Anonymizer`; tablic MAC/ARP/tras/klientów nie czyta; `PySnmpClien
 `.github/ISSUE_TEMPLATE/nowe-urzadzenie.yml`). **Nowa gałąź z danymi osobowymi = reguła w `devreport.anonymize` i test
 w `test_discovery.py::test_report_has_no_private_values`.** Sprawdzone 13.11.2026 na UCG, USW i U6+. Opis: `docs/43-wykrywanie-urzadzen.md`.
 
-## Język angielski (0.74.0)
+## Język angielski (0.74.0–0.76.0)
 
 Etap 4 planu, część 4a (opis i dalsze części: `docs/44-jezyk-angielski.md`). Panel w dwóch językach: `i18n/pl.ts` (źródło kluczy)
 i `i18n/en.ts` (`Record<TextKey, string>`) – **nowy tekst = wpis w obu plikach** (brak klucza w `en.ts` to błąd typów,
@@ -202,7 +202,8 @@ w przeglądarce (`netpulse.language`), domyślnie język przeglądarki; zmiana p
 (`test/setup.tsx`). Od 0.75.0 (4b) backend tłumaczy odpowiedzi JSON dla `Accept-Language: en` (panel wysyła je zawsze):
 `netpulse/i18n.py` (`LanguageMiddleware`, `translate`) według katalogu wzorców `netpulse/messages.py`; kod dalej pisze po polsku.
 **Nowy polski komunikat backendu albo updatera = wpis w `messages.py`** (pilnuje `test_i18n.py`), pisany w całości, nie
-z kawałków. Powiadomienia, PDF/CSV i Android – 4c.
+z kawałków. Od 0.76.0 (4c): język powiadomień = ustawienie serwera (`i18n.server_language`, Ustawienia → Powiadomienia),
+raport PDF/CSV w języku panelu (`?lang=`), Android: `res/values` (angielski) + `res/values-pl` – **nowy tekst w obu**.
 
 ## Szczegóły, dostępność i pulpity
 
@@ -313,7 +314,7 @@ Od 0.2.0 widget „Ruch WAN” (Glance, `WanWidget.kt`; odświeżanie WorkManage
 0.1.0 sprawdzona przez użytkownika na telefonie (7.11.2026).
 Buduje GitHub Actions (`.github/workflows/android.yml`, lokalnie brak Javy/SDK), podpis kluczem z sekretów
 `NETPULSE_KEYSTORE_B64|PASSWORD` (plik poza repo: `NetPulse-android-klucz/`), na `main` wydanie `android-v<wersja>`.
-Wersja aplikacji (0.2.1 przyjmuje obie nazwy ciasteczka) osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
+Od 0.3.0 po angielsku albo po polsku według języka telefonu (`res/values`, `res/values-pl`). Wersja aplikacji (0.2.1 przyjmuje obie nazwy ciasteczka) osobno: `appVersionName` + `appVersionCode` (+1) w `app/build.gradle.kts`. Telefon testowy: Samsung S10+,
 Android 12, instalacja ręczna (bez konta Google Play). Opis: `docs/38-aplikacja-android.md`.
 
 ## Wykresy (przebudowa w stylu Grafany)
@@ -378,7 +379,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, został widok na telefonie), etap 4a ✅ (0.74.0, panel po angielsku), 4b ✅ (0.75.0, komunikaty backendu; 4c w `docs/44`), etap 5 ✅ (0.73.0).
+  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, został widok na telefonie), etap 4a ✅ (0.74.0, panel po angielsku), 4b ✅ (0.75.0, komunikaty backendu), 4c ✅ (0.76.0, powiadomienia, raport, Android; `docs/44`), etap 5 ✅ (0.73.0).
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.

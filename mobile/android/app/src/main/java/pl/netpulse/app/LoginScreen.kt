@@ -27,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,7 +57,7 @@ fun LoginScreen(model: AppViewModel) {
         Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("NetPulse", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "Zaloguj się do swojego serwera NetPulse.",
+                stringResource(R.string.login_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -64,9 +65,9 @@ fun LoginScreen(model: AppViewModel) {
             OutlinedTextField(
                 value = address,
                 onValueChange = { address = it },
-                label = { Text("Adres serwera") },
+                label = { Text(stringResource(R.string.login_address)) },
                 placeholder = { Text("192.168.1.34") },
-                supportingText = { Text("Bez portu = :8000. Można podać pełny adres, np. https://…:8443") },
+                supportingText = { Text(stringResource(R.string.login_address_hint)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
@@ -74,7 +75,7 @@ fun LoginScreen(model: AppViewModel) {
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Login") },
+                label = { Text(stringResource(R.string.login_username)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
@@ -82,7 +83,7 @@ fun LoginScreen(model: AppViewModel) {
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Hasło") },
+                label = { Text(stringResource(R.string.login_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
@@ -96,7 +97,7 @@ fun LoginScreen(model: AppViewModel) {
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it },
-                    label = { Text("Kod 2FA albo kod zapasowy") },
+                    label = { Text(stringResource(R.string.login_code)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = { submit() }),
@@ -110,11 +111,11 @@ fun LoginScreen(model: AppViewModel) {
                 if (model.loginBusy) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Zaloguj")
+                    Text(stringResource(R.string.login_submit))
                 }
             }
             Text(
-                "Wersja aplikacji ${BuildConfig.VERSION_NAME}",
+                stringResource(R.string.app_version, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

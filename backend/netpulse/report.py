@@ -10,6 +10,7 @@ Dane:
 
 Miesiąc liczony w strefie czasowej instalacji (TZ). Bieżący miesiąc kończy się „teraz”.
 Wyjście: `build()` → `Report`, potem `to_csv()` (średnik, przecinek dziesiętny, BOM – Excel po polsku) albo `to_pdf()`.
+Od 0.76.0 oba w języku `lang` (pl/en) – panel podaje swój język w `?lang=`.
 """
 
 from __future__ import annotations
@@ -29,10 +30,12 @@ from . import __version__, maintenance, wan_links
 from .config import settings
 from .db import Session, timescale_available
 from .db.models import Alert, Check, Device, Interface, WanLink, WanLinkMetric
+from .i18n import translate
 from .modules import hidden_drivers, read_modules
 from .wan import Sample, compute_sla
 
 MONTHS = ("styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień")
+MONTHS_EN = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
 SEVERITY_LABEL = {"critical": "krytyczny", "warning": "ostrzeżenie", "info": "informacja"}
 KIND_LABEL = {"gateway": "router", "switch": "switch", "ap": "access point", "server": "serwer"}
 MAX_ALERTS = 500  # w raporcie (CSV); PDF pokazuje PDF_ALERTS najdłuższych
@@ -339,21 +342,30 @@ async def build(year: int, month: int, now: datetime | None = None) -> Report:
 
 
 # --- formatowanie ----------------------------------------------------------------------------------
+# Język raportu (od 0.76.0): `lang` – język panelu, z którego pobrano plik. Teksty tłumaczy `i18n.translate`
+# (katalog `messages.py`), po angielsku liczby z kropką, daty RRRR-MM-DD i CSV z przecinkiem.
 
 
-def fmt_num(value: float | None, digits: int = 2) -> str:
+def report_title(report: Report, lang: str = "pl") -> str:
+    months = MONTHS_EN if lang == "en" else MONTHS
+    return f"{months[report.month - 1]} {report.year}"
+
+
+def fmt_num(value: float | None, digits: int = 2, lang: str = "pl") -> str:
     if value is None:
         return "–"
+    if lang == "en":
+        return f"{value:,.{digits}f}"
     return f"{value:,.{digits}f}".replace(",", " ").replace(".", ",")
 
 
-def fmt_percent(value: float | None) -> str:
+def fmt_percent(value: float | None, lang: str = "pl") -> str:
     if value is None:
         return "–"
     # 99,999% nie zaokrąglamy do 100%: dwa miejsca, a gdy wyjdzie 100,00 przy przerwie – trzy
-    text_ = fmt_num(value, 2)
-    if text_ == "100,00" and value < 100:
-        text_ = fmt_num(value, 3)
+    text_ = fmt_num(value, 2, lang)
+    if text_ in ("100,00", "100.00") and value < 100:
+        text_ = fmt_num(value, 3, lang)
     return f"{text_}%"
 
 
@@ -373,7 +385,7 @@ def fmt_duration(seconds: float | None) -> str:
     return f"{d} d {h} h" if h else f"{d} d"
 
 
-def fmt_bytes(value: float | None) -> str:
+def fmt_bytes(value: float | None, lang: str = "pl") -> str:
     if value is None:
         return "–"
     units = ("B", "kB", "MB", "GB", "TB", "PB")
@@ -381,54 +393,69 @@ def fmt_bytes(value: float | None) -> str:
     while value >= 1000 and i < len(units) - 1:
         value /= 1000
         i += 1
-    return f"{fmt_num(value, 0 if i == 0 else 1)} {units[i]}"
+    return f"{fmt_num(value, 0 if i == 0 else 1, lang)} {units[i]}"
 
 
-def fmt_time(value: datetime | None, tz: ZoneInfo) -> str:
-    return value.astimezone(tz).strftime("%d.%m.%Y %H:%M") if value else "–"
+def fmt_time(value: datetime | None, tz: ZoneInfo, lang: str = "pl") -> str:
+    if not value:
+        return "–"
+    return value.astimezone(tz).strftime("%Y-%m-%d %H:%M" if lang == "en" else "%d.%m.%Y %H:%M")
 
 
-def filename(report: Report, ext: str) -> str:
-    return f"netpulse-raport-{report.year}-{report.month:02d}.{ext}"
+def filename(report: Report, ext: str, lang: str = "pl") -> str:
+    return f"netpulse-{'report' if lang == 'en' else 'raport'}-{report.year}-{report.month:02d}.{ext}"
 
 
-def to_csv(report: Report) -> bytes:
-    """Jeden plik, sekcje oddzielone pustym wierszem, każda z własnym nagłówkiem."""
+def to_csv(report: Report, lang: str = "pl") -> bytes:
+    """Jeden plik, sekcje oddzielone pustym wierszem, każda z własnym nagłówkiem. Po polsku średnik i przecinek
+    dziesiętny (Excel po polsku), po angielsku przecinek i kropka."""
     tz = ZoneInfo(report.timezone)
+
+    def t(s: str) -> str:
+        return translate(s, lang)
+
+    def num(value: float | None, digits: int) -> str:
+        if lang != "en":
+            return fmt_num(value, digits)
+        return "" if value is None else f"{value:.{digits}f}"
+
+    def when(value: datetime | None) -> str:
+        return fmt_time(value, tz, lang)
+
     buf = io.StringIO()
-    w = csv.writer(buf, delimiter=";", lineterminator="\r\n")
-    w.writerow(["Raport NetPulse", report.title])
-    w.writerow(["Okres", fmt_time(report.start, tz), fmt_time(report.end, tz)])
-    w.writerow(["Wygenerowano", fmt_time(report.generated_at, tz), f"NetPulse {report.version}"])
+    w = csv.writer(buf, delimiter="," if lang == "en" else ";", lineterminator="\r\n")
+    w.writerow([t("Raport NetPulse"), report_title(report, lang)])
+    w.writerow([t("Okres"), when(report.start), when(report.end)])
+    w.writerow([t("Wygenerowano"), when(report.generated_at), f"NetPulse {report.version}"])
     if report.raw_from:
-        w.writerow(["Sprawdzenia i SLA WAN od", fmt_time(report.raw_from, tz)])
+        w.writerow([t("Sprawdzenia i SLA WAN od"), when(report.raw_from)])
     w.writerow([])
-    w.writerow(["Urządzenia"])
-    w.writerow(["Nazwa", "Adres", "Rodzaj", "Dostępność %", "Niedostępność (min)", "Okna serwisowe (min)", "Próbki"])
+    w.writerow([t("Urządzenia")])
+    w.writerow([t(h) for h in ("Nazwa", "Adres", "Rodzaj", "Dostępność %", "Niedostępność (min)", "Okna serwisowe (min)", "Próbki")])
     for d in report.devices:
-        w.writerow([d.name, d.host, KIND_LABEL.get(d.kind, d.kind), fmt_num(d.percent, 3), fmt_num(d.down_s / 60, 1), fmt_num(d.maintenance_s / 60, 1), d.samples])
+        w.writerow([d.name, d.host, t(KIND_LABEL.get(d.kind, d.kind)), num(d.percent, 3), num(d.down_s / 60, 1), num(d.maintenance_s / 60, 1), d.samples])
     w.writerow([])
-    w.writerow(["Sprawdzenia dostępności"])
-    w.writerow(["Nazwa", "Rodzaj", "Cel", "Dostępność %", "Nieudane", "Próbki", "Śr. opóźnienie (ms)", "Maks. opóźnienie (ms)"])
+    w.writerow([t("Sprawdzenia dostępności")])
+    w.writerow([t(h) for h in ("Nazwa", "Rodzaj", "Cel", "Dostępność %", "Nieudane", "Próbki", "Śr. opóźnienie (ms)", "Maks. opóźnienie (ms)")])
     for c in report.checks:
-        w.writerow([c.name, c.kind, c.target, fmt_num(c.percent, 3), c.failed, c.samples, fmt_num(c.avg_latency_ms, 1), fmt_num(c.max_latency_ms, 1)])
+        w.writerow([c.name, c.kind, c.target, num(c.percent, 3), c.failed, c.samples, num(c.avg_latency_ms, 1), num(c.max_latency_ms, 1)])
     w.writerow([])
-    w.writerow(["Łącza WAN"])
-    w.writerow(["Łącze", "Urządzenie", "Pobrane (GB)", "Wysłane (GB)", "Dostępność %", "Przerwy", "Czas przerw (min)", "Najdłuższa (min)"])
+    w.writerow([t("Łącza WAN")])
+    w.writerow([t(h) for h in ("Łącze", "Urządzenie", "Pobrane (GB)", "Wysłane (GB)", "Dostępność %", "Przerwy", "Czas przerw (min)", "Najdłuższa (min)")])
     for x in report.wan:
         w.writerow([
-            x.name, x.device, fmt_num(x.rx_bytes / 1e9, 3), fmt_num(x.tx_bytes / 1e9, 3), fmt_num(x.percent, 3),
+            x.name, x.device, num(x.rx_bytes / 1e9, 3), num(x.tx_bytes / 1e9, 3), num(x.percent, 3),
             "" if x.outages is None else x.outages,
-            fmt_num(x.down_s / 60 if x.down_s is not None else None, 1),
-            fmt_num(x.longest_outage_s / 60 if x.longest_outage_s is not None else None, 1),
+            num(x.down_s / 60 if x.down_s is not None else None, 1),
+            num(x.longest_outage_s / 60 if x.longest_outage_s is not None else None, 1),
         ])  # fmt: skip
     w.writerow([])
-    w.writerow(["Alerty", report.alerts_total])
-    w.writerow(["Początek", "Koniec", "Czas (min)", "Waga", "Alert", "Urządzenie", "Okno serwisowe"])
+    w.writerow([t("Alerty"), report.alerts_total])
+    w.writerow([t(h) for h in ("Początek", "Koniec", "Czas (min)", "Waga", "Alert", "Urządzenie", "Okno serwisowe")])
     for a in report.alerts:
         w.writerow([
-            fmt_time(a.started_at, tz), fmt_time(a.resolved_at, tz) if a.resolved_at else "trwa", fmt_num(a.duration_s / 60, 1),
-            SEVERITY_LABEL.get(a.severity, a.severity), a.title, a.device or "", "tak" if a.maintenance else "",
+            when(a.started_at), when(a.resolved_at) if a.resolved_at else t("trwa"), num(a.duration_s / 60, 1),
+            t(SEVERITY_LABEL.get(a.severity, a.severity)), t(a.title), a.device or "", t("tak") if a.maintenance else "",
         ])  # fmt: skip
     return ("\ufeff" + buf.getvalue()).encode("utf-8")
 
@@ -454,7 +481,7 @@ def find_font() -> tuple[str, str] | None:
     return None
 
 
-def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
+def to_pdf(report: Report, font: tuple[str, str] | None | bool = True, lang: str = "pl") -> bytes:
     """PDF A4: podsumowanie, urządzenia, sprawdzenia, łącza WAN, najdłuższe alerty. `font=None` – bez czcionki TTF."""
     from fpdf import FPDF  # import tutaj – CLI i kolektor nie potrzebują
     from fpdf.fonts import FontFace
@@ -477,7 +504,17 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
         def tx(s: str) -> str:
             return s.translate(_ASCII).encode("latin-1", "replace").decode("latin-1")
 
-    pdf.set_title(tx(f"NetPulse – raport {report.title}"))
+    def t(s: str) -> str:
+        return translate(s, lang)
+
+    def pct(value: float | None) -> str:
+        return fmt_percent(value, lang)
+
+    def when(value: datetime | None) -> str:
+        return fmt_time(value, tz, lang)
+
+    title = report_title(report, lang)
+    pdf.set_title(tx(t(f"NetPulse – raport {title}")))
     pdf.set_creator(f"NetPulse {report.version}")
     pdf.alias_nb_pages()
 
@@ -485,7 +522,8 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
         pdf.set_y(-10)
         pdf.set_font(family, "", 7)
         pdf.set_text_color(120)
-        pdf.cell(0, 4, tx(f"NetPulse {report.version} · wygenerowano {fmt_time(report.generated_at, tz)} · strona {pdf.page_no()}/{{nb}}"), align="C")
+        line = t(f"NetPulse {report.version} · wygenerowano {when(report.generated_at)} · strona {pdf.page_no()}/{{nb}}")
+        pdf.cell(0, 4, tx(line), align="C")
 
     pdf.footer = footer  # type: ignore[method-assign]
     pdf.add_page()
@@ -494,13 +532,13 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
         pdf.ln(4)
         pdf.set_font(family, "B", 12)
         pdf.set_text_color(31, 111, 235)
-        pdf.cell(0, 7, tx(s), new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 7, tx(t(s)), new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0)
 
     def note(s: str) -> None:
         pdf.set_font(family, "", 8)
         pdf.set_text_color(100)
-        pdf.multi_cell(0, 4, tx(s), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 4, tx(t(s)), new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0)
 
     def table(header: list[str], rows: list[list[str]], widths: tuple[int, ...], align: str) -> None:
@@ -517,21 +555,21 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
             borders_layout="HORIZONTAL_LINES",
             cell_fill_color=(244, 247, 252),
             cell_fill_mode="ROWS",
-        ) as t:
-            head = t.row()
+        ) as tbl:
+            head = tbl.row()
             for h in header:
-                head.cell(tx(h))
+                head.cell(tx(t(h)))
             for r in rows:
-                row = t.row()
+                row = tbl.row()
                 for v in r:
                     row.cell(tx(v))
 
     # Nagłówek
     pdf.set_font(family, "B", 18)
-    pdf.cell(0, 9, tx("Raport miesięczny NetPulse"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 9, tx(t("Raport miesięczny NetPulse")), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font(family, "", 11)
     pdf.set_text_color(80)
-    pdf.cell(0, 6, tx(f"{report.title.capitalize()} · {fmt_time(report.start, tz)} – {fmt_time(report.end, tz)} ({report.timezone})"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, tx(f"{title[:1].upper()}{title[1:]} · {when(report.start)} – {when(report.end)} ({report.timezone})"), new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0)
 
     # Podsumowanie w kafelkach
@@ -539,10 +577,10 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
     warn = report.alerts_by_severity.get("warning", 0)
     wan_main = next((x for x in report.wan if x.percent is not None), None)
     tiles = [
-        ("Urządzenia", fmt_percent(report.devices_percent), f"liczba urządzeń: {len(report.devices)}"),
-        ("Sprawdzenia", fmt_percent(report.checks_percent), f"liczba sprawdzeń: {len(report.checks)}"),
-        ("Łącze WAN", fmt_percent(wan_main.percent) if wan_main else "–", wan_main.name if wan_main else "brak danych"),
-        ("Alerty", str(report.alerts_total), f"krytyczne {crit} · ostrzeżenia {warn}"),
+        (t("Urządzenia"), pct(report.devices_percent), t(f"liczba urządzeń: {len(report.devices)}")),
+        (t("Sprawdzenia"), pct(report.checks_percent), t(f"liczba sprawdzeń: {len(report.checks)}")),
+        (t("Łącze WAN"), pct(wan_main.percent) if wan_main else "–", wan_main.name if wan_main else t("brak danych")),
+        (t("Alerty"), str(report.alerts_total), t(f"krytyczne {crit} · ostrzeżenia {warn}")),
     ]
     pdf.ln(3)
     x0, y0, w, h, gap = pdf.l_margin, pdf.get_y(), 42.0, 20.0, 2.7
@@ -567,7 +605,7 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
     pdf.set_xy(x0, y0 + h + 2)
     if report.raw_from:
         note(
-            f"Sprawdzenia i SLA łączy WAN liczone od {fmt_time(report.raw_from, tz)} – szczegółowe próbki są trzymane "
+            f"Sprawdzenia i SLA łączy WAN liczone od {when(report.raw_from)} – szczegółowe próbki są trzymane "
             f"{settings.retention_days} dni. Dostępność urządzeń i ruch WAN obejmują cały miesiąc."
         )
     note("Dostępność urządzeń nie obejmuje czasu okien serwisowych. Niedostępność to przybliżenie: próbki bez odpowiedzi × interwał odpytywania.")
@@ -575,7 +613,7 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
     heading("Urządzenia")
     table(
         ["Urządzenie", "Adres", "Rodzaj", "Dostępność", "Niedostępność", "Okna serwisowe"],
-        [[d.name, d.host, KIND_LABEL.get(d.kind, d.kind), fmt_percent(d.percent), fmt_duration(d.down_s) if d.samples else "–", fmt_duration(d.maintenance_s) if d.maintenance_s else ""] for d in report.devices],
+        [[d.name, d.host, t(KIND_LABEL.get(d.kind, d.kind)), pct(d.percent), fmt_duration(d.down_s) if d.samples else "–", fmt_duration(d.maintenance_s) if d.maintenance_s else ""] for d in report.devices],
         (52, 30, 24, 24, 24, 26),
         "lllrrr",
     )  # fmt: skip
@@ -583,7 +621,7 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
     heading("Sprawdzenia dostępności")
     table(
         ["Sprawdzenie", "Cel", "Dostępność", "Nieudane", "Śr. opóźnienie", "Maks."],
-        [[c.name, c.target, fmt_percent(c.percent), str(c.failed), f"{fmt_num(c.avg_latency_ms, 1)} ms" if c.avg_latency_ms is not None else "–", f"{fmt_num(c.max_latency_ms, 0)} ms" if c.max_latency_ms is not None else "–"] for c in report.checks],
+        [[c.name, c.target, pct(c.percent), str(c.failed), f"{fmt_num(c.avg_latency_ms, 1, lang)} ms" if c.avg_latency_ms is not None else "–", f"{fmt_num(c.max_latency_ms, 0, lang)} ms" if c.max_latency_ms is not None else "–"] for c in report.checks],
         (44, 52, 22, 18, 24, 20),
         "llrrrr",
     )  # fmt: skip
@@ -591,7 +629,7 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
     heading("Łącza WAN")
     table(
         ["Łącze", "Urządzenie", "Pobrane", "Wysłane", "Dostępność", "Przerwy", "Najdłuższa"],
-        [[x.name, x.device, fmt_bytes(x.rx_bytes), fmt_bytes(x.tx_bytes), fmt_percent(x.percent), "–" if x.outages is None else str(x.outages), fmt_duration(x.longest_outage_s) if x.outages else "–"] for x in report.wan],
+        [[x.name, x.device, fmt_bytes(x.rx_bytes, lang), fmt_bytes(x.tx_bytes, lang), pct(x.percent), "–" if x.outages is None else str(x.outages), fmt_duration(x.longest_outage_s) if x.outages else "–"] for x in report.wan],
         (30, 34, 22, 22, 24, 16, 32),
         "llrrrrr",
     )  # fmt: skip
@@ -602,7 +640,7 @@ def to_pdf(report: Report, font: tuple[str, str] | None | bool = True) -> bytes:
         note(f"Najdłuższe {len(longest)} z {report.alerts_total} – pełna lista w pliku CSV.")
     table(
         ["Początek", "Czas", "Waga", "Alert", "Urządzenie"],
-        [[fmt_time(a.started_at, tz), fmt_duration(a.duration_s) + ("" if a.resolved_at else " (trwa)"), SEVERITY_LABEL.get(a.severity, a.severity) + (" · serwis" if a.maintenance else ""), a.title, a.device or ""] for a in longest],
+        [[when(a.started_at), fmt_duration(a.duration_s) + ("" if a.resolved_at else " " + t("(trwa)")), t(SEVERITY_LABEL.get(a.severity, a.severity)) + (" · " + t("serwis") if a.maintenance else ""), t(a.title), a.device or ""] for a in longest],
         (28, 24, 28, 68, 32),
         "lllll",
     )  # fmt: skip

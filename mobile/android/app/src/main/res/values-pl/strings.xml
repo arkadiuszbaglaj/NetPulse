@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Teksty po polsku (telefon w języku polskim). Te same klucze co values/strings.xml. -->
+<resources>
+    <string name="widget_name">Ruch WAN</string>
+    <string name="widget_description">Pobieranie i wysyłanie na łączu WAN</string>
+
+    <string name="login_intro">Zaloguj się do swojego serwera NetPulse.</string>
+    <string name="login_address">Adres serwera</string>
+    <string name="login_address_hint">Bez portu = :8000. Można podać pełny adres, np. https://…:8443</string>
+    <string name="login_username">Login</string>
+    <string name="login_password">Hasło</string>
+    <string name="login_code">Kod 2FA albo kod zapasowy</string>
+    <string name="login_submit">Zaloguj</string>
+    <string name="app_version">Wersja aplikacji %1$s</string>
+    <string name="session_expired">Sesja wygasła – zaloguj się ponownie</string>
+
+    <string name="wan_title">Ruch WAN</string>
+    <string name="refresh">Odśwież</string>
+    <string name="logout">Wyloguj</string>
+    <string name="wan_empty">Brak łączy WAN. Sprawdź w panelu, czy router jest dodany i ma port WAN (Ustawienia → Łącza WAN).</string>
+    <string name="wan_history">Historia ruchu WAN</string>
+    <string name="range_7d">7 dni</string>
+    <string name="download">Pobieranie</string>
+    <string name="upload">Wysyłanie</string>
+    <string name="reading_download">↓ Pobieranie</string>
+    <string name="reading_upload">↑ Wysyłanie</string>
+    <string name="live_hint">● Na żywo (co ~1,5 s)</string>
+    <string name="last_sample">Ostatnia próbka kolektora (co 30 s)</string>
+    <string name="state_active">aktywne</string>
+    <string name="state_standby">zapas</string>
+    <string name="state_down">brak łącza</string>
+    <string name="state_unknown">brak danych</string>
+    <string name="chart_empty">Brak danych z tego okresu</string>
+
+    <string name="widget_login">Zaloguj się w aplikacji</string>
+    <string name="widget_loading">Ładowanie…</string>
+    <string name="widget_empty">Brak łączy WAN</string>
+    <string name="widget_offline">Brak połączenia · %1$s</string>
+    <string name="widget_login_footer">Zaloguj się w aplikacji · %1$s</string>
+
+    <string name="error_address">Nieprawidłowy adres serwera</string>
+    <string name="error_no_address">Brak adresu serwera</string>
+    <string name="error_connection">Brak połączenia z serwerem (%1$s)</string>
+    <string name="error_status">Błąd %1$d</string>
+    <string name="error_not_netpulse">To nie wygląda na serwer NetPulse (404)</string>
+    <string name="error_server">Błąd serwera (%1$d)</string>
+</resources>

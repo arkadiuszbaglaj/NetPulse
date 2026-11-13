@@ -19,6 +19,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.time.Instant
 import java.time.OffsetDateTime
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /** Błąd API z komunikatem do pokazania; `code` = np. "totp_required" (logowanie dwuskładnikowe). */
@@ -46,6 +47,7 @@ data class TrafficPoint(val time: Instant, val inBps: Double?, val outBps: Doubl
  */
 class NetPulseApi(context: Context) {
     private val prefs = context.getSharedPreferences("netpulse", Context.MODE_PRIVATE)
+    private val app = context.applicationContext
 
     var baseUrl: HttpUrl? = prefs.getString(KEY_URL, null)?.toHttpUrlOrNull()
         private set
@@ -71,8 +73,10 @@ class NetPulseApi(context: Context) {
         }
     }
 
+    // Komunikaty serwera w języku telefonu (od 0.3.0; serwer od 0.75.0 tłumaczy odpowiedzi dla Accept-Language: en)
     private val http = OkHttpClient.Builder()
         .cookieJar(cookieJar)
+        .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("Accept-Language", language()).build()) }
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -83,7 +87,7 @@ class NetPulseApi(context: Context) {
 
     /** Logowanie; przy koncie z 2FA pierwszy raz bez kodu kończy się ApiException(code = "totp_required"). */
     suspend fun login(address: String, username: String, password: String, code: String?) {
-        val url = normalizeAddress(address) ?: throw ApiException(0, "Nieprawidłowy adres serwera")
+        val url = normalizeAddress(address) ?: throw ApiException(0, app.getString(R.string.error_address))
         val body = JSONObject().put("username", username).put("password", password)
         if (!code.isNullOrBlank()) body.put("code", code.trim())
         baseUrl = url
@@ -153,7 +157,7 @@ class NetPulseApi(context: Context) {
         onSample: (WebSocket, Map<Int, Pair<Double?, Double?>>) -> Unit,
         onClosed: (WebSocket) -> Unit,
     ): WebSocket {
-        val base = baseUrl ?: throw ApiException(0, "Brak adresu serwera")
+        val base = baseUrl ?: throw ApiException(0, app.getString(R.string.error_no_address))
         val request = Request.Builder().url(base.resolve("api/live/device?device=$deviceId")!!).build()
         return liveHttp.newWebSocket(request, object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -174,7 +178,7 @@ class NetPulseApi(context: Context) {
     }
 
     private fun url(path: String): HttpUrl =
-        baseUrl?.resolve(path) ?: throw ApiException(0, "Brak adresu serwera")
+        baseUrl?.resolve(path) ?: throw ApiException(0, app.getString(R.string.error_no_address))
 
     private suspend fun get(path: String): String = call(Request.Builder().url(url(path)).build())
 
@@ -182,7 +186,7 @@ class NetPulseApi(context: Context) {
         val response = try {
             http.newCall(request).execute()
         } catch (e: IOException) {
-            throw ApiException(0, "Brak połączenia z serwerem (${e.message ?: e.javaClass.simpleName})")
+            throw ApiException(0, app.getString(R.string.error_connection, e.message ?: e.javaClass.simpleName))
         }
         response.use {
             val text = it.body?.string().orEmpty()
@@ -217,19 +221,23 @@ class NetPulseApi(context: Context) {
             return "$withScheme/".toHttpUrlOrNull()
         }
 
-        /** Komunikat z odpowiedzi FastAPI: `detail` jako tekst, obiekt {code, message} albo lista błędów walidacji. */
-        fun errorFrom(status: Int, body: String): ApiException {
-            val detail = try {
-                JSONObject(body).opt("detail")
-            } catch (_: Exception) {
-                null
-            }
-            return when (detail) {
-                is String -> ApiException(status, detail)
-                is JSONObject -> ApiException(status, detail.optString("message", "Błąd $status"), detail.optString("code").ifEmpty { null })
-                is JSONArray -> ApiException(status, detail.optJSONObject(0)?.optString("msg") ?: "Błąd $status")
-                else -> ApiException(status, if (status == 404) "To nie wygląda na serwer NetPulse (404)" else "Błąd serwera ($status)")
-            }
+        /** Język komunikatów serwera: polski na telefonie po polsku, w innym języku angielski (jak panel). */
+        fun language(): String = if (Locale.getDefault().language == "pl") "pl" else "en"
+    }
+
+    /** Komunikat z odpowiedzi FastAPI: `detail` jako tekst, obiekt {code, message} albo lista błędów walidacji. */
+    private fun errorFrom(status: Int, body: String): ApiException {
+        val detail = try {
+            JSONObject(body).opt("detail")
+        } catch (_: Exception) {
+            null
+        }
+        val fallback = app.getString(R.string.error_status, status)
+        return when (detail) {
+            is String -> ApiException(status, detail)
+            is JSONObject -> ApiException(status, detail.optString("message", fallback), detail.optString("code").ifEmpty { null })
+            is JSONArray -> ApiException(status, detail.optJSONObject(0)?.optString("msg")?.removePrefix("Value error, ") ?: fallback)
+            else -> ApiException(status, if (status == 404) app.getString(R.string.error_not_netpulse) else app.getString(R.string.error_server, status))
         }
     }
 }

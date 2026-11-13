@@ -2,9 +2,10 @@ package pl.netpulse.app
 
 import java.util.Locale
 
-private val PL = Locale.forLanguageTag("pl-PL")
+// Liczby w języku telefonu (od 0.3.0): „12,4 Mb/s” po polsku, „12.4 Mb/s” po angielsku
+private val PL: Locale get() = Locale.getDefault()
 
-/** Przepływ w bitach na sekundę jak w panelu: „12,4 Mb/s”, „850 kb/s”. */
+/** Przepływ w bitach na sekundę jak w panelu: „12,4 Mb/s”, „850 kb/s” (separator dziesiętny z języka telefonu). */
 fun formatBps(bps: Double?): String {
     if (bps == null) return "—"
     val units = listOf("b/s", "kb/s", "Mb/s", "Gb/s", "Tb/s")

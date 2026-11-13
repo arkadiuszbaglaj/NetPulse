@@ -4,17 +4,19 @@ import { useState } from "react";
 import { Dialog } from "../../components/Dialog";
 import { Button, Card, ErrorNote, Field, PageHeader, Select, SuccessNote, Toggle } from "../../components/ui";
 import { t } from "../../i18n";
-import { ApiError, del, patch, post } from "../../lib/api";
+import { ApiError, del, patch, post, put } from "../../lib/api";
 import { SEVERITIES, type Severity } from "../../lib/alerts";
 import { relativeTime } from "../../lib/format";
 import {
   CHANNEL_KINDS,
   CHANNELS_KEY,
+  NOTIFY_LANGUAGE_KEY,
   isValidEmail,
   isValidNtfyUrl,
   isValidWebhookUrl,
   parseRecipients,
   useChannels,
+  useNotifyLanguage,
   type ChannelKind,
   type ChannelTestResult,
   type EmailConfig,
@@ -350,6 +352,29 @@ function ChannelRow({ channel, onEdit, onDelete }: { channel: NotificationChanne
   );
 }
 
+/** Język wiadomości (od 0.76.0): wspólny dla kanałów, zapisany na serwerze. */
+function NotifyLanguage() {
+  const qc = useQueryClient();
+  const { data } = useNotifyLanguage();
+  const save = useMutation({
+    mutationFn: (language: string) => put<{ language: "pl" | "en" }>("/api/notification-channels/language", { language }),
+    onSuccess: (value) => qc.setQueryData(NOTIFY_LANGUAGE_KEY, value),
+  });
+  if (!data) return null;
+  return (
+    <Card className="mb-4 p-4">
+      <div className="max-w-xs">
+        <Select id="notify-language" label={t("notif.language.label")} value={data.language} disabled={save.isPending} onChange={(e) => save.mutate(e.target.value)}>
+          <option value="pl">{t("lang.pl")}</option>
+          <option value="en">{t("lang.en")}</option>
+        </Select>
+      </div>
+      <p className="mt-2 max-w-prose text-xs text-text-2">{t("notif.language.hint")}</p>
+      {save.isError && <ErrorNote>{errorMessage(save.error)}</ErrorNote>}
+    </Card>
+  );
+}
+
 /** Ustawienia → Powiadomienia: webhook, ntfy albo e-mail – alerty także wtedy, gdy panel nie jest otwarty. */
 export function NotificationsPage() {
   const qc = useQueryClient();
@@ -375,6 +400,7 @@ export function NotificationsPage() {
         </Button>
       </PageHeader>
       <p className="mb-4 max-w-prose text-sm text-text-2">{t("notif.intro")}</p>
+      <NotifyLanguage />
 
       {isError && !data && <ErrorNote>{t("notif.loadError")}</ErrorNote>}
       {!isLoading && !isError && list.length === 0 && (

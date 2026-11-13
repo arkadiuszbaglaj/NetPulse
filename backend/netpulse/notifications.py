@@ -7,7 +7,10 @@ E-mail: SMTP ze STARTTLS, SSL albo bez szyfrowania (serwer w sieci lokalnej).
 
 Ciche godziny kanału: w oknie (np. 22:00–07:00, strefa TZ serwera) przechodzą tylko alerty krytyczne, reszta
 czeka w `quiet_backlog` i po ciszy przychodzi jedną wiadomością zbiorczą.
-Adres webhooka, token ntfy i hasło SMTP to sekrety, więc nigdy nie wracają do przeglądarki."""
+Adres webhooka, token ntfy i hasło SMTP to sekrety, więc nigdy nie wracają do przeglądarki.
+
+Język wiadomości (od 0.76.0) – ustawienie serwera (Ustawienia → Powiadomienia, `i18n.server_language`): tytuły alertów
+i stałe teksty tłumaczy `i18n.translate` według katalogu `messages.py`."""
 
 from __future__ import annotations
 
@@ -16,7 +19,7 @@ import logging
 import smtplib
 import ssl
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, time
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
@@ -29,6 +32,7 @@ from sqlalchemy import select, update
 from .config import settings
 from .db import Session
 from .db.models import NotificationChannel
+from .i18n import server_language, translate
 
 log = logging.getLogger("netpulse.notifications")
 
@@ -79,15 +83,22 @@ def mask_url(url: str | None) -> str:
     return f"{parts.scheme}://{parts.netloc}/…"
 
 
-def event_text(e: AlertEvent) -> str:
+def localized(e: AlertEvent, lang: str) -> AlertEvent:
+    """Zdarzenie z tytułem i opisem w języku powiadomień."""
+    if lang == "pl":
+        return e
+    return replace(e, title=translate(e.title, lang), message=translate(e.message, lang) if e.message else None)
+
+
+def event_text(e: AlertEvent, lang: str = "pl") -> str:
     if e.kind == "resolved":
-        return f"✅ Zakończono: {e.title}"
+        return "✅ " + translate(f"Zakończono: {e.title}", lang)
     text = f"{SEVERITY_ICON.get(e.severity, '')} {e.title}".strip()
     return f"{text}\n{e.message}" if e.message else text
 
 
-def event_payload(e: AlertEvent) -> dict:
-    text = event_text(e)
+def event_payload(e: AlertEvent, lang: str = "pl") -> dict:
+    text = event_text(e, lang)
     return {
         "text": text,
         "content": text,
@@ -102,19 +113,19 @@ def event_payload(e: AlertEvent) -> dict:
     }
 
 
-def summary_lines(events: list[AlertEvent], header: str) -> str:
+def summary_lines(events: list[AlertEvent], header: str, lang: str = "pl") -> str:
     lines = [header]
     for e in events[:SUMMARY_LISTED]:
         lines.append(("✅ " if e.kind == "resolved" else f"{SEVERITY_ICON.get(e.severity, '')} ") + e.title)
     if len(events) > SUMMARY_LISTED:
-        lines.append(f"…i {len(events) - SUMMARY_LISTED} więcej")
+        lines.append(translate(f"…i {len(events) - SUMMARY_LISTED} więcej", lang))
     return "\n".join(lines)
 
 
-def summary_payload(events: list[AlertEvent]) -> dict:
+def summary_payload(events: list[AlertEvent], lang: str = "pl") -> dict:
     firing = [e for e in events if e.kind == "firing"]
     resolved = [e for e in events if e.kind == "resolved"]
-    text = summary_lines(events, f"NetPulse: {len(firing)} nowych alertów, {len(resolved)} zakończonych")
+    text = summary_lines(events, translate(f"NetPulse: {len(firing)} nowych alertów, {len(resolved)} zakończonych", lang), lang)
     return {"text": text, "content": text, "event": "summary", "firing": len(firing), "resolved": len(resolved)}
 
 
@@ -123,13 +134,14 @@ def top_severity(events: list[AlertEvent]) -> str:
     return max(firing, key=lambda s: SEVERITY_RANK.get(s, 0))
 
 
-def event_message(e: AlertEvent) -> Message:
-    title = f"Zakończono: {e.title}" if e.kind == "resolved" else e.title
-    return Message(title=title, text=event_text(e), severity="info" if e.kind == "resolved" else e.severity, payload=event_payload(e))
+def event_message(e: AlertEvent, lang: str = "pl") -> Message:
+    e = localized(e, lang)
+    title = translate(f"Zakończono: {e.title}", lang) if e.kind == "resolved" else e.title
+    return Message(title=title, text=event_text(e, lang), severity="info" if e.kind == "resolved" else e.severity, payload=event_payload(e, lang))
 
 
-def summary_message(events: list[AlertEvent]) -> Message:
-    payload = summary_payload(events)
+def summary_message(events: list[AlertEvent], lang: str = "pl") -> Message:
+    payload = summary_payload([localized(e, lang) for e in events], lang)
     return Message(title=payload["text"].splitlines()[0], text=payload["text"], severity=top_severity(events), payload=payload)
 
 
@@ -137,22 +149,24 @@ def backlog_item(e: AlertEvent) -> dict:
     return {"kind": e.kind, "severity": e.severity, "title": e.title}
 
 
-def digest_message(backlog: list[dict], skipped: int = 0) -> Message:
+def digest_message(backlog: list[dict], skipped: int = 0, lang: str = "pl") -> Message:
     """Wiadomość po cichych godzinach: co się działo, gdy powiadomienia czekały."""
     events = [AlertEvent(i.get("kind", "firing"), i.get("severity", "info"), i.get("title", "?"), None, None, None, datetime.now(UTC)) for i in backlog]
+    events = [localized(e, lang) for e in events]
     firing = sum(1 for e in events if e.kind == "firing")
     resolved = len(events) - firing
-    header = f"NetPulse po cichych godzinach: {firing + skipped} alertów, {resolved} zakończonych"
-    text = summary_lines(events, header)
+    header = translate(f"NetPulse po cichych godzinach: {firing + skipped} alertów, {resolved} zakończonych", lang)
+    text = summary_lines(events, header, lang)
     if skipped:
-        text += f"\n(+{skipped} niezapisanych)"
+        text += "\n" + translate(f"(+{skipped} niezapisanych)", lang)
     payload = {"text": text, "content": text, "event": "quiet_summary", "firing": firing + skipped, "resolved": resolved}
     return Message(title=header, text=text, severity=top_severity(events), payload=payload)
 
 
-def probe_message() -> Message:
-    text = "✅ NetPulse: powiadomienia działają"
-    return Message(title="NetPulse: powiadomienia działają", text=text, severity="info", payload={"text": text, "content": text, "event": "test"})
+def probe_message(lang: str = "pl") -> Message:
+    title = translate("NetPulse: powiadomienia działają", lang)
+    text = f"✅ {title}"
+    return Message(title=title, text=text, severity="info", payload={"text": text, "content": text, "event": "test"})
 
 
 def select_events(channel: NotificationChannel, events: list[AlertEvent]) -> list[AlertEvent]:
@@ -281,7 +295,7 @@ class Notifier:
                 await session.execute(update(NotificationChannel).where(NotificationChannel.id == channel.id).values(**values))
         return error
 
-    def plan(self, channel: NotificationChannel, events: list[AlertEvent], now: datetime) -> tuple[list[Message], list | None | bool]:
+    def plan(self, channel: NotificationChannel, events: list[AlertEvent], now: datetime, lang: str = "pl") -> tuple[list[Message], list | None | bool]:
         """Co wysłać kanałowi w tym cyklu i jak zmieniają się jego zaległości (False = bez zmian)."""
         now_events, held = split_quiet(channel, select_events(channel, events), now)
         backlog: list | None | bool = False
@@ -297,10 +311,10 @@ class Notifier:
             # Koniec ciszy: najpierw podsumowanie tego, co czekało
             skipped = stored[-1]["skipped"] if "skipped" in stored[-1] else 0
             items = [i for i in stored if "skipped" not in i]
-            messages.append(digest_message(items, skipped))
+            messages.append(digest_message(items, skipped, lang))
             backlog = None
         if now_events:
-            messages += [summary_message(now_events)] if len(now_events) >= SUMMARY_FROM else [event_message(e) for e in now_events]
+            messages += [summary_message(now_events, lang)] if len(now_events) >= SUMMARY_FROM else [event_message(e, lang) for e in now_events]
         return messages, backlog
 
     async def send(self, events: list[AlertEvent]) -> None:
@@ -310,11 +324,12 @@ class Notifier:
             now = self.now_fn()
             async with Session() as session:
                 channels = (await session.scalars(select(NotificationChannel).where(NotificationChannel.enabled))).all()
+                lang = await server_language(session) if channels else "pl"
             jobs = []
             for channel in channels:
                 if not events and not channel.quiet_backlog:
                     continue
-                messages, backlog = self.plan(channel, events, now)
+                messages, backlog = self.plan(channel, events, now, lang)
                 if messages or backlog is not False:
                     jobs.append(self._deliver(channel, messages, backlog))
             if jobs:
@@ -324,4 +339,6 @@ class Notifier:
 
     async def send_test(self, channel: NotificationChannel) -> str | None:
         """Wiadomość próbna z formularza; zwraca opis błędu albo None."""
-        return await self._deliver(channel, [probe_message()])
+        async with Session() as session:
+            lang = await server_language(session)
+        return await self._deliver(channel, [probe_message(lang)])

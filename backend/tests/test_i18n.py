@@ -17,8 +17,8 @@ from netpulse.messages import MESSAGES
 REPO = Path(__file__).resolve().parents[2]
 # Kod, którego komunikaty mogą trafić do API: backend i usługa aktualizacji (jej komunikaty przekazuje API)
 ROOTS = (REPO / "backend" / "netpulse", REPO / "updater" / "netpulse_updater")
-# Poza zakresem: CLI i agent (terminal na serwerze), migracje; powiadomienia i raport PDF/CSV – etap 4c
-SKIP_FILES = {"cli.py", "agent/netpulse_agent.py", "report.py", "notifications.py", "__main__.py", "messages.py", "i18n.py"}
+# Poza zakresem: CLI i agent (terminal na serwerze), migracje
+SKIP_FILES = {"cli.py", "agent/netpulse_agent.py", "__main__.py", "messages.py", "i18n.py"}
 SKIP_CALLS = {"info", "warning", "debug", "error", "exception", "critical", "print", "echo", "APIRouter", "Query", "Field", "Path", "Body"}
 POLISH = re.compile(
     r"[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]|(?i:\b(?:nie|brak|podaj|wybierz|najpierw|wymagane|tych|ten|ta|to|niedozwolony|oczekiwany"
@@ -33,6 +33,7 @@ NOT_MESSAGES = {
     "nie zna adresu",  # unifi.py: rozpoznanie błędu po treści
     "włączona",  # updater/server.py: wydruk przy starcie usługi
     "WYŁĄCZONA (NETPULSE_UPDATER=off)",
+    "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ–—„”’",  # report.py: zamiana liter, gdy PDF nie ma czcionki z ogonkami
 }
 
 

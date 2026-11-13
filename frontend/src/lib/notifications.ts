@@ -48,6 +48,12 @@ export interface ChannelTestResult {
 }
 
 export const CHANNELS_KEY = ["notification-channels"] as const;
+export const NOTIFY_LANGUAGE_KEY = ["notification-channels", "language"] as const;
+
+/** Język wiadomości ze wszystkich kanałów – ustawienie serwera (od 0.76.0), nie przeglądarki. */
+export function useNotifyLanguage() {
+  return useQuery({ queryKey: NOTIFY_LANGUAGE_KEY, queryFn: () => get<{ language: "pl" | "en" }>("/api/notification-channels/language") });
+}
 
 export function useChannels() {
   return useQuery({ queryKey: CHANNELS_KEY, queryFn: () => get<NotificationChannel[]>("/api/notification-channels") });

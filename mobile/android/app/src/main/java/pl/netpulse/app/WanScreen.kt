@@ -27,10 +27,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-private val RANGES = listOf(60 to "1 h", 360 to "6 h", 1440 to "24 h", 10080 to "7 dni")
+private val RANGES = listOf(60, 360, 1440, 10080)
+
+@Composable
+private fun rangeLabel(minutes: Int): String = if (minutes >= 1440 * 7) stringResource(R.string.range_7d) else "${minutes / 60} h"
 
 @Composable
 fun WanScreen(model: AppViewModel) {
@@ -46,15 +50,15 @@ fun WanScreen(model: AppViewModel) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Ruch WAN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.wan_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(
                     model.api.baseUrl?.host ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = model::refreshNow) { Text("Odśwież") }
-            TextButton(onClick = model::logout) { Text("Wyloguj") }
+            TextButton(onClick = model::refreshNow) { Text(stringResource(R.string.refresh)) }
+            TextButton(onClick = model::logout) { Text(stringResource(R.string.logout)) }
         }
         Box(Modifier.fillMaxWidth().padding(vertical = 0.dp)) {
             if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -66,7 +70,7 @@ fun WanScreen(model: AppViewModel) {
         if (model.links.isEmpty() && !model.loading && model.loadError == null) {
             NpCard {
                 Text(
-                    "Brak łączy WAN. Sprawdź w panelu, czy router jest dodany i ma port WAN (Ustawienia → Łącza WAN).",
+                    stringResource(R.string.wan_empty),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -84,20 +88,20 @@ fun WanScreen(model: AppViewModel) {
         }
 
         NpCard {
-            Text("Historia ruchu WAN", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.wan_history), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((minutes, label) in RANGES) {
+                for (minutes in RANGES) {
                     FilterChip(
                         selected = model.rangeMinutes == minutes,
                         onClick = { model.setRange(minutes) },
-                        label = { Text(label) },
+                        label = { Text(rangeLabel(minutes)) },
                     )
                 }
             }
             TrafficChart(model.traffic, inColor, outColor)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Legend("Pobieranie", inColor)
-                Legend("Wysyłanie", outColor)
+                Legend(stringResource(R.string.download), inColor)
+                Legend(stringResource(R.string.upload), outColor)
             }
         }
         Spacer(Modifier.size(8.dp))
@@ -120,11 +124,11 @@ private fun LinkCard(link: WanLink, inBps: Double?, outBps: Double?, isLive: Boo
             StateBadge(link.state)
         }
         Row(Modifier.fillMaxWidth()) {
-            Reading("↓ Pobieranie", inBps, inColor, Modifier.weight(1f))
-            Reading("↑ Wysyłanie", outBps, outColor, Modifier.weight(1f))
+            Reading(stringResource(R.string.reading_download), inBps, inColor, Modifier.weight(1f))
+            Reading(stringResource(R.string.reading_upload), outBps, outColor, Modifier.weight(1f))
         }
         Text(
-            if (isLive) "● Na żywo (co ~1,5 s)" else "Ostatnia próbka kolektora (co 30 s)",
+            stringResource(if (isLive) R.string.live_hint else R.string.last_sample),
             style = MaterialTheme.typography.labelSmall,
             color = if (isLive) Color(0xFF1F9D55) else MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -141,12 +145,13 @@ private fun Reading(label: String, bps: Double?, color: Color, modifier: Modifie
 
 @Composable
 private fun StateBadge(state: String) {
-    val (label, color) = when (state) {
-        "active" -> "aktywne" to Color(0xFF1F9D55)
-        "standby" -> "zapas" to Color(0xFF8C96A5)
-        "down" -> "brak łącza" to Color(0xFFD1242F)
-        else -> "brak danych" to Color(0xFFB7791F)
+    val (labelId, color) = when (state) {
+        "active" -> R.string.state_active to Color(0xFF1F9D55)
+        "standby" -> R.string.state_standby to Color(0xFF8C96A5)
+        "down" -> R.string.state_down to Color(0xFFD1242F)
+        else -> R.string.state_unknown to Color(0xFFB7791F)
     }
+    val label = stringResource(labelId)
     Row(
         Modifier
             .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))

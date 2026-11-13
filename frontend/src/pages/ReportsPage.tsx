@@ -3,7 +3,7 @@ import { IconFileTypeCsv, IconFileTypePdf } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Card, ErrorNote, PageHeader, Select } from "../components/ui";
-import { t, type TextKey } from "../i18n";
+import { getLanguage, t, type TextKey } from "../i18n";
 import { get } from "../lib/api";
 import { formatBytes, formatDateTime } from "../lib/format";
 import { numberFormat } from "../lib/intl";
@@ -141,11 +141,11 @@ export function ReportsPage() {
               ))}
             </Select>
           </div>
-          <a className={downloadLink} href={`/api/reports/monthly.pdf?month=${month}`} download>
+          <a className={downloadLink} href={`/api/reports/monthly.pdf?month=${month}&lang=${getLanguage()}`} download>
             <IconFileTypePdf size={16} aria-hidden="true" />
             {t("report.pdf")}
           </a>
-          <a className={downloadLink} href={`/api/reports/monthly.csv?month=${month}`} download>
+          <a className={downloadLink} href={`/api/reports/monthly.csv?month=${month}&lang=${getLanguage()}`} download>
             <IconFileTypeCsv size={16} aria-hidden="true" />
             {t("report.csv")}
           </a>

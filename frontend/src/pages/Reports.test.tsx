@@ -36,10 +36,10 @@ describe("Raporty", () => {
     renderApp("/reports");
     const months = reportMonths();
     const pdf = await screen.findByRole("link", { name: "Pobierz PDF" });
-    expect(pdf).toHaveAttribute("href", `/api/reports/monthly.pdf?month=${months[1].value}`);
+    expect(pdf).toHaveAttribute("href", `/api/reports/monthly.pdf?month=${months[1].value}&lang=pl`);
     await user.selectOptions(screen.getByLabelText("Miesiąc"), months[0].value);
-    expect(pdf).toHaveAttribute("href", `/api/reports/monthly.pdf?month=${months[0].value}`);
-    expect(screen.getByRole("link", { name: "Pobierz CSV" })).toHaveAttribute("href", `/api/reports/monthly.csv?month=${months[0].value}`);
+    expect(pdf).toHaveAttribute("href", `/api/reports/monthly.pdf?month=${months[0].value}&lang=pl`);
+    expect(screen.getByRole("link", { name: "Pobierz CSV" })).toHaveAttribute("href", `/api/reports/monthly.csv?month=${months[0].value}&lang=pl`);
     await waitFor(() => expect(calls.some((c) => c.path === `/api/reports/monthly?month=${months[0].value}`)).toBe(true));
   });
 

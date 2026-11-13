@@ -367,6 +367,7 @@ interface MockState {
   /** Stan serwera Linux (odpowiedź /api/devices/{id}/server) */
   server: ServerStatus | null;
   channels: NotificationChannel[];
+  notifyLanguage: "pl" | "en";
   /** Odpowiedź na wiadomość próbną kanału */
   channelTest: { ok: boolean; error: string | null };
   services: { id: string; state: string; detail: string | null }[];
@@ -432,6 +433,7 @@ export function mockApi(initial: Partial<MockState> = {}) {
     system: null,
     server: null,
     channels: [],
+    notifyLanguage: "pl",
     channelTest: { ok: true, error: null },
     collections: {},
     states: { start: "2026-10-25T11:00:00Z", end: "2026-10-25T12:00:00Z", bucket_s: 30, items: [] },
@@ -845,6 +847,11 @@ export function mockApi(initial: Partial<MockState> = {}) {
       if (collection) return json(200, { kind: collection[1], rows: state.collections[collection[1]] ?? [] });
       if (key === "GET /api/states") return json(200, state.states);
       if (key === "GET /api/notification-channels") return json(200, state.channels);
+      if (key === "GET /api/notification-channels/language") return json(200, { language: state.notifyLanguage });
+      if (key === "PUT /api/notification-channels/language") {
+        state.notifyLanguage = (body as { language: "pl" | "en" }).language;
+        return json(200, { language: state.notifyLanguage });
+      }
       if (key === "POST /api/notification-channels") {
         const b = body as Partial<NotificationChannel> & { name: string; url?: string; secret?: string };
         const kind = b.kind ?? "webhook";
