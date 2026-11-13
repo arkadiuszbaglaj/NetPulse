@@ -98,7 +98,6 @@ export function DeviceForm({ device, onClose, inline = false, onSaved }: DeviceF
     probe.mutate();
   }
 
-  const v3 = values.snmp_version === "3";
   // Po nieudanym teście przy zapisie (422) pozwalamy zapisać urządzenie, które jest chwilowo niedostępne
   const canSaveAnyway = !editing && save.error instanceof ApiError && save.error.status === 422;
   const busy = save.isPending || probe.isPending;
@@ -180,88 +179,7 @@ export function DeviceForm({ device, onClose, inline = false, onSaved }: DeviceF
         </div>
         {values.driver === "linux" && <p className="-mt-2 text-xs text-text-2">{t("devform.linuxHint")}</p>}
 
-        {!v3 ? (
-          <Field
-            id="dev-community"
-            label={t("devform.community")}
-            type="password"
-            autoComplete="new-password"
-            value={values.community}
-            error={errors.community}
-            hint={editing ? t("devform.community.keep") : undefined}
-            onChange={(e) => set("community", e.target.value)}
-          />
-        ) : (
-          <fieldset className="flex flex-col gap-4 rounded-lg border border-border p-3">
-            <legend className="px-1 text-xs text-muted">SNMPv3</legend>
-            <Field
-              id="dev-v3user"
-              label={t("devform.v3user")}
-              autoComplete="off"
-              value={values.v3_username}
-              error={errors.v3_username}
-              onChange={(e) => set("v3_username", e.target.value)}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Select
-                id="dev-v3auth"
-                label={t("devform.v3authProto")}
-                value={values.v3_auth_protocol}
-                error={errors.v3_auth_protocol}
-                onChange={(e) => set("v3_auth_protocol", e.target.value as DeviceFormValues["v3_auth_protocol"])}
-              >
-                <option value="">{t("devform.none")}</option>
-                {AUTH_PROTOCOLS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </Select>
-              <Field
-                id="dev-v3authkey"
-                label={t("devform.v3authKey")}
-                type="password"
-                autoComplete="new-password"
-                value={values.v3_auth_key}
-                error={errors.v3_auth_key}
-                hint={editing ? t("devform.secret.keep") : undefined}
-                onChange={(e) => set("v3_auth_key", e.target.value)}
-              />
-              <Select
-                id="dev-v3priv"
-                label={t("devform.v3privProto")}
-                value={values.v3_priv_protocol}
-                error={errors.v3_priv_protocol}
-                onChange={(e) => set("v3_priv_protocol", e.target.value as DeviceFormValues["v3_priv_protocol"])}
-              >
-                <option value="">{t("devform.none")}</option>
-                {PRIV_PROTOCOLS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </Select>
-              <Field
-                id="dev-v3privkey"
-                label={t("devform.v3privKey")}
-                type="password"
-                autoComplete="new-password"
-                value={values.v3_priv_key}
-                error={errors.v3_priv_key}
-                hint={editing ? t("devform.secret.keep") : undefined}
-                onChange={(e) => set("v3_priv_key", e.target.value)}
-              />
-            </div>
-            <Field
-              id="dev-v3ctx"
-              label={t("devform.v3context")}
-              autoComplete="off"
-              value={values.v3_context}
-              onChange={(e) => set("v3_context", e.target.value)}
-            />
-            <p className="text-xs text-muted">{t("devform.v3hint")}</p>
-          </fieldset>
-        )}
+        <SnmpCredentialFields values={values} errors={errors} set={set} editing={editing} />
 
         {probeResult && <ProbeSummary result={probeResult} />}
         {probe.error && <ErrorNote>{errorMessage(probe.error)}</ErrorNote>}
@@ -289,5 +207,106 @@ export function DeviceForm({ device, onClose, inline = false, onSaved }: DeviceF
     <Dialog title={editing ? t("devform.title.edit", { name: device.name }) : t("devform.title.add")} onClose={onClose} footer={footer}>
       {form}
     </Dialog>
+  );
+}
+
+/** Dane logowania SNMP (community albo SNMPv3) – wspólne dla formularza urządzenia i wykrywania w sieci (0.73.0). */
+export function SnmpCredentialFields({
+  values,
+  errors,
+  set,
+  editing = false,
+  idPrefix = "dev",
+}: {
+  values: DeviceFormValues;
+  errors: FormErrors;
+  set: <K extends keyof DeviceFormValues>(key: K, value: DeviceFormValues[K]) => void;
+  editing?: boolean;
+  idPrefix?: string;
+}) {
+  if (values.snmp_version !== "3") {
+    return (
+      <Field
+        id={`${idPrefix}-community`}
+        label={t("devform.community")}
+        type="password"
+        autoComplete="new-password"
+        value={values.community}
+        error={errors.community}
+        hint={editing ? t("devform.community.keep") : undefined}
+        onChange={(e) => set("community", e.target.value)}
+      />
+    );
+  }
+  return (
+      <fieldset className="flex flex-col gap-4 rounded-lg border border-border p-3">
+        <legend className="px-1 text-xs text-muted">SNMPv3</legend>
+        <Field
+          id={`${idPrefix}-v3user`}
+          label={t("devform.v3user")}
+          autoComplete="off"
+          value={values.v3_username}
+          error={errors.v3_username}
+          onChange={(e) => set("v3_username", e.target.value)}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            id={`${idPrefix}-v3auth`}
+            label={t("devform.v3authProto")}
+            value={values.v3_auth_protocol}
+            error={errors.v3_auth_protocol}
+            onChange={(e) => set("v3_auth_protocol", e.target.value as DeviceFormValues["v3_auth_protocol"])}
+          >
+            <option value="">{t("devform.none")}</option>
+            {AUTH_PROTOCOLS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+          <Field
+            id={`${idPrefix}-v3authkey`}
+            label={t("devform.v3authKey")}
+            type="password"
+            autoComplete="new-password"
+            value={values.v3_auth_key}
+            error={errors.v3_auth_key}
+            hint={editing ? t("devform.secret.keep") : undefined}
+            onChange={(e) => set("v3_auth_key", e.target.value)}
+          />
+          <Select
+            id={`${idPrefix}-v3priv`}
+            label={t("devform.v3privProto")}
+            value={values.v3_priv_protocol}
+            error={errors.v3_priv_protocol}
+            onChange={(e) => set("v3_priv_protocol", e.target.value as DeviceFormValues["v3_priv_protocol"])}
+          >
+            <option value="">{t("devform.none")}</option>
+            {PRIV_PROTOCOLS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+          <Field
+            id={`${idPrefix}-v3privkey`}
+            label={t("devform.v3privKey")}
+            type="password"
+            autoComplete="new-password"
+            value={values.v3_priv_key}
+            error={errors.v3_priv_key}
+            hint={editing ? t("devform.secret.keep") : undefined}
+            onChange={(e) => set("v3_priv_key", e.target.value)}
+          />
+        </div>
+        <Field
+          id={`${idPrefix}-v3ctx`}
+          label={t("devform.v3context")}
+          autoComplete="off"
+          value={values.v3_context}
+          onChange={(e) => set("v3_context", e.target.value)}
+        />
+        <p className="text-xs text-muted">{t("devform.v3hint")}</p>
+      </fieldset>
   );
 }

@@ -31,6 +31,7 @@ from . import (
     dashboard,
     dashboards,
     devices,
+    discovery,
     events,
     live,
     maintenance,
@@ -125,6 +126,7 @@ app.include_router(dashboard.router)
 app.include_router(dashboards.router)
 app.include_router(events.router)
 app.include_router(devices.router)
+app.include_router(discovery.router)
 app.include_router(live.router)
 app.include_router(maintenance.router)
 app.include_router(metrics.router)

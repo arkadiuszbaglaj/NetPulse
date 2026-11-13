@@ -1,6 +1,7 @@
 # Wykrywanie urządzeń i zgłaszanie specyfikacji – propozycja
 
-Status: **propozycja, odłożona** (28.10.2026). Nic z tego nie jest jeszcze zrobione. Do decyzji użytkownika.
+Status: części A i B **zrobione w 0.73.0** (13.11.2026, decyzja użytkownika) – opis wdrożenia: `docs/43-wykrywanie-urzadzen.md`.
+Sposób wysyłki: A (plik + link do zgłoszenia). Sposób B (wysyłka do serwera projektu) dalej czeka na chmurę i licencję.
 
 ## Problem
 

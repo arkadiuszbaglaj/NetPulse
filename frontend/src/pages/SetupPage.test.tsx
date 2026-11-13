@@ -14,6 +14,8 @@ describe("kreator pierwszej konfiguracji", () => {
 
     await user.click(screen.getByRole("button", { name: "Zaczynamy" }));
     expect(screen.getByText("Jeszcze nic – dodaj pierwsze urządzenie obok.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Wykryj urządzenia w sieci" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dodaj urządzenie ręcznie" }));
     await user.type(screen.getByLabelText("Nazwa"), "Router");
     await user.type(screen.getByLabelText("Adres IP lub nazwa hosta"), "192.168.1.1");
     await user.click(screen.getByRole("button", { name: "Testuj połączenie" }));
@@ -48,6 +50,6 @@ describe("kreator pierwszej konfiguracji", () => {
     await user.click(screen.getByRole("button", { name: "Pomiń, dodam później" }));
     expect(within(steps).getByText("Integracje").closest("li")).toHaveAttribute("aria-current", "step");
     await user.click(screen.getByRole("button", { name: "Wstecz" }));
-    expect(screen.getByLabelText("Nazwa")).toBeInTheDocument();
+    expect(screen.getByLabelText("Podsieć")).toBeInTheDocument();
   });
 });

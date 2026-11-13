@@ -1,15 +1,4 @@
-import {
-  IconAccessPoint,
-  IconDeviceDesktop,
-  IconNetwork,
-  IconPencil,
-  IconPlugConnected,
-  IconPlus,
-  IconRouter,
-  IconServer2,
-  IconTrash,
-  IconX,
-} from "@tabler/icons-react";
+import { IconAccessPoint, IconDeviceDesktop, IconNetwork, IconPencil, IconPlugConnected, IconPlus, IconRadar, IconRouter, IconServer2, IconTrash, IconX } from "@tabler/icons-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog } from "../../../components/Dialog";
@@ -21,6 +10,7 @@ import { useDevices } from "../../../lib/queries";
 import { DefaultCommunityBadge } from "../../../components/SnmpWarning";
 import { MaintenanceBadge, STATUS_LABEL, STATUS_STYLE, deviceState, staleHint } from "../../../components/widgets/DevicesWidget";
 import { DeviceForm } from "./DeviceForm";
+import { DiscoveryPanel } from "./DiscoveryPanel";
 import { ProbeSummary } from "./ProbeSummary";
 
 const KIND_ICON = { gateway: IconRouter, switch: IconNetwork, ap: IconAccessPoint, server: IconServer2 } as const;
@@ -146,6 +136,7 @@ export function DevicesPage() {
   const [form, setForm] = useState<{ device?: Device } | null>(null);
   const [toDelete, setToDelete] = useState<Device | null>(null);
   const [probes, setProbes] = useState<Record<number, ProbeState>>({});
+  const [discover, setDiscover] = useState(false);
 
   const remove = useMutation({
     mutationFn: (id: number) => del(`/api/devices/${id}`),
@@ -172,6 +163,10 @@ export function DevicesPage() {
   return (
     <>
       <PageHeader title={t("settings.devices.title")}>
+        <Button aria-pressed={discover} onClick={() => setDiscover((v) => !v)}>
+          <IconRadar size={18} aria-hidden="true" />
+          {t("discovery.open")}
+        </Button>
         <Button variant="primary" onClick={() => setForm({})}>
           <IconPlus size={18} aria-hidden="true" />
           {t("devices.add")}
@@ -179,6 +174,12 @@ export function DevicesPage() {
       </PageHeader>
 
       {isError && !data && <ErrorNote>{t("devices.loadError")}</ErrorNote>}
+
+      {(discover || empty) && (
+        <div className="mb-4">
+          <DiscoveryPanel />
+        </div>
+      )}
 
       {empty && (
         <Card className="p-6">

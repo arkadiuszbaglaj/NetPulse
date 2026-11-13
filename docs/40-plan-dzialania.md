@@ -105,7 +105,9 @@ Zostało: telefon (mini-wykresy w kafelkach, pasek górny).
 
 **Gotowe, gdy:** cały panel da się przejść po angielsku bez polskiego tekstu (test w CI wyłapuje brakujące klucze).
 
-## Etap 5 – pierwsze 5 minut (0.70.0)
+## Etap 5 – pierwsze 5 minut ✅ (0.73.0)
+
+Zrobione 13.11.2026, opis: `docs/43-wykrywanie-urzadzen.md` (skan /24 w ok. 5 s, raport z anonimizacją, zgłoszenie na GitHubie).
 
 - Wykrywanie urządzeń: skan podsieci z listą „co dodać” (część A z `docs/24-wykrywanie-propozycja.md`)
   w kreatorze pierwszej konfiguracji.

@@ -72,6 +72,40 @@ def _convert(value: Any) -> SnmpValue | None:
         return value.prettyPrint()
 
 
+# Typy SMI → znacznik .snmprec (snmpsim); kolejność ma znaczenie: Counter32/Gauge32/TimeTicks dziedziczą po Integer
+_TYPED_TAGS: tuple[tuple[str, str], ...] = (
+    ("Counter64", "70"),
+    ("Counter32", "65"),
+    ("Gauge32", "66"),
+    ("Unsigned32", "66"),
+    ("TimeTicks", "67"),
+    ("IpAddress", "64"),
+    ("Opaque", "68"),
+)
+
+
+def _typed(value: Any) -> tuple[str, str] | None:
+    """Wartość pysnmp → (znacznik .snmprec, wartość); None dla noSuch* / endOfMibView."""
+    if isinstance(value, (rfc1905.NoSuchObject, rfc1905.NoSuchInstance, rfc1905.EndOfMibView)):
+        return None
+    cls_names = {c.__name__ for c in type(value).__mro__}
+    for name, tag in _TYPED_TAGS:
+        if name in cls_names:
+            if tag == "64":
+                return tag, ".".join(str(b) for b in value.asOctets())
+            if tag == "68":
+                return "4x", bytes(value.asOctets()).hex()
+            return tag, str(int(value))
+    if isinstance(value, univ.OctetString):
+        return "4x", bytes(value.asOctets()).hex()
+    if isinstance(value, univ.ObjectIdentifier):
+        return "6", str(value)
+    try:
+        return "2", str(int(value))
+    except (TypeError, ValueError):
+        return None
+
+
 class PySnmpClient:
     """Asynchroniczny klient SNMP dla jednego urządzenia."""
 
@@ -134,10 +168,9 @@ class PySnmpClient:
                 result[str(name)] = converted
         return result
 
-    async def walk(self, oid: str) -> dict[str, SnmpValue]:
+    async def _iterate(self, prefix: str):
+        """Kolejne (OID, surowa wartość pysnmp) poddrzewa `prefix` (bez wartości spoza niego)."""
         target = await self._get_target()
-        prefix = oid.strip(".")
-        result: dict[str, SnmpValue] = {}
         if self.credentials.version == "1":
             iterator = hl.walk_cmd(
                 self._engine,
@@ -169,12 +202,30 @@ class PySnmpClient:
                 raise SnmpError(f"{self.host}: {err_status.prettyPrint()}")
             for name, value in var_binds:
                 name_s = str(name)
-                if not name_s.startswith(prefix + "."):
-                    continue
-                converted = _convert(value)
-                if converted is not None:
-                    result[name_s[len(prefix) + 1 :]] = converted
+                if name_s.startswith(prefix + "."):
+                    yield name_s, value
+
+    async def walk(self, oid: str) -> dict[str, SnmpValue]:
+        prefix = oid.strip(".")
+        result: dict[str, SnmpValue] = {}
+        async for name_s, value in self._iterate(prefix):
+            converted = _convert(value)
+            if converted is not None:
+                result[name_s[len(prefix) + 1 :]] = converted
         return result
+
+    async def walk_typed(self, oid: str, limit: int | None = None) -> list[tuple[str, str, str]]:
+        """Poddrzewo jako rekordy .snmprec `(OID, typ, wartość)` – do raportu urządzenia (`netpulse/devreport.py`).
+        `limit` przerywa odczyt po tylu wartościach (gałęzie producentów potrafią mieć dziesiątki tysięcy)."""
+        prefix = oid.strip(".")
+        out: list[tuple[str, str, str]] = []
+        async for name_s, value in self._iterate(prefix):
+            rec = _typed(value)
+            if rec is not None:
+                out.append((name_s, *rec))
+            if limit is not None and len(out) >= limit:
+                break
+        return out
 
     async def close(self) -> None:
         closer = getattr(self._engine, "close_dispatcher", None) or getattr(

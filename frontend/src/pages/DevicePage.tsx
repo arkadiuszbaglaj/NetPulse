@@ -19,6 +19,7 @@ import { METRICS, newChartConfig, unitClassOf, type ChartConfig } from "../lib/l
 import { isOn, useModules } from "../lib/modules";
 import { formatWatts, usePoe, type PoePort } from "../lib/unifi";
 import { ClientList } from "./ClientList";
+import { DeviceReportCard } from "./DeviceReport";
 
 export const OPER_STYLE: Record<string, string> = {
   up: "bg-success-soft text-success",
@@ -380,6 +381,7 @@ export function DevicePage() {
         {ports.length > 0 && <PortsCard deviceId={id} interfaces={ports} poe={poeByName} />}
         <WifiCard deviceId={id} />
         {unifi && <ClientList deviceId={id} title={t("device.clients")} />}
+        <DeviceReportCard device={d} />
       </div>
     </>
   );

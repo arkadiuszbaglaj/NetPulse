@@ -23,6 +23,7 @@ const devices = [
   { id: 2, name: "USW Lite 8 PoE", host: "192.168.1.2", kind: "switch", vendor: "Ubiquiti", model: "UniFi Switch", status: "up", polled: 12, default_community: true },
   { id: 3, name: "U6+", host: "192.168.1.3", kind: "ap", vendor: "Ubiquiti", model: "U6+", status: "up", polled: 12 },
   { id: 5, name: "hEX S", host: "192.168.1.5", kind: "gateway", vendor: "MikroTik", model: "RB760iGS", status: "up", polled: 12, detected_driver: "mikrotik", firmware: "7.25.1" },
+  { id: 7, name: "NAS", host: "192.168.1.20", kind: "other", vendor: "Synology", model: "DiskStation", status: "up", polled: 12, detected_driver: "generic", firmware: null },
   { id: 4, name: "Garaż (testowy)", host: "192.168.1.9", kind: "other", vendor: null, model: null, status: "down", polled: 95, error: "192.168.1.9: No SNMP response received before timeout" },
 ].map((d) => ({
   port: 161, enabled: true, driver: "auto", detected_driver: "unifi", snmp_version: "2c", firmware: null, sys_name: d.name,
@@ -177,6 +178,50 @@ createServer(async (req, res) => {
       points.push({ time, values });
     }
     return send(res, 200, { interval_s: stride, points });
+  }
+  // Wykrywanie urządzeń i raport (0.73.0)
+  if (route === "GET /api/discovery/suggest") return send(res, 200, { network: "192.168.1.0/24" });
+  if (route === "POST /api/discovery/scan") {
+    await new Promise((r) => setTimeout(r, 1200));
+    const known = (host) => devices.find((d) => d.host === host)?.id ?? null;
+    const f = (host, name, vendor, model, firmware, kind, driver) => ({
+      host, name, suggested_name: name, descr: null, object_id: null, vendor, model, firmware, kind, driver, generic: driver === "generic", device_id: known(host),
+    });
+    return send(res, 200, {
+      network: body.network, scanned: 254, took_s: 4.4,
+      found: [
+        f("192.168.1.1", "UCG-Ultra", "Ubiquiti", "UCG-Ultra", "6.0.17", "gateway", "unifi"),
+        f("192.168.1.2", "USW-Switch", "Ubiquiti", "UniFi Switch", null, "switch", "unifi"),
+        f("192.168.1.3", "APU6-Plus", "Ubiquiti", "U6+", "6.7.54.15663", "ap", "unifi"),
+        f("192.168.1.20", "nas", "Synology", "DiskStation", null, "other", "generic"),
+        f("192.168.1.40", "drukarka", "HP", "Printer", null, "other", "generic"),
+        f("192.168.1.62", "MikroTik", "MikroTik", "CHR", "7.18.2", "gateway", "mikrotik"),
+      ],
+    });
+  }
+  const reportMatch = /^\/api\/devices\/(\d+)\/report$/.exec(url.pathname);
+  if (reportMatch && req.method === "POST") {
+    await new Promise((r) => setTimeout(r, 1500));
+    const hex = (t) => Buffer.from(t).toString("hex");
+    const walk = [
+      `1.3.6.1.2.1.1.1.0|4x|${hex("DiskStation DS920+ Linux 4.4.302")}`, "1.3.6.1.2.1.1.2.0|6|1.3.6.1.4.1.6574.1", "1.3.6.1.2.1.1.3.0|67|123456",
+      `1.3.6.1.2.1.1.4.0|4x|${hex("homelab")}`, `1.3.6.1.2.1.1.5.0|4x|${hex("device")}`,
+      ...[1, 2].flatMap((n) => [`1.3.6.1.2.1.2.2.1.2.${n}|4x|${hex(`eth${n - 1}`)}`, `1.3.6.1.2.1.2.2.1.6.${n}|4x|02a1b2c3d4e${n}`, `1.3.6.1.2.1.31.1.1.1.6.${n}|70|${n * 987654321}`]),
+      `1.3.6.1.4.1.6574.1.5.1.0|4x|${hex("DS920+")}`, `1.3.6.1.4.1.6574.1.5.2.0|4x|${hex("SERIAL")}`, "1.3.6.1.4.1.6574.2.1.1.6.0|2|38",
+    ];
+    return send(res, 200, {
+      format: "netpulse-device-report", format_version: 1, netpulse: "0.73.0", created_at: new Date().toISOString(), interval_s: 30,
+      device: { sys_object_id: "1.3.6.1.4.1.6574.1", sys_descr: "DiskStation DS920+ Linux 4.4.302", detected_driver: "generic", driver: "auto", uptime_s: 1234 },
+      branches: [
+        { oid: "1.3.6.1.2.1.1", name: "SNMPv2-MIB::system", records: 5, truncated: false },
+        { oid: "1.3.6.1.2.1.2", name: "IF-MIB::interfaces", records: 4, truncated: false },
+        { oid: "1.3.6.1.2.1.31.1.1", name: "IF-MIB::ifXTable", records: 2, truncated: false },
+        { oid: "1.3.6.1.2.1.105.1", name: "POWER-ETHERNET-MIB", records: 0, truncated: false },
+        { oid: "1.3.6.1.4.1.6574", name: "gałąź producenta (1.3.6.1.4.1.6574)", records: 3, truncated: false },
+      ],
+      records: walk.length, changed: 2, walk: walk.join("\n") + "\n",
+      walk2_changes: "1.3.6.1.2.1.31.1.1.1.6.1|70|987700000\n1.3.6.1.2.1.31.1.1.1.6.2|70|1975400000\n", notes: "",
+    });
   }
   const idMatch = /^\/api\/devices\/(\d+)(\/probe)?$/.exec(url.pathname);
   if (route === "POST /api/probe" || (idMatch?.[2] && req.method === "POST")) {

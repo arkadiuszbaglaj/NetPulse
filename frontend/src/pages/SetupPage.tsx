@@ -8,6 +8,7 @@ import type { Device } from "../lib/api";
 import { MODULE_IDS, useModules } from "../lib/modules";
 import { useDevices } from "../lib/queries";
 import { DeviceForm } from "./settings/devices/DeviceForm";
+import { DiscoveryPanel } from "./settings/devices/DiscoveryPanel";
 import { ModuleList } from "./settings/ModulesPage";
 
 const STEPS: TextKey[] = ["setup.step.welcome", "setup.step.devices", "setup.step.modules", "setup.step.done"];
@@ -74,13 +75,14 @@ function Devices({ onNext, onBack }: { onNext: () => void; onBack: () => void })
   const list = devices.data ?? [];
   // Nowy formularz po każdym zapisie (klucz), a po pierwszym urządzeniu – dopiero na życzenie
   const [formKey, setFormKey] = useState(0);
-  const [adding, setAdding] = useState(true);
+  const [adding, setAdding] = useState(false);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
-  const showForm = adding || list.length === 0;
+  const showForm = adding;
   return (
     <div className="grid max-w-5xl gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <div className="flex flex-col gap-3">
         <p className="text-sm text-text-2">{t("setup.devices.intro")}</p>
+        <DiscoveryPanel onAdded={(added) => setLastAdded(added.map((d) => d.name).join(", "))} />
         {lastAdded && (
           <p role="status" className="rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
             {t("setup.devices.added", { name: lastAdded })}
@@ -100,7 +102,7 @@ function Devices({ onNext, onBack }: { onNext: () => void; onBack: () => void })
         ) : (
           <Button className="self-start" onClick={() => setAdding(true)}>
             <IconPlus size={16} aria-hidden="true" />
-            {t("setup.devices.another")}
+            {list.length ? t("setup.devices.another") : t("setup.devices.manual")}
           </Button>
         )}
       </div>

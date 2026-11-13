@@ -1,0 +1,53 @@
+name: Nowe urządzenie
+description: Urządzenie, które NetPulse zna tylko częściowo – z raportem urządzenia z panelu (Urządzenie → Przygotuj raport).
+title: "Nowe urządzenie: "
+labels: ["nowe-urządzenie"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dziękujemy! Pola niżej wypełnia panel NetPulse. **Dołącz pobrany plik raportu** (`netpulse-report-….json`)
+        w polu „Raport” – przeciągnij go albo wybierz. Raport jest zanonimizowany na Twoim serwerze (adresy IP i MAC,
+        nazwy, SSID, numery seryjne), ale przejrzyj go przed wysłaniem – zgłoszenia są publiczne.
+  - type: input
+    id: model
+    attributes:
+      label: Model i wersja firmware
+      placeholder: np. Synology DS920+, DSM 7.2.2
+    validations:
+      required: true
+  - type: input
+    id: object_id
+    attributes:
+      label: sysObjectID
+  - type: input
+    id: descr
+    attributes:
+      label: sysDescr (zanonimizowany)
+  - type: input
+    id: driver
+    attributes:
+      label: Driver wybrany przez NetPulse
+  - type: input
+    id: version
+    attributes:
+      label: Wersja NetPulse
+  - type: textarea
+    id: notes
+    attributes:
+      label: Uwagi
+      description: Co jest odczytywane źle albo czego brakuje, np. „port 5 to WAN”, „dwa dyski w RAID 1”.
+  - type: textarea
+    id: report
+    attributes:
+      label: Raport
+      description: Przeciągnij tu plik `netpulse-report-….json`.
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Zgoda
+      options:
+        - label: Zgadzam się, żeby zanonimizowany zrzut trafił do repozytorium NetPulse jako dane testowe (fixture).
+          required: true

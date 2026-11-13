@@ -482,6 +482,9 @@ export function mockApi(initial: Partial<MockState> = {}) {
     const override = state.overrides[key];
     if (override) return json(override.status, override.body);
 
+    // Wykrywanie urządzeń (0.73.0): domyślnie podsieć 192.168.1.0/24 i pusty wynik skanu (testy dają `overrides`)
+    if (key === "GET /api/discovery/suggest") return json(200, { network: "192.168.1.0/24" });
+    if (key === "POST /api/discovery/scan") return json(200, { network: (body as { network: string }).network, scanned: 254, took_s: 4.4, found: [] });
     // Urządzenia: dodawanie, test, edycja i usuwanie (sekrety z żądań nie wracają w odpowiedziach)
     // Pulpit publiczny: bez logowania; dane widgetów przez /data?path=… (z PIN-em – z kluczem dostępu)
     const pub = /^(GET|POST) \/api\/public\/dashboards\/([^/]+)(\/data|\/unlock)?$/.exec(key);

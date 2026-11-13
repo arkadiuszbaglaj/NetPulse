@@ -180,6 +180,18 @@ alert i zdarzenie `vpn_connect`. Od 0.72.0: `rx_rate`/`tx_rate` kontrolera są j
 historię) i widget VPN na żywo (`/api/live/vpn`, `VpnLiveHub`, `useLiveVpn` + `withLiveVpn`). Interfejs, którego nie ma w odczycie SNMP (np. `wgsrv1` między sesjami, rola `vpn`), dostaje
 `oper_status = "notPresent"` bez próbek (panel: „brak sesji” / „nieobecny”). Opis: `docs/30-vpn.md`.
 
+## Wykrywanie urządzeń i raport urządzenia (0.73.0)
+
+Etap 5 planu (`docs/40`). Skan podsieci w kreatorze `/setup` i w Ustawienia → Urządzenia → Wykryj w sieci:
+`netpulse/discovery.py` (v1/v2c: **jedno gniazdo UDP** dla całej podsieci, `scan_community`, /24 w ok. 5 s; v3: klienci pysnmp
+po 8), rozpoznanie tym samym `detect_driver` + `enrich_system` co kolektor, producent na driverze ogólnym z `ENTERPRISES`;
+API `api/discovery.py` (`/api/discovery/suggest|scan`), panel `DiscoveryPanel.tsx` (zaznacza sam sprzęt sieciowy, dodaje przez
+`POST /api/devices`). Raport urządzenia: `netpulse/devreport.py` (gałęzie standardowe + producenta, drugi odczyt po 30 s,
+anonimizacja `Anonymizer`; tablic MAC/ARP/tras/klientów nie czyta; `PySnmpClient.walk_typed` – typy .snmprec),
+`POST /api/devices/{id}/report`, panel `pages/DeviceReport.tsx` (pobranie JSON + link do szablonu
+`.github/ISSUE_TEMPLATE/nowe-urzadzenie.yml`). **Nowa gałąź z danymi osobowymi = reguła w `devreport.anonymize` i test
+w `test_discovery.py::test_report_has_no_private_values`.** Sprawdzone 13.11.2026 na UCG, USW i U6+. Opis: `docs/43-wykrywanie-urzadzen.md`.
+
 ## Szczegóły, dostępność i pulpity
 
 Od 0.20.0–0.23.0 (opis: `docs/20-szczegoly-i-pulpity.md`):
@@ -337,10 +349,8 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
 
 ## Do sprawdzenia później
 
-- **Wykrywanie urządzeń i zgłaszanie specyfikacji** – propozycja w `docs/24-wykrywanie-propozycja.md` (tylko
-  dokument). A: skan podsieci z wyborem, co dodać; B: zanonimizowany raport urządzenia na driverze ogólnym
-  (pobranie albo zgłoszenie na GitHubie, bez automatycznej wysyłki do czasu chmury i decyzji o licencji).
-  Użytkownik odłożył to 28.10.2026 – nie wdrażać bez jego decyzji.
+- **Wykrywanie urządzeń – reszta** – części A i B zrobione w 0.73.0 (`docs/43`); wysyłka raportu do serwera projektu
+  (sposób B z `docs/24`) dopiero z chmurą i po decyzji o licencji. Skan z kontenera API sprawdzić po aktualizacji na serwerze.
 - **Własne OID-y, przeglądarka MIB, profile YAML** – propozycja w `docs/25-wlasne-oid-propozycja.md` (tylko dokument,
   4.11.2026). Hybryda: drivery zostają, dochodzą własne metryki SNMP (tabela `metrics`), przeglądarka MIB (`pysmi`)
   i profile urządzeń w YAML. Nie wdrażać bez decyzji użytkownika.
@@ -356,7 +366,7 @@ Od 0.58.1 menu w grupach Monitoring / Zdarzenia / Integracje / System – pole `
   (zrzuty syntetyczne `tplink-jetstream`, `tplink-er7206` – czekają na prawdziwy sprzęt). Etap D ✅ (0.52.0): oficjalne API UniFi dla urządzeń bez SNMP i zajętość kanału AP. Etapy B–C czekają na decyzję.
 - **Plan działania** – `docs/40-plan-dzialania.md` (12.11.2026, po analizie wydajności, bezpieczeństwa i wyglądu):
   etapy 1 wydajność (gzip, kompresja TimescaleDB), 2 bezpieczeństwo (podpisane wydania, rola bazy, CSP), 3 wygląd,
-  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, został widok na telefonie).
+  4 angielski, 5 wykrywanie, 6 publikacja (po wyborze nazwy i licencji), 7–8 funkcje, 9 chmura. Etap 1 ✅ (0.67.0), etap 2 ✅ (0.68.0, 0.69.0), etap 3 ✅ (0.66.0, został widok na telefonie), etap 5 ✅ (0.73.0).
 - **Chmura producenta** – propozycja architektury w `docs/39-chmura-propozycja.md` (12.11.2026, tylko dokument):
   łącznik wychodzący (kontener `cloud`, WSS, parowanie kodem, logowanie podpisem), tunel panelu + skrót stanu
   (historia zostaje u użytkownika), push przez chmurę, licencja przez łącznik; etapy C0–C6. Nie wdrażać bez decyzji.
