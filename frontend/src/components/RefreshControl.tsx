@@ -11,7 +11,8 @@ export function refreshLabel(seconds: RefreshSeconds): string {
   return t("refresh.every", { value });
 }
 
-/** Pasek górny: odśwież teraz + wybór interwału automatycznego odświeżania (wspólny dla całego panelu). */
+/** Pasek górny: odśwież teraz + wybór interwału automatycznego odświeżania (wspólny dla całego panelu).
+ *  Na telefonie (< 640 px) sam przycisk „odśwież” – interwał jest w menu konta (`UserMenu`). */
 export function RefreshControl() {
   const { refreshSeconds, setRefreshSeconds, refreshNow, isRefreshing } = useRefresh();
   const { data: summary } = useDashboardSummary();
@@ -41,9 +42,9 @@ export function RefreshControl() {
         aria-expanded={open}
         aria-label={`${t("refresh.auto")}: ${refreshLabel(refreshSeconds)}`}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-1 rounded-lg px-2 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+        className="hidden h-9 items-center gap-1 rounded-lg px-2 text-sm text-text-2 hover:bg-surface-2 hover:text-text sm:flex"
       >
-        <span className="hidden sm:inline">{refreshLabel(refreshSeconds)}</span>
+        <span>{refreshLabel(refreshSeconds)}</span>
         <IconChevronDown size={16} aria-hidden="true" />
       </button>
 

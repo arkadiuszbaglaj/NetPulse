@@ -13,8 +13,9 @@ export function LiveToggle() {
       className="flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
     >
       <span aria-hidden="true" className={`size-2 rounded-full ${on ? "animate-pulse bg-success" : "border border-border-strong"}`} />
-      <span className="hidden sm:inline">{t(on ? "live.toggle.on" : "live.toggle.off")}</span>
-      <span className="sr-only sm:hidden">{t("live.toggle.label")}</span>
+      {/* Podpis od 400 px (większość telefonów); węższy ekran – sama kropka z nazwą dla czytnika ekranu */}
+      <span className="hidden min-[400px]:inline">{t(on ? "live.toggle.on" : "live.toggle.off")}</span>
+      <span className="sr-only min-[400px]:hidden">{t("live.toggle.label")}</span>
     </button>
   );
 }

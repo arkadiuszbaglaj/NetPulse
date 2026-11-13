@@ -140,7 +140,10 @@ export function Shell() {
             <AlertBell />
             <LiveToggle />
             <RefreshControl />
-            <ThemeToggle />
+            {/* Na telefonie motyw jest w menu konta – pasek mieści się w 360 px także z plakietką aktualizacji */}
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
             <UserMenu />
           </div>
         </header>

@@ -8,6 +8,8 @@ import { readFileSync } from "node:fs";
 const PORT = Number(process.env.PORT ?? 8000);
 // Wersja jak w panelu (package.json) – zrzuty ekranu z atrapy pokazują aktualny numer
 const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
+// Wersja „dostępnej aktualizacji” w atrapie: następna minor po bieżącej (zamiast 9.9.9 – zrzuty do README)
+const NEXT_VERSION = VERSION.replace(/^(\d+)\.(\d+)\.\d+.*$/, (_, a, b) => `${a}.${Number(b) + 1}.0`);
 // Kubełek wykresu jak w API (aggregates.bucket_seconds): równa drabinka, 24 h = 5 min
 const bucketS = (minutes) => [30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => s >= Math.floor((minutes * 60) / 300)) ?? 3600;
 const now = () => new Date().toISOString();
@@ -50,7 +52,7 @@ const updatesView = () => ({
 function startSimulation() {
   let i = 0;
   job = {
-    ...idleJob, state: "running", phase: PHASES[0], started_at: now(), from_version: installed, to_version: "9.9.9", from_commit: "abc1234", to_commit: "def5678",
+    ...idleJob, state: "running", phase: PHASES[0], started_at: now(), from_version: installed, to_version: NEXT_VERSION, from_commit: "abc1234", to_commit: "def5678",
     phases: PHASES.map((id, n) => ({ id, status: n === 0 ? "running" : "pending" })), log: ["== prepare", "Wolne miejsce: 41000 MB (wymagane co najmniej 2000 MB)"],
   };
   const timer = setInterval(() => {
@@ -58,7 +60,7 @@ function startSimulation() {
     i += 1;
     if (i >= PHASES.length) {
       clearInterval(timer);
-      installed = "9.9.9";
+      installed = NEXT_VERSION;
       updateInfo = null;
       job = { ...job, state: "ok", phase: null, finished_at: now(), log: [...job.log, "Aktualizacja zakończona"] };
       return;
@@ -210,7 +212,7 @@ createServer(async (req, res) => {
       `1.3.6.1.4.1.6574.1.5.1.0|4x|${hex("DS920+")}`, `1.3.6.1.4.1.6574.1.5.2.0|4x|${hex("SERIAL")}`, "1.3.6.1.4.1.6574.2.1.1.6.0|2|38",
     ];
     return send(res, 200, {
-      format: "netpulse-device-report", format_version: 1, netpulse: "0.73.0", created_at: new Date().toISOString(), interval_s: 30,
+      format: "netpulse-device-report", format_version: 1, netpulse: VERSION, created_at: new Date().toISOString(), interval_s: 30,
       device: { sys_object_id: "1.3.6.1.4.1.6574.1", sys_descr: "DiskStation DS920+ Linux 4.4.302", detected_driver: "generic", driver: "auto", uptime_s: 1234 },
       branches: [
         { oid: "1.3.6.1.2.1.1", name: "SNMPv2-MIB::system", records: 5, truncated: false },
@@ -262,10 +264,10 @@ createServer(async (req, res) => {
   if (route === "GET /api/updates") return send(res, 200, updatesView());
   if (route === "POST /api/updates/check") {
     await new Promise((r) => setTimeout(r, 900));
-    updateInfo = installed === "9.9.9"
+    updateInfo = installed === NEXT_VERSION
       ? { current: { version: installed, commit: "def5678" }, latest: { version: installed, commit: "def5678" }, behind: 0, ahead: 0, diverged: false, update_available: false, changes: [], checked_at: now() }
       : {
-          current: { version: installed, commit: "abc1234" }, latest: { version: "9.9.9", commit: "def5678" }, behind: 3, ahead: 0, diverged: false, update_available: true, checked_at: now(),
+          current: { version: installed, commit: "abc1234" }, latest: { version: NEXT_VERSION, commit: "def5678" }, behind: 3, ahead: 0, diverged: false, update_available: true, checked_at: now(),
           changes: [
             { sha: "def5678", subject: "Etap 5d: aktualizacja jednym kliknięciem" },
             { sha: "b0c1d2e", subject: "Kontrola miejsca na dysku w install.sh i netpulse update" },
@@ -418,7 +420,7 @@ createServer(async (req, res) => {
       end: "2026-10-31T23:00:00Z",
       generated_at: "2026-11-06T08:00:00Z",
       timezone: "Europe/Warsaw",
-      version: "0.65.0",
+      version: VERSION,
       raw_from: "2026-10-07T00:00:00Z",
       devices_percent: 99.9975,
       checks_percent: 99.5,

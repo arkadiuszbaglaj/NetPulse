@@ -291,3 +291,16 @@ body {
     width: clamp(5rem, 35cqw, 10rem);
   }
 }
+/* Wąski kafelek (dwa w rzędzie na telefonie): mini-wykres pod liczbą, na całą szerokość kafelka – obok liczby
+   ściskał się do kilku pikseli albo znikał przy dłuższej wartości (0.76.1). */
+@container (max-width: 240px) {
+  .np-sum-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.625rem;
+  }
+  .np-sum-spark {
+    width: 100%;
+    height: 2rem;
+  }
+}

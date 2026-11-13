@@ -17,7 +17,7 @@ export function Sparkline({ values, className = "" }: { values: (number | null)[
   const last = values.length - 1 || 1;
   const points = known.map(([i, v]) => `${((i / last) * 120).toFixed(1)},${(28 - ((v - min) / span) * 24).toFixed(1)}`).join(" ");
   return (
-    <svg width="80" height="28" viewBox="0 0 120 32" fill="none" aria-hidden="true" className={`min-w-0 shrink text-text-2 ${className}`}>
+    <svg width="80" height="28" viewBox="0 0 120 32" preserveAspectRatio="none" fill="none" aria-hidden="true" className={`min-w-0 shrink text-text-2 ${className}`}>
       <polyline points={points} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -57,7 +57,7 @@ function Metric({
         {label}
         {live && <LiveBadge compact />}
       </p>
-      <div className="mt-2 flex items-end justify-between gap-3">
+      <div className="np-sum-row mt-2 flex items-end justify-between gap-3">
         <p className={`np-sum-value whitespace-nowrap text-[28px] font-semibold leading-none tracking-tight ${color}`}>{value}</p>
         {spark && <Sparkline values={spark} className="np-sum-spark" />}
       </div>

@@ -248,7 +248,19 @@ Etap 3 planu z `docs/40-plan-dzialania.md` – bez zmian w API i bazie, sam pane
   wtedy (porty: jedno zapytanie na urządzenie, do 40 urządzeń). **Nowa strona w rejestrze modułów trafia do palety sama.**
 - Atrapa `frontend/dev/mock-api.mjs` pokazuje wersję z `package.json` i realistyczną dostępność (pojedyncze dni z awarią).
 
-Z etapu 3 zostało: widok na telefonie (mini-wykresy w kafelkach, pasek górny).
+### Widok na telefonie (0.76.1)
+
+Ostatni punkt etapu 3:
+
+- **Pasek górny mieści się w 360 px** (wcześniej 402 px przy ekranie 375 px – konto wychodziło za krawędź). Poniżej 640 px
+  nie ma przełącznika motywu ani listy interwału odświeżania: oba są w menu konta (`UserMenu`, część `sm:hidden`),
+  obok został sam przycisk „odśwież teraz”. Avatar bez strzałki. Przełącznik „Na żywo” ma podpis od 400 px szerokości
+  (węższy ekran – sama kropka). Miejsce zostaje na plakietkę aktualizacji.
+- **Mini-wykresy w kafelkach podsumowania na całą szerokość.** Kafelek węższy niż 240 px (dwa w rzędzie na telefonie)
+  rysuje mini-wykres pod liczbą (`.np-sum-row` w `index.css`, `@container` kafelka) – obok liczby ściskał się do kilku
+  pikseli albo znikał przy dłuższej wartości („8,52 Mb/s”). Linia rozciąga się na szerokość (`preserveAspectRatio="none"`).
+- Atrapa API: wersja „dostępnej aktualizacji” to następna wersja minor zamiast 9.9.9, raport miesięczny i raport urządzenia
+  podają bieżącą wersję z `package.json` – zrzuty do README bez retuszu.
 
 ## Technologia
 
